@@ -9,7 +9,7 @@ endif
 
 release: 
 	cargo build --release
-	cbindgen --config cbindgen.toml --crate c2pa-c --output tests/c2pa.h --lang c
+	cbindgen --config cbindgen.toml --crate c2pa-c --output include/c2pa.h --lang c
 
 test-c: release
 	$(CC) $(CFLAGS) tests/main.c -o target/ctest -lc2pa_c -L./target/release 

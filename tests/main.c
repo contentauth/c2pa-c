@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "c2pa.h"
+#include "../include/c2pa.h"
 
 const char* manifest = "{\
     \"claim_generator\":\"test\",\
