@@ -58,7 +58,7 @@ namespace C2pa
             os << s.str;
             return os;
         }
-     };
+    };
 
     // Exception class for C2pa errors
     class Exception : public exception
@@ -120,10 +120,10 @@ namespace C2pa
     // Returns a C2pa::String containing the manifest binary
     // Throws a C2pa::Exception for errors encountered by the C2pa library
     String sign_file(const char *source_path,
-                                const char *dest_path,
-                                const char *manifest,
-                                struct C2paSignerInfo signer_info,
-                                const char *data_dir)
+                     const char *dest_path,
+                     const char *manifest,
+                     struct C2paSignerInfo signer_info,
+                     const char *data_dir)
     {
         char *result = c2pa_sign_file(source_path, dest_path, manifest, signer_info, data_dir);
         if (result == NULL)

@@ -20,16 +20,17 @@ using json = nlohmann::json;
 using namespace std;
 
 /// @brief Read a text file into a string
-string read_text_file(const char* path) {
+string read_text_file(const char *path)
+{
     ifstream file(path);
-    if (!file.is_open()) {
+    if (!file.is_open())
+    {
         throw runtime_error("Could not open file " + string(path));
     }
     string contents((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
     file.close();
     return contents.data();
 }
-
 
 /// @brief Example of signing a file with a manifest and reading the manifest back
 /// @details This shows how to write a do not train assertion and read the status back
@@ -47,7 +48,7 @@ int main()
 
         // create a sign_info struct
         C2paSignerInfo sign_info = {.alg = "es256", .tsa_url = "http://timestamp.digicert.com", .signcert = certs.c_str(), .pkey = private_key.c_str()};
-   
+
         // sign the file
         C2pa::sign_file("tests/fixtures/A.jpg", "target/example/training.jpg", manifest_json.c_str(), sign_info, NULL);
 
@@ -57,34 +58,39 @@ int main()
 
         // parse the manifest and display the AI training status
 
-        bool allowed = true; // default to allowed 
+        bool allowed = true; // default to allowed
         json manifest_store = json::parse(new_manifest_json.c_str());
 
         // get the active manifest
-        string active_manifest = manifest_store["active_manifest"];  
-        json& manifest = manifest_store["manifests"][active_manifest];
+        string active_manifest = manifest_store["active_manifest"];
+        json &manifest = manifest_store["manifests"][active_manifest];
 
         // scan the assertions for the training-mining assertion
-        for (auto& assertion : manifest["assertions"]) {
-            if (assertion["label"] == "c2pa.training-mining") {
-                for(json& entry : assertion["data"]["entries"]) {
-                    if (entry["use"] == "notAllowed") {
+        for (auto &assertion : manifest["assertions"])
+        {
+            if (assertion["label"] == "c2pa.training-mining")
+            {
+                for (json &entry : assertion["data"]["entries"])
+                {
+                    if (entry["use"] == "notAllowed")
+                    {
                         allowed = false;
                     }
                 }
             }
         }
-        cout << "AI training is " <<  (allowed ? "allowed" : "not allowed") << endl;
+        cout << "AI training is " << (allowed ? "allowed" : "not allowed") << endl;
     }
     catch (C2pa::Exception e)
     {
         cout << "C2PA Error: " << e.what() << endl;
     }
-    catch(runtime_error e)
+    catch (runtime_error e)
     {
         cout << "setup error" << e.what() << endl;
     }
-    catch (json::parse_error& e) {
+    catch (json::parse_error &e)
+    {
         cout << "parse error " << e.what() << endl;
     }
 }

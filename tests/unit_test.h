@@ -16,8 +16,6 @@
 
 #include "../include/c2pa.h"
 
-//#define SIGN_INFO "{\"alg\" : \"es256\", \"tsa_url\" : \"http://timestamp.digicert.com\", \"signcert\": \"%s\", \"pkey\": \"%s\"}"
-
 // load a file into a string for testing
 char *load_file(const char *filename)
 {
@@ -41,7 +39,9 @@ char *load_file(const char *filename)
             buffer[file_size] = '\0'; // Add null terminator
         }
         fclose(fp);
-    } else {
+    }
+    else
+    {
         fprintf(stderr, "FAILED: unable to open file %s\n", filename);
         exit(1);
     }
@@ -49,13 +49,14 @@ char *load_file(const char *filename)
 }
 
 // these functions implement a poor person's test framework
-void passed(const char* what, char *c2pa_str) {
+void passed(const char *what, char *c2pa_str)
+{
     printf("PASSED: %s\n", what);
     c2pa_release_string(c2pa_str);
 }
 
 // assert that c2pa_str contains substr or exit
-void assert_contains(const char* what, char *c2pa_str, const char *substr)
+void assert_contains(const char *what, char *c2pa_str, const char *substr)
 {
     if (strstr(c2pa_str, substr) == NULL)
     {
@@ -67,10 +68,8 @@ void assert_contains(const char* what, char *c2pa_str, const char *substr)
     c2pa_release_string(c2pa_str);
 }
 
-
-
 // assert that c2pa_str is not NULL or exit
-void assert_not_null(const char* what, char *c2pa_str)
+void assert_not_null(const char *what, char *c2pa_str)
 {
     if (c2pa_str == NULL)
     {
@@ -79,14 +78,13 @@ void assert_not_null(const char* what, char *c2pa_str)
         c2pa_release_string(err);
         c2pa_release_string(c2pa_str);
         exit(1);
-    } 
+    }
     printf("PASSED: %s\n", what);
     c2pa_release_string(c2pa_str);
 }
 
-
 // assert if c2pa_str is NULL and we have the expected error
-void assert_null(const char* what, char *c2pa_str, const char *err_str)
+void assert_null(const char *what, char *c2pa_str, const char *err_str)
 {
     if (c2pa_str == NULL)
     {
@@ -98,7 +96,9 @@ void assert_null(const char* what, char *c2pa_str, const char *err_str)
             exit(1);
         }
         printf("PASSED: %s: \n", what);
-    } else {
+    }
+    else
+    {
         fprintf(stderr, "FAILED %s: expected NULL\n", what);
         c2pa_release_string(c2pa_str);
         exit(1);

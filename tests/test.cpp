@@ -15,7 +15,7 @@
 #include "../include/c2pa.hpp"
 
 // assert that c2pa_str contains substr or exit
-void assert_contains(const char* what, C2pa::String* c2pa_str, const char* substr)
+void assert_contains(const char *what, C2pa::String *c2pa_str, const char *substr)
 {
     if (strstr(c2pa_str->c_str(), substr) == NULL)
     {
@@ -24,7 +24,6 @@ void assert_contains(const char* what, C2pa::String* c2pa_str, const char* subst
     }
     printf("PASSED: %s\n", what);
 }
-
 
 using namespace std;
 
@@ -42,7 +41,6 @@ int main()
     catch (C2pa::Exception e)
     {
         cout << "Failed: C2pa::read_file_: " << e.what() << endl;
-        return(1);
+        return (1);
     };
 }
-
