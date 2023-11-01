@@ -11,19 +11,38 @@
 // each license.
 
 #include <iostream>
+#include <stdlib.h>
 #include "../include/c2pa.hpp"
 
-int main() {
-    cout << "The C2pa library version is " << C2pa::version() << endl;
-
-    try {
-        // read a file with a valid manifest
-        cout << "Manifest is " << C2pa::read_file("tests/fixtures/C.jpg", "target/tmp") << endl;
-
-        // read a file without a manifest to throw an exception
-        C2pa::C2paString manifest_json = C2pa::read_file("tests/fixtures/A.jpg", "target/tmp");
+// assert that c2pa_str contains substr or exit
+void assert_contains(const char* what, C2pa::String* c2pa_str, const char* substr)
+{
+    if (strstr(c2pa_str->c_str(), substr) == NULL)
+    {
+        fprintf(stderr, "FAILED %s: %s not found in %s\n", what, c2pa_str->c_str(), substr);
+        exit(1);
     }
-    catch (C2pa::C2paException e) {
-        cout << "Error reading file: " << e.what() << endl;
-    }
+    printf("PASSED: %s\n", what);
 }
+
+
+using namespace std;
+
+int main()
+{
+    auto version = C2pa::version();
+    assert_contains("C2pa::version", &version, "c2pa-c/0.");
+
+    try
+    {
+        // read a file with a valid manifest
+        auto manifest_json = C2pa::read_file("tests/fixtures/C.jpg", "target/tmp");
+        assert_contains("C2pa::read_file", &manifest_json, "C.jpg");
+    }
+    catch (C2pa::Exception e)
+    {
+        cout << "Failed: C2pa::read_file_: " << e.what() << endl;
+        return(1);
+    };
+}
+

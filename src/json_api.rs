@@ -24,7 +24,7 @@ pub fn read_from_file_json(path: &str, data_dir: Option<String>) -> Result<Strin
         Some(dir) => ManifestStore::from_file_with_resources(path, &dir),
         None => ManifestStore::from_file(path),
     }
-    .map_err(Error::Sdk)?
+    .map_err(Error::from_c2pa_error)?
     .to_string())
 }
 
@@ -33,7 +33,7 @@ pub fn read_from_file_json(path: &str, data_dir: Option<String>) -> Result<Strin
 /// Any thumbnail or c2pa data will be written to data_dir if provided
 pub fn ingredient_from_file_json(path: &str, data_dir: &str) -> Result<String> {
     Ok(Ingredient::from_file_with_folder(path, data_dir)
-        .map_err(Error::Sdk)?
+        .map_err(Error::from_c2pa_error)?
         .to_string())
 }
 
@@ -43,30 +43,36 @@ pub fn ingredient_from_file_json(path: &str, data_dir: &str) -> Result<String> {
 /// Signer information must also be supplied
 ///
 /// Any file paths in the manifest will be read relative to the source file
-pub fn add_manifest_to_file_json(
+pub fn sign_file(
     source: &str,
     dest: &str,
     manifest_info: &str,
     signer_info: SignerInfo,
     data_dir: Option<String>,
 ) -> Result<Vec<u8>> {
-    let mut manifest = Manifest::from_json(manifest_info).map_err(Error::Sdk)?;
+    let mut manifest = Manifest::from_json(manifest_info).map_err(Error::from_c2pa_error)?;
 
     // if data_dir is provided, set the base path for the manifest
     if let Some(path) = data_dir {
-        manifest.with_base_path(path).map_err(Error::Sdk)?;
+        manifest
+            .with_base_path(path)
+            .map_err(Error::from_c2pa_error)?;
     }
 
     // If the source file has a manifest store, and no parent is specified, treat the source's manifest store as the parent.
     if manifest.parent().is_none() {
-        let source_ingredient = Ingredient::from_file(source).map_err(Error::Sdk)?;
+        let source_ingredient = Ingredient::from_file(source).map_err(Error::from_c2pa_error)?;
         if source_ingredient.manifest_data().is_some() {
-            manifest.set_parent(source_ingredient).map_err(Error::Sdk)?;
+            manifest
+                .set_parent(source_ingredient)
+                .map_err(Error::from_c2pa_error)?;
         }
     }
 
     let signer = signer_info.signer()?;
-    manifest.embed(&source, &dest, &*signer).map_err(Error::Sdk)
+    manifest
+        .embed(&source, &dest, &*signer)
+        .map_err(Error::from_c2pa_error)
 }
 
 #[cfg(test)]

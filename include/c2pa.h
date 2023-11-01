@@ -137,11 +137,11 @@ IMPORT extern char *c2pa_ingredient_from_file(const char *path, const char *data
  * and it is no longer valid after that call.
  */
 IMPORT extern
-char *c2pa_add_manifest_to_file(const char *source_path,
-                                const char *dest_path,
-                                const char *manifest,
-                                struct C2paSignerInfo signer_info,
-                                const char *data_dir);
+char *c2pa_sign_file(const char *source_path,
+                     const char *dest_path,
+                     const char *manifest,
+                     struct C2paSignerInfo signer_info,
+                     const char *data_dir);
 
 /**
  * Releases a string allocated by Rust

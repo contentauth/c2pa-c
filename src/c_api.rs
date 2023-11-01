@@ -16,17 +16,40 @@ use std::{
     os::raw::c_char,
 };
 
+use c2pa::jumbf_io::get_supported_types;
+
 use crate::{
     error::Error,
-    json_api::{add_manifest_to_file_json, ingredient_from_file_json, read_from_file_json},
+    json_api::{ingredient_from_file_json, read_from_file_json, sign_file},
     signer_info::SignerInfo,
 };
-
-//use serde::Serialize;
 
 // Internal routine to convert a *const c_char to a rust String
 unsafe fn from_c_str(s: *const c_char) -> String {
     CStr::from_ptr(s).to_string_lossy().into_owned()
+}
+
+// Internal routine to convert a *const c_char to a rust String or return a null error
+macro_rules! from_cstr_null_check {
+    ($ptr : expr) => {
+        if $ptr.is_null() {
+            Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
+            return std::ptr::null_mut();
+        } else {
+            from_c_str($ptr)
+        }
+    };
+}
+
+// Internal routine to convert a *const c_char to Option<String>
+macro_rules! from_cstr_option {
+    ($ptr : expr) => {
+        if $ptr.is_null() {
+            None
+        } else {
+            Some(from_c_str($ptr))
+        }
+    };
 }
 
 // Internal routine to return a rust String reference to C as *mut c_char
@@ -38,13 +61,6 @@ unsafe fn to_c_string(s: String) -> *mut c_char {
         Err(_) => std::ptr::null_mut(),
     }
 }
-
-// convert a Result into JSON result string as *mut c_char
-// The returned value MUST be released by calling release_string
-// and it is no longer valid after that call.
-// unsafe fn result_to_c_string<T: Serialize>(result: Result<T>) -> *mut c_char {
-//     to_c_string(Response::from_result(result).to_string())
-// }
 
 /// Returns a version string for logging
 ///
@@ -80,8 +96,9 @@ pub unsafe extern "C" fn c2pa_error() -> *mut c_char {
 /// and it is no longer valid after that call.
 #[no_mangle]
 pub unsafe extern "C" fn c2pa_supported_formats() -> *mut c_char {
-    let formats = "[\"jpeg\"]".to_string();
-    to_c_string(formats)
+    let mut formats = get_supported_types();
+    formats.sort();
+    to_c_string(serde_json::to_string(&formats).unwrap_or_default())
 }
 
 /// Returns a ManifestStore JSON string from a file path.
@@ -100,18 +117,11 @@ pub unsafe extern "C" fn c2pa_read_file(
     path: *const c_char,
     data_dir: *const c_char,
 ) -> *mut c_char {
-    let path = if path.is_null() {
-        Error::set_last(Error::NullParameter("path".to_string()));
-        return std::ptr::null_mut();
-    } else {
-        from_c_str(path)
-    };
-    let data_dir = if data_dir.is_null() {
-        None
-    } else {
-        Some(from_c_str(data_dir))
-    };
+    let path = from_cstr_null_check!(path);
+    let data_dir = from_cstr_option!(data_dir);
+
     let result = read_from_file_json(&path, data_dir);
+
     match result {
         Ok(json) => to_c_string(json),
         Err(e) => {
@@ -138,19 +148,8 @@ pub unsafe extern "C" fn c2pa_ingredient_from_file(
     path: *const c_char,
     data_dir: *const c_char,
 ) -> *mut c_char {
-    // convert C pointers into Rust
-    let path = if path.is_null() {
-        Error::set_last(Error::NullParameter("path".to_string()));
-        return std::ptr::null_mut();
-    } else {
-        from_c_str(path)
-    };
-    let data_dir = if data_dir.is_null() {
-        Error::set_last(Error::NullParameter("data_dir is NULL".to_string()));
-        return std::ptr::null_mut();
-    } else {
-        from_c_str(data_dir)
-    };
+    let path = from_cstr_null_check!(path);
+    let data_dir = from_cstr_null_check!(data_dir);
 
     let result = ingredient_from_file_json(&path, &data_dir);
 
@@ -191,7 +190,7 @@ pub struct C2paSignerInfo {
 /// The returned value MUST be released by calling release_string
 /// and it is no longer valid after that call.
 #[no_mangle]
-pub unsafe extern "C" fn c2pa_add_manifest_to_file(
+pub unsafe extern "C" fn c2pa_sign_file(
     source_path: *const c_char,
     dest_path: *const c_char,
     manifest: *const c_char,
@@ -199,27 +198,19 @@ pub unsafe extern "C" fn c2pa_add_manifest_to_file(
     data_dir: *const c_char,
 ) -> *mut c_char {
     // convert C pointers into Rust
-    let source_path = from_c_str(source_path);
-    let dest_path = from_c_str(dest_path);
-    let manifest = from_c_str(manifest);
-    let data_dir = if data_dir.is_null() {
-        None
-    } else {
-        Some(from_c_str(data_dir))
-    };
+    let source_path = from_cstr_null_check!(source_path);
+    let dest_path = from_cstr_null_check!(dest_path);
+    let manifest = from_cstr_null_check!(manifest);
+    let data_dir = from_cstr_option!(data_dir);
+
     let signer_info = SignerInfo {
-        signcert: from_c_str(signer_info.signcert).into_bytes(),
-        pkey: from_c_str(signer_info.pkey).into_bytes(),
-        alg: from_c_str(signer_info.alg),
-        tsa_url: if signer_info.tsa_url.is_null() {
-            None
-        } else {
-            Some(from_c_str(signer_info.tsa_url))
-        },
+        signcert: from_cstr_null_check!(signer_info.signcert).into_bytes(),
+        pkey: from_cstr_null_check!(signer_info.pkey).into_bytes(),
+        alg: from_cstr_null_check!(signer_info.alg),
+        tsa_url: from_cstr_option!(signer_info.tsa_url),
     };
     // Read manifest from JSON and then sign and write it
-    let result =
-        add_manifest_to_file_json(&source_path, &dest_path, &manifest, signer_info, data_dir);
+    let result = sign_file(&source_path, &dest_path, &manifest, signer_info, data_dir);
 
     match result {
         Ok(_c2pa_data) => to_c_string("".to_string()),

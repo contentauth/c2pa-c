@@ -12,11 +12,15 @@ release:
 	cbindgen --config cbindgen.toml --crate c2pa-c --output include/c2pa.h --lang c
 
 test-c: release
-	$(CC) $(CFLAGS) tests/main.c -o target/ctest -lc2pa_c -L./target/release 
+	$(CC) $(CFLAGS) tests/test.c -o target/ctest -lc2pa_c -L./target/release
 	target/ctest
 
 test-cpp: release
-	$(CC) $(CFLAGS) -lstdc++ tests/test.cpp -o target/cpptest -lc2pa_c -L./target/release 
+	g++ $(CFLAGS) -std=c++11 tests/test.cpp -o target/cpptest -lc2pa_c -L./target/release 
 	target/cpptest
+
+example: release
+	g++ $(CFLAGS) -std=c++11 examples/training.cpp -o target/training -lc2pa_c -L./target/release
+	target/training
 
 test: test-c test-cpp

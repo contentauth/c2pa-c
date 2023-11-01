@@ -34,7 +34,7 @@ pub struct SignerInfo {
 impl SignerInfo {
     /// Create a SignerInfo from a JSON formatted SignerInfo string
     pub fn from_json(json: &str) -> Result<Self> {
-        serde_json::from_str(json).map_err(Error::Json)
+        serde_json::from_str(json).map_err(|e| Error::Json(e.to_string()))
     }
 
     // Returns the signing algorithm converted from string format
@@ -42,7 +42,7 @@ impl SignerInfo {
         self.alg
             .to_lowercase()
             .parse()
-            .map_err(|_| Error::Sdk(c2pa::Error::UnsupportedType))
+            .map_err(|_| Error::Other("Invalid signing algorithm".to_string()))
     }
 
     /// Create a signer from the SignerInfo
@@ -53,6 +53,6 @@ impl SignerInfo {
             self.alg()?,
             self.tsa_url.clone(),
         )
-        .map_err(Error::Sdk)
+        .map_err(Error::from_c2pa_error)
     }
 }
