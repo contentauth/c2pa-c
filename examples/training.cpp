@@ -14,10 +14,12 @@
 #include <fstream>
 #include <string>
 #include "../include/c2pa.hpp"
+#include "json.hpp"
 
+using json = nlohmann::json;
 using namespace std;
 
-
+/// @brief Read a text file into a string
 string read_text_file(const char* path) {
     ifstream file(path);
     if (!file.is_open()) {
@@ -30,6 +32,8 @@ string read_text_file(const char* path) {
 
 
 /// @brief Example of signing a file with a manifest and reading the manifest back
+/// @details This shows how to write a do not train assertion and read the status back
+/// @return 0 on success, 1 on failure
 int main()
 {
     cout << "The C2pa library version is " << C2pa::version() << endl;
@@ -47,8 +51,30 @@ int main()
         // sign the file
         C2pa::sign_file("tests/fixtures/A.jpg", "target/example/training.jpg", manifest_json.c_str(), sign_info, NULL);
 
-        // read the manifest back and display the JSON
-        cout << "Manifest is " << C2pa::read_file("target/example/training.jpg", "target/tmp") << endl;
+        // read the new manifest and display the JSON
+        auto new_manifest_json = C2pa::read_file("target/example/training.jpg", "target/tmp");
+        cout << "The new manifest is " << new_manifest_json << endl;
+
+        // parse the manifest and display the AI training status
+
+        bool allowed = true; // default to allowed 
+        json manifest_store = json::parse(new_manifest_json.c_str());
+
+        // get the active manifest
+        string active_manifest = manifest_store["active_manifest"];  
+        json& manifest = manifest_store["manifests"][active_manifest];
+
+        // scan the assertions for the training-mining assertion
+        for (auto& assertion : manifest["assertions"]) {
+            if (assertion["label"] == "c2pa.training-mining") {
+                for(json& entry : assertion["data"]["entries"]) {
+                    if (entry["use"] == "notAllowed") {
+                        allowed = false;
+                    }
+                }
+            }
+        }
+        cout << "AI training is " <<  (allowed ? "allowed" : "not allowed") << endl;
     }
     catch (C2pa::Exception e)
     {
@@ -57,5 +83,8 @@ int main()
     catch(runtime_error e)
     {
         cout << "setup error" << e.what() << endl;
+    }
+    catch (json::parse_error& e) {
+        cout << "parse error " << e.what() << endl;
     }
 }
