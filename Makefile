@@ -20,7 +20,16 @@ test-cpp: release
 	target/cpptest
 
 example: release
-	g++ $(CFLAGS) -std=c++11 examples/training.cpp -o target/training -lc2pa_c -L./target/release
+	g++ $(CFLAGS) -std=c++17 examples/training.cpp -o target/training -lc2pa_c -L./target/release
 	target/training
+
+# Creates a folder wtih c2patool bin, samples and readme
+package:
+	rm -rf target/c2pa-c
+	mkdir -p target/c2pa-c
+	mkdir -p target/c2pa-c/include
+	cp target/release/libc2pa_c.dylib target/c2pa-c/libc2pa_c.dylib
+	cp README.md target/c2pa-c/README.md
+	cp include/* target/c2pa-c/include
 
 test: test-c test-cpp

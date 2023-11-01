@@ -17,6 +17,8 @@ namespace C2pa
 {
     using namespace std;
 
+    typedef C2paSignerInfo SignerInfo;
+
     // C++ wrapper for Rust strings with destructor to release memory
     class String
     {
@@ -82,6 +84,7 @@ namespace C2pa
     }
 
     // Read a file and return the manifest json as a C2pa::String
+    // Note: Paths are UTF-8 encoded, use std.filename.u8string().c_str() if needed
     // filename: the name of the file to read
     // data_dir: the directory to store binary resources (can be NULL)
     // Returns a C2pa::String containing the manifest json
@@ -122,7 +125,7 @@ namespace C2pa
     String sign_file(const char *source_path,
                      const char *dest_path,
                      const char *manifest,
-                     struct C2paSignerInfo signer_info,
+                     SignerInfo signer_info,
                      const char *data_dir)
     {
         char *result = c2pa_sign_file(source_path, dest_path, manifest, signer_info, data_dir);

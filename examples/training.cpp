@@ -47,7 +47,7 @@ int main()
         string private_key = read_text_file("tests/fixtures/es256_private.key").data();
 
         // create a sign_info struct
-        C2paSignerInfo sign_info = {.alg = "es256", .tsa_url = "http://timestamp.digicert.com", .signcert = certs.c_str(), .pkey = private_key.c_str()};
+        C2pa::SignerInfo sign_info = {.alg = "es256", .tsa_url = "http://timestamp.digicert.com", .signcert = certs.c_str(), .pkey = private_key.c_str()};
 
         // sign the file
         C2pa::sign_file("tests/fixtures/A.jpg", "target/example/training.jpg", manifest_json.c_str(), sign_info, NULL);
