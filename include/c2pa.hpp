@@ -89,7 +89,7 @@ namespace C2pa
     // data_dir: the directory to store binary resources (can be NULL)
     // Returns a C2pa::String containing the manifest json
     // Throws a C2pa::Exception for errors encountered by the C2pa library
-    String read_file(const char *filename, const char *data_dir)
+    String read_file(const char *filename, const char *data_dir = NULL)
     {
         char *result = c2pa_read_file(filename, data_dir);
         if (result == NULL)
@@ -126,7 +126,7 @@ namespace C2pa
                      const char *dest_path,
                      const char *manifest,
                      SignerInfo signer_info,
-                     const char *data_dir)
+                     const char *data_dir = NULL)
     {
         char *result = c2pa_sign_file(source_path, dest_path, manifest, signer_info, data_dir);
         if (result == NULL)
