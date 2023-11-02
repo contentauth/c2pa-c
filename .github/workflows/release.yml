@@ -26,4 +26,4 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build for architecture
-        run: TARGET_CC=clang TARGET_AR=llvm-ar RUSTFLAGS="-Ctarget-feature=-crt-static -Clink-self-contained=yes" cargo build --release --target x86_64-unknown-linux-musl
+        run: RUSTFLAGS="-Ctarget-feature=-crt-static" cargo build --release --target x86_64-unknown-linux-musl
