@@ -1,0 +1,26 @@
+name: Build releases
+
+on: workflow_dispatch
+
+jobs:
+  build:
+    name: Build x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.70.0
+        with:
+          components: llvm-tools-preview
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install cbindgen
+        run: cargo install cbindgen
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build for architecture
+        run: TARGET_CC=clang TARGET_AR=llvm-ar RUSTFLAGS="-Ctarget-feature=-crt-static -Clink-self-contained=yes" cargo build --release --target aarch64-unknown-linux-musl
