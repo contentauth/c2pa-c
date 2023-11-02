@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build x86_64
+    name: Build linux
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -22,7 +22,7 @@ jobs:
         uses: dtolnay/rust-toolchain@1.70.0
         with:
           components: llvm-tools-preview
-          targets: x86_64-unknown-linux-musl
+          targets: aarch64-unknown-linux-musl,x86_64-unknown-linux-musl
 
       - name: Install cbindgen
         run: cargo install cbindgen
@@ -31,4 +31,5 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build for architecture
-        run: RUSTFLAGS="-Ctarget-feature=-crt-static" cargo build --release --target x86_64-unknown-linux-musl
+        run: RUSTFLAGS="-Ctarget-feature=-crt-static" cargo build --release --target aarch64-unknown-linux-musl
+        # run: RUSTFLAGS="-Ctarget-feature=-crt-static" cargo build --release --target x86_64-unknown-linux-musl
