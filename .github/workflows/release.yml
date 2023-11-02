@@ -32,6 +32,8 @@ jobs:
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: aarch64-unknown-linux-musl
 
       - name: Build for architecture
         run: RUSTFLAGS="-Ctarget-feature=-crt-static" cross build --release --target aarch64-unknown-linux-musl
