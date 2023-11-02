@@ -1,6 +1,9 @@
 name: Build releases
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize]
 
 jobs:
   build:
