@@ -1,6 +1,8 @@
 # c2pa-c
 
-This library implements C and C++ APIs that read and validate C2PA data from and add signed manifests to supported media files.
+This library implements C and C++ APIs that:
+- Read and validate C2PA data from media files in [supported formats](#supported-file-formats).
+- Add signed manifests to media files in [supported formats](#supported-file-formats).
 
 ## Installation
 
