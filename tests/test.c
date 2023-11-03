@@ -22,16 +22,13 @@ int main(void)
     char *version = c2pa_version();
     assert_contains("version", version, "c2pa-c/0.");
 
-    char *formats = c2pa_supported_formats();
-    assert_contains("c2pa_supported_formats", formats, "jpeg");
-
     char *result1 = c2pa_read_file("tests/fixtures/C.jpg", NULL);
     assert_not_null("c2pa_read_file_no_data_dir", result1);
 
     char *result = c2pa_read_file("tests/fixtures/C.jpg", "target/tmp");
     assert_not_null("c2pa_read_file", result);
 
-    result = c2pa_ingredient_from_file("tests/fixtures/C.jpg", "target/ingredient");
+    result = c2pa_read_ingredient_file("tests/fixtures/C.jpg", "target/ingredient");
     assert_not_null("c2pa_ingredient_from_file", result);
 
     char *certs = load_file("tests/fixtures/es256_certs.pem");
@@ -40,7 +37,7 @@ int main(void)
     char *manifest = load_file("tests/fixtures/training.json");
 
     // create a sign_info struct
-    C2paSignerInfo sign_info = {.alg = "es256", .tsa_url = "http://timestamp.digicert.com", .signcert = certs, .pkey = private_key};
+    C2paSignerInfo sign_info = {.alg = "es256", .sign_cert = certs, .private_key = private_key, .ta_url = "http://timestamp.digicert.com"};
 
     result = c2pa_sign_file("tests/fixtures/C.jpg", "target/tmp/earth.jpg", manifest, sign_info, "tests/fixtures");
     assert_not_null("c2pa_sign_file_ok", result);

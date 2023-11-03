@@ -7,6 +7,15 @@ ifeq ($(OS), Linux)
 CFLAGS = -pthread -Wl,--no-as-needed -ldl -lm
 endif
 
+check-format:
+	cargo +nightly fmt -- --check
+
+clippy:
+	cargo clippy --all-features --all-targets -- -D warnings
+
+test-rust:
+	cargo test --all-features
+
 release: 
 	cargo build --release
 	cbindgen --config cbindgen.toml --crate c2pa-c --output include/c2pa.h --lang c
@@ -32,4 +41,6 @@ package:
 	cp README.md target/c2pa-c/README.md
 	cp include/* target/c2pa-c/include
 
-test: test-c test-cpp
+test: check-format clippy test-rust test-c test-cpp
+
+all: test example
