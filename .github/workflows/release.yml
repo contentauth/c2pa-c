@@ -40,7 +40,13 @@ jobs:
           shared-key: aarch64-unknown-linux-musl
 
       - name: Build dynamic library
-        run: RUSTFLAGS="-Ctarget-feature=-crt-static" cross build --release --target aarch64-unknown-linux-musl
+        run: make TARGET=aarch64-unknown-linux-musl build-cross
+
+      - name: Run C tests
+        run: cross-util run --target aarch64-unknown-linux-musl -- 'make TARGET=aarch64-unknown-linux-musl test-c'
+
+      - name: Run C++ tests
+        run: cross-util run --target aarch64-unknown-linux-musl -- 'make TARGET=aarch64-unknown-linux-musl test-cpp'
 
       - name: Add built files to archive
         uses: actions/upload-artifact@v3
@@ -90,7 +96,13 @@ jobs:
           shared-key: x86_64-unknown-linux-musl
 
       - name: Build dynamic library
-        run: RUSTFLAGS="-Ctarget-feature=-crt-static" cargo build --release --target x86_64-unknown-linux-musl
+        run: make TARGET=x86_64-unknown-linux-musl build
+
+      - name: Run C tests
+        run: make TARGET=x86_64-unknown-linux-musl test-c
+
+      - name: Run C++ tests
+        run: make TARGET=x86_64-unknown-linux-musl test-cpp
 
       - name: Add built files to archive
         uses: actions/upload-artifact@v3

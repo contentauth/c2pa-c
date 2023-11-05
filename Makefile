@@ -7,20 +7,34 @@ ifeq ($(OS), Linux)
 CFLAGS = -pthread -Wl,--no-as-needed -ldl -lm
 endif
 
-release: 
-	cargo build --release
+RUSTFLAGS = -Ctarget-feature=-crt-static
+
+generate-bindings:
+	cargo install cbindgen
 	cbindgen --config cbindgen.toml --crate c2pa-c --output include/c2pa.h --lang c
 
-test-c: release
-	$(CC) $(CFLAGS) tests/test.c -o target/ctest -lc2pa_c -L./target/release
+build:
+	RUSTFLAGS=$(RUSTFLAGS) cargo build --release --target $(TARGET)
+	$(MAKE) generate-bindings
+
+build-cross:
+	cross build --release --target $(TARGET)
+	$(MAKE) generate-bindings
+
+release: 
+	cargo build --release
+	$(MAKE) generate-bindings
+
+test-c:
+	$(CC) $(CFLAGS) tests/test.c -o target/ctest -lc2pa_c -L./target/$(TARGET)/release
 	target/ctest
 
-test-cpp: release
-	g++ $(CFLAGS) -std=c++11 tests/test.cpp -o target/cpptest -lc2pa_c -L./target/release 
+test-cpp:
+	g++ $(CFLAGS) -std=c++11 tests/test.cpp -o target/cpptest -lc2pa_c -L./target/$(TARGET)/release 
 	target/cpptest
 
-example: release
-	g++ $(CFLAGS) -std=c++17 examples/training.cpp -o target/training -lc2pa_c -L./target/release
+example:
+	g++ $(CFLAGS) -std=c++17 examples/training.cpp -o target/training -lc2pa_c -L./target/$(TARGET)/release
 	target/training
 
 # Creates a folder wtih c2patool bin, samples and readme
