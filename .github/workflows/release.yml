@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - x86_64-unknown-linux-musl
+          - aarch-unknown-linux-musl
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,10 +48,16 @@ jobs:
         run: make TARGET=${{matrix.target}} build-cross
 
       - name: Run C tests
-        run: cross-util run --target ${{matrix.target}} -- 'make TARGET=${{matrix.target}} test-c'
+        # We need to store the exit code since cross-util will always exit with 0
+        run: |
+          EXIT_CODE=$(cross-util run --target ${{matrix.target}} -- 'make TARGET=${{matrix.target}} test-c; echo $?' | tail -1)
+          exit "$EXIT_CODE"
 
       - name: Run C++ tests
-        run: cross-util run --target ${{matrix.target}} -- 'make TARGET=${{matrix.target}} test-cpp'
+        # We need to store the exit code since cross-util will always exit with 0
+        run: |
+          EXIT_CODE=$(cross-util run --target ${{matrix.target}} -- 'make TARGET=${{matrix.target}} test-cpp; echo $?' | tail -1)
+          exit "$EXIT_CODE"
 
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
