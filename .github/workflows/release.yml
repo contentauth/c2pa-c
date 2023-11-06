@@ -36,11 +36,8 @@ jobs:
       - name: Install cargo binstall
         uses: cargo-bins/cargo-binstall@main
 
-      - name: Install cbindgen
-        run: cargo install cbindgen
-
-      - name: Install cross
-        run: cargo binstall cross
+      - name: Install cbindgen, cross
+        run: cargo-binstall -y cbindgen cross
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -61,11 +58,6 @@ jobs:
         run: |
           EXIT_CODE=$(cross-util run --target ${{matrix.target}} -- 'make TARGET=${{matrix.target}} test-cpp; echo $?' | tail -1)
           exit "$EXIT_CODE"
-
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        with:
-          limit-access-to-actor: true
 
       - name: Add built files to archive
         uses: actions/upload-artifact@v3
