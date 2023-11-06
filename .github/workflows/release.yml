@@ -6,9 +6,15 @@ on:
     types: [opened, synchronize]
 
 jobs:
-  build-linux-aarch64:
-    name: Build aarch64-unknown-linux-gnu
+  build:
+    name: Build ${{matrix.target}}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-unknown-linux-musl
+          - x86_64-unknown-linux-musl
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,7 +32,7 @@ jobs:
         uses: dtolnay/rust-toolchain@1.70.0
         with:
           components: llvm-tools-preview
-          targets: aarch64-unknown-linux-gnu
+          target: ${{matrix.target}}
 
       - name: Install cbindgen
         run: cargo install cbindgen
@@ -37,21 +43,21 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: aarch64-unknown-linux-gnu
+          shared-key: ${{matrix.target}}
 
       - name: Build dynamic library
-        run: make TARGET=aarch64-unknown-linux-gnu build-cross
+        run: make TARGET=${{matrix.target}} build-cross
 
       - name: Run C tests
-        run: cross-util run --target aarch64-unknown-linux-gnu -- 'make TARGET=aarch64-unknown-linux-gnu test-c'
+        run: cross-util run --target ${{matrix.target}} -- 'make TARGET=${{matrix.target}} test-c'
 
       - name: Run C++ tests
-        run: cross-util run --target aarch64-unknown-linux-gnu -- 'make TARGET=aarch64-unknown-linux-gnu test-cpp'
+        run: cross-util run --target ${{matrix.target}} -- 'make TARGET=${{matrix.target}} test-cpp'
 
       - name: Add built files to archive
         uses: actions/upload-artifact@v3
         with:
-          name: c2pa-c_aarch64-unknown-linux-gnu-${{ steps.sha.outputs.sha_short }}.zip
+          name: c2pa-c_${{matrix.target}}-${{ steps.sha.outputs.sha_short }}.zip
           path: |
             README.md
             include/**
@@ -61,62 +67,6 @@ jobs:
       - name: Add supporting files to archive
         uses: actions/upload-artifact@v3
         with:
-          name: c2pa-c_aarch64-unknown-linux-gnu-${{ steps.sha.outputs.sha_short }}.zip
-          path: target/aarch64-unknown-linux-gnu/release/libc2pa_c*
-          retention-days: 3
-
-  build-linux-x86_64:
-    name: Build x86_64-unknown-linux-musl
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Get short SHA
-        id: sha
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Install build tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install musl-tools
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.70.0
-        with:
-          components: llvm-tools-preview
-          targets: x86_64-unknown-linux-musl
-
-      - name: Install cbindgen
-        run: cargo install cbindgen
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: x86_64-unknown-linux-musl
-
-      - name: Build dynamic library
-        run: make TARGET=x86_64-unknown-linux-musl build
-
-      - name: Run C tests
-        run: make TARGET=x86_64-unknown-linux-musl test-c
-
-      - name: Run C++ tests
-        run: make TARGET=x86_64-unknown-linux-musl test-cpp
-
-      - name: Add built files to archive
-        uses: actions/upload-artifact@v3
-        with:
-          name: c2pa-c_x86_64-unknown-linux-musl-${{ steps.sha.outputs.sha_short }}.zip
-          path: |
-            README.md
-            include/**
-            examples/**
-          retention-days: 3
-
-      - name: Add supporting files to archive
-        uses: actions/upload-artifact@v3
-        with:
-          name: c2pa-c_x86_64-unknown-linux-musl-${{ steps.sha.outputs.sha_short }}.zip
-          path: target/x86_64-unknown-linux-musl/release/libc2pa_c*
+          name: c2pa-c_${{matrix.target}}-${{ steps.sha.outputs.sha_short }}.zip
+          path: target/${{matrix.target}}/release/libc2pa_c*
           retention-days: 3
