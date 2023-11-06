@@ -43,6 +43,7 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
+          prefix-key: v1-rust
           shared-key: ${{matrix.target}}
 
       - name: Build dynamic library
