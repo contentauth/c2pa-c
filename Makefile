@@ -7,18 +7,16 @@ ifeq ($(OS), Linux)
 CFLAGS = -pthread -Wl,--no-as-needed -ldl -lm
 endif
 
-RUSTFLAGS = -Ctarget-feature=-crt-static
-
 generate-bindings:
 	cargo install cbindgen
 	cbindgen --config cbindgen.toml --crate c2pa-c --output include/c2pa.h --lang c
 
 build:
-	RUSTFLAGS=$(RUSTFLAGS) cargo build --release --target $(TARGET)
+	cargo build --release --target $(TARGET)
 	$(MAKE) generate-bindings
 
 build-cross:
-	RUSTFLAGS=$(RUSTFLAGS) cross build --release --target $(TARGET)
+	cross build --release --target $(TARGET)
 	$(MAKE) generate-bindings
 
 release: 
