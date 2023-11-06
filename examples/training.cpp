@@ -39,6 +39,7 @@ string read_text_file(const char *path)
 int main()
 {
     cout << "The C2pa library version is " << C2pa::version() << endl;
+    cout << "RUNNING EXAMPLE training.cpp " << endl;
 
     try
     {
@@ -48,7 +49,10 @@ int main()
         string private_key = read_text_file("tests/fixtures/es256_private.key").data();
 
         // create a sign_info struct
-        C2pa::SignerInfo sign_info = {.alg = "es256", .sign_cert = certs.c_str(), .private_key = private_key.c_str(), .ta_url = "http://timestamp.digicert.com"};
+        C2pa::SignerInfo sign_info = {.alg = "es256", 
+                                      .sign_cert = certs.c_str(), 
+                                      .private_key = private_key.c_str(), 
+                                      .ta_url = "http://timestamp.digicert.com"};
 
         // sign the file
         C2pa::sign_file("tests/fixtures/A.jpg", "target/example/training.jpg", manifest_json.c_str(), sign_info);
