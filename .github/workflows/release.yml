@@ -33,11 +33,14 @@ jobs:
           components: llvm-tools-preview
           target: ${{matrix.target}}
 
+      - name: Install cargo binstall
+        uses: cargo-bins/cargo-binstall@main
+
       - name: Install cbindgen
         run: cargo install cbindgen
 
       - name: Install cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
+        run: cargo binstall cross
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2

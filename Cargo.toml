@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Gavin Peacock <gpeacock@adobe.com"]
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["staticlib"]
 
 [dependencies]
 c2pa = { version = "0.26.0", features = [
