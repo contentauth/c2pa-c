@@ -39,13 +39,12 @@ test-c:
 	LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:./target/$(TARGET)/release target/$(TARGET)/ctest
 
 test-cpp:
-	export LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:./target/$(TARGET)/release
 	g++ $(CFLAGS) -std=c++11 tests/test.cpp -o target/$(TARGET)/cpptest -lc2pa_c -L./target/$(TARGET)/release 
 	LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:./target/$(TARGET)/release target/$(TARGET)/cpptest
 
 example:
 	g++ $(CFLAGS) -std=c++17 examples/training.cpp -o target/$(TARGET)/training -lc2pa_c -L./target/$(TARGET)/release
-	target/$(TARGET)/training
+	LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:./target/$(TARGET)/release target/$(TARGET)/training
 
 # Creates a folder wtih c2patool bin, samples and readme
 package:
