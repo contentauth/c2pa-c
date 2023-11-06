@@ -45,21 +45,21 @@
  */
 typedef struct C2paSignerInfo {
   /**
-   * The public certificate chain in PEM format
-   */
-  const char *signcert;
-  /**
-   * The private key in PEM format
-   */
-  const char *pkey;
-  /**
    * The signing algorithm
    */
   const char *alg;
   /**
+   * The public certificate chain in PEM format
+   */
+  const char *sign_cert;
+  /**
+   * The private key in PEM format
+   */
+  const char *private_key;
+  /**
    * The timestamp authority URL or NULL
    */
-  const char *tsa_url;
+  const char *ta_url;
 } C2paSignerInfo;
 
 #ifdef __cplusplus
@@ -83,15 +83,6 @@ IMPORT extern char *c2pa_version(void);
  * and it is no longer valid after that call.
  */
 IMPORT extern char *c2pa_error(void);
-
-/**
- * Returns a JSON array of supported file format extensions
- *
- * # Safety
- * The returned value MUST be released by calling release_string
- * and it is no longer valid after that call.
- */
-IMPORT extern char *c2pa_supported_formats(void);
 
 /**
  * Returns a ManifestStore JSON string from a file path.
@@ -122,7 +113,7 @@ IMPORT extern char *c2pa_read_file(const char *path, const char *data_dir);
  * The returned value MUST be released by calling release_string
  * and it is no longer valid after that call.
  */
-IMPORT extern char *c2pa_ingredient_from_file(const char *path, const char *data_dir);
+IMPORT extern char *c2pa_read_ingredient_file(const char *path, const char *data_dir);
 
 /**
  * Add a signed manifest to the file at path using auth_token

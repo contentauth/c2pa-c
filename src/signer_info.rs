@@ -26,10 +26,11 @@ use crate::{Error, Result};
 ///
 #[derive(Clone, Debug, Deserialize)]
 pub struct SignerInfo {
-    pub signcert: Vec<u8>,
-    pub pkey: Vec<u8>,
     pub alg: String,
-    pub tsa_url: Option<String>,
+    pub sign_cert: Vec<u8>,
+    pub private_key: Vec<u8>,
+    #[serde(alias = "ta_url")]
+    pub ta_url: Option<String>,
 }
 impl SignerInfo {
     /// Create a SignerInfo from a JSON formatted SignerInfo string
@@ -48,10 +49,10 @@ impl SignerInfo {
     /// Create a signer from the SignerInfo
     pub fn signer(&self) -> Result<Box<dyn Signer>> {
         create_signer::from_keys(
-            &self.signcert,
-            &self.pkey,
+            &self.sign_cert,
+            &self.private_key,
             self.alg()?,
-            self.tsa_url.clone(),
+            self.ta_url.clone(),
         )
         .map_err(Error::from_c2pa_error)
     }

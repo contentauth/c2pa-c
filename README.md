@@ -46,7 +46,7 @@ string private_key = read_text_file("path/to/private.key").data();
 Then create a new `SignerInfo` instance using the keys as follows, specifying the signing algorithm used and optionally a time stamp authority URL:
 
 ```c++
-C2paSignerInfo sign_info = {.alg = "es256", .tsa_url = "http://timestamp.digicert.com", .signcert = certs.c_str(), .pkey = private_key.c_str()};
+C2paSignerInfo sign_info = {.alg = "es256",  .sign_cert = certs.c_str(), .private_key = private_key.c_str(), .ta_url = "http://timestamp.digicert.com"};
 ```
 
 For the list of supported signing algorithms, see [Creating and using an X.509 certificate](https://opensource.contentauthenticity.org/docs/c2patool/x_509).
@@ -60,6 +60,12 @@ A sample JSON manifest is provided in tests/fixtures/training.json.
 ```c++
 const std::string manifest_json = R"{
     "claim_generator": "c2pa_c_test/0.1",
+    "claim_generator_info": [
+      {
+        "name": "c2pa-c test",
+        "version": "0.1"
+      }
+    ],
     "assertions": [
     {
       "label": "c2pa.training-mining",

@@ -34,7 +34,7 @@ namespace C2pa
         // These functions are friends of the String class so they can access the private constructor
         friend String version();
         friend String read_file(const char *filename, const char *data_dir);
-        friend String read_ingredient_from_file(const char *filename, const char *data_dir);
+        friend String read_ingredient_file(const char *filename, const char *data_dir);
         friend String sign_file(const char *source_path,
                                 const char *dest_path,
                                 const char *manifest,
@@ -89,7 +89,7 @@ namespace C2pa
     // data_dir: the directory to store binary resources (can be NULL)
     // Returns a C2pa::String containing the manifest json
     // Throws a C2pa::Exception for errors encountered by the C2pa library
-    String read_file(const char *filename, const char *data_dir)
+    String read_file(const char *filename, const char *data_dir = NULL)
     {
         char *result = c2pa_read_file(filename, data_dir);
         if (result == NULL)
@@ -104,9 +104,9 @@ namespace C2pa
     // data_dir: the directory to store binary resources
     // Returns a C2pa::String containing the manifest json
     // Throws a C2pa::Exception for errors encountered by the C2pa library
-    String read_ingredient_from_file(const char *filename, const char *data_dir)
+    String read_ingredient_file(const char *filename, const char *data_dir)
     {
-        char *result = c2pa_ingredient_from_file(filename, data_dir);
+        char *result = c2pa_read_ingredient_file(filename, data_dir);
         if (result == NULL)
         {
             throw Exception();
@@ -126,7 +126,7 @@ namespace C2pa
                      const char *dest_path,
                      const char *manifest,
                      SignerInfo signer_info,
-                     const char *data_dir)
+                     const char *data_dir = NULL)
     {
         char *result = c2pa_sign_file(source_path, dest_path, manifest, signer_info, data_dir);
         if (result == NULL)

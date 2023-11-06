@@ -16,11 +16,9 @@ use std::{
     os::raw::c_char,
 };
 
-use c2pa::jumbf_io::get_supported_types;
-
 use crate::{
     error::Error,
-    json_api::{ingredient_from_file_json, read_from_file_json, sign_file},
+    json_api::{read_file, read_ingredient_file, sign_file},
     signer_info::SignerInfo,
 };
 
@@ -89,18 +87,6 @@ pub unsafe extern "C" fn c2pa_error() -> *mut c_char {
     to_c_string(Error::last_message().unwrap_or_default())
 }
 
-/// Returns a JSON array of supported file format extensions
-///
-/// # Safety
-/// The returned value MUST be released by calling release_string
-/// and it is no longer valid after that call.
-#[no_mangle]
-pub unsafe extern "C" fn c2pa_supported_formats() -> *mut c_char {
-    let mut formats = get_supported_types();
-    formats.sort();
-    to_c_string(serde_json::to_string(&formats).unwrap_or_default())
-}
-
 /// Returns a ManifestStore JSON string from a file path.
 /// Any thumbnails or other binary resources will be written to data_dir if provided
 ///
@@ -120,7 +106,7 @@ pub unsafe extern "C" fn c2pa_read_file(
     let path = from_cstr_null_check!(path);
     let data_dir = from_cstr_option!(data_dir);
 
-    let result = read_from_file_json(&path, data_dir);
+    let result = read_file(&path, data_dir);
 
     match result {
         Ok(json) => to_c_string(json),
@@ -144,14 +130,14 @@ pub unsafe extern "C" fn c2pa_read_file(
 /// The returned value MUST be released by calling release_string
 /// and it is no longer valid after that call.
 #[no_mangle]
-pub unsafe extern "C" fn c2pa_ingredient_from_file(
+pub unsafe extern "C" fn c2pa_read_ingredient_file(
     path: *const c_char,
     data_dir: *const c_char,
 ) -> *mut c_char {
     let path = from_cstr_null_check!(path);
     let data_dir = from_cstr_null_check!(data_dir);
 
-    let result = ingredient_from_file_json(&path, &data_dir);
+    let result = read_ingredient_file(&path, &data_dir);
 
     match result {
         Ok(json) => to_c_string(json),
@@ -169,14 +155,14 @@ pub unsafe extern "C" fn c2pa_ingredient_from_file(
 /// an optional url to an RFC 3161 compliant time server will ensure the signature is timestamped
 ///
 pub struct C2paSignerInfo {
-    /// The public certificate chain in PEM format
-    pub signcert: *const c_char,
-    /// The private key in PEM format
-    pub pkey: *const c_char,
     /// The signing algorithm
     pub alg: *const c_char,
+    /// The public certificate chain in PEM format
+    pub sign_cert: *const c_char,
+    /// The private key in PEM format
+    pub private_key: *const c_char,
     /// The timestamp authority URL or NULL
-    pub tsa_url: *const c_char,
+    pub ta_url: *const c_char,
 }
 
 /// Add a signed manifest to the file at path using auth_token
@@ -204,10 +190,10 @@ pub unsafe extern "C" fn c2pa_sign_file(
     let data_dir = from_cstr_option!(data_dir);
 
     let signer_info = SignerInfo {
-        signcert: from_cstr_null_check!(signer_info.signcert).into_bytes(),
-        pkey: from_cstr_null_check!(signer_info.pkey).into_bytes(),
         alg: from_cstr_null_check!(signer_info.alg),
-        tsa_url: from_cstr_option!(signer_info.tsa_url),
+        sign_cert: from_cstr_null_check!(signer_info.sign_cert).into_bytes(),
+        private_key: from_cstr_null_check!(signer_info.private_key).into_bytes(),
+        ta_url: from_cstr_option!(signer_info.ta_url),
     };
     // Read manifest from JSON and then sign and write it
     let result = sign_file(&source_path, &dest_path, &manifest, signer_info, data_dir);

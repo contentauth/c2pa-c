@@ -25,6 +25,15 @@ release:
 	cargo build --release
 	$(MAKE) generate-bindings
 
+check-format:
+	cargo +nightly fmt -- --check
+
+clippy:
+	cargo clippy --all-features --all-targets -- -D warnings
+
+test-rust:
+	cargo test --all-features
+
 test-c:
 	$(CC) $(CFLAGS) tests/test.c -o target/ctest -lc2pa_c -L./target/$(TARGET)/release
 	target/ctest
@@ -46,4 +55,6 @@ package:
 	cp README.md target/c2pa-c/README.md
 	cp include/* target/c2pa-c/include
 
-test: test-c test-cpp
+test: check-format clippy test-rust test-c test-cpp
+
+all: test example

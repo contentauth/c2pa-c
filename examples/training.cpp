@@ -16,6 +16,7 @@
 #include "../include/c2pa.hpp"
 #include "json.hpp"
 
+// this example uses nlohmann json for parsing the manifest
 using json = nlohmann::json;
 using namespace std;
 
@@ -47,13 +48,13 @@ int main()
         string private_key = read_text_file("tests/fixtures/es256_private.key").data();
 
         // create a sign_info struct
-        C2pa::SignerInfo sign_info = {.alg = "es256", .tsa_url = "http://timestamp.digicert.com", .signcert = certs.c_str(), .pkey = private_key.c_str()};
+        C2pa::SignerInfo sign_info = {.alg = "es256", .sign_cert = certs.c_str(), .private_key = private_key.c_str(), .ta_url = "http://timestamp.digicert.com"};
 
         // sign the file
-        C2pa::sign_file("tests/fixtures/A.jpg", "target/example/training.jpg", manifest_json.c_str(), sign_info, NULL);
+        C2pa::sign_file("tests/fixtures/A.jpg", "target/example/training.jpg", manifest_json.c_str(), sign_info);
 
         // read the new manifest and display the JSON
-        auto new_manifest_json = C2pa::read_file("target/example/training.jpg", "target/tmp");
+        auto new_manifest_json = C2pa::read_file("target/example/training.jpg");
         cout << "The new manifest is " << new_manifest_json << endl;
 
         // parse the manifest and display the AI training status
