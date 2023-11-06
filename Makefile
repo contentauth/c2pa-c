@@ -35,16 +35,16 @@ test-rust:
 	cargo test --all-features
 
 test-c:
-	$(CC) $(CFLAGS) tests/test.c -o target/ctest -lc2pa_c -L./target/$(TARGET)/release
-	target/ctest
+	$(CC) $(CFLAGS) tests/test.c -o target/$(TARGET)/ctest -lc2pa_c -L./target/$(TARGET)/release
+	target/$(TARGET)/ctest
 
 test-cpp:
-	g++ $(CFLAGS) -std=c++11 tests/test.cpp -o target/cpptest -lc2pa_c -L./target/$(TARGET)/release 
-	target/cpptest
+	g++ $(CFLAGS) -std=c++11 tests/test.cpp -o target/$(TARGET)/cpptest -lc2pa_c -L./target/$(TARGET)/release 
+	target/$(TARGET)/cpptest
 
 example:
-	g++ $(CFLAGS) -std=c++17 examples/training.cpp -o target/training -lc2pa_c -L./target/$(TARGET)/release
-	target/training
+	g++ $(CFLAGS) -std=c++17 examples/training.cpp -o target/$(TARGET)/training -lc2pa_c -L./target/$(TARGET)/release
+	target/$(TARGET)/training
 
 # Creates a folder wtih c2patool bin, samples and readme
 package:
