@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-linux-aarch64:
-    name: Build aarch64-unknown-linux-musl
+    name: Build aarch64-unknown-linux-gnu
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -26,7 +26,7 @@ jobs:
         uses: dtolnay/rust-toolchain@1.70.0
         with:
           components: llvm-tools-preview
-          targets: aarch64-unknown-linux-musl
+          targets: aarch64-unknown-linux-gnu
 
       - name: Install cbindgen
         run: cargo install cbindgen
@@ -37,21 +37,21 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: aarch64-unknown-linux-musl
+          shared-key: aarch64-unknown-linux-gnu
 
       - name: Build dynamic library
-        run: make TARGET=aarch64-unknown-linux-musl build-cross
+        run: make TARGET=aarch64-unknown-linux-gnu build-cross
 
       - name: Run C tests
-        run: cross-util run --target aarch64-unknown-linux-musl -- 'make TARGET=aarch64-unknown-linux-musl test-c'
+        run: cross-util run --target aarch64-unknown-linux-gnu -- 'make TARGET=aarch64-unknown-linux-gnu test-c'
 
       - name: Run C++ tests
-        run: cross-util run --target aarch64-unknown-linux-musl -- 'make TARGET=aarch64-unknown-linux-musl test-cpp'
+        run: cross-util run --target aarch64-unknown-linux-gnu -- 'make TARGET=aarch64-unknown-linux-gnu test-cpp'
 
       - name: Add built files to archive
         uses: actions/upload-artifact@v3
         with:
-          name: c2pa-c_aarch64-unknown-linux-musl-${{ steps.sha.outputs.sha_short }}.zip
+          name: c2pa-c_aarch64-unknown-linux-gnu-${{ steps.sha.outputs.sha_short }}.zip
           path: |
             README.md
             include/**
@@ -61,8 +61,8 @@ jobs:
       - name: Add supporting files to archive
         uses: actions/upload-artifact@v3
         with:
-          name: c2pa-c_aarch64-unknown-linux-musl-${{ steps.sha.outputs.sha_short }}.zip
-          path: target/aarch64-unknown-linux-musl/release/libc2pa_c*
+          name: c2pa-c_aarch64-unknown-linux-gnu-${{ steps.sha.outputs.sha_short }}.zip
+          path: target/aarch64-unknown-linux-gnu/release/libc2pa_c*
           retention-days: 3
 
   build-linux-x86_64:
