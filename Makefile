@@ -7,16 +7,19 @@ ifeq ($(OS), Linux)
 CFLAGS = -pthread -Wl,--no-as-needed -ldl -lm
 endif
 
+# This is to enable building dynamic libraries with musl
+RUSTFLAGS = -Ctarget-feature=-crt-static
+
 generate-bindings:
 	cargo install cbindgen
 	cbindgen --config cbindgen.toml --crate c2pa-c --output include/c2pa.h --lang c
 
 build:
-	cargo build --release --target $(TARGET)
+	RUSTFLAGS=$(RUSTFLAGS) cargo build --release --target $(TARGET)
 	$(MAKE) generate-bindings
 
 build-cross:
-	cross build --release --target $(TARGET)
+	RUSTFLAGS=$(RUSTFLAGS) cross build --release --target $(TARGET)
 	$(MAKE) generate-bindings
 
 release: 
