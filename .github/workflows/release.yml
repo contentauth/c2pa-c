@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - aarch-unknown-linux-musl
+          - aarch64-unknown-linux-musl
     steps:
       - name: Checkout
         uses: actions/checkout@v4
