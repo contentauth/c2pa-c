@@ -4,14 +4,20 @@ This library implements C and C++ APIs that:
 - Read and validate C2PA data from media files in [supported formats](#supported-file-formats).
 - Add signed manifests to media files in [supported formats](#supported-file-formats).
 
+This documentation assumes you are using this library with C++.
+
 ## Installation
 
-Add prebuilt library and header files to your project.
+Add the prebuilt library and header files (`include/c2pa.h` for C or `include/c2pa.hpp` for C++) to your project.
+
+For instructions on how to build the library and run the tests and examples, see [Development](#development) below.
+
+
 
 
 ## Usage
 
-To use this library, you must include the header file in your code as follows:
+To use this library, include the header file in your code as follows:
 
 ```cpp
 #include "c2pa.hpp"
@@ -40,7 +46,7 @@ A media file may contain many manifests in a manifest store. The `active_manifes
 
 ### Create a SignerInfo instance
 
-A `SignerInfo` object contains information about a signature.  To create an instance of `SignerInfo`, first set up the signer information from the public and private key `.pem` files as follows:
+A `SignerInfo` object contains information about a signature.  To create an instance of `SignerInfo`, first set up the signer information from the public and private key files. For example, using the simple `read_text_file` function defined in the [`training.cpp` example](https://github.com/contentauth/c2pa-c/blob/main/examples/training.cpp): 
 
 ```cpp
 string certs = read_text_file("path/to/certs.pem").data();
@@ -127,25 +133,51 @@ If you haven't already done so, install [Rust](https://www.rust-lang.org/tools/i
 
 Install [cbindgen](https://github.com/mozilla/cbindgen/blob/master/docs.md):
 
-```
+```sh
 cargo install --force cbindgen
 ```
 
 ### Building 
 
-Building the library also requires [GNU make](https://www.gnu.org/software/make/), which is installed on most macOS systems.
+Building the library requires [GNU make](https://www.gnu.org/software/make/), which is installed on most macOS systems.
+
+Enter this command to build the C library: 
 
 ```
 make release
 ```
 
+The Makefile also has numerous other targets:
+- `test-cpp` to build and run the C++ tests.
+- `test-c` to build and run the C tests.
+- `check-format`, `clippy`, and `test-rust` for Rust linting and testing.
+- `test` to run all of the above targets.
+- `example` to build and run the C++ example.
+- `all` to run everything.
+
+Results are saved in the `target` directory.
+
 ### Testing
 
-The repo includes a custom set of unit tests that can be invoked via:
+Build the [unit tests](https://github.com/contentauth/c2pa-c/tree/main/tests) by entering this `make` command:
 
 ```
 make test
 ```
+
+### Example
+
+The simple C++ example in [`examples/training.cpp`](https://github.com/contentauth/c2pa-c/blob/main/examples/training.cpp) uses the [JSON for Modern C++](https://json.nlohmann.me/) library class.
+
+Build and run the example by entering this `make` command:
+
+```
+make example
+```
+
+This example adds the manifest [`tests/fixtures/training.json`](https://github.com/contentauth/c2pa-c/blob/main/tests/fixtures/training.json) to the image file [`tests/fixtures/A.jpg`](https://github.com/contentauth/c2pa-c/blob/main/tests/fixtures/A.jpg) using the sample private key and certificate in the [`tests/fixtures`](https://github.com/contentauth/c2pa-c/tree/main/tests/fixtures) directory.
+
+The example displays some text to standard out that summarizes whether AI training is allowed based on the specified manifest and then saves the resulting image file with attached manifest to `target/example/training.jpg`.
 
 ## Supported file formats
 
@@ -175,12 +207,12 @@ make test
 
 ## License
 
-This package is distributed under the terms of both the [MIT license](https://github.com/contentauth/c2pa-rs/blob/main/LICENSE-MIT) and the [Apache License (Version 2.0)](https://github.com/contentauth/c2pa-rs/blob/main/LICENSE-APACHE).
+This package is distributed under the terms of both the [MIT license](https://github.com/contentauth/c2pa-c/blob/main/LICENSE-MIT) and the [Apache License (Version 2.0)](https://github.com/contentauth/c2pa-c/blob/main/LICENSE-APACHE).
 
 Note that some components and dependent crates are licensed under different terms; please check the license terms for each crate and component for details.
 
 ### Contributions and feedback
 
-We welcome contributions to this project.  For information on contributing, providing feedback, and about ongoing work, see [Contributing](https://github.com/contentauth/c2pa-js/blob/main/CONTRIBUTING.md).
+We welcome contributions to this project.  For information on contributing, providing feedback, and about ongoing work, see [Contributing](https://github.com/contentauth/c2pa-c/blob/main/CONTRIBUTING.md).
 
 
