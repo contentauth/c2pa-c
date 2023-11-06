@@ -31,20 +31,22 @@ jobs:
         uses: dtolnay/rust-toolchain@1.70.0
         with:
           components: llvm-tools-preview
-          target: ${{matrix.target}}
 
       - name: Install cargo binstall
         uses: cargo-bins/cargo-binstall@main
 
-      - name: Install cbindgen, cross
-        run: cargo-binstall -y cbindgen cross
+      - name: Install cbindgen
+        run: cargo install cbindgen
+
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{matrix.target}}
 
-      - name: Build dynamic library
+      - name: Build library
         run: make TARGET=${{matrix.target}} build-cross
 
       - name: Run C tests
