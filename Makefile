@@ -18,7 +18,7 @@ build:
 	$(MAKE) generate-bindings
 
 build-cross:
-	cross build --release --target $(TARGET)
+	RUSTFLAGS=$(RUSTFLAGS) cross build --release --target $(TARGET)
 	$(MAKE) generate-bindings
 
 release: 
