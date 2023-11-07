@@ -6,14 +6,13 @@ This library implements C and C++ APIs that:
 
 This documentation assumes you are using this library with C++.
 
+**WARNING**: This is an early prerelease version of this library.  There may be bugs and unimplemented features, and the API is subject to change.
+
 ## Installation
 
 Add the prebuilt library and header files (`include/c2pa.h` for C or `include/c2pa.hpp` for C++) to your project.
 
 For instructions on how to build the library and run the tests and examples, see [Development](#development) below.
-
-
-
 
 ## Usage
 
