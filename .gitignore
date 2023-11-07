@@ -1,4 +1,6 @@
 /target
+/dist
+/include
 /Cargo.lock
 
 .vscode

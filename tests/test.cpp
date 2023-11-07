@@ -12,6 +12,7 @@
 
 #include <iostream>
 #include <stdlib.h>
+#include <cstring>
 #include "../include/c2pa.hpp"
 
 // assert that c2pa_str contains substr or exit
