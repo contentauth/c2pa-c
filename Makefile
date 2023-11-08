@@ -1,10 +1,12 @@
 OS := $(shell uname)
-CFLAGS = -I. -Wall 
+CFLAGS = -I. -Wall
+ENV =
 ifeq ($(OS), Darwin)
 CFLAGS += -framework Security
 endif
 ifeq ($(OS), Linux)
 CFLAGS = -pthread -Wl,--no-as-needed -ldl -lm
+ENV = LD_LIBRARY_PATH=target/release
 endif
 
 check-format:
@@ -22,22 +24,22 @@ release:
 
 test-c: release
 	$(CC) $(CFLAGS) tests/test.c -o target/ctest -lc2pa_c -L./target/release
-	target/ctest
+	$(ENV) target/ctest
 
 test-cpp: release
 	g++ $(CFLAGS) -std=c++17 tests/test.cpp -o target/cpptest -lc2pa_c -L./target/release 
-	target/cpptest
+	$(ENV) target/cpptest
 
 example: release
 	g++ $(CFLAGS) -std=c++17 examples/training.cpp -o target/training -lc2pa_c -L./target/release
-	target/training
+	$(ENV) target/training
 
 # Creates a folder wtih c2patool bin, samples and readme
 package:
 	rm -rf target/c2pa-c
 	mkdir -p target/c2pa-c
 	mkdir -p target/c2pa-c/include
-	cp target/release/libc2pa_c.dylib target/c2pa-c/libc2pa_c.dylib
+	cp target/release/libc2pa_c.so target/c2pa-c/libc2pa_c.so
 	cp README.md target/c2pa-c/README.md
 	cp include/* target/c2pa-c/include
 

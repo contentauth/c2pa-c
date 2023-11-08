@@ -13,8 +13,9 @@
 #include <iostream>
 #include <string.h>
 #include "c2pa.h"
-#include <filesystem> 
-using namespace std::__fs::filesystem;
+#include <optional>  // C++17
+#include <filesystem> // C++17
+using path = std::filesystem::path;
 
 namespace C2pa
 {
@@ -56,7 +57,7 @@ namespace C2pa
     // data_dir: the directory to store binary resources (optional)
     // Returns a string containing the manifest json if a manifest was found
     // Throws a C2pa::Exception for errors encountered by the C2pa library
-    std::optional<string> read_file(const path& source_path, const std::optional<path> data_dir = std::nullopt)
+    std::optional<string> read_file(const std::filesystem::path& source_path, const std::optional<path> data_dir = std::nullopt)
     {
         const char* dir = data_dir.has_value() ? data_dir.value().c_str() : NULL;
         char *result = c2pa_read_file(source_path.c_str(), dir);
