@@ -25,7 +25,7 @@ test-c: release
 	target/ctest
 
 test-cpp: release
-	g++ $(CFLAGS) -std=c++11 tests/test.cpp -o target/cpptest -lc2pa_c -L./target/release 
+	g++ $(CFLAGS) -std=c++17 tests/test.cpp -o target/cpptest -lc2pa_c -L./target/release 
 	target/cpptest
 
 example: release

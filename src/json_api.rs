@@ -47,7 +47,7 @@ pub fn sign_file(
     source: &str,
     dest: &str,
     manifest_json: &str,
-    signer_info: SignerInfo,
+    signer_info: &SignerInfo,
     data_dir: Option<String>,
 ) -> Result<Vec<u8>> {
     let mut manifest = Manifest::from_json(manifest_json).map_err(Error::from_c2pa_error)?;
