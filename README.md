@@ -26,7 +26,11 @@ Use the `read_file` function to read C2PA data from the specified file:
 auto json_store = C2pa::read_file("path/to/media_file.jpg", "path/to/data_dir")
 ```
 
-This function examines the specified media file for C2PA data and generates a JSON report of any data it finds. If there are validation errors, the report includes a `validation_status` field.  For a summary of supported media types, see [Supported file formats](#supported-file-formats).
+This function examines the specified media file for C2PA data and generates a JSON report conditionally if it finds c2pa data.
+
+Exceptions will be thrown on errors.
+
+If there are validation errors, the report includes a `validation_status` field.  For a summary of supported media types, see [Supported file formats](#supported-file-formats).
 
 A media file may contain many manifests in a manifest store. The most recent manifest is identified by the value of the `active_manifest` field in the manifests map.
 
@@ -46,7 +50,7 @@ string private_key = read_text_file("path/to/private.key").data();
 Then create a new `SignerInfo` instance using the keys as follows, specifying the signing algorithm used and optionally a time stamp authority URL:
 
 ```c++
-C2paSignerInfo sign_info = {.alg = "es256",  .sign_cert = certs.c_str(), .private_key = private_key.c_str(), .ta_url = "http://timestamp.digicert.com"};
+C2pa::SignerInfo sign_info = {.alg = "es256",  .sign_cert = certs.c_str(), .private_key = private_key.c_str(), .ta_url = "http://timestamp.digicert.com"};
 ```
 
 For the list of supported signing algorithms, see [Creating and using an X.509 certificate](https://opensource.contentauthenticity.org/docs/c2patool/x_509).
@@ -87,12 +91,11 @@ const std::string manifest_json = R"{
 Use the `sign_file` function to add a signed manifest to a media file.
 
 ```c++
-result = C2pa::sign_file("path/to/source.jpg", 
-                         "path/to/dest.jpg",
-                         manifest_json.c_str(),
-                         sign_info,
-                         "path/to/data_dir);
-                          "target/example/training.jpg", manifest_json.c_str(), sign_info, NULL);
+C2pa::sign_file("path/to/source.jpg", 
+                    "path/to/dest.jpg",
+                    manifest_json.c_str(),
+                    &sign_info,
+                    "path/to/data_dir);
 
 ```
 
@@ -102,6 +105,8 @@ The parameters (in order) are:
 - `manifest_json`, a JSON-formatted string containing the manifest data you want to add; see [Creating a manifest JSON definition file](#creating-a-manifest-json-definition-file) below.
 - `sign_info`, a `SignerInfo` object instance; see [Generating SignerInfo](#generating-signerinfo) below.
 - `data_dir` optionally specifies a directory path from which to load resource files referenced in the manifest JSON identifier fields; for example, thumbnails, icons, and manifest data for ingredients.
+
+Exceptions will be thrown on errors.
 
 See [training.cpp](https://github.com/contentauth/c2pa-c/blob/main/examples/training.py) for an example.
 

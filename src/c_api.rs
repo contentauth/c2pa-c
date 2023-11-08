@@ -180,7 +180,7 @@ pub unsafe extern "C" fn c2pa_sign_file(
     source_path: *const c_char,
     dest_path: *const c_char,
     manifest: *const c_char,
-    signer_info: C2paSignerInfo,
+    signer_info: &C2paSignerInfo,
     data_dir: *const c_char,
 ) -> *mut c_char {
     // convert C pointers into Rust
@@ -196,7 +196,7 @@ pub unsafe extern "C" fn c2pa_sign_file(
         ta_url: from_cstr_option!(signer_info.ta_url),
     };
     // Read manifest from JSON and then sign and write it
-    let result = sign_file(&source_path, &dest_path, &manifest, signer_info, data_dir);
+    let result = sign_file(&source_path, &dest_path, &manifest, &signer_info, data_dir);
 
     match result {
         Ok(_c2pa_data) => to_c_string("".to_string()),
