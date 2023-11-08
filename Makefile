@@ -8,7 +8,7 @@ CFLAGS = -pthread -Wl,--no-as-needed -ldl -lm
 endif
 
 check-format:
-	cargo +nightly fmt -- --check
+	cargo fmt -- --check
 
 clippy:
 	cargo clippy --all-features --all-targets -- -D warnings
