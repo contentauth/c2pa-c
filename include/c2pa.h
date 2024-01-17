@@ -36,6 +36,48 @@
 
 #endif
 
+typedef struct ManifestStore ManifestStore;
+
+
+typedef struct C2paSigner C2paSigner;
+
+/**
+ * An Opaque struct to hold a context value for the stream callbacks
+ */
+typedef struct StreamContext {
+
+} StreamContext;
+
+/**
+ * Defines a callback to read from a stream
+ */
+typedef intptr_t (*ReadCallback)(const struct StreamContext *context, uint8_t *data, uintptr_t len);
+
+/**
+ * Defines a callback to seek to an offset in a stream
+ */
+typedef int (*SeekCallback)(const struct StreamContext *context, long offset, int mode);
+
+/**
+ * Defines a callback to write to a stream
+ */
+typedef intptr_t (*WriteCallback)(const struct StreamContext *context,
+                                  const uint8_t *data,
+                                  uintptr_t len);
+
+typedef intptr_t (*FlushCallback)(const struct StreamContext *context);
+
+/**
+ * A CStream is a Rust Read/Write/Seek stream that can be created in C
+ */
+typedef struct CStream {
+  struct StreamContext *context;
+  ReadCallback reader;
+  SeekCallback seeker;
+  WriteCallback writer;
+  FlushCallback flusher;
+} CStream;
+
 /**
  * Defines the configuration for a Signer
  *
@@ -62,6 +104,46 @@ typedef struct C2paSignerInfo {
   const char *ta_url;
 } C2paSignerInfo;
 
+/**
+ * Defines a callback to sign data
+ */
+typedef intptr_t (*CSignerCallback)(uint8_t *data,
+                                    uintptr_t len,
+                                    uint8_t *signature,
+                                    intptr_t sig_max_size);
+
+/**
+ * Defines the configuration for a Signer
+ *
+ * # Example
+ * ```
+ * use c2pa::SignerConfig;
+ * let config = SignerConfig {
+ *    alg: "Rs256".to_string(),
+ *    certs: vec![vec![0; 10]],
+ *    time_authority_url: Some("http://example.com".to_string()),
+ *    use_ocsp: true,
+ * };
+ */
+typedef struct CSignerConfig {
+  /**
+   * Returns the algorithm of the Signer.
+   */
+  const char *alg;
+  /**
+   * Returns the certificates as a Vec containing a Vec of DER bytes for each certificate.
+   */
+  const char *certs;
+  /**
+   * URL for time authority to time stamp the signature
+   */
+  const char *time_authority_url;
+  /**
+   * Try to fetch OCSP response for the signing cert if available
+   */
+  bool use_ocsp;
+} CSignerConfig;
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -83,6 +165,12 @@ IMPORT extern char *c2pa_version(void);
  * and it is no longer valid after that call.
  */
 IMPORT extern char *c2pa_error(void);
+
+IMPORT extern
+ManifestStore *c2pa_manifest_store_from_stream(const char *format,
+                                               struct CStream *stream);
+
+IMPORT extern char *c2pa_manifest_store_json(ManifestStore **store_ptr);
 
 /**
  * Returns a ManifestStore JSON string from a file path.
@@ -135,6 +223,14 @@ char *c2pa_sign_file(const char *source_path,
                      const char *data_dir);
 
 /**
+ * Releases a ManifestStore allocated by Rust
+ *
+ * # Safety
+ * can only be released once and is invalid after this call
+ */
+IMPORT extern void c2pa_release_manifest_store(ManifestStore *store);
+
+/**
  * Releases a string allocated by Rust
  *
  * # Safety
@@ -143,6 +239,41 @@ char *c2pa_sign_file(const char *source_path,
  * can only be released once and is invalid after this call
  */
 IMPORT extern void c2pa_release_string(char *s);
+
+IMPORT extern
+struct C2paSigner *c2pa_create_signer(CSignerCallback signer,
+                                      const struct CSignerConfig *config);
+
+/**
+ * Creates a new C2paStream from context with callbacks
+ *
+ * This allows implementing streams in other languages
+ *
+ * # Arguments
+ * * `context` - a pointer to a StreamContext
+ * * `read` - a ReadCallback to read from the stream
+ * * `seek` - a SeekCallback to seek in the stream
+ * * `write` - a WriteCallback to write to the stream
+ *
+ * # Safety
+ * The context must remain valid for the lifetime of the C2paStream
+ * The resulting C2paStream must be released by calling c2pa_release_stream
+ *
+ */
+IMPORT extern
+struct CStream *c2pa_create_stream(struct StreamContext *context,
+                                   ReadCallback reader,
+                                   SeekCallback seeker,
+                                   WriteCallback writer,
+                                   FlushCallback flusher);
+
+/**
+ * Releases a CStream allocated by Rust
+ *
+ * # Safety
+ * can only be released once and is invalid after this call
+ */
+IMPORT extern void c2pa_release_stream(struct CStream *stream);
 
 #ifdef __cplusplus
 } // extern "C"

@@ -68,20 +68,34 @@ void assert_contains(const char *what, char *c2pa_str, const char *substr)
     c2pa_release_string(c2pa_str);
 }
 
-// assert that c2pa_str is not NULL or exit
-void assert_not_null(const char *what, char *c2pa_str)
+// assert that c2pa is not NULL or exit
+void assert_not_null(const char *what, void *val)
 {
-    if (c2pa_str == NULL)
+    if (val == NULL)
     {
         char *err = c2pa_error();
         fprintf(stderr, "FAILED %s: %s\n", what, err);
         c2pa_release_string(err);
-        c2pa_release_string(c2pa_str);
         exit(1);
     }
     printf("PASSED: %s\n", what);
+}
+
+// assert that c2pa_str is not NULL or exit
+void assert_str_not_null(const char *what, char *c2pa_str)
+{
+    assert_not_null(what, c2pa_str);
+    // if (c2pa_str == NULL)
+    // {
+    //     char *err = c2pa_error();
+    //     fprintf(stderr, "FAILED %s: %s\n", what, err);
+    //     c2pa_release_string(err);
+    //     exit(1);
+    // }
+    // printf("PASSED: %s\n", what);
     c2pa_release_string(c2pa_str);
 }
+
 
 // assert if c2pa_str is NULL and we have the expected error
 void assert_null(const char *what, char *c2pa_str, const char *err_str)

@@ -31,7 +31,10 @@ after_includes = """
 #else
     #define IMPORT
 
-#endif"""
+#endif
+
+typedef struct ManifestStore ManifestStore;
+"""
 
 [export.rename]
 "C2paConfigC" = "C2paConfig"

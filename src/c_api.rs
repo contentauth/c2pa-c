@@ -11,41 +11,44 @@
 // specific language governing permissions and limitations under
 // each license.
 
-use std::{
-    ffi::{CStr, CString},
-    os::raw::c_char,
-};
+use std::{ffi::CString, os::raw::c_char};
+
+use c2pa::ManifestStore;
 
 use crate::{
+    c_stream::CStream,
     error::Error,
     json_api::{read_file, read_ingredient_file, sign_file},
     signer_info::SignerInfo,
 };
 
-// Internal routine to convert a *const c_char to a rust String
-unsafe fn from_c_str(s: *const c_char) -> String {
-    CStr::from_ptr(s).to_string_lossy().into_owned()
-}
-
 // Internal routine to convert a *const c_char to a rust String or return a null error
+#[macro_export]
 macro_rules! from_cstr_null_check {
     ($ptr : expr) => {
         if $ptr.is_null() {
             Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
             return std::ptr::null_mut();
         } else {
-            from_c_str($ptr)
+            std::ffi::CStr::from_ptr($ptr)
+                .to_string_lossy()
+                .into_owned()
         }
     };
 }
 
 // Internal routine to convert a *const c_char to Option<String>
+#[macro_export]
 macro_rules! from_cstr_option {
     ($ptr : expr) => {
         if $ptr.is_null() {
             None
         } else {
-            Some(from_c_str($ptr))
+            Some(
+                std::ffi::CStr::from_ptr($ptr)
+                    .to_string_lossy()
+                    .into_owned(),
+            )
         }
     };
 }
@@ -85,6 +88,32 @@ pub unsafe extern "C" fn c2pa_version() -> *mut c_char {
 #[no_mangle]
 pub unsafe extern "C" fn c2pa_error() -> *mut c_char {
     to_c_string(Error::last_message().unwrap_or_default())
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_manifest_store_from_stream(
+    format: *const c_char,
+    stream: *mut CStream,
+) -> *mut ManifestStore {
+    let format = from_cstr_null_check!(format);
+    let result = ManifestStore::from_stream(&format, &mut (*stream), true);
+    match result {
+        Ok(manifest_store) => Box::into_raw(Box::new(manifest_store)),
+        Err(err) => {
+            Error::from_c2pa_error(err).set_last();
+            std::ptr::null_mut()
+        }
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_manifest_store_json(
+    store_ptr: *mut *mut ManifestStore,
+) -> *mut c_char {
+    let store: Box<ManifestStore> = Box::from_raw(*store_ptr);
+    let json = store.to_string();
+    *store_ptr = Box::into_raw(store);
+    to_c_string(json)
 }
 
 /// Returns a ManifestStore JSON string from a file path.
@@ -207,6 +236,17 @@ pub unsafe extern "C" fn c2pa_sign_file(
     }
 }
 
+/// Releases a ManifestStore allocated by Rust
+///
+/// # Safety
+/// can only be released once and is invalid after this call
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_release_manifest_store(store: *mut c2pa::ManifestStore) {
+    if !store.is_null() {
+        drop(Box::from_raw(store));
+    }
+}
+
 /// Releases a string allocated by Rust
 ///
 /// # Safety
@@ -215,8 +255,7 @@ pub unsafe extern "C" fn c2pa_sign_file(
 /// can only be released once and is invalid after this call
 #[no_mangle]
 pub unsafe extern "C" fn c2pa_release_string(s: *mut c_char) {
-    if s.is_null() {
-        return;
+    if !s.is_null() {
+        drop(CString::from_raw(s));
     }
-    let _release = CString::from_raw(s);
 }

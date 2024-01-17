@@ -12,10 +12,14 @@
 
 mod c_api;
 /// This module exports a C2PA library
+mod c_signer;
+mod c_stream;
 mod error;
 mod json_api;
+mod signer;
 mod signer_info;
 
+pub use c_stream::*;
 pub use error::{Error, Result};
 pub use json_api::*;
 pub use signer_info::SignerInfo;

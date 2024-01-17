@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "../include/c2pa.h"
+#include "../include/file_stream.h"
 #include "unit_test.h"
 
 int main(void)
@@ -23,13 +24,27 @@ int main(void)
     assert_contains("version", version, "c2pa-c/0.");
 
     char *result1 = c2pa_read_file("tests/fixtures/C.jpg", NULL);
-    assert_not_null("c2pa_read_file_no_data_dir", result1);
+    assert_str_not_null("c2pa_read_file_no_data_dir", result1);
 
     char *result = c2pa_read_file("tests/fixtures/C.jpg", "target/tmp");
-    assert_not_null("c2pa_read_file", result);
+    assert_str_not_null("c2pa_read_file", result);
 
     result = c2pa_read_ingredient_file("tests/fixtures/C.jpg", "target/ingredient");
-    assert_not_null("c2pa_ingredient_from_file", result);
+    assert_str_not_null("c2pa_ingredient_from_file", result);
+
+    CStream* input_stream = open_file_stream("tests/fixtures/C.jpg", "rb");
+    assert_not_null("open_file_stream", input_stream);
+
+    ManifestStore* manifest_store = c2pa_manifest_store_from_stream("image/jpeg", input_stream);
+    assert_not_null("manifest_store_from_stream", manifest_store);
+
+    char* json = c2pa_manifest_store_json(&manifest_store);
+    //printf("manifest json = %s\n", json);
+    assert_str_not_null("c2pa_manifest_store_json", json);
+
+    close_file_stream(input_stream);
+
+ 
 
     char *certs = load_file("tests/fixtures/es256_certs.pem");
     char *private_key = load_file("tests/fixtures/es256_private.key");
