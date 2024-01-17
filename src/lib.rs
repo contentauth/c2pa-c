@@ -17,5 +17,5 @@ mod json_api;
 mod signer_info;
 
 pub use error::{Error, Result};
-pub use json_api::*;
+pub use json_api::{read_file, read_ingredient_file, sdk_version, sign_file};
 pub use signer_info::SignerInfo;
