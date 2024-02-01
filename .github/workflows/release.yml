@@ -16,14 +16,9 @@ jobs:
             target: aarch64-apple-ios
           - os: macos-latest-large
             # cross-compile for Linux ARM using Apple Silicon until we have ARM runners
-            target: aarch64-unknown-linux-gnu
-          - os: macos-latest-large
-            # cross-compile for Linux ARM using Apple Silicon until we have ARM runners
             target: aarch64-unknown-linux-musl
           - os: macos-latest
             target: x86_64-apple-darwin
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
           # - os: windows-latest
@@ -60,13 +55,10 @@ jobs:
 
       - name: Install musl for mac -> linux cross compilation
         if: "startsWith(matrix.target, 'aarch64-unknown-linux-')"
-        run: |
-          brew install MaterializeInc/crosstools/aarch64-unknown-linux-gnu
-          brew install filosottile/musl-cross/musl-cross
+        run: brew install filosottile/musl-cross/musl-cross
 
       - name: Build library
-        env: 
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-musl-gcc
         run: make TARGET=${{matrix.target}} build
 
