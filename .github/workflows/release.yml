@@ -60,7 +60,7 @@ jobs:
       - name: Build library
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-musl-gcc
-        run: make TARGET=${{matrix.target}} build
+        run: make TARGET=${{matrix.target}} release
 
       - name: Run C tests
         if: ${{matrix.os != 'windows-latest'}}
