@@ -26,9 +26,8 @@ jobs:
             target: x86_64-unknown-linux-gnu
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-          # disabling until we get tests running
-          # - os: windows-latest
-          #   target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
     name: Build ${{matrix.target}}
     runs-on: ${{matrix.os}}
     steps:
@@ -72,10 +71,17 @@ jobs:
         run: make release
 
       - name: Run C tests
+        if: ${{matrix.os != 'windows-latest'}}
         run: make test-c
 
       - name: Run C++ tests
+        if: ${{matrix.os != 'windows-latest'}}
         run: make test-cpp
+
+      - name: Show Windows warning
+        if: ${{matrix.os == 'windows-latest'}}
+        run:
+          echo "::warning::C/C++ tests did NOT run in Windows"
 
       - name: Add built files to archive
         uses: actions/upload-artifact@v3
