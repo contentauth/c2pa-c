@@ -38,7 +38,7 @@ test-rust:
 	cargo test --all-features
 
 release: 
-	cargo build --release
+	cargo build --release --target $(TARGET)
 	cbindgen --config cbindgen.toml --crate c2pa-c --output include/c2pa.h --lang c
 
 test-c: release
