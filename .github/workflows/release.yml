@@ -94,7 +94,7 @@ jobs:
           retention-days: 3
 
       - name: Add supporting files to archive
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: c2pa-c_${{matrix.target}}-${{ steps.sha.outputs.sha_short }}.zip
           path: target/release/libc2pa_c*
