@@ -49,7 +49,7 @@ jobs:
           shared-key: ${{matrix.target}}
 
       - name: Build library
-        run: make TARGET=${{matrix.target}} build
+        run: make release
 
       - name: Run C tests
         # We need to store the exit code since cross-util will always exit with 0
