@@ -131,7 +131,7 @@ IMPORT extern
 char *c2pa_sign_file(const char *source_path,
                      const char *dest_path,
                      const char *manifest,
-                     struct C2paSignerInfo signer_info,
+                     const struct C2paSignerInfo *signer_info,
                      const char *data_dir);
 
 /**

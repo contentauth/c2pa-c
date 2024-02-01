@@ -11,7 +11,11 @@
 // each license.
 
 #include <iostream>
+#include <string.h>
 #include "c2pa.h"
+#include <optional>  // C++17
+#include <filesystem> // C++17
+using path = std::filesystem::path;
 
 namespace C2pa
 {
@@ -19,121 +23,96 @@ namespace C2pa
 
     typedef C2paSignerInfo SignerInfo;
 
-    // C++ wrapper for Rust strings with destructor to release memory
-    class String
-    {
-    private:
-        char *str;
-
-        // This should only be called by the C2pa library with Rust Strings
-        String(char *rust_str)
-        {
-            str = rust_str;
-        }
-
-        // These functions are friends of the String class so they can access the private constructor
-        friend String version();
-        friend String read_file(const char *filename, const char *data_dir);
-        friend String read_ingredient_file(const char *filename, const char *data_dir);
-        friend String sign_file(const char *source_path,
-                                const char *dest_path,
-                                const char *manifest,
-                                struct C2paSignerInfo signer_info,
-                                const char *data_dir);
-
-    public:
-        ~String()
-        {
-            c2pa_release_string(str);
-        }
-
-        char *c_str() const
-        {
-            return str;
-        }
-        string toString() const
-        {
-            return string((*this).str);
-        }
-        friend ostream &operator<<(ostream &os, const String &s)
-        {
-            os << s.str;
-            return os;
-        }
-    };
-
     // Exception class for C2pa errors
     class Exception : public exception
     {
     private:
-        char *message;
+        string message;
 
     public:
-        Exception() : message(c2pa_error()) {}
+        Exception() : message(c2pa_error()) {
+            auto result = c2pa_error();
+            message = string(result);
+            c2pa_release_string(result);
+        }
 
         virtual const char *what() const throw()
         {
-            return message;
+            return message.c_str();
         }
     };
 
     // Return the version of the C2pa library
-    String version()
+    string version()
     {
-        return String(c2pa_version());
+        auto result = c2pa_version();
+        string str = string(result);
+        c2pa_release_string(result);
+        return str;
     }
 
     // Read a file and return the manifest json as a C2pa::String
     // Note: Paths are UTF-8 encoded, use std.filename.u8string().c_str() if needed
-    // filename: the name of the file to read
-    // data_dir: the directory to store binary resources (can be NULL)
-    // Returns a C2pa::String containing the manifest json
+    // source_path: path to the file to read
+    // data_dir: the directory to store binary resources (optional)
+    // Returns a string containing the manifest json if a manifest was found
     // Throws a C2pa::Exception for errors encountered by the C2pa library
-    String read_file(const char *filename, const char *data_dir = NULL)
+    std::optional<string> read_file(const std::filesystem::path& source_path, const std::optional<path> data_dir = std::nullopt)
     {
-        char *result = c2pa_read_file(filename, data_dir);
+        const char* dir = data_dir.has_value() ? data_dir.value().c_str() : NULL;
+        char *result = c2pa_read_file(source_path.c_str(), dir);
         if (result == NULL)
-        {
+        {   
+            auto exception = Exception();
+            if (strstr(exception.what(), "ManifestNotFound") != NULL)
+            {
+                return std::nullopt;
+            }
             throw Exception();
         }
-        return String(result);
+        string str = string(result);
+        c2pa_release_string(result);
+        return str;
     }
 
     // Read a file and return an ingredient json as a C2pa::String
-    // filename: the name of the file to read
+    // source_path: path to the file to read
     // data_dir: the directory to store binary resources
-    // Returns a C2pa::String containing the manifest json
+    // Returns a string containing the manifest json
     // Throws a C2pa::Exception for errors encountered by the C2pa library
-    String read_ingredient_file(const char *filename, const char *data_dir)
+    string read_ingredient_file(const path& source_path, const path& data_dir)
     {
-        char *result = c2pa_read_ingredient_file(filename, data_dir);
+        char *result = c2pa_read_ingredient_file(source_path.c_str(), data_dir.c_str());
         if (result == NULL)
         {
             throw Exception();
         }
-        return String(result);
+        string str = string(result);
+        c2pa_release_string(result);
+        return str;
     }
 
     // Add the manifest and sign a file
-    // filename: the name of the source file to sign
-    // dest_path: the path to write the signed file
+    // source_path: path to the asset to be signed
+    // dest_path: the path to write the signed file to
     // manifest: the manifest json to add to the file
     // signer_info: the signer info to use for signing
-    // data_dir: the directory to store binary resources (can be NULL)
-    // Returns a C2pa::String containing the manifest binary
+    // data_dir: the directory to store binary resources (optional)
     // Throws a C2pa::Exception for errors encountered by the C2pa library
-    String sign_file(const char *source_path,
-                     const char *dest_path,
+    void sign_file(const path& source_path,
+                     const path& dest_path,
                      const char *manifest,
-                     SignerInfo signer_info,
-                     const char *data_dir = NULL)
+                     SignerInfo *signer_info,
+                     const std::optional<path> data_dir = std::nullopt)
     {
-        char *result = c2pa_sign_file(source_path, dest_path, manifest, signer_info, data_dir);
+        const char* dir = data_dir.has_value() ? data_dir.value().c_str() : NULL;
+        char *result = c2pa_sign_file(source_path.c_str(), dest_path.c_str(), manifest, signer_info, dir);
         if (result == NULL)
         {
+
             throw Exception();
         }
-        return String(result);
+        c2pa_release_string(result);
+        return;
     }
-
 }

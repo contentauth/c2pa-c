@@ -39,13 +39,13 @@ int main(void)
     // create a sign_info struct
     C2paSignerInfo sign_info = {.alg = "es256", .sign_cert = certs, .private_key = private_key, .ta_url = "http://timestamp.digicert.com"};
 
-    result = c2pa_sign_file("tests/fixtures/C.jpg", "target/tmp/earth.jpg", manifest, sign_info, "tests/fixtures");
+    result = c2pa_sign_file("tests/fixtures/C.jpg", "target/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
     assert_not_null("c2pa_sign_file_ok", result);
 
-    result = c2pa_sign_file("tests/fixtures/foo.jpg", "target/tmp/earth.jpg", manifest, sign_info, "tests/fixtures");
+    result = c2pa_sign_file("tests/fixtures/foo.jpg", "target/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
     assert_null("c2pa_sign_file_not_found", result, "FileNotFound");
 
-    result = c2pa_sign_file("tests/fixtures/es256_certs.pem", "target/tmp/earth.jpg", manifest, sign_info, "tests/fixtures");
+    result = c2pa_sign_file("tests/fixtures/es256_certs.pem", "target/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
     assert_null("c2pa_sign_file_not_supported", result, "NotSupported");
 
     free(certs);

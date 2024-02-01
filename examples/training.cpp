@@ -39,6 +39,7 @@ string read_text_file(const char *path)
 int main()
 {
     cout << "The C2pa library version is " << C2pa::version() << endl;
+    cout << "RUNNING EXAMPLE training.cpp " << endl;
 
     try
     {
@@ -48,19 +49,22 @@ int main()
         string private_key = read_text_file("tests/fixtures/es256_private.key").data();
 
         // create a sign_info struct
-        C2pa::SignerInfo sign_info = {.alg = "es256", .sign_cert = certs.c_str(), .private_key = private_key.c_str(), .ta_url = "http://timestamp.digicert.com"};
+        C2pa::SignerInfo sign_info = {.alg = "es256", 
+                                      .sign_cert = certs.c_str(), 
+                                      .private_key = private_key.c_str(), 
+                                      .ta_url = "http://timestamp.digicert.com"};
 
         // sign the file
-        C2pa::sign_file("tests/fixtures/A.jpg", "target/example/training.jpg", manifest_json.c_str(), sign_info);
+        C2pa::sign_file("tests/fixtures/A.jpg", "target/example/training.jpg", manifest_json.c_str(), &sign_info);
 
         // read the new manifest and display the JSON
         auto new_manifest_json = C2pa::read_file("target/example/training.jpg");
-        cout << "The new manifest is " << new_manifest_json << endl;
+        cout << "The new manifest is " << new_manifest_json.value() << endl;
 
         // parse the manifest and display the AI training status
 
         bool allowed = true; // default to allowed
-        json manifest_store = json::parse(new_manifest_json.c_str());
+        json manifest_store = json::parse(new_manifest_json.value());
 
         // get the active manifest
         string active_manifest = manifest_store["active_manifest"];

@@ -14,6 +14,11 @@ use c2pa::{Ingredient, Manifest, ManifestStore};
 
 use crate::{Error, Result, SignerInfo};
 
+/// Returns the version of the c2pa SDK used in this library
+pub fn sdk_version() -> String {
+    String::from(c2pa::VERSION)
+}
+
 /// Returns ManifestStore JSON string from a file path.
 ///
 /// If data_dir is provided, any thumbnail or c2pa data will be written to that folder.
@@ -47,7 +52,7 @@ pub fn sign_file(
     source: &str,
     dest: &str,
     manifest_json: &str,
-    signer_info: SignerInfo,
+    signer_info: &SignerInfo,
     data_dir: Option<String>,
 ) -> Result<Vec<u8>> {
     let mut manifest = Manifest::from_json(manifest_json).map_err(Error::from_c2pa_error)?;
