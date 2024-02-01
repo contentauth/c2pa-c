@@ -8,7 +8,6 @@ on:
 jobs:
   build:
     strategy:
-      fail-fast: false
       matrix:
         include:
           - os: macos-latest-large
@@ -29,7 +28,8 @@ jobs:
         id: sha
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Install build tools
+      - name: Install build tools (Linux)
+        if: ${{matrix.os == 'ubuntu-latest'}}
         run: |
           sudo apt-get update
           sudo apt-get install musl-tools
@@ -48,20 +48,25 @@ jobs:
         with:
           shared-key: ${{matrix.target}}
 
+      - name: Install musl for mac -> linux cross compilation
+        if: ${{matrix.target == 'aarch64-unknown-linux-musl'}}
+        run: brew install filosottile/musl-cross/musl-cross
+
+      - name: Build library (mac -> linux)
+        if: ${{matrix.target == 'aarch64-unknown-linux-musl'}}
+        env: 
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-musl-gcc
+        run: make release
+
       - name: Build library
+        if: ${{matrix.target != 'aarch64-unknown-linux-musl'}}
         run: make release
 
       - name: Run C tests
-        # We need to store the exit code since cross-util will always exit with 0
-        run: |
-          EXIT_CODE=$(cross-util run --target ${{matrix.target}} -- 'make TARGET=${{matrix.target}} test-c; echo $?' | tail -1)
-          exit "$EXIT_CODE"
+        run: make test-c
 
       - name: Run C++ tests
-        # We need to store the exit code since cross-util will always exit with 0
-        run: |
-          EXIT_CODE=$(cross-util run --target ${{matrix.target}} -- 'make TARGET=${{matrix.target}} test-cpp; echo $?' | tail -1)
-          exit "$EXIT_CODE"
+        run: make test-cpp
 
       - name: Add built files to archive
         uses: actions/upload-artifact@v3
