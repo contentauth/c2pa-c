@@ -8,6 +8,12 @@ ifeq ($(OS), Linux)
 CFLAGS = -pthread -Wl,--no-as-needed -ldl -lm
 ENV = LD_LIBRARY_PATH=target/release
 endif
+ifneq (,$(findstring musl,$(TARGET)))
+CC = musl-gcc
+GCC = musl-g++
+else
+GCC = g++
+endif
 
 check-format:
 	cargo fmt -- --check
@@ -19,19 +25,19 @@ test-rust:
 	cargo test --all-features
 
 release: 
-	cargo build --release
+	cargo build --release --target $(TARGET)
 	cbindgen --config cbindgen.toml --crate c2pa-c --output include/c2pa.h --lang c
 
-test-c: release
-	$(CC) $(CFLAGS) tests/test.c -o target/ctest -lc2pa_c -L./target/release
-	$(ENV) target/ctest
+test-c:
+	$(CC) $(CFLAGS) tests/test.c -o target/$(TARGET)/ctest -lc2pa_c -L./target/$(TARGET)/release
+	LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:./target/$(TARGET)/release target/$(TARGET)/ctest
 
-test-cpp: release
-	g++ $(CFLAGS) -std=c++17 tests/test.cpp -o target/cpptest -lc2pa_c -L./target/release 
-	$(ENV) target/cpptest
+test-cpp:
+	$(GCC) $(CFLAGS) -std=c++11 tests/test.cpp -o target/$(TARGET)/cpptest -lc2pa_c -L./target/$(TARGET)/release 
+	LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:./target/$(TARGET)/release target/$(TARGET)/cpptest
 
 example: release
-	g++ $(CFLAGS) -std=c++17 examples/training.cpp -o target/training -lc2pa_c -L./target/release
+	$(GCC) $(CFLAGS) -std=c++17 examples/training.cpp -o target/training -lc2pa_c -L./target/release
 	$(ENV) target/training
 
 # Creates a folder wtih c2patool bin, samples and readme

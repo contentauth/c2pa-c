@@ -1,0 +1,89 @@
+name: Build releases
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest-large
+            target: aarch64-apple-darwin
+          - os: macos-latest-large
+            target: aarch64-apple-ios
+          - os: macos-latest-large
+            # cross-compile for Linux ARM using Apple Silicon until we have ARM runners
+            target: aarch64-unknown-linux-musl
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          # - os: windows-latest
+          #   target: x86_64-pc-windows-msvc
+    name: Build ${{matrix.target}}
+    runs-on: ${{matrix.os}}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get short SHA
+        id: sha
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Install build tools (Linux)
+        if: ${{matrix.os == 'ubuntu-latest'}}
+        run: |
+          sudo apt-get update
+          sudo apt-get install musl-tools
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.70.0
+        with:
+          components: llvm-tools-preview
+          target: ${{matrix.target}}
+
+      - name: Install cbindgen
+        run: cargo install cbindgen
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{matrix.target}}
+
+      - name: Install musl for mac -> linux cross compilation
+        if: ${{matrix.target == 'aarch64-unknown-linux-musl'}}
+        run: brew install filosottile/musl-cross/musl-cross
+
+      - name: Build library
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-musl-gcc
+        run: make TARGET=${{matrix.target}} release
+
+      - name: Run C tests
+        if: ${{matrix.os != 'windows-latest'}}
+        run: make TARGET=${{matrix.target}} test-c
+
+      - name: Run C++ tests
+        if: ${{matrix.os != 'windows-latest'}}
+        run: make TARGET=${{matrix.target}} test-cpp
+
+      - name: Show Windows warning
+        if: ${{matrix.os == 'windows-latest'}}
+        run: echo "::warning::C/C++ tests did NOT run in Windows"
+
+      - name: Move files to main folder
+        run: mv target/release/libc2pa_c* .
+
+      - name: Add files to archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2pa-c_${{matrix.target}}-${{ steps.sha.outputs.sha_short }}.zip
+          path: |
+            README.md
+            include/**
+            examples/**
+            libc2pa_c*
+          retention-days: 3
