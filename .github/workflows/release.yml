@@ -62,8 +62,7 @@ jobs:
       - name: Install musl for mac -> linux cross compilation
         if: "startsWith(matrix.target, 'aarch64-unknown-linux-')"
         run: |
-          brew tap messense/macos-cross-toolchains
-          brew install aarch64-unknown-linux-gnu
+          brew install MaterializeInc/crosstools/aarch64-unknown-linux-gnu
           brew install filosottile/musl-cross/musl-cross
 
       - name: Build library
