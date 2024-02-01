@@ -83,19 +83,16 @@ jobs:
         run:
           echo "::warning::C/C++ tests did NOT run in Windows"
 
-      - name: Add built files to archive
-        uses: actions/upload-artifact@v3
+      - name: Move files to main folder
+        run: mv target/release/libc2pa_c* .
+
+      - name: Add files to archive
+        uses: actions/upload-artifact@v4
         with:
           name: c2pa-c_${{matrix.target}}-${{ steps.sha.outputs.sha_short }}.zip
           path: |
             README.md
             include/**
             examples/**
-          retention-days: 3
-
-      - name: Add supporting files to archive
-        uses: actions/upload-artifact@v4
-        with:
-          name: c2pa-c_${{matrix.target}}-${{ steps.sha.outputs.sha_short }}.zip
-          path: target/release/libc2pa_c*
+            libc2pa_c*
           retention-days: 3
