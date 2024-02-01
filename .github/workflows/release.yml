@@ -54,7 +54,7 @@ jobs:
           shared-key: ${{matrix.target}}
 
       - name: Install musl for mac -> linux cross compilation
-        if: "startsWith(matrix.target, 'aarch64-unknown-linux-')"
+        if: ${{matrix.target == 'aarch64-unknown-linux-musl'}}
         run: brew install filosottile/musl-cross/musl-cross
 
       - name: Build library
@@ -64,16 +64,15 @@ jobs:
 
       - name: Run C tests
         if: ${{matrix.os != 'windows-latest'}}
-        run: make test-c
+        run: make TARGET=${{matrix.target}} test-c
 
       - name: Run C++ tests
         if: ${{matrix.os != 'windows-latest'}}
-        run: make test-cpp
+        run: make TARGET=${{matrix.target}} test-cpp
 
       - name: Show Windows warning
         if: ${{matrix.os == 'windows-latest'}}
-        run:
-          echo "::warning::C/C++ tests did NOT run in Windows"
+        run: echo "::warning::C/C++ tests did NOT run in Windows"
 
       - name: Move files to main folder
         run: mv target/release/libc2pa_c* .
