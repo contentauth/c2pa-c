@@ -11,9 +11,17 @@ jobs:
       matrix:
         include:
           - os: macos-latest-large
+            target: aarch64-apple-darwin
+          - os: macos-latest-large
             target: aarch64-apple-ios
           - os: macos-latest-large
+            target: aarch64-unknown-linux-gnu
+          - os: macos-latest-large
             target: aarch64-unknown-linux-musl
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
           - os: windows-latest
@@ -49,17 +57,16 @@ jobs:
           shared-key: ${{matrix.target}}
 
       - name: Install musl for mac -> linux cross compilation
-        if: ${{matrix.target == 'aarch64-unknown-linux-musl'}}
-        run: brew install filosottile/musl-cross/musl-cross
-
-      - name: Build library (mac -> linux)
-        if: ${{matrix.target == 'aarch64-unknown-linux-musl'}}
-        env: 
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-musl-gcc
-        run: make release
+        if: "startsWith(matrix.target, 'aarch64-unknown-linux-')"
+        run: |
+          brew tap messense/macos-cross-toolchains
+          brew install aarch64-unknown-linux-gnu
+          brew install filosottile/musl-cross/musl-cross
 
       - name: Build library
-        if: ${{matrix.target != 'aarch64-unknown-linux-musl'}}
+        env: 
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-musl-gcc
         run: make release
 
       - name: Run C tests
@@ -82,5 +89,5 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: c2pa-c_${{matrix.target}}-${{ steps.sha.outputs.sha_short }}.zip
-          path: target/${{matrix.target}}/release/libc2pa_c*
+          path: target/release/libc2pa_c*
           retention-days: 3
