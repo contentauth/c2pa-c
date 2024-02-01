@@ -15,8 +15,10 @@ jobs:
           - os: macos-latest-large
             target: aarch64-apple-ios
           - os: macos-latest-large
+            # cross-compile for Linux ARM using Apple Silicon until we have ARM runners
             target: aarch64-unknown-linux-gnu
           - os: macos-latest-large
+            # cross-compile for Linux ARM using Apple Silicon until we have ARM runners
             target: aarch64-unknown-linux-musl
           - os: macos-latest
             target: x86_64-apple-darwin
@@ -24,8 +26,9 @@ jobs:
             target: x86_64-unknown-linux-gnu
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
+          # disabling until we get tests running
+          # - os: windows-latest
+          #   target: x86_64-pc-windows-msvc
     name: Build ${{matrix.target}}
     runs-on: ${{matrix.os}}
     steps:
