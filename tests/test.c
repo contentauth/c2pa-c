@@ -35,17 +35,33 @@ int main(void)
     CStream* input_stream = open_file_stream("tests/fixtures/C.jpg", "rb");
     assert_not_null("open_file_stream", input_stream);
 
-    ManifestStore* manifest_store = c2pa_manifest_store_from_stream("image/jpeg", input_stream);
+    ManifestStore* manifest_store = c2pa_manifest_store_read("image/jpeg", input_stream);
     assert_not_null("manifest_store_from_stream", manifest_store);
-
-    char* json = c2pa_manifest_store_json(&manifest_store);
-    //printf("manifest json = %s\n", json);
-    assert_str_not_null("c2pa_manifest_store_json", json);
 
     close_file_stream(input_stream);
 
- 
+    char* json = c2pa_manifest_store_json(manifest_store);
+    assert_not_null("c2pa_manifest_store_json", json);
+    // printf("manifest json = %s\n", json);
 
+    // we should fetch the active manifest and retrieve the identifier from the thumbnail in that manifest 
+    char *uri = findValueByKey(json, "identifier");
+    if (uri == NULL) {
+        fprintf(stderr, "FAILED: unable to find identifier in manifest json\n");
+        exit(1);
+    }
+
+	//Open a file to write the thumbnail into
+    CStream* thumb_stream = open_file_stream("target/thumb_c.jpg", "wb");
+    assert_not_null("open_file_stream thumbnail", thumb_stream);
+
+    // write the thumbnail resource to the stream
+    int res = c2pa_manifest_store_get_resource(manifest_store, uri, thumb_stream);
+    free(uri);
+    assert_int("c2pa_manifest_reader_get_resource", res);
+
+    c2pa_release_manifest_store(manifest_store);
+ 
     char *certs = load_file("tests/fixtures/es256_certs.pem");
     char *private_key = load_file("tests/fixtures/es256_private.key");
 

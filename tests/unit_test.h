@@ -85,17 +85,10 @@ void assert_not_null(const char *what, void *val)
 void assert_str_not_null(const char *what, char *c2pa_str)
 {
     assert_not_null(what, c2pa_str);
-    // if (c2pa_str == NULL)
-    // {
-    //     char *err = c2pa_error();
-    //     fprintf(stderr, "FAILED %s: %s\n", what, err);
-    //     c2pa_release_string(err);
-    //     exit(1);
-    // }
-    // printf("PASSED: %s\n", what);
     c2pa_release_string(c2pa_str);
 }
 
+// assert that c2pa is not NULL or exit
 
 // assert if c2pa_str is NULL and we have the expected error
 void assert_null(const char *what, char *c2pa_str, const char *err_str)
@@ -116,5 +109,61 @@ void assert_null(const char *what, char *c2pa_str, const char *err_str)
         fprintf(stderr, "FAILED %s: expected NULL\n", what);
         c2pa_release_string(c2pa_str);
         exit(1);
+    }
+}
+
+void assert_int(const char *what, int result)
+{
+    if (result < 0)
+    {
+        char *err = c2pa_error();
+        fprintf(stderr, "FAILED %s: %s\n", what, err);
+        c2pa_release_string(err);
+        exit(1);
+    }
+    printf("PASSED: %s\n", what);
+}
+
+// Function to find the value associated with a key in a JSON string
+char* findValueByKey(const char* json, const char* key) {
+    const char* keyStart = strstr(json, key);
+
+    if (keyStart == NULL) {
+        return NULL;  // Key not found
+    }
+
+    const char* valueStart = strchr(keyStart, ':');
+    if (valueStart == NULL) {
+        return NULL;  // Malformed JSON
+    }
+
+    // Move past the ':' and whitespace
+    valueStart++;
+    while (*valueStart == ' ' || *valueStart == '\t' || *valueStart == '\n' || *valueStart == '\r') {
+        valueStart++;
+    }
+
+    if (*valueStart == '"') {
+        // String value
+        const char* valueEnd = strchr(valueStart + 1, '"');
+        if (valueEnd == NULL) {
+            return NULL;  // Malformed JSON
+        }
+        int valueLength = valueEnd - valueStart - 1;
+        char* result = (char*)malloc(valueLength + 1);
+        strncpy(result, valueStart + 1, valueLength);
+        result[valueLength] = '\0';
+        return result;
+    } else {
+        // Numeric or other value
+        const char* valueEnd = valueStart;
+        while (*valueEnd != ',' && *valueEnd != '}' && *valueEnd != ']' && *valueEnd != '\0') {
+            valueEnd++;
+        }
+        int valueLength = valueEnd - valueStart;
+        char* result = (char*)malloc(valueLength + 1);
+        strncpy(result, valueStart, valueLength);
+        result[valueLength] = '\0';
+        return result;
     }
 }

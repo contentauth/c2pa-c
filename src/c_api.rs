@@ -11,9 +11,12 @@
 // specific language governing permissions and limitations under
 // each license.
 
-use std::{ffi::CString, os::raw::c_char};
+use std::{
+    ffi::CString,
+    os::raw::{c_char, c_int, c_uchar},
+};
 
-use c2pa::ManifestStore;
+use c2pa::{ManifestStore, ManifestStoreBuilder};
 
 use crate::{
     c_stream::CStream,
@@ -29,6 +32,19 @@ macro_rules! from_cstr_null_check {
         if $ptr.is_null() {
             Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
             return std::ptr::null_mut();
+        } else {
+            std::ffi::CStr::from_ptr($ptr)
+                .to_string_lossy()
+                .into_owned()
+        }
+    };
+}
+#[macro_export]
+macro_rules! from_cstr_null_check_int {
+    ($ptr : expr) => {
+        if $ptr.is_null() {
+            Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
+            return -1;
         } else {
             std::ffi::CStr::from_ptr($ptr)
                 .to_string_lossy()
@@ -88,32 +104,6 @@ pub unsafe extern "C" fn c2pa_version() -> *mut c_char {
 #[no_mangle]
 pub unsafe extern "C" fn c2pa_error() -> *mut c_char {
     to_c_string(Error::last_message().unwrap_or_default())
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn c2pa_manifest_store_from_stream(
-    format: *const c_char,
-    stream: *mut CStream,
-) -> *mut ManifestStore {
-    let format = from_cstr_null_check!(format);
-    let result = ManifestStore::from_stream(&format, &mut (*stream), true);
-    match result {
-        Ok(manifest_store) => Box::into_raw(Box::new(manifest_store)),
-        Err(err) => {
-            Error::from_c2pa_error(err).set_last();
-            std::ptr::null_mut()
-        }
-    }
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn c2pa_manifest_store_json(
-    store_ptr: *mut *mut ManifestStore,
-) -> *mut c_char {
-    let store: Box<ManifestStore> = Box::from_raw(*store_ptr);
-    let json = store.to_string();
-    *store_ptr = Box::into_raw(store);
-    to_c_string(json)
 }
 
 /// Returns a ManifestStore JSON string from a file path.
@@ -257,5 +247,216 @@ pub unsafe extern "C" fn c2pa_release_manifest_store(store: *mut c2pa::ManifestS
 pub unsafe extern "C" fn c2pa_release_string(s: *mut c_char) {
     if !s.is_null() {
         drop(CString::from_raw(s));
+    }
+}
+
+/// Reads a ManifestStore from a stream with the given format
+/// # Errors
+/// Returns NULL if there were errors, otherwise returns a pointer to a ManifestStore
+/// The error string can be retrieved by calling c2pa_error
+/// # Safety
+/// Reads from null terminated C strings
+/// The returned value MUST be released by calling c2pa_release_manifest_store
+/// and it is no longer valid after that call.
+/// # Example
+/// ```c
+/// auto result = c2pa_manifest_store_read("image/jpeg", stream);
+/// if (result == NULL) {
+///   printf("Error: %s\n", c2pa_error());
+/// }
+/// ```
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_manifest_store_read(
+    format: *const c_char,
+    stream: *mut CStream,
+) -> *mut ManifestStore {
+    let format = from_cstr_null_check!(format);
+    let result = ManifestStore::from_stream(&format, &mut (*stream), true);
+    match result {
+        Ok(manifest_store) => Box::into_raw(Box::new(manifest_store)),
+        Err(err) => {
+            Error::from_c2pa_error(err).set_last();
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// Releases a ManifestStore allocated by Rust
+/// # Safety
+/// can only be released once and is invalid after this call
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_manifest_store_release(store_ptr: *mut ManifestStore) {
+    if !store_ptr.is_null() {
+        drop(Box::from_raw(store_ptr));
+    }
+}
+
+/// Returns a JSON string generated from a ManifestStore
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_manifest_store_json(store_ptr: *mut ManifestStore) -> *mut c_char {
+    let store: Box<ManifestStore> = Box::from_raw(store_ptr);
+    let json = store.to_string();
+    Box::into_raw(store);
+    to_c_string(json)
+}
+
+/// writes a ManifestStore resource stream given a manifest id and resource id
+/// # Errors
+/// Returns -1 if there were errors, otherwise returns size of stream written
+///
+/// # Safety
+/// Reads from null terminated C strings
+///
+/// # Example
+/// ```c
+/// result c2pa_manifest_store_get_resource(store, "uri", stream);
+/// if (result < 0) {
+///    printf("Error: %s\n", c2pa_error());
+/// }
+/// ```
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_manifest_store_get_resource(
+    store_ptr: *mut ManifestStore,
+    uri: *const c_char,
+    stream: *mut CStream,
+) -> c_int {
+    let manifest_store: Box<ManifestStore> = Box::from_raw(store_ptr);
+    let uri = from_cstr_null_check_int!(uri);
+    let result = manifest_store.get_resource(&uri, &mut (*stream));
+    Box::into_raw(manifest_store);
+    match result {
+        Ok(len) => len as c_int,
+        Err(err) => {
+            Error::from_c2pa_error(err).set_last();
+            -1
+        }
+    }
+}
+
+/// Returns a ManifestStoreBuilder from a JSON string
+/// # Errors
+/// Returns NULL if there were errors, otherwise returns a pointer to a ManifestStoreBuilder
+/// The error string can be retrieved by calling c2pa_error
+/// # Safety
+/// Reads from null terminated C strings
+/// The returned value MUST be released by calling c2pa_manifest_store_builder_release
+/// and it is no longer valid after that call.
+/// # Example
+/// ```c
+/// auto result = c2pa_manifest_store_builder_from_json(manifest_json);
+/// if (result == NULL) {
+///  printf("Error: %s\n", c2pa_error());
+/// }
+/// ```
+///
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_manifest_store_builder_from_json(
+    manifest_json: *const c_char,
+) -> *mut ManifestStoreBuilder {
+    let manifest_json = from_cstr_null_check!(manifest_json);
+    let result = ManifestStoreBuilder::from_json(&manifest_json);
+    match result {
+        Ok(builder) => Box::into_raw(Box::new(builder)),
+        Err(err) => {
+            Error::from_c2pa_error(err).set_last();
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// Release a ManifestStoreBuilder allocated by Rust
+/// # Safety
+/// can only be released once and is invalid after this call
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_manifest_store_builder_release(
+    builder_ptr: *mut ManifestStoreBuilder,
+) {
+    if !builder_ptr.is_null() {
+        drop(Box::from_raw(builder_ptr));
+    }
+}
+
+/// Adds a resource to the ManifestStoreBuilder
+/// # Errors
+/// Returns -1 if there were errors, otherwise returns 0
+/// The error string can be retrieved by calling c2pa_error
+/// # Safety
+/// Reads from null terminated C strings
+///
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_manifest_builder_add_resource(
+    builder_ptr: *mut ManifestStoreBuilder,
+    uri: *const c_char,
+    stream: *mut CStream,
+) -> c_int {
+    let mut builder: Box<ManifestStoreBuilder> = Box::from_raw(builder_ptr);
+    let uri = from_cstr_null_check_int!(uri);
+    let result = builder.add_resource(&uri, &mut (*stream));
+    match result {
+        Ok(builder) => {
+            Box::into_raw(Box::new(builder));
+            0 as c_int
+        }
+        Err(err) => {
+            Error::from_c2pa_error(err).set_last();
+            -1
+        }
+    }
+}
+
+/// Creates and writes signed manifest from the ManifestStoreBuilder to the destination stream
+/// # Parameters
+/// * builder_ptr: pointer to a ManifestStoreBuilder
+/// * format: pointer to a C string with the mime type or extension
+/// * source: pointer to a CStream
+/// * dest: pointer to a writable CStream
+/// * signer_info: pointer to a C2paSignerInfo
+/// * c2pa_data_ptr: pointer to a pointer to a c_uchar (optional, can be NULL)
+/// # Errors
+/// Returns -1 if there were errors, otherwise returns the size of the c2pa data
+/// The error string can be retrieved by calling c2pa_error
+/// # Safety
+/// Reads from null terminated C strings
+/// If c2pa_data_ptr is not NULL, the returned value MUST be released by calling c2pa_release_string
+/// and it is no longer valid after that call.
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_manifest_store_builder_sign(
+    builder_ptr: *mut ManifestStoreBuilder,
+    format: *const c_char,
+    source: *mut CStream,
+    dest: *mut CStream,
+    signer_info: &C2paSignerInfo,
+    c2pa_data_ptr: *mut *const c_uchar,
+) -> c_int {
+    let mut builder: Box<ManifestStoreBuilder> = Box::from_raw(builder_ptr);
+    builder.format = from_cstr_null_check_int!(format);
+
+    let signer_info = SignerInfo {
+        alg: from_cstr_null_check_int!(signer_info.alg),
+        sign_cert: from_cstr_null_check_int!(signer_info.sign_cert).into_bytes(),
+        private_key: from_cstr_null_check_int!(signer_info.private_key).into_bytes(),
+        ta_url: from_cstr_option!(signer_info.ta_url),
+    };
+    let signer = match signer_info.signer() {
+        Ok(signer) => signer,
+        Err(err) => {
+            err.set_last();
+            return -1;
+        }
+    };
+    let format = &builder.format.to_owned();
+    let result = builder.sign(format, &mut *source, &mut *dest, signer.as_ref());
+    Box::into_raw(Box::new(builder));
+    match result {
+        Ok(c2pa_data) => {
+            if !c2pa_data_ptr.is_null() {
+                *c2pa_data_ptr = c2pa_data.as_ptr();
+            };
+            c2pa_data.len() as c_int
+        }
+        Err(err) => {
+            Error::from_c2pa_error(err).set_last();
+            -1
+        }
     }
 }

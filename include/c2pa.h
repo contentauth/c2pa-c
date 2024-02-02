@@ -35,11 +35,37 @@
     #define IMPORT
 
 #endif
-
 typedef struct ManifestStore ManifestStore;
+typedef struct ManifestStoreBuilder ManifestStoreBuilder;
 
 
 typedef struct C2paSigner C2paSigner;
+
+/**
+ * Defines the configuration for a Signer
+ *
+ * The signer is created from the signcert and pkey fields.
+ * an optional url to an RFC 3161 compliant time server will ensure the signature is timestamped
+ *
+ */
+typedef struct C2paSignerInfo {
+  /**
+   * The signing algorithm
+   */
+  const char *alg;
+  /**
+   * The public certificate chain in PEM format
+   */
+  const char *sign_cert;
+  /**
+   * The private key in PEM format
+   */
+  const char *private_key;
+  /**
+   * The timestamp authority URL or NULL
+   */
+  const char *ta_url;
+} C2paSignerInfo;
 
 /**
  * An Opaque struct to hold a context value for the stream callbacks
@@ -77,32 +103,6 @@ typedef struct CStream {
   WriteCallback writer;
   FlushCallback flusher;
 } CStream;
-
-/**
- * Defines the configuration for a Signer
- *
- * The signer is created from the signcert and pkey fields.
- * an optional url to an RFC 3161 compliant time server will ensure the signature is timestamped
- *
- */
-typedef struct C2paSignerInfo {
-  /**
-   * The signing algorithm
-   */
-  const char *alg;
-  /**
-   * The public certificate chain in PEM format
-   */
-  const char *sign_cert;
-  /**
-   * The private key in PEM format
-   */
-  const char *private_key;
-  /**
-   * The timestamp authority URL or NULL
-   */
-  const char *ta_url;
-} C2paSignerInfo;
 
 /**
  * Defines a callback to sign data
@@ -165,12 +165,6 @@ IMPORT extern char *c2pa_version(void);
  * and it is no longer valid after that call.
  */
 IMPORT extern char *c2pa_error(void);
-
-IMPORT extern
-ManifestStore *c2pa_manifest_store_from_stream(const char *format,
-                                               struct CStream *stream);
-
-IMPORT extern char *c2pa_manifest_store_json(ManifestStore **store_ptr);
 
 /**
  * Returns a ManifestStore JSON string from a file path.
@@ -239,6 +233,125 @@ IMPORT extern void c2pa_release_manifest_store(ManifestStore *store);
  * can only be released once and is invalid after this call
  */
 IMPORT extern void c2pa_release_string(char *s);
+
+/**
+ * Reads a ManifestStore from a stream with the given format
+ * # Errors
+ * Returns NULL if there were errors, otherwise returns a pointer to a ManifestStore
+ * The error string can be retrieved by calling c2pa_error
+ * # Safety
+ * Reads from null terminated C strings
+ * The returned value MUST be released by calling c2pa_release_manifest_store
+ * and it is no longer valid after that call.
+ * # Example
+ * ```c
+ * auto result = c2pa_manifest_store_read("image/jpeg", stream);
+ * if (result == NULL) {
+ *   printf("Error: %s\n", c2pa_error());
+ * }
+ * ```
+ */
+IMPORT extern ManifestStore *c2pa_manifest_store_read(const char *format, struct CStream *stream);
+
+/**
+ * Releases a ManifestStore allocated by Rust
+ * # Safety
+ * can only be released once and is invalid after this call
+ */
+IMPORT extern void c2pa_manifest_store_release(ManifestStore *store_ptr);
+
+/**
+ * Returns a JSON string generated from a ManifestStore
+ */
+IMPORT extern char *c2pa_manifest_store_json(ManifestStore *store_ptr);
+
+/**
+ * writes a ManifestStore resource stream given a manifest id and resource id
+ * # Errors
+ * Returns -1 if there were errors, otherwise returns size of stream written
+ *
+ * # Safety
+ * Reads from null terminated C strings
+ *
+ * # Example
+ * ```c
+ * result c2pa_manifest_store_get_resource(store, "uri", stream);
+ * if (result < 0) {
+ *    printf("Error: %s\n", c2pa_error());
+ * }
+ * ```
+ */
+IMPORT extern
+int c2pa_manifest_store_get_resource(ManifestStore *store_ptr,
+                                     const char *uri,
+                                     struct CStream *stream);
+
+/**
+ * Returns a ManifestStoreBuilder from a JSON string
+ * # Errors
+ * Returns NULL if there were errors, otherwise returns a pointer to a ManifestStoreBuilder
+ * The error string can be retrieved by calling c2pa_error
+ * # Safety
+ * Reads from null terminated C strings
+ * The returned value MUST be released by calling c2pa_manifest_store_builder_release
+ * and it is no longer valid after that call.
+ * # Example
+ * ```c
+ * auto result = c2pa_manifest_store_builder_from_json(manifest_json);
+ * if (result == NULL) {
+ *  printf("Error: %s\n", c2pa_error());
+ * }
+ * ```
+ *
+ */
+IMPORT extern
+ManifestStoreBuilder *c2pa_manifest_store_builder_from_json(const char *manifest_json);
+
+/**
+ * Release a ManifestStoreBuilder allocated by Rust
+ * # Safety
+ * can only be released once and is invalid after this call
+ */
+IMPORT extern void c2pa_manifest_store_builder_release(ManifestStoreBuilder *builder_ptr);
+
+/**
+ * Adds a resource to the ManifestStoreBuilder
+ * # Errors
+ * Returns -1 if there were errors, otherwise returns 0
+ * The error string can be retrieved by calling c2pa_error
+ * # Safety
+ * Reads from null terminated C strings
+ *
+ */
+IMPORT extern
+int c2pa_manifest_builder_add_resource(ManifestStoreBuilder *builder_ptr,
+                                       const char *uri,
+                                       struct CStream *stream);
+
+/**
+ * Creates and writes signed manifest from the ManifestStoreBuilder to the destination stream
+ * # Parameters
+ * * builder_ptr: pointer to a ManifestStoreBuilder
+ * * format: pointer to a C string with the mime type or extension
+ * * source: pointer to a CStream
+ * * dest: pointer to a writable CStream
+ * * signer_info: pointer to a C2paSignerInfo
+ * * c2pa_data_ptr: pointer to a pointer to a c_uchar (optional, can be NULL)
+ * # Errors
+ * Returns -1 if there were errors, otherwise returns the size of the c2pa data
+ * The error string can be retrieved by calling c2pa_error
+ * # Safety
+ * Reads from null terminated C strings
+ * If c2pa_data_ptr is not NULL, the returned value MUST be released by calling c2pa_release_string
+ * and it is no longer valid after that call.
+ */
+IMPORT extern
+int c2pa_manifest_store_builder_sign(ManifestStoreBuilder *builder_ptr,
+                                     const char *format,
+                                     struct CStream *source,
+                                     struct CStream *dest,
+                                     const struct C2paSignerInfo *signer_info,
+                                     const unsigned char **c2pa_data_ptr);
 
 IMPORT extern
 struct C2paSigner *c2pa_create_signer(CSignerCallback signer,

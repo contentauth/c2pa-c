@@ -16,8 +16,6 @@ use std::{
     io::{Read, Seek, Write},
 };
 
-use c2pa::{CAIRead, CAIReadWrite};
-
 #[repr(C)]
 #[derive(Debug)]
 /// An Opaque struct to hold a context value for the stream callbacks
@@ -78,9 +76,6 @@ impl CStream {
         }
     }
 }
-
-impl CAIRead for CStream {}
-impl CAIReadWrite for CStream {}
 
 impl Read for CStream {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
