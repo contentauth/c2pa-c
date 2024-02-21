@@ -61,18 +61,22 @@ ssize_t flusher(size_t context) {
     return 0;
 }   
 
-CStream* create_stream(FILE *file) {
+CStream* create_file_stream(FILE *file) {
     if (file != NULL) {
       return c2pa_create_stream((StreamContext*)file, (ReadCallback)reader, (SeekCallback) seeker, (WriteCallback)writer, (FlushCallback)flusher);
     }
     return NULL;
 }
 
+void release_stream(CStream* stream) {
+    c2pa_release_stream(stream);
+}
+
 CStream* open_file_stream(const char *path, const char* mode) {
     FILE *file = fopen(path, mode);
     if (file != NULL) {
         // printf("file open = %0lx\n", (unsigned long)file);
-        return create_stream(file);
+        return create_file_stream(file);
     }
     return NULL;
 }

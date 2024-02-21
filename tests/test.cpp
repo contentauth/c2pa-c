@@ -38,8 +38,6 @@ void assert_exists(const char *what, const char* file_path)
     printf("PASSED: %s\n", what);
 }
 
-
-
 using namespace std;
 
 int main()
@@ -49,7 +47,7 @@ int main()
 
     // test v2 ManifestStoreReader apis
     try {
-        auto reader = c2pa::ManifestStoreReader("tests/fixtures/C.jpg");
+        auto reader = c2pa::Reader("tests/fixtures/C.jpg");
 
         auto json = reader.json(); 
         assert_contains("c2pa::ManifestStoreReader.json", json, "C.jpg");
@@ -74,7 +72,7 @@ int main()
         C2paSignerInfo sign_info = {.alg = "es256", .sign_cert = certs, .private_key = private_key, .ta_url = "http://timestamp.digicert.com"};
         const char *signed_path = "target/tmp/C_signed.jpg";
         std::remove(signed_path); // remove the file if it exists
-        auto builder = c2pa::ManifestBuilder(manifest);
+        auto builder = c2pa::Builder(manifest);
         auto manifest_data = builder.sign("tests/fixtures/C.jpg", signed_path, &sign_info);
         printf("manifest_size: %lu\n", manifest_data->size());
         free(manifest_data);

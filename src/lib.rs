@@ -19,7 +19,7 @@ mod json_api;
 mod signer;
 mod signer_info;
 
-pub use c2pa::{ManifestStore, ManifestStoreBuilder};
+pub use c2pa::{Builder, C2pa, Reader};
 pub use c_stream::*;
 pub use error::{Error, Result};
 pub use json_api::*;

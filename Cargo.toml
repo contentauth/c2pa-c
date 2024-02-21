@@ -1,6 +1,6 @@
 [package]
 name = "c2pa-c"
-version = "0.1.0"
+version = "0.2.0-dev"
 edition = "2021"
 authors = ["Gavin Peacock <gpeacock@adobe.com"]
 
@@ -9,8 +9,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 #c2pa = {version="0.28.0", features = ["file_io", "add_thumbnails", "fetch_remote_manifests"]}
-c2pa = {path="../c2pa-rs/sdk",features = ["file_io", "add_thumbnails", "fetch_remote_manifests"]}
-#c2pa = {git = "https://github.com/contentauth/c2pa-rs.git", branch = "gpeacock/manifest_store_builder", features = ["file_io", "add_thumbnails", "fetch_remote_manifests"] }
+#c2pa = {path="../c2pa-rs/sdk",features = ["file_io", "add_thumbnails", "fetch_remote_manifests"]}
+c2pa = {git = "https://github.com/contentauth/c2pa-rs.git", branch = "gpeacock/manifest_store_builder", features = ["file_io", "add_thumbnails", "fetch_remote_manifests"] }
 pem = "3.0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_derive = "1.0"

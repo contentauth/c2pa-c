@@ -32,12 +32,12 @@ after_includes = """
     #define IMPORT
 
 #endif
-typedef struct ManifestStore ManifestStore;
-typedef struct ManifestStoreBuilder ManifestStoreBuilder;
+typedef struct C2paReader C2paReader;
+typedef struct C2paBuilder C2paBuilder;
 """
 
 [export]
-include = ["ManifestStore", "ManifestStoreBuilder"]
+include = ["C2paReader", "C2paBuilder"]
 
 [export.rename]
 "C2paConfigC" = "C2paConfig"

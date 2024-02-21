@@ -119,22 +119,44 @@ namespace c2pa
     }
 
 
-    // Class for ManifestStoreReader
-    class ManifestStoreReader
+    class CppStream : public CStream
+    {
+    public:
+        CStream *c_stream;
+
+        CppStream(std::istream *istream) {
+            c_stream = c2pa_create_stream((StreamContext*)&istream, (ReadCallback)reader, (SeekCallback) seeker, (WriteCallback)writer, (FlushCallback)flusher);
+        }
+        CppStream(std::ostream *ostream) {
+            c_stream = c2pa_create_stream((StreamContext*)&ostream, (ReadCallback)reader, (SeekCallback) seeker, (WriteCallback)writer, (FlushCallback)flusher);
+        }
+        ~CppStream() {
+            c2pa_release_stream(c_stream);
+        }
+    };
+
+    // Class for Reader
+    class Reader
     {
     private:
-        ManifestStore *manifest_store;
+        C2paReader *reader;
 
     public:
 
-        // Create a ManifestStoreReader from a CStream
-        ManifestStoreReader(const char *format, CStream *stream)
+        // Create a Reader from a CStream
+        Reader(const char *format, CStream *stream)
         {
-            manifest_store = c2pa_manifest_store_read(format, stream);
+            reader = c2pa_read(format, stream);
         }
 
-        // Create a ManifestStoreReader from a file
-        ManifestStoreReader(const std::filesystem::path& source_path)
+        Reader(std::istream& stream)
+        {
+            CppStream *cpp_stream = new CppStream(&stream);
+            reader = c2pa_read("json", cpp_stream->c_stream);
+        }
+
+        // Create a Reader from a file
+        Reader(const std::filesystem::path& source_path)
         {
             CStream *stream = open_file_stream(source_path.c_str(), "rb");
             if (stream == NULL)
@@ -146,17 +168,17 @@ namespace c2pa
             if (!extension.empty()) {
                 extension = extension.substr(1);  // Skip the dot
             }
-            manifest_store = c2pa_manifest_store_read(extension.c_str(), stream);
-            if (manifest_store == NULL)
+            reader = c2pa_read(extension.c_str(), stream);
+            if (reader == NULL)
             {
                 throw Exception();
             }
             close_file_stream(stream);
         }
 
-        ~ManifestStoreReader()
+        ~Reader()
         {
-            c2pa_release_manifest_store(manifest_store);
+            c2pa_release_reader(reader);
         }
 
         // Return ManifestStore as Json
@@ -164,7 +186,7 @@ namespace c2pa
         // Throws a C2pa::Exception for errors encountered by the C2pa library
         string json()
         {
-            char *result = c2pa_manifest_store_json(manifest_store);
+            char *result = c2pa_reader_json(reader);
             if (result == NULL)
             {
                 throw Exception();
@@ -175,7 +197,7 @@ namespace c2pa
         }
 
         int get_resource(const char *uri, CStream *stream) {
-            int result = c2pa_manifest_store_get_resource(manifest_store, uri, stream);
+            int result = c2pa_reader_resource(reader, uri, stream);
             if (result < 0)
             {
                 throw Exception();
@@ -192,28 +214,28 @@ namespace c2pa
     };  
 
 
-     // Class for ManifestStoreReader
-    class ManifestBuilder
+     // Class for Builder
+    class Builder
     {
     private:
-        ManifestStoreBuilder *builder;
+       C2paBuilder *builder;
 
     public:
 
-        // Create a ManifestStoreReader from a CStream
-        ManifestBuilder(const char *manifest_json)
+        // Create a Builder from JSON
+        Builder(const char *manifest_json)
         {
-            builder = c2pa_manifest_store_builder_from_json(manifest_json);
+            builder = c2pa_builder_from_json(manifest_json);
         }
 
-        ~ManifestBuilder()
+        ~Builder()
         {
-            c2pa_manifest_store_builder_release(builder);
+            c2pa_builder_release(builder);
         }
 
         std::vector<unsigned char>* sign(const char* format, CStream *source, CStream *dest, SignerInfo *signer_info) {
             const unsigned char *c2pa_data_bytes = NULL;
-            auto result = c2pa_manifest_store_builder_sign(builder, format, source, dest, signer_info, &c2pa_data_bytes);
+            auto result = c2pa_builder_sign(builder, format, source, dest, signer_info, &c2pa_data_bytes);
             if (result < 0)
             {
                 throw Exception();
@@ -224,6 +246,13 @@ namespace c2pa
                 return c2pa_data;
             }
             return nullptr;
+        }
+
+        std::vector<unsigned char>* sign(const string format, istream source, ostream dest , SignerInfo *signer_info) {
+            CStream *c_source = new CppStream(&source);
+            CStream *c_dest = new CppStream(&dest);
+            auto result = sign(format.c_str(), c_source, c_dest, signer_info);
+            return result;
         }
 
         std::vector<unsigned char>* sign(const path& source_path, const path& dest_path, SignerInfo *signer_info) {
