@@ -32,8 +32,7 @@ after_includes = """
     #define IMPORT
 
 #endif
-typedef struct C2paReader C2paReader;
-typedef struct C2paBuilder C2paBuilder;
+
 """
 
 [export]

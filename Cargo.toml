@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 #c2pa = {version="0.28.0", features = ["file_io", "add_thumbnails", "fetch_remote_manifests"]}
-#c2pa = {path="../c2pa-rs/sdk",features = ["file_io", "add_thumbnails", "fetch_remote_manifests"]}
+#c2pa = {path="../c2pa-rs-v2/sdk",features = ["file_io", "add_thumbnails", "fetch_remote_manifests"]}
 c2pa = {git = "https://github.com/contentauth/c2pa-rs.git", branch = "gpeacock/manifest_store_builder", features = ["file_io", "add_thumbnails", "fetch_remote_manifests"] }
 pem = "3.0.2"
 serde = { version = "1.0", features = ["derive"] }

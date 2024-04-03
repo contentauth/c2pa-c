@@ -48,6 +48,17 @@ char *load_file(const char *filename)
     return buffer;
 }
 
+int save_file(const char* filename, const unsigned char* data, size_t len) {
+    FILE* fp = fopen(filename, "wb");  
+    int bytes_written = -1; 
+    // Open file in binary mode
+    if (fp != NULL) {
+        bytes_written = fwrite(data, len, 1, fp);
+        fclose(fp);
+    }
+    return bytes_written;
+}
+
 // these functions implement a poor person's test framework
 void passed(const char *what, char *c2pa_str)
 {
@@ -167,3 +178,36 @@ char* findValueByKey(const char* json, const char* key) {
         return result;
     }
 }
+
+// Signer callback
+intptr_t signer_callback(const struct SignerContext *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len) {
+    uint64_t data_len= (uint64_t) len;
+    //printf("sign: data = %p, len = %ld\n", data, data_len);
+    // write data to be signed to a temp file
+    int result = save_file("target/c_data.bin", data, data_len);
+    if (result < 0) {
+        printf("signing failed");
+        return -1;
+    }
+    // sign the temp file by calling openssl in a shell
+    system("openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out target/c_signature.sig target/c_data.bin");
+
+    // read the signature file
+    FILE* result_file = fopen("target/c_signature.sig", "rb");
+    if (result_file == NULL) {
+        printf("signing failed");
+        return -1;
+    }
+    fseek(result_file, 0L, SEEK_END);
+    long sig_len = ftell(result_file);
+    rewind(result_file);
+
+    if (sig_len > sig_max_len) {
+        printf("signing failed");
+        return -1;
+    }
+    fread(signature, 1, sig_len, result_file);
+    fclose(result_file);
+    return sig_len;
+}
+

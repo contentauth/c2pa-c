@@ -24,14 +24,14 @@ use crate::{Error, Result};
 ///
 /// The tsa_url field is optional and is used to specify a timestamp server.
 ///
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct SignerInfo {
     pub alg: String,
     pub sign_cert: Vec<u8>,
     pub private_key: Vec<u8>,
-    #[serde(alias = "ta_url")]
     pub ta_url: Option<String>,
 }
+
 impl SignerInfo {
     /// Create a SignerInfo from a JSON formatted SignerInfo string
     pub fn from_json(json: &str) -> Result<Self> {

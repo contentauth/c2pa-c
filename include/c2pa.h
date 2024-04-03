@@ -35,9 +35,18 @@
     #define IMPORT
 
 #endif
-typedef struct C2paReader C2paReader;
-typedef struct C2paBuilder C2paBuilder;
 
+
+
+typedef enum C2paSigningAlg {
+  Es256,
+  Es384,
+  Es512,
+  Ps256,
+  Ps384,
+  Ps512,
+  Ed25519,
+} C2paSigningAlg;
 
 typedef struct C2paSigner C2paSigner;
 
@@ -66,6 +75,10 @@ typedef struct C2paSignerInfo {
    */
   const char *ta_url;
 } C2paSignerInfo;
+
+typedef struct C2paReader {
+
+} C2paReader;
 
 /**
  * An Opaque struct to hold a context value for the stream callbacks
@@ -104,45 +117,25 @@ typedef struct CStream {
   FlushCallback flusher;
 } CStream;
 
-/**
- * Defines a callback to sign data
- */
-typedef intptr_t (*CSignerCallback)(uint8_t *data,
-                                    uintptr_t len,
-                                    uint8_t *signature,
-                                    intptr_t sig_max_size);
+typedef struct C2paBuilder {
+
+} C2paBuilder;
 
 /**
- * Defines the configuration for a Signer
- *
- * # Example
- * ```
- * use c2pa::SignerConfig;
- * let config = SignerConfig {
- *    alg: "Rs256".to_string(),
- *    certs: vec![vec![0; 10]],
- *    time_authority_url: Some("http://example.com".to_string()),
- *    use_ocsp: true,
- * };
+ * An Opaque struct to hold a context value for the sign callbacks
  */
-typedef struct CSignerConfig {
-  /**
-   * Returns the algorithm of the Signer.
-   */
-  const char *alg;
-  /**
-   * Returns the certificates as a Vec containing a Vec of DER bytes for each certificate.
-   */
-  const char *certs;
-  /**
-   * URL for time authority to time stamp the signature
-   */
-  const char *time_authority_url;
-  /**
-   * Try to fetch OCSP response for the signing cert if available
-   */
-  bool use_ocsp;
-} CSignerConfig;
+typedef struct SignerContext {
+
+} SignerContext;
+
+/**
+ * Defines a callback to read from a stream
+ */
+typedef intptr_t (*SignerCallback)(const struct SignerContext *context,
+                                   const unsigned char *data,
+                                   uintptr_t len,
+                                   unsigned char *signed_bytes,
+                                   uintptr_t signed_len);
 
 #ifdef __cplusplus
 extern "C" {
@@ -217,20 +210,19 @@ char *c2pa_sign_file(const char *source_path,
                      const char *data_dir);
 
 /**
- * Releases a C2paBuilder allocated by Rust
- *
- * # Safety
- * can only be released once and is invalid after this call
- */
-IMPORT extern void c2pa_release_builder(C2paBuilder *builder);
-
-/**
- * Releases a string allocated by Rust
+ * Frees a string allocated by Rust
  *
  * # Safety
  * Reads from null terminated C strings
  * The string must not have been modified in C
- * can only be released once and is invalid after this call
+ * can only be freed once and is invalid after this call
+ */
+IMPORT extern void c2pa_string_free(char *s);
+
+/**
+ * Frees a string allocated by Rust
+ *
+ * Provided for backward api compatibility
  */
 IMPORT extern void c2pa_release_string(char *s);
 
@@ -241,29 +233,35 @@ IMPORT extern void c2pa_release_string(char *s);
  * The error string can be retrieved by calling c2pa_error
  * # Safety
  * Reads from null terminated C strings
- * The returned value MUST be released by calling c2pa_release__reader
+ * The returned value MUST be released by calling c2pa_reader_free
  * and it is no longer valid after that call.
  * # Example
  * ```c
- * auto result = c2pa_read("image/jpeg", stream);
+ * auto result = c2pa_reader_from_stream("image/jpeg", stream);
  * if (result == NULL) {
  *   printf("Error: %s\n", c2pa_error());
  * }
  * ```
  */
-IMPORT extern C2paReader *c2pa_read(const char *format, struct CStream *stream);
+IMPORT extern
+struct C2paReader *c2pa_reader_from_stream(const char *format,
+                                           struct CStream *stream);
 
 /**
- * Releases a C2paReader allocated by Rust
+ * Frees a C2paReader allocated by Rust
  * # Safety
- * can only be released once and is invalid after this call
+ * can only be freed once and is invalid after this call
  */
-IMPORT extern void c2pa_release_reader(C2paReader *reader_ptr);
+IMPORT extern void c2pa_reader_free(struct C2paReader *reader_ptr);
 
 /**
  * Returns a JSON string generated from a C2paReader
+ *
+ * # Safety
+ * The returned value MUST be released by calling c2pa_string_free
+ * and it is no longer valid after that call.
  */
-IMPORT extern char *c2pa_reader_json(C2paReader *reader_ptr);
+IMPORT extern char *c2pa_reader_json(struct C2paReader *reader_ptr);
 
 /**
  * writes a C2paReader resource to a stream given a uri
@@ -275,16 +273,16 @@ IMPORT extern char *c2pa_reader_json(C2paReader *reader_ptr);
  *
  * # Example
  * ```c
- * result c2pa_reader_resource(store, "uri", stream);
+ * result c2pa_reader_resource_to_stream(store, "uri", stream);
  * if (result < 0) {
  *    printf("Error: %s\n", c2pa_error());
  * }
  * ```
  */
 IMPORT extern
-int c2pa_reader_resource(C2paReader *reader_ptr,
-                         const char *uri,
-                         struct CStream *stream);
+int c2pa_reader_resource_to_stream(struct C2paReader *reader_ptr,
+                                   const char *uri,
+                                   struct CStream *stream);
 
 /**
  * Creates a C2paBuilder from a JSON manifest definition string
@@ -297,21 +295,21 @@ int c2pa_reader_resource(C2paReader *reader_ptr,
  * and it is no longer valid after that call.
  * # Example
  * ```c
- * auto result = c2pa_manifest_store_builder_from_json(manifest_json);
+ * auto result = c2pa_builder_from_json(manifest_json);
  * if (result == NULL) {
  *  printf("Error: %s\n", c2pa_error());
  * }
  * ```
  *
  */
-IMPORT extern C2paBuilder *c2pa_builder_from_json(const char *manifest_json);
+IMPORT extern struct C2paBuilder *c2pa_builder_from_json(const char *manifest_json);
 
 /**
- * Release a C2paBuilder allocated by Rust
+ * Frees a C2paBuilder allocated by Rust
  * # Safety
- * can only be released once and is invalid after this call
+ * can only be freed once and is invalid after this call
  */
-IMPORT extern void c2pa_builder_release(C2paBuilder *builder_ptr);
+IMPORT extern void c2pa_builder_free(struct C2paBuilder *builder_ptr);
 
 /**
  * Adds a resource to the C2paBuilder
@@ -323,9 +321,30 @@ IMPORT extern void c2pa_builder_release(C2paBuilder *builder_ptr);
  *
  */
 IMPORT extern
-int c2pa_builder_add_resource(C2paBuilder *builder_ptr,
+int c2pa_builder_add_resource(struct C2paBuilder *builder_ptr,
                               const char *uri,
                               struct CStream *stream);
+
+/**
+ * Adds an ingredient to the C2paBuilder
+ *
+ * # Parameters
+ * * builder_ptr: pointer to a Builder
+ * * ingredient_json: pointer to a C string with the JSON ingredient definition
+ * * format: pointer to a C string with the mime type or extension
+ * * source: pointer to a CStream
+ * # Errors
+ * Returns -1 if there were errors, otherwise returns 0
+ * The error string can be retrieved by calling c2pa_error
+ * # Safety
+ * Reads from null terminated C strings
+ *
+ */
+IMPORT extern
+int c2pa_builder_add_ingredient(struct C2paBuilder *builder_ptr,
+                                const char *ingredient_json,
+                                const char *format,
+                                struct CStream *source);
 
 /**
  * Creates and writes signed manifest from the C2paBuilder to the destination stream
@@ -334,7 +353,7 @@ int c2pa_builder_add_resource(C2paBuilder *builder_ptr,
  * * format: pointer to a C string with the mime type or extension
  * * source: pointer to a CStream
  * * dest: pointer to a writable CStream
- * * signer_info: pointer to a C2paSignerInfo
+ * * signer: pointer to a C2paSigner
  * * c2pa_data_ptr: pointer to a pointer to a c_uchar (optional, can be NULL)
  * # Errors
  * Returns -1 if there were errors, otherwise returns the size of the c2pa data
@@ -345,16 +364,55 @@ int c2pa_builder_add_resource(C2paBuilder *builder_ptr,
  * and it is no longer valid after that call.
  */
 IMPORT extern
-int c2pa_builder_sign(C2paBuilder *builder_ptr,
+int c2pa_builder_sign(struct C2paBuilder *builder_ptr,
                       const char *format,
                       struct CStream *source,
                       struct CStream *dest,
-                      const struct C2paSignerInfo *signer_info,
+                      struct C2paSigner *signer,
                       const unsigned char **c2pa_data_ptr);
 
+/**
+ * Frees a the c2pa manifest optionally returned by c2pa_builder_sign
+ * # Safety
+ * can only be freed once and is invalid after this call
+ */
+IMPORT extern void c2pa_manifest_free(const unsigned char *manifest_data_ptr);
+
+/**
+ * Creates a C2paSigner from a callback and configuration
+ * # Parameters
+ * * callback: a callback function to sign data
+ * * alg: the signing algorithm
+ * * certs: a pointer to a null terminated string containing the certificate chain in PEM format
+ * * tsa_url: a pointer to a null terminated string containing the RFC 3161 compliant timestamp authority URL
+ * # Errors
+ * Returns NULL if there were errors, otherwise returns a pointer to a C2paSigner
+ * The error string can be retrieved by calling c2pa_error
+ * # Safety
+ * Reads from null terminated C strings
+ * The returned value MUST be released by calling c2pa_signer_free
+ * and it is no longer valid after that call.
+ * # Example
+ * ```c
+ * auto result = c2pa_signer_create(callback, alg, certs, tsa_url);
+ * if (result == NULL) {
+ *  printf("Error: %s\n", c2pa_error());
+ * }
+ * ```
+ */
 IMPORT extern
-struct C2paSigner *c2pa_create_signer(CSignerCallback signer,
-                                      const struct CSignerConfig *config);
+struct C2paSigner *c2pa_signer_create(struct SignerContext *_context,
+                                      SignerCallback callback,
+                                      enum C2paSigningAlg alg,
+                                      const char *certs,
+                                      const char *tsa_url);
+
+/**
+ * Frees a C2paSigner allocated by Rust
+ * # Safety
+ * can only be freed once and is invalid after this call
+ */
+IMPORT extern void c2pa_signer_free(struct C2paSigner *signer_ptr);
 
 /**
  * Creates a new C2paStream from context with callbacks

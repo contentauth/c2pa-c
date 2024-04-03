@@ -13,6 +13,8 @@
 #include <iostream>
 #include <stdlib.h>
 #include <string.h>
+#include <vector>
+#include <stdexcept>
 #include "unit_test.h"
 #include "../include/c2pa.hpp"
 
@@ -40,6 +42,25 @@ void assert_exists(const char *what, const char* file_path)
 
 using namespace std;
 
+#include <vector>
+
+std::vector<unsigned char> my_signer(const std::vector<unsigned char>& data) {
+    if (data.empty()) {
+        throw std::runtime_error("Input array is empty");
+    }
+
+    std::vector<uint8_t> output;
+
+    printf("Signing %lu bytes\n", data.size());
+    // Process the input array and fill the output array.
+    // This is just an example, replace with your actual processing code.
+    for (uint8_t byte : data) {
+        output.push_back(byte + 1);
+    }
+
+    return output;
+}
+
 int main()
 {
     auto version = c2pa::version();
@@ -50,15 +71,15 @@ int main()
         auto reader = c2pa::Reader("tests/fixtures/C.jpg");
 
         auto json = reader.json(); 
-        assert_contains("c2pa::ManifestStoreReader.json", json, "C.jpg");
+        assert_contains("c2pa::Reader.json", json, "C.jpg");
 
         auto thumb_path = "target/tmp/test_thumbail.jpg";
         std::remove(thumb_path);
         reader.get_resource("self#jumbf=c2pa.assertions/c2pa.thumbnail.claim.jpeg", thumb_path);
-        assert_exists("c2pa::ManifestStoreReader.get_resource", thumb_path);
+        assert_exists("c2pa::Reader.get_resource", thumb_path);
     }
     catch (c2pa::Exception e) {
-        cout << "Failed: C2pa::ManifestStoreReader: " << e.what() << endl;
+        cout << "Failed: C2pa::Reader: " << e.what() << endl;
         return (1);
     };
 
@@ -66,20 +87,21 @@ int main()
     try {
         char *manifest = load_file("tests/fixtures/training.json");
         char *certs = load_file("tests/fixtures/es256_certs.pem");
-        char *private_key = load_file("tests/fixtures/es256_private.key");
+        //char *private_key = load_file("tests/fixtures/es256_private.key");
 
         // create a sign_info struct
-        C2paSignerInfo sign_info = {.alg = "es256", .sign_cert = certs, .private_key = private_key, .ta_url = "http://timestamp.digicert.com"};
+        //C2paSignerInfo sign_info = {.alg = "es256", .sign_cert = certs, .private_key = private_key, .ta_url = "http://timestamp.digicert.com"};
+        c2pa::Signer signer = c2pa::Signer( &my_signer, Es256, certs, "http://timestamp.digicert.com");
         const char *signed_path = "target/tmp/C_signed.jpg";
         std::remove(signed_path); // remove the file if it exists
         auto builder = c2pa::Builder(manifest);
-        auto manifest_data = builder.sign("tests/fixtures/C.jpg", signed_path, &sign_info);
-        printf("manifest_size: %lu\n", manifest_data->size());
+        //builder.add_resource_file("thumbnail", "tests/fixtures/A.jpg");
+        auto manifest_data = builder.sign("tests/fixtures/C.jpg", signed_path, &signer);
         free(manifest_data);
-        assert_exists("c2pa::ManifestBuilder.sign", signed_path);
+        assert_exists("c2pa::Builder.sign", signed_path);
     }
     catch (c2pa::Exception e) {
-        cout << "Failed: C2pa::ManifestBuilder: " << e.what() << endl;
+        cout << "Failed: C2pa::Builder: " << e.what() << endl;
         return (1);
     };
 

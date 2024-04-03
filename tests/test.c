@@ -35,8 +35,8 @@ int main(void)
     CStream* input_stream = open_file_stream("tests/fixtures/C.jpg", "rb");
     assert_not_null("open_file_stream", input_stream);
 
-    C2paReader* reader = c2pa_read("image/jpeg", input_stream);
-    assert_not_null("c2pa_read", reader);
+    C2paReader* reader = c2pa_reader_from_stream("image/jpeg", input_stream);
+    assert_not_null("c2pa_reader_from_stream", reader);
 
     close_file_stream(input_stream);
 
@@ -56,11 +56,11 @@ int main(void)
     assert_not_null("open_file_stream thumbnail", thumb_stream);
 
     // write the thumbnail resource to the stream
-    int res = c2pa_reader_resource(reader, uri, thumb_stream);
+    int res = c2pa_reader_resource_to_stream(reader, uri, thumb_stream);
     free(uri);
     assert_int("c2pa_reader_resource", res);
 
-    c2pa_release_reader(reader);
+    c2pa_reader_free(reader);
  
     char *certs = load_file("tests/fixtures/es256_certs.pem");
     char *private_key = load_file("tests/fixtures/es256_private.key");
@@ -78,6 +78,25 @@ int main(void)
 
     result = c2pa_sign_file("tests/fixtures/es256_certs.pem", "target/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
     assert_null("c2pa_sign_file_not_supported", result, "NotSupported");
+
+    C2paBuilder *builder = c2pa_builder_from_json(manifest);
+    assert_not_null("c2pa_builder_from_json", builder);
+
+    SignerContext *context = (SignerContext *) NULL;
+    C2paSigner *signer = c2pa_signer_create(context, signer_callback, Es256, certs, "http://timestamp.digicert.com");
+    assert_not_null("c2pa_signer_create", signer);
+
+    CStream *source = open_file_stream("tests/fixtures/C.jpg", "rb");
+    CStream *dest = open_file_stream("target/tmp/earth.jpg", "wb");
+
+    int result2 = c2pa_builder_sign(builder, "image/jpeg", source, dest, signer, NULL);
+    assert_int("c2pa_builder_sign", result2);
+
+    close_file_stream(source);
+    close_file_stream(dest);
+
+    c2pa_builder_free(builder);
+    c2pa_signer_free(signer);
 
     free(certs);
     free(private_key);

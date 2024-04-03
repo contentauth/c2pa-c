@@ -12,12 +12,13 @@
 
 #include <iostream>
 #include <string.h>
-#include "c2pa.h"
 #include <optional>  // C++17
 #include <filesystem> // C++17
-using path = std::filesystem::path;
 
+#include "c2pa.h"
 #include "file_stream.h"
+
+using path = std::filesystem::path;
 
 namespace c2pa
 {
@@ -125,6 +126,7 @@ namespace c2pa
         CStream *c_stream;
 
         CppStream(std::istream *istream) {
+            
             c_stream = c2pa_create_stream((StreamContext*)&istream, (ReadCallback)reader, (SeekCallback) seeker, (WriteCallback)writer, (FlushCallback)flusher);
         }
         CppStream(std::ostream *ostream) {
@@ -132,6 +134,30 @@ namespace c2pa
         }
         ~CppStream() {
             c2pa_release_stream(c_stream);
+        }
+    private:
+        static int reader(StreamContext *context, void *buffer, int size) {
+            std::istream *istream = (std::istream *)context;
+            istream->read((char *)buffer, size);
+            return istream->gcount();
+        }
+
+        static int seeker(StreamContext *context, int offset, int whence) {
+            std::istream *istream = (std::istream *)context;
+            istream->seekg(offset, (std::ios_base::seekdir)whence);
+            return istream->tellg();
+        }
+
+        static int writer(StreamContext *context, const void *buffer, int size) {
+            std::ostream *ostream = (std::ostream *)context;
+            ostream->write((const char *)buffer, size);
+            return size;
+        }
+
+        static int flusher(StreamContext *context) {
+            std::ostream *ostream = (std::ostream *)context;
+            ostream->flush();
+            return 0;
         }
     };
 
@@ -146,19 +172,20 @@ namespace c2pa
         // Create a Reader from a CStream
         Reader(const char *format, CStream *stream)
         {
-            reader = c2pa_read(format, stream);
+            reader = c2pa_reader_from_stream(format, stream);
         }
 
         Reader(std::istream& stream)
         {
             CppStream *cpp_stream = new CppStream(&stream);
-            reader = c2pa_read("json", cpp_stream->c_stream);
+            reader = c2pa_reader_from_stream("json", cpp_stream->c_stream);
         }
 
-        // Create a Reader from a file
+        // Create a Reader from a file path
         Reader(const std::filesystem::path& source_path)
         {
             CStream *stream = open_file_stream(source_path.c_str(), "rb");
+            
             if (stream == NULL)
             {
                 throw Exception();
@@ -168,7 +195,7 @@ namespace c2pa
             if (!extension.empty()) {
                 extension = extension.substr(1);  // Skip the dot
             }
-            reader = c2pa_read(extension.c_str(), stream);
+            reader = c2pa_reader_from_stream(extension.c_str(), stream);
             if (reader == NULL)
             {
                 throw Exception();
@@ -178,7 +205,7 @@ namespace c2pa
 
         ~Reader()
         {
-            c2pa_release_reader(reader);
+            c2pa_reader_free(reader);
         }
 
         // Return ManifestStore as Json
@@ -197,7 +224,7 @@ namespace c2pa
         }
 
         int get_resource(const char *uri, CStream *stream) {
-            int result = c2pa_reader_resource(reader, uri, stream);
+            int result = c2pa_reader_resource_to_stream(reader, uri, stream);
             if (result < 0)
             {
                 throw Exception();
@@ -205,16 +232,52 @@ namespace c2pa
             return result;
         }
 
-        int get_resource(const char *uri, const std::filesystem::path& source_path) {
-            CStream *stream = open_file_stream(source_path.c_str(), "wb");
+        int get_resource(const char *uri, std::ostream& stream) {
+            CppStream *cpp_stream = new CppStream(&stream);
+            int result = get_resource("self", cpp_stream->c_stream);
+            return result;
+        }
+
+        int get_resource(const char *uri, const std::filesystem::path& path) {
+            CStream *stream = open_file_stream(path.c_str(), "wb");
+            if (stream == NULL)
+            {
+                printf("Failed to open file stream\n");
+                throw Exception();
+            }
             int result = get_resource(uri, stream);
             close_file_stream(stream);
             return result;
         }
     };  
 
+    using SignerFunc = std::vector<unsigned char> (const std::vector<unsigned char>&);
 
-     // Class for Builder
+    // Class for Signer
+    class Signer
+    {
+    private:
+       C2paSigner *signer;
+
+    public:
+
+        // Create a Signer
+        Signer(SignerFunc *callback, C2paSigningAlg alg, const char * sign_cert, const char * tsa_uri)
+        {
+            signer = c2pa_signer_create((SignerContext *) callback, signer_callback, alg, sign_cert, tsa_uri);
+        }
+
+        ~Signer()
+        {
+            c2pa_signer_free(signer);
+        }
+
+        C2paSigner *c2pa_signer() {
+            return signer;
+        }  
+    };
+
+    // Class for Builder
     class Builder
     {
     private:
@@ -230,43 +293,110 @@ namespace c2pa
 
         ~Builder()
         {
-            c2pa_builder_release(builder);
+            c2pa_builder_free(builder);
         }
 
-        std::vector<unsigned char>* sign(const char* format, CStream *source, CStream *dest, SignerInfo *signer_info) {
+        void add_resource(const char *uri, CStream *stream) {
+            int result = c2pa_builder_add_resource(builder, uri, stream);
+            if (result < 0)
+            {
+                throw Exception();
+            }
+        }  
+
+        void add_resource(const char *uri, const std::filesystem::path& source_path) {
+            CStream *stream = open_file_stream(source_path.c_str(), "rb");
+            if (stream == NULL)
+            {
+                throw Exception();
+            }
+            int result = c2pa_builder_add_resource(builder, uri, stream);
+            if (result < 0)
+            {
+                throw Exception();
+            }
+        }    
+
+        void add_ingredient(const char *uri, const char *format, CStream *stream) {
+            int result = c2pa_builder_add_ingredient(builder, uri, format, stream);
+            if (result < 0)
+            {
+                throw Exception();
+            }
+        }   
+
+        void add_ingredient(const char *uri, const std::filesystem::path& source_path) {\
+            CStream *stream = open_file_stream(source_path.c_str(), "rb");
+            if (stream == NULL)
+            {
+                throw Exception();
+            }
+            // get the extension from the source_path to use as the format
+            string extension = source_path.extension().string();
+            if (!extension.empty()) {
+                extension = extension.substr(1);  // Skip the dot
+            }
+            int result = c2pa_builder_add_ingredient(builder, uri, extension.c_str(), stream);
+            if (result < 0)
+            {
+                throw Exception();
+            }
+        }   
+
+        // Lower level sign that takes CStreams, generally not used directly
+        std::vector<unsigned char>* sign(const char* format, CStream *source, CStream *dest, Signer *signer) {
             const unsigned char *c2pa_data_bytes = NULL;
-            auto result = c2pa_builder_sign(builder, format, source, dest, signer_info, &c2pa_data_bytes);
+            auto result = c2pa_builder_sign(builder, format, source, dest, signer->c2pa_signer(), &c2pa_data_bytes);
             if (result < 0)
             {
                 throw Exception();
             }
             if (c2pa_data_bytes != NULL) {
                 // Allocate a new vector on the heap and fill it with the data
-                std::vector<unsigned char>* c2pa_data = new std::vector<unsigned char>(c2pa_data_bytes, c2pa_data_bytes + result);  
+                std::vector<unsigned char>* c2pa_data = new std::vector<unsigned char>(c2pa_data_bytes, c2pa_data_bytes + result);
+                c2pa_manifest_free(c2pa_data_bytes);
                 return c2pa_data;
             }
             return nullptr;
         }
 
-        std::vector<unsigned char>* sign(const string format, istream source, ostream dest , SignerInfo *signer_info) {
+        // Sign an input stream and write the signed data to an output stream
+        std::vector<unsigned char>* sign(const string format, istream source, ostream dest , Signer *signer) {
             CStream *c_source = new CppStream(&source);
             CStream *c_dest = new CppStream(&dest);
-            auto result = sign(format.c_str(), c_source, c_dest, signer_info);
+            auto result = sign(format.c_str(), c_source, c_dest, signer);
             return result;
         }
 
-        std::vector<unsigned char>* sign(const path& source_path, const path& dest_path, SignerInfo *signer_info) {
+        // Sign an input file and write the signed data to an output file
+        std::vector<unsigned char>* sign(const path& source_path, const path& dest_path, Signer *signer) {
             CStream *source = open_file_stream(source_path.c_str(), "rb");
             CStream *dest = open_file_stream(dest_path.c_str(), "wb");
             auto format = dest_path.extension().string();
             if (!format.empty()) {
                 format = format.substr(1);  // Skip the dot
             }
-            auto result = sign(format.c_str(), source, dest, signer_info);
+            auto result = sign(format.c_str(), source, dest, signer);
             close_file_stream(source);
             close_file_stream(dest);
             return result;
         }
     };
+
+
+
+    // this static callback interfaces with the C level library allowing C++ to use vectors
+    intptr_t signer_callback(const struct SignerContext *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len) {
+        printf("signer_callback\n");
+        SignerFunc *callback = (SignerFunc *)context;
+        std::vector<uint8_t> data_vec(data, data + len);
+        std::vector<uint8_t> signature_vec = (*callback)(data_vec);
+        if (signature_vec.size() > sig_max_len) {
+            return -1;
+        }
+        std::copy(signature_vec.begin(), signature_vec.end(), signature);
+        return signature_vec.size();
+    }
+
 
 }

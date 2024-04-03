@@ -53,7 +53,7 @@ struct SignerInternalConfig {
     ocsp_val: Option<Vec<u8>>,
 }
 
-pub struct C2paSigner {
+struct C2paSigner {
     callback: Box<dyn SignerCallback>,
 
     settings: RwLock<SignerInternalConfig>,
@@ -64,9 +64,9 @@ impl C2paSigner {
         Self {
             callback,
             settings: RwLock::new(SignerInternalConfig {
-                alg: c2pa::SigningAlg::Ps256,
+                alg: c2pa::SigningAlg::Es256,
                 certs: Vec::new(),
-                reserve_size: 1024,
+                reserve_size: 5* 1024,
                 time_authority_url: None,
                 ocsp_val: None,
             }),
