@@ -122,16 +122,9 @@ typedef struct C2paBuilder {
 } C2paBuilder;
 
 /**
- * An Opaque struct to hold a context value for the sign callbacks
- */
-typedef struct SignerContext {
-
-} SignerContext;
-
-/**
  * Defines a callback to read from a stream
  */
-typedef intptr_t (*SignerCallback)(const struct SignerContext *context,
+typedef intptr_t (*SignerCallback)(const void *context,
                                    const unsigned char *data,
                                    uintptr_t len,
                                    unsigned char *signed_bytes,
@@ -223,6 +216,10 @@ IMPORT extern void c2pa_string_free(char *s);
  * Frees a string allocated by Rust
  *
  * Provided for backward api compatibility
+ * # Safety
+ * Reads from null terminated C strings
+ * The string must not have been modified in C
+ * can only be freed once and is invalid after this call
  */
 IMPORT extern void c2pa_release_string(char *s);
 
@@ -291,7 +288,7 @@ int c2pa_reader_resource_to_stream(struct C2paReader *reader_ptr,
  * The error string can be retrieved by calling c2pa_error
  * # Safety
  * Reads from null terminated C strings
- * The returned value MUST be released by calling c2pa_builder_release
+ * The returned value MUST be released by calling c2pa_builder_free
  * and it is no longer valid after that call.
  * # Example
  * ```c
@@ -303,6 +300,25 @@ int c2pa_reader_resource_to_stream(struct C2paReader *reader_ptr,
  *
  */
 IMPORT extern struct C2paBuilder *c2pa_builder_from_json(const char *manifest_json);
+
+/**
+ * Create a C2paBuilder from an archive stream
+ * # Errors
+ * Returns NULL if there were errors, otherwise returns a pointer to a Builder
+ * The error string can be retrieved by calling c2pa_error
+ * # Safety
+ * Reads from null terminated C strings
+ * The returned value MUST be released by calling c2pa_builder_free
+ * and it is no longer valid after that call.
+ * # Example
+ * ```c
+ * auto result = c2pa_builder_from_archive(stream);
+ * if (result == NULL) {
+ * printf("Error: %s\n", c2pa_error());
+ * }
+ * ```
+ */
+IMPORT extern struct C2paBuilder *c2pa_builder_from_archive(struct CStream *stream);
 
 /**
  * Frees a C2paBuilder allocated by Rust
@@ -345,6 +361,26 @@ int c2pa_builder_add_ingredient(struct C2paBuilder *builder_ptr,
                                 const char *ingredient_json,
                                 const char *format,
                                 struct CStream *source);
+
+/**
+ * Writes an Archive of the Builder to the destination stream
+ * # Parameters
+ * * builder_ptr: pointer to a Builder
+ * * stream: pointer to a writable CStream
+ * # Errors
+ * Returns -1 if there were errors, otherwise returns 0
+ * The error string can be retrieved by calling c2pa_error
+ * # Safety
+ * Reads from null terminated C strings
+ * # Example
+ * ```c
+ * auto result = c2pa_builder_to_archive(builder, stream);
+ * if (result < 0) {
+ *   printf("Error: %s\n", c2pa_error());
+ * }
+ * ```
+ */
+IMPORT extern int c2pa_builder_to_archive(struct C2paBuilder *builder_ptr, struct CStream *stream);
 
 /**
  * Creates and writes signed manifest from the C2paBuilder to the destination stream
@@ -401,7 +437,7 @@ IMPORT extern void c2pa_manifest_free(const unsigned char *manifest_data_ptr);
  * ```
  */
 IMPORT extern
-struct C2paSigner *c2pa_signer_create(struct SignerContext *_context,
+struct C2paSigner *c2pa_signer_create(const void *context,
                                       SignerCallback callback,
                                       enum C2paSigningAlg alg,
                                       const char *certs,

@@ -13,7 +13,7 @@
 
 use std::{
     ffi::CString,
-    os::raw::{c_char, c_int, c_uchar},
+    os::raw::{c_char, c_int, c_uchar, c_void},
 };
 
 // C has no namespace so we prefix things with C2pa to make them unique
@@ -113,16 +113,9 @@ macro_rules! from_cstr_option {
     };
 }
 
-#[repr(C)]
-#[derive(Debug)]
-/// An Opaque struct to hold a context value for the sign callbacks
-pub struct SignerContext {
-    _priv: (),
-}
-
 /// Defines a callback to read from a stream
 pub type SignerCallback = unsafe extern "C" fn(
-    context: *const SignerContext,
+    context: *const (),
     data: *const c_uchar,
     len: usize,
     signed_bytes: *mut c_uchar,
@@ -302,6 +295,10 @@ pub unsafe extern "C" fn c2pa_string_free(s: *mut c_char) {
 /// Frees a string allocated by Rust
 ///
 /// Provided for backward api compatibility
+/// # Safety
+/// Reads from null terminated C strings
+/// The string must not have been modified in C
+/// can only be freed once and is invalid after this call
 #[no_mangle]
 pub unsafe extern "C" fn c2pa_release_string(s: *mut c_char) {
     c2pa_string_free(s)
@@ -401,7 +398,7 @@ pub unsafe extern "C" fn c2pa_reader_resource_to_stream(
 /// The error string can be retrieved by calling c2pa_error
 /// # Safety
 /// Reads from null terminated C strings
-/// The returned value MUST be released by calling c2pa_builder_release
+/// The returned value MUST be released by calling c2pa_builder_free
 /// and it is no longer valid after that call.
 /// # Example
 /// ```c
@@ -415,6 +412,33 @@ pub unsafe extern "C" fn c2pa_reader_resource_to_stream(
 pub unsafe extern "C" fn c2pa_builder_from_json(manifest_json: *const c_char) -> *mut C2paBuilder {
     let manifest_json = from_cstr_null_check!(manifest_json);
     let result = C2paBuilder::from_json(&manifest_json);
+    match result {
+        Ok(builder) => Box::into_raw(Box::new(builder)),
+        Err(err) => {
+            Error::from_c2pa_error(err).set_last();
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// Create a C2paBuilder from an archive stream
+/// # Errors
+/// Returns NULL if there were errors, otherwise returns a pointer to a Builder
+/// The error string can be retrieved by calling c2pa_error
+/// # Safety
+/// Reads from null terminated C strings
+/// The returned value MUST be released by calling c2pa_builder_free
+/// and it is no longer valid after that call.
+/// # Example
+/// ```c
+/// auto result = c2pa_builder_from_archive(stream);
+/// if (result == NULL) {
+/// printf("Error: %s\n", c2pa_error());
+/// }
+/// ```
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_builder_from_archive(stream: *mut CStream) -> *mut C2paBuilder {
+    let result = C2paBuilder::from_archive(&mut (*stream));
     match result {
         Ok(builder) => Box::into_raw(Box::new(builder)),
         Err(err) => {
@@ -498,6 +522,41 @@ pub unsafe extern "C" fn c2pa_builder_add_ingredient(
     }
 }
 
+/// Writes an Archive of the Builder to the destination stream
+/// # Parameters
+/// * builder_ptr: pointer to a Builder
+/// * stream: pointer to a writable CStream
+/// # Errors
+/// Returns -1 if there were errors, otherwise returns 0
+/// The error string can be retrieved by calling c2pa_error
+/// # Safety
+/// Reads from null terminated C strings
+/// # Example
+/// ```c
+/// auto result = c2pa_builder_to_archive(builder, stream);
+/// if (result < 0) {
+///   printf("Error: %s\n", c2pa_error());
+/// }
+/// ```
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_builder_to_archive(
+    builder_ptr: *mut C2paBuilder,
+    stream: *mut CStream,
+) -> c_int {
+    let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
+    let result = builder.to_archive(&mut (*stream));
+    match result {
+        Ok(_builder) => {
+            Box::into_raw(builder);
+            0 as c_int
+        }
+        Err(err) => {
+            Error::from_c2pa_error(err).set_last();
+            -1
+        }
+    }
+}
+
 /// Creates and writes signed manifest from the C2paBuilder to the destination stream
 /// # Parameters
 /// * builder_ptr: pointer to a Builder
@@ -528,10 +587,10 @@ pub unsafe extern "C" fn c2pa_builder_sign(
     let c2pa_signer = Box::from_raw(signer);
 
     let result = builder.sign(
+        c2pa_signer.signer.as_ref(),
         &format,
         &mut *source,
         &mut *dest,
-        c2pa_signer.signer.as_ref(),
     );
     Box::into_raw(c2pa_signer);
     Box::into_raw(builder);
@@ -583,7 +642,7 @@ pub unsafe extern "C" fn c2pa_manifest_free(manifest_data_ptr: *const c_uchar) {
 /// ```
 #[no_mangle]
 pub unsafe extern "C" fn c2pa_signer_create(
-    _context: *mut SignerContext,
+    context: *const c_void,
     callback: SignerCallback,
     alg: C2paSigningAlg,
     certs: *const c_char,
@@ -591,9 +650,9 @@ pub unsafe extern "C" fn c2pa_signer_create(
 ) -> *mut C2paSigner {
     let certs = from_cstr_null_check!(certs);
     let tsa_url = from_cstr_option!(tsa_url);
+    let context = context as *const ();
 
-    let c_callback = move |context: &dyn std::any::Any, data: &[u8]| {
-        let context = context as *const dyn std::any::Any as *const SignerContext;
+    let c_callback = move |context: *const (), data: &[u8]| {
         // we need to guess at a max signed size, the callback must verify this is big enough or fail.
         let signed_len_max = data.len() * 2;
         let mut signed_bytes: Vec<u8> = vec![0; signed_len_max];
@@ -606,16 +665,15 @@ pub unsafe extern "C" fn c2pa_signer_create(
                 signed_len_max,
             )
         };
-        println!("signed_size: {}", signed_size);
+        //println!("signed_size: {}", signed_size);
         if signed_size < 0 {
-            return Err(c2pa::Error::CoseSignature);
-            //return Err(Error::Signature(format!("Callback failed {signed_size}")));
+            return Err(c2pa::Error::CoseSignature); // todo:: return errors from callback
         }
         signed_bytes.set_len(signed_size as usize);
         Ok(signed_bytes)
     };
 
-    let mut signer = CallbackSigner::new(c_callback, alg.into(), certs);
+    let mut signer = CallbackSigner::new(c_callback, alg.into(), certs).set_context(context);
     if let Some(tsa_url) = tsa_url.as_ref() {
         signer = signer.set_tsa_url(tsa_url);
     }

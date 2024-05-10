@@ -175,10 +175,10 @@ namespace c2pa
             reader = c2pa_reader_from_stream(format, stream);
         }
 
-        Reader(std::istream& stream)
+        Reader(const char* format, std::istream& stream)
         {
             CppStream *cpp_stream = new CppStream(&stream);
-            reader = c2pa_reader_from_stream("json", cpp_stream->c_stream);
+            reader = c2pa_reader_from_stream(format, cpp_stream);
         }
 
         // Create a Reader from a file path
@@ -253,6 +253,20 @@ namespace c2pa
 
     using SignerFunc = std::vector<unsigned char> (const std::vector<unsigned char>&);
 
+
+    // this static callback interfaces with the C level library allowing C++ to use vectors
+    intptr_t signer_passthrough(const void *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len) {
+        // the context is a pointer to the C++ callback function
+        SignerFunc *callback = (SignerFunc *)context;
+        std::vector<uint8_t> data_vec(data, data + len);
+        std::vector<uint8_t> signature_vec = (callback)(data_vec);
+        if (signature_vec.size() > sig_max_len) {
+            return -1;
+        }
+        std::copy(signature_vec.begin(), signature_vec.end(), signature);
+        return signature_vec.size();
+    }
+
     // Class for Signer
     class Signer
     {
@@ -264,7 +278,8 @@ namespace c2pa
         // Create a Signer
         Signer(SignerFunc *callback, C2paSigningAlg alg, const char * sign_cert, const char * tsa_uri)
         {
-            signer = c2pa_signer_create((SignerContext *) callback, signer_callback, alg, sign_cert, tsa_uri);
+            // pass the C++ callback as a context to our static callback wrapper
+            signer = c2pa_signer_create((const void *)callback, &signer_passthrough, alg, sign_cert, tsa_uri);
         }
 
         ~Signer()
@@ -382,21 +397,5 @@ namespace c2pa
             return result;
         }
     };
-
-
-
-    // this static callback interfaces with the C level library allowing C++ to use vectors
-    intptr_t signer_callback(const struct SignerContext *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len) {
-        printf("signer_callback\n");
-        SignerFunc *callback = (SignerFunc *)context;
-        std::vector<uint8_t> data_vec(data, data + len);
-        std::vector<uint8_t> signature_vec = (*callback)(data_vec);
-        if (signature_vec.size() > sig_max_len) {
-            return -1;
-        }
-        std::copy(signature_vec.begin(), signature_vec.end(), signature);
-        return signature_vec.size();
-    }
-
 
 }

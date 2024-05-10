@@ -82,19 +82,29 @@ int main(void)
     C2paBuilder *builder = c2pa_builder_from_json(manifest);
     assert_not_null("c2pa_builder_from_json", builder);
 
-    SignerContext *context = (SignerContext *) NULL;
-    C2paSigner *signer = c2pa_signer_create(context, signer_callback, Es256, certs, "http://timestamp.digicert.com");
+    CStream *archive = open_file_stream("target/tmp/archive.zip", "wb");
+    int arch_result = c2pa_builder_to_archive(builder, archive);
+    assert_int("c2pa_builder_to_archive", arch_result);
+    close_file_stream(archive);
+
+    CStream *archive2 = open_file_stream("target/tmp/archive.zip", "rb");
+    C2paBuilder *builder2 = c2pa_builder_from_archive(archive2);
+    assert_not_null("c2pa_builder_from_archive", builder2);
+    close_file_stream(archive2);
+
+    C2paSigner *signer = c2pa_signer_create((const void *)"testing context", &signer_callback, Es256, certs, "http://timestamp.digicert.com");
     assert_not_null("c2pa_signer_create", signer);
 
     CStream *source = open_file_stream("tests/fixtures/C.jpg", "rb");
     CStream *dest = open_file_stream("target/tmp/earth.jpg", "wb");
 
-    int result2 = c2pa_builder_sign(builder, "image/jpeg", source, dest, signer, NULL);
+    int result2 = c2pa_builder_sign(builder2, "image/jpeg", source, dest, signer, NULL);
     assert_int("c2pa_builder_sign", result2);
 
     close_file_stream(source);
     close_file_stream(dest);
 
+    c2pa_builder_free(builder2);
     c2pa_builder_free(builder);
     c2pa_signer_free(signer);
 

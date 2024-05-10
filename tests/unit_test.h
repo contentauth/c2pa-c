@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 #include "../include/c2pa.h"
 
 // load a file into a string for testing
@@ -180,15 +181,18 @@ char* findValueByKey(const char* json, const char* key) {
 }
 
 // Signer callback
-intptr_t signer_callback(const struct SignerContext *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len) {
+intptr_t signer_callback(const void* context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len) {
     uint64_t data_len= (uint64_t) len;
-    //printf("sign: data = %p, len = %ld\n", data, data_len);
+    // printf("signer callback: data = %p, len = %ld\n", data, data_len);
     // write data to be signed to a temp file
     int result = save_file("target/c_data.bin", data, data_len);
     if (result < 0) {
         printf("signing failed");
         return -1;
     }
+    if (context != NULL && strncmp((const char *)context,"testing context", 16)) {
+        printf("signer callback unexpected context %s\n", (const char *) context);
+    }    
     // sign the temp file by calling openssl in a shell
     system("openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out target/c_signature.sig target/c_data.bin");
 

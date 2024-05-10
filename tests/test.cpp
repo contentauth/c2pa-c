@@ -11,12 +11,15 @@
 // each license.
 
 #include <iostream>
+#include <fstream>
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
 #include <stdexcept>
 #include "unit_test.h"
 #include "../include/c2pa.hpp"
+
+using namespace std;
 
 // assert that c2pa_str contains substr or exit
 void assert_contains(const char *what, std::string str, const char *substr)
@@ -40,25 +43,35 @@ void assert_exists(const char *what, const char* file_path)
     printf("PASSED: %s\n", what);
 }
 
-using namespace std;
-
-#include <vector>
-
+/// @brief signs the data using openssl and returns the signature
+/// @details This function openssl to be installed as a command line tool
+/// @param data std::vector<unsigned char> - the data to be signed
+/// @return std::vector<unsigned char>  - the signature
 std::vector<unsigned char> my_signer(const std::vector<unsigned char>& data) {
     if (data.empty()) {
-        throw std::runtime_error("Input array is empty");
+        throw std::runtime_error("Signature data is empty");
     }
 
-    std::vector<uint8_t> output;
+    std::ofstream source("target/cpp_data.bin", std::ios::binary);
+    if (!source) {
+        throw std::runtime_error("Failed to open temp signing file");
+    }
+    source.write(reinterpret_cast<const char*>(data.data()), data.size());
 
-    printf("Signing %lu bytes\n", data.size());
-    // Process the input array and fill the output array.
-    // This is just an example, replace with your actual processing code.
-    for (uint8_t byte : data) {
-        output.push_back(byte + 1);
+        // sign the temp file by calling openssl in a shell
+    system("openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out target/c_signature.sig target/c_data.bin");
+
+    std::vector<uint8_t> signature;
+
+    // Read the signature back into the output vector
+    std::ifstream signature_file("target/c_signature.sig", std::ios::binary);
+    if (!signature_file) {
+        throw std::runtime_error("Failed to open signature file");
     }
 
-    return output;
+    signature = std::vector<uint8_t>((std::istreambuf_iterator<char>(signature_file)), std::istreambuf_iterator<char>());
+
+    return signature;
 }
 
 int main()
@@ -68,6 +81,7 @@ int main()
 
     // test v2 ManifestStoreReader apis
     try {
+
         auto reader = c2pa::Reader("tests/fixtures/C.jpg");
 
         auto json = reader.json(); 
@@ -89,11 +103,12 @@ int main()
         char *certs = load_file("tests/fixtures/es256_certs.pem");
         //char *private_key = load_file("tests/fixtures/es256_private.key");
 
-        // create a sign_info struct
-        //C2paSignerInfo sign_info = {.alg = "es256", .sign_cert = certs, .private_key = private_key, .ta_url = "http://timestamp.digicert.com"};
+        // create a signer
         c2pa::Signer signer = c2pa::Signer( &my_signer, Es256, certs, "http://timestamp.digicert.com");
+
         const char *signed_path = "target/tmp/C_signed.jpg";
         std::remove(signed_path); // remove the file if it exists
+
         auto builder = c2pa::Builder(manifest);
         //builder.add_resource_file("thumbnail", "tests/fixtures/A.jpg");
         auto manifest_data = builder.sign("tests/fixtures/C.jpg", signed_path, &signer);

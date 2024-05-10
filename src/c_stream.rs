@@ -57,9 +57,9 @@ impl CStream {
     /// * `write` - a WriteCallback to write to the stream
     /// * `flush` - a FlushCallback to flush the stream
     /// # Safety
-    ///     The context must remain valid for the lifetime of the C2paStream
-    ///     The read, seek, and write callbacks must be valid for the lifetime of the C2paStream
-    ///     The resulting C2paStream must be released by calling c2pa_release_stream
+    /// The context must remain valid for the lifetime of the C2paStream
+    /// The read, seek, and write callbacks must be valid for the lifetime of the C2paStream
+    /// The resulting C2paStream must be released by calling c2pa_release_stream
     pub unsafe fn new(
         context: *mut StreamContext,
         reader: ReadCallback,
