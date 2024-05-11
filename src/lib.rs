@@ -21,5 +21,5 @@ pub use c2pa::{Builder, Reader};
 pub use c_api::*;
 pub use c_stream::*;
 pub use error::{Error, Result};
-pub use json_api::*;
+pub use json_api::{read_file, read_ingredient_file, sdk_version, sign_file};
 pub use signer_info::SignerInfo;
