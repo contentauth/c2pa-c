@@ -126,31 +126,64 @@ namespace c2pa
         CStream *c_stream;
 
         CppStream(std::istream *istream) {
-            
-            c_stream = c2pa_create_stream((StreamContext*)&istream, (ReadCallback)reader, (SeekCallback) seeker, (WriteCallback)writer, (FlushCallback)flusher);
+            c_stream = c2pa_create_stream(reinterpret_cast<StreamContext*>(istream), (ReadCallback)reader, (SeekCallback) seeker, (WriteCallback)writer, (FlushCallback)flusher);
         }
         CppStream(std::ostream *ostream) {
-            c_stream = c2pa_create_stream((StreamContext*)&ostream, (ReadCallback)reader, (SeekCallback) seeker, (WriteCallback)writer, (FlushCallback)flusher);
+            c_stream = c2pa_create_stream(reinterpret_cast<StreamContext*>(ostream), (ReadCallback)reader, (SeekCallback) seeker, (WriteCallback)writer, (FlushCallback)flusher);
         }
         ~CppStream() {
             c2pa_release_stream(c_stream);
         }
     private:
-        static int reader(StreamContext *context, void *buffer, int size) {
+        static size_t reader(StreamContext *context, void *buffer, size_t size) {
             std::istream *istream = (std::istream *)context;
             istream->read((char *)buffer, size);
-            return istream->gcount();
+            size_t gcount = istream->gcount();
+            // printf(" reader istream %p len = %zu, count = %zu\n", (void*)istream, size, gcount); 
+            // if (istream->fail() || istream->bad() ) {
+            //     return -1;
+            // }
+            return gcount;
         }
 
-        static int seeker(StreamContext *context, int offset, int whence) {
-            std::istream *istream = (std::istream *)context;
-            istream->seekg(offset, (std::ios_base::seekdir)whence);
-            return istream->tellg();
+        static long seeker(StreamContext *context, long int offset, int whence) { 
+            std::istream *istream = (std::istream *)context;// print the address of istream
+            std::ios_base::seekdir dir = std::ios_base::beg;
+            switch (whence) {   
+                case SEEK_SET:
+                    dir = std::ios_base::beg;
+                    break;
+                case SEEK_CUR:
+                    dir = std::ios_base::cur;
+                    break;
+                case SEEK_END:
+                    dir = std::ios_base::end;
+                    break;
+            };
+            istream->clear(); // clear any error flags
+            istream->seekg(offset, dir);
+            if (istream->fail()) 
+                return -EINVAL;
+            else if (istream->bad()) {
+                return -EIO;
+            } 
+            int pos = istream->tellg();
+            if (pos < 0) {
+                return -EIO;
+            }
+            // printf("seeker offset= %ld pos = %d whence = %d\n", offset, pos, dir);
+            return pos;
         }
 
         static int writer(StreamContext *context, const void *buffer, int size) {
+            printf("writer\n"); 
             std::ostream *ostream = (std::ostream *)context;
             ostream->write((const char *)buffer, size);
+            if (ostream->fail()) 
+                return -EINVAL;
+            else if (ostream->bad()) {
+                return -EIO;
+            }
             return size;
         }
 
@@ -164,21 +197,28 @@ namespace c2pa
     // Class for Reader
     class Reader
     {
-    private:
-        C2paReader *reader;
+    //private:
+    public:
+        C2paReader *c2pa_reader;
+        CppStream *cpp_stream = NULL;
 
     public:
 
         // Create a Reader from a CStream
         Reader(const char *format, CStream *stream)
         {
-            reader = c2pa_reader_from_stream(format, stream);
+            c2pa_reader = c2pa_reader_from_stream(format, stream);
         }
 
         Reader(const char* format, std::istream& stream)
         {
-            CppStream *cpp_stream = new CppStream(&stream);
-            reader = c2pa_reader_from_stream(format, cpp_stream);
+            cpp_stream = new CppStream(&stream); // keep this allocated for life of Reader
+            c2pa_reader = c2pa_reader_from_stream(format, cpp_stream->c_stream);
+            if (c2pa_reader == NULL)
+            {
+                throw Exception();
+            }
+            // printf("Reader.cp2a_reader %p\n", reader);
         }
 
         // Create a Reader from a file path
@@ -195,8 +235,8 @@ namespace c2pa
             if (!extension.empty()) {
                 extension = extension.substr(1);  // Skip the dot
             }
-            reader = c2pa_reader_from_stream(extension.c_str(), stream);
-            if (reader == NULL)
+            c2pa_reader = c2pa_reader_from_stream(extension.c_str(), stream);
+            if (c2pa_reader == NULL)
             {
                 throw Exception();
             }
@@ -205,7 +245,10 @@ namespace c2pa
 
         ~Reader()
         {
-            c2pa_reader_free(reader);
+            c2pa_reader_free(c2pa_reader);
+            if (cpp_stream != NULL) {
+                delete cpp_stream;
+            }   
         }
 
         // Return ManifestStore as Json
@@ -213,7 +256,7 @@ namespace c2pa
         // Throws a C2pa::Exception for errors encountered by the C2pa library
         string json()
         {
-            char *result = c2pa_reader_json(reader);
+            char *result = c2pa_reader_json(c2pa_reader);
             if (result == NULL)
             {
                 throw Exception();
@@ -224,7 +267,7 @@ namespace c2pa
         }
 
         int get_resource(const char *uri, CStream *stream) {
-            int result = c2pa_reader_resource_to_stream(reader, uri, stream);
+            int result = c2pa_reader_resource_to_stream(c2pa_reader, uri, stream);
             if (result < 0)
             {
                 throw Exception();

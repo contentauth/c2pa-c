@@ -353,9 +353,9 @@ pub unsafe extern "C" fn c2pa_reader_free(reader_ptr: *mut C2paReader) {
 /// and it is no longer valid after that call.
 #[no_mangle]
 pub unsafe extern "C" fn c2pa_reader_json(reader_ptr: *mut C2paReader) -> *mut c_char {
-    let reader: Box<C2paReader> = Box::from_raw(reader_ptr);
-    let json = reader.json();
-    Box::into_raw(reader);
+    let c2pa_reader: Box<C2paReader> = Box::from_raw(reader_ptr);
+    let json = c2pa_reader.json();
+    Box::into_raw(c2pa_reader);
     to_c_string(json)
 }
 

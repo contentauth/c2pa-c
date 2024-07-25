@@ -82,7 +82,15 @@ int main()
     // test v2 ManifestStoreReader apis
     try {
 
-        auto reader = c2pa::Reader("tests/fixtures/C.jpg");
+        std::ifstream ifs("tests/fixtures/C.jpg", std::ios::binary);
+
+        if (!ifs) {
+            throw std::runtime_error("Failed to open file");
+        };
+
+        auto reader = c2pa::Reader("image/jpeg", ifs);
+
+        // auto reader = c2pa::Reader("tests/fixtures/C.jpg");
 
         auto json = reader.json(); 
         assert_contains("c2pa::Reader.json", json, "C.jpg");
@@ -91,6 +99,7 @@ int main()
         std::remove(thumb_path);
         reader.get_resource("self#jumbf=c2pa.assertions/c2pa.thumbnail.claim.jpeg", thumb_path);
         assert_exists("c2pa::Reader.get_resource", thumb_path);
+        ifs.close();
     }
     catch (c2pa::Exception e) {
         cout << "Failed: C2pa::Reader: " << e.what() << endl;
