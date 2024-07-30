@@ -12,6 +12,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
@@ -108,9 +109,8 @@ int main()
 
     // test v2 ManifestBuilder apis
     try {
-        char *manifest = load_file("tests/fixtures/training.json");
+        char* manifest = load_file("tests/fixtures/training.json");
         char *certs = load_file("tests/fixtures/es256_certs.pem");
-        //char *private_key = load_file("tests/fixtures/es256_private.key");
 
         // create a signer
         c2pa::Signer signer = c2pa::Signer( &my_signer, Es256, certs, "http://timestamp.digicert.com");
@@ -119,10 +119,51 @@ int main()
         std::remove(signed_path); // remove the file if it exists
 
         auto builder = c2pa::Builder(manifest);
-        //builder.add_resource_file("thumbnail", "tests/fixtures/A.jpg");
-        auto manifest_data = builder.sign("tests/fixtures/C.jpg", signed_path, &signer);
+        builder.add_resource("thumbnail", "tests/fixtures/A.jpg");
+        string ingredient_json = "{\"title\":\"Test Ingredient\"}";
+        builder.add_ingredient(ingredient_json, "tests/fixtures/C.jpg");
+        auto manifest_data = builder.sign("tests/fixtures/C.jpg", signed_path, signer);
         free(manifest_data);
         assert_exists("c2pa::Builder.sign", signed_path);
+    }
+    catch (c2pa::Exception e) {
+        cout << "Failed: C2pa::Builder: " << e.what() << endl;
+        return (1);
+    };
+
+   // test v2 ManifestBuilder apis with cpp streams
+    try {
+        char *manifest = load_file("tests/fixtures/training.json");
+        char *certs = load_file("tests/fixtures/es256_certs.pem");
+
+        // create a signer
+        c2pa::Signer signer = c2pa::Signer( &my_signer, Es256, certs, "http://timestamp.digicert.com");
+
+        const char *signed_path = "target/tmp/C_signed-stream.jpg";
+        std::remove(signed_path); // remove the file if it exists
+
+        auto builder = c2pa::Builder(manifest);
+
+        std::ifstream source("tests/fixtures/C.jpg", std::ios::binary);
+        if (!source) {
+            std::cerr << "Failed to open file: tests/fixtures/C.jpg" << std::endl;
+            return 1;
+        }
+
+        // Create a memory buffer
+        std::stringstream memory_buffer(std::ios::in | std::ios::out | std::ios::binary);
+        std::iostream& dest = memory_buffer;
+        auto manifest_data = builder.sign("image/jpeg", source, dest, signer);
+        free(manifest_data);
+        source.close();
+    
+        // Rewind dest to the start
+        dest.flush();
+        dest.seekp(0, std::ios::beg);
+        auto reader = c2pa::Reader("image/jpeg", dest);
+        auto json = reader.json();
+        assert_contains("c2pa::Builder.sign", json, "c2pa.training-mining");
+        //cout << "Manifest: " << json << endl;
     }
     catch (c2pa::Exception e) {
         cout << "Failed: C2pa::Builder: " << e.what() << endl;

@@ -22,9 +22,11 @@ ssize_t reader(size_t context, uint8_t *data, size_t len) {
     size_t count = fread(data, 1, len, (FILE*)context);
     // printf(" reader File %zu len = %zu, count = %zu\n", context, len, count); 
     if (count != len) {
+        // do not report EOF as an error
         if (ferror((FILE*)context)) {
             // printf("reader: result = %d, %s\n", -errno, strerror(errno));
-            return -errno;
+            // errors returned via errno
+            return -1;
         }
     }
     return count;
@@ -36,7 +38,8 @@ long seeker(size_t context,long int offset, int whence) {
     long int result = fseek((FILE*)context, offset, whence);
     if (result != 0) {
         printf("seeker: result = %d, %s\n", -errno, strerror(errno));
-        return -errno;
+        // errors returned via errno
+        return -1;
     }
     // printf("seeker offset= %ld pos = %ld whence = %d\n", offset, ftell((FILE*)context), whence);
     return ftell((FILE*)context);
@@ -48,7 +51,8 @@ ssize_t writer(size_t context, uint8_t *data, size_t len) {
         if (count != len) {
         if (ferror((FILE*)context)) {
             // printf("writer: result = %d, %s\n", -errno, strerror(errno));
-            return -errno;
+            // errors returned via errno
+            return -1;
         }
     }
     return count;
@@ -58,7 +62,8 @@ ssize_t flusher(size_t context) {
     // printf("flusher: context = %zu\n", context);
     int result = fflush((FILE*)context);
     if (result != 0) {
-        return -errno;
+        // errors returned via errno
+        return -1;
     }
     return 0;
 }   

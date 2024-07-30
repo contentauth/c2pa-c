@@ -153,6 +153,16 @@ IMPORT extern char *c2pa_version(void);
 IMPORT extern char *c2pa_error(void);
 
 /**
+ * Load Settings from a string
+ * # Errors
+ * Returns -1 if there were errors, otherwise returns 0
+ * The error string can be retrieved by calling c2pa_error
+ * # Safety
+ * Reads from null terminated C strings
+ */
+IMPORT extern int c2pa_load_settings(const char *settings, const char *format);
+
+/**
  * Returns a ManifestStore JSON string from a file path.
  * Any thumbnails or other binary resources will be written to data_dir if provided
  *

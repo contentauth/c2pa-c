@@ -17,7 +17,10 @@ use std::{
 };
 
 // C has no namespace so we prefix things with C2pa to make them unique
-use c2pa::{Builder as C2paBuilder, CallbackSigner, Reader as C2paReader, SigningAlg};
+use c2pa::{
+    settings::load_settings_from_str, Builder as C2paBuilder, CallbackSigner, Reader as C2paReader,
+    SigningAlg,
+};
 
 use crate::{
     c_stream::CStream,
@@ -157,6 +160,29 @@ pub unsafe extern "C" fn c2pa_version() -> *mut c_char {
 #[no_mangle]
 pub unsafe extern "C" fn c2pa_error() -> *mut c_char {
     to_c_string(Error::last_message().unwrap_or_default())
+}
+
+/// Load Settings from a string
+/// # Errors
+/// Returns -1 if there were errors, otherwise returns 0
+/// The error string can be retrieved by calling c2pa_error
+/// # Safety
+/// Reads from null terminated C strings
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_load_settings(
+    settings: *const c_char,
+    format: *const c_char,
+) -> c_int {
+    let settings = from_cstr_null_check_int!(settings);
+    let format = from_cstr_null_check_int!(format);
+    let result = load_settings_from_str(&settings, &format);
+    match result {
+        Ok(_) => 0,
+        Err(err) => {
+            Error::from_c2pa_error(err).set_last();
+            -1
+        }
+    }
 }
 
 /// Returns a ManifestStore JSON string from a file path.
