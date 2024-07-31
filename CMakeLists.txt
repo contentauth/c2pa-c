@@ -41,5 +41,5 @@ file(GLOB unit_test_files CONFIGURE_DEPENDS "tests/*.test.cpp")
 add_executable(unit_tests ${unit_test_files})
 target_include_directories(unit_tests PUBLIC "${CMAKE_SOURCE_DIR}/include/")
 target_link_libraries(unit_tests nlohmann_json::nlohmann_json)
-target_link_libraries(unit_tests "${CMAKE_SOURCE_DIR}/target/debug/libc2pa_c.dylib")
+target_link_libraries(unit_tests "${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.dylib")
 target_link_libraries(unit_tests gtest_main) # Links in gtest_main so we can run tests.
