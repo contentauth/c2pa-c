@@ -13,6 +13,18 @@
 #ifndef C2PA_H
 #define C2PA_H
 
+// Suppress unused function warning for GCC/Clang
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
+
+// Suppress unused function warning for MSVC
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4505)
+#endif
+
 #include <fstream>
 #include <iostream>
 #include <optional>  // C++17
@@ -727,5 +739,14 @@ namespace c2pa
 
     };
 }
+
+// Restore warnings
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #endif // C2PA_H
