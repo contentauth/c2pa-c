@@ -590,7 +590,7 @@ pub unsafe extern "C" fn c2pa_builder_to_archive(
 /// * source: pointer to a CStream
 /// * dest: pointer to a writable CStream
 /// * signer: pointer to a C2paSigner
-/// * c2pa_data_ptr: pointer to a pointer to a c_uchar (optional, can be NULL)
+/// * c2pa_bytes_ptr: pointer to a pointer to a c_uchar to return manifest_bytes (optional, can be NULL)
 /// # Errors
 /// Returns -1 if there were errors, otherwise returns the size of the c2pa data
 /// The error string can be retrieved by calling c2pa_error
@@ -605,7 +605,7 @@ pub unsafe extern "C" fn c2pa_builder_sign(
     source: *mut CStream,
     dest: *mut CStream,
     signer: *mut C2paSigner,
-    c2pa_data_ptr: *mut *const c_uchar,
+    manifest_bytes_ptr: *mut *const c_uchar,
 ) -> c_int {
     let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
     let format = from_cstr_null_check_int!(format);
@@ -621,11 +621,11 @@ pub unsafe extern "C" fn c2pa_builder_sign(
     Box::into_raw(c2pa_signer);
     Box::into_raw(builder);
     match result {
-        Ok(c2pa_data) => {
-            let len = c2pa_data.len() as c_int;
-            if !c2pa_data_ptr.is_null() {
-                *c2pa_data_ptr = c2pa_data.as_ptr() as *mut c_uchar;
-                std::mem::forget(c2pa_data);
+        Ok(manifest_bytes) => {
+            let len = manifest_bytes.len() as c_int;
+            if !manifest_bytes_ptr.is_null() {
+                *manifest_bytes_ptr =
+                    Box::into_raw(manifest_bytes.into_boxed_slice()) as *const c_uchar;
             };
             len
         }
@@ -636,13 +636,13 @@ pub unsafe extern "C" fn c2pa_builder_sign(
     }
 }
 
-/// Frees a the c2pa manifest optionally returned by c2pa_builder_sign
+/// Frees a c2pa manifest returned by c2pa_builder_sign
 /// # Safety
 /// can only be freed once and is invalid after this call
 #[no_mangle]
-pub unsafe extern "C" fn c2pa_manifest_free(manifest_data_ptr: *const c_uchar) {
-    if !manifest_data_ptr.is_null() {
-        drop(CString::from_raw(manifest_data_ptr as *mut c_char));
+pub unsafe extern "C" fn c2pa_manifest_bytes_free(manifest_bytes_ptr: *const c_uchar) {
+    if !manifest_bytes_ptr.is_null() {
+        drop(Box::from_raw(manifest_bytes_ptr as *mut c_uchar));
     }
 }
 
@@ -712,8 +712,8 @@ pub unsafe extern "C" fn c2pa_signer_create(
 /// # Safety
 /// can only be freed once and is invalid after this call
 #[no_mangle]
-pub unsafe extern "C" fn c2pa_signer_free(signer_ptr: *mut C2paSigner) {
+pub unsafe extern "C" fn c2pa_signer_free(signer_ptr: *const C2paSigner) {
     if !signer_ptr.is_null() {
-        drop(Box::from_raw(signer_ptr));
+        drop(Box::from_raw(signer_ptr as *mut C2paSigner));
     }
 }
