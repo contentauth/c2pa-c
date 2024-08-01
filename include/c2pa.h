@@ -400,7 +400,7 @@ IMPORT extern int c2pa_builder_to_archive(struct C2paBuilder *builder_ptr, struc
  * * source: pointer to a CStream
  * * dest: pointer to a writable CStream
  * * signer: pointer to a C2paSigner
- * * c2pa_data_ptr: pointer to a pointer to a c_uchar (optional, can be NULL)
+ * * c2pa_bytes_ptr: pointer to a pointer to a c_uchar to return manifest_bytes (optional, can be NULL)
  * # Errors
  * Returns -1 if there were errors, otherwise returns the size of the c2pa data
  * The error string can be retrieved by calling c2pa_error
@@ -415,14 +415,14 @@ int c2pa_builder_sign(struct C2paBuilder *builder_ptr,
                       struct CStream *source,
                       struct CStream *dest,
                       struct C2paSigner *signer,
-                      const unsigned char **c2pa_data_ptr);
+                      const unsigned char **manifest_bytes_ptr);
 
 /**
- * Frees a the c2pa manifest optionally returned by c2pa_builder_sign
+ * Frees a c2pa manifest returned by c2pa_builder_sign
  * # Safety
  * can only be freed once and is invalid after this call
  */
-IMPORT extern void c2pa_manifest_free(const unsigned char *manifest_data_ptr);
+IMPORT extern void c2pa_manifest_bytes_free(const unsigned char *manifest_bytes_ptr);
 
 /**
  * Creates a C2paSigner from a callback and configuration
@@ -458,7 +458,7 @@ struct C2paSigner *c2pa_signer_create(const void *context,
  * # Safety
  * can only be freed once and is invalid after this call
  */
-IMPORT extern void c2pa_signer_free(struct C2paSigner *signer_ptr);
+IMPORT extern void c2pa_signer_free(const struct C2paSigner *signer_ptr);
 
 /**
  * Creates a new C2paStream from context with callbacks

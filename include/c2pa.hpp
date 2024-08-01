@@ -657,22 +657,22 @@ namespace c2pa
         /// @param source the input stream to sign
         /// @param dest the output stream to write the signed data to
         /// @param signer  
-        /// @return a vector containing the signed manifest data
+        /// @return a vector containing the signed manifest bytes
         /// @throws C2pa::Exception for errors encountered by the C2pa library
-        std::vector<unsigned char>* sign(const string format, istream& source, ostream& dest , Signer& signer) {
+        std::vector<const unsigned char>* sign(const string format, istream& source, ostream& dest , Signer& signer) {
             CppIStream c_source = CppIStream(source);
             CppOStream c_dest = CppOStream(dest);
-            const unsigned char *c2pa_data_bytes = NULL;
-            auto result = c2pa_builder_sign(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, signer.c2pa_signer(), &c2pa_data_bytes);
+            const unsigned char *c2pa_manifest_bytes = NULL; // todo: make returning manifest bytes optional
+            auto result = c2pa_builder_sign(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, signer.c2pa_signer(), &c2pa_manifest_bytes);
             if (result < 0)
             {
                 throw Exception();
             }
-            if (c2pa_data_bytes != NULL) {
+            if (c2pa_manifest_bytes != NULL) {
                 // Allocate a new vector on the heap and fill it with the data
-                std::vector<unsigned char>* c2pa_data = new std::vector<unsigned char>(c2pa_data_bytes, c2pa_data_bytes + result);
-                c2pa_manifest_free(c2pa_data_bytes);
-                return c2pa_data;
+                std::vector<const unsigned char>* manifest_bytes = new std::vector<const unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
+                c2pa_manifest_bytes_free(c2pa_manifest_bytes);
+                return manifest_bytes;
             }
             return nullptr;
         }
@@ -681,9 +681,9 @@ namespace c2pa
         /// @param source_path the path to the file to sign
         /// @param dest_path the path to write the signed file to
         /// @param signer A signer object to use when signing
-        /// @return a vector containing the signed manifest data
+        /// @return a vector containing the signed manifest bytes
         /// @throws C2pa::Exception for errors encountered by the C2pa library
-        std::vector<unsigned char>* sign(const path& source_path, const path& dest_path, Signer& signer) {
+        std::vector<const unsigned char>* sign(const path& source_path, const path& dest_path, Signer& signer) {
             std::ifstream source(source_path, std::ios::binary);
             std::ofstream dest(dest_path, std::ios::binary);
             if (!source.is_open() || !dest.is_open()) {
