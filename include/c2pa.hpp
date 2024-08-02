@@ -10,8 +10,23 @@
 // specific language governing permissions and limitations under
 // each license.
 
+#ifndef C2PA_H
+#define C2PA_H
+
+// Suppress unused function warning for GCC/Clang
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
+
+// Suppress unused function warning for MSVC
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4505)
+#endif
+
+#include <fstream>
 #include <iostream>
-#include <string.h>
 #include <optional>  // C++17
 #include <filesystem> // C++17
 
@@ -45,7 +60,7 @@ namespace c2pa
     };
 
     // Return the version of the C2pa library
-    string version()
+    static string version()
     {
         auto result = c2pa_version();
         string str = string(result);
@@ -56,7 +71,7 @@ namespace c2pa
     /// Load c2pa settings from a string in a given format
     /// @param format the mime format of the string
     /// @param data the string to load
-    void load_settings(const string format, const string data)
+    static void load_settings(const string format, const string data)
     {
         c2pa_load_settings(format.c_str(), data.c_str());
     }   
@@ -67,7 +82,7 @@ namespace c2pa
     // data_dir: the directory to store binary resources (optional)
     // Returns a string containing the manifest json if a manifest was found
     // Throws a C2pa::Exception for errors encountered by the C2pa library
-    std::optional<string> read_file(const std::filesystem::path& source_path, const std::optional<path> data_dir = std::nullopt)
+    static std::optional<string> read_file(const std::filesystem::path& source_path, const std::optional<path> data_dir = std::nullopt)
     {
         const char* dir = data_dir.has_value() ? data_dir.value().c_str() : NULL;
         char *result = c2pa_read_file(source_path.c_str(), dir);
@@ -90,7 +105,7 @@ namespace c2pa
     // data_dir: the directory to store binary resources
     // Returns a string containing the manifest json
     // Throws a C2pa::Exception for errors encountered by the C2pa library
-    string read_ingredient_file(const path& source_path, const path& data_dir)
+    static string read_ingredient_file(const path& source_path, const path& data_dir)
     {
         char *result = c2pa_read_ingredient_file(source_path.c_str(), data_dir.c_str());
         if (result == NULL)
@@ -109,7 +124,7 @@ namespace c2pa
     // signer_info: the signer info to use for signing
     // data_dir: the directory to store binary resources (optional)
     // Throws a C2pa::Exception for errors encountered by the C2pa library
-    void sign_file(const path& source_path,
+    static void sign_file(const path& source_path,
                      const path& dest_path,
                      const char *manifest,
                      SignerInfo *signer_info,
@@ -506,7 +521,7 @@ namespace c2pa
 
 
     // this static callback interfaces with the C level library allowing C++ to use vectors
-    intptr_t signer_passthrough(const void *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len) {
+    static intptr_t signer_passthrough(const void *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len) {
         // the context is a pointer to the C++ callback function
         SignerFunc *callback = (SignerFunc *)context;
         std::vector<uint8_t> data_vec(data, data + len);
@@ -727,3 +742,14 @@ namespace c2pa
 
     };
 }
+
+// Restore warnings
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
+#endif // C2PA_H
