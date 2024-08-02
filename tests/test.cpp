@@ -123,7 +123,6 @@ int main()
         string ingredient_json = "{\"title\":\"Test Ingredient\"}";
         builder.add_ingredient(ingredient_json, "tests/fixtures/C.jpg");
         auto manifest_data = builder.sign("tests/fixtures/C.jpg", signed_path, signer);
-        free(manifest_data);
         assert_exists("c2pa::Builder.sign", signed_path);
     }
     catch (c2pa::Exception e) {
@@ -154,7 +153,6 @@ int main()
         std::stringstream memory_buffer(std::ios::in | std::ios::out | std::ios::binary);
         std::iostream& dest = memory_buffer;
         auto manifest_data = builder.sign("image/jpeg", source, dest, signer);
-        free(manifest_data);
         source.close();
     
         // Rewind dest to the start
