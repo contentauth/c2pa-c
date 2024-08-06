@@ -10,6 +10,22 @@
 // specific language governing permissions and limitations under
 // each license.
 
+#ifndef C2PA_H
+#define C2PA_H
+
+// Suppress unused function warning for GCC/Clang
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
+
+// Suppress unused function warning for MSVC
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4505)
+#endif
+
+#include <fstream>
 #include <iostream>
 #include <string.h>
 #include <optional>   // C++17
@@ -47,7 +63,7 @@ namespace c2pa
     };
 
     /// Returns the version of the C2pa library.
-    string version()
+    static string version()
     {
         auto result = c2pa_version();
         string str = string(result);
@@ -58,18 +74,18 @@ namespace c2pa
     /// Loads C2PA settings from a string in a given format.
     /// @param format the mime format of the string.
     /// @param data the string to load.
-    void load_settings(const string format, const string data)
+    static void load_settings(const string format, const string data)
     {
         c2pa_load_settings(format.c_str(), data.c_str());
     }
 
-    /// Read a file and return the manifest json as a C2pa::String.
+    /// Reads a file and returns the manifest json as a C2pa::String.
     /// Note: Paths are UTF-8 encoded, use std.filename.u8string().c_str() if needed.
     /// @param source_path the path to the file to read.
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a string containing the manifest json if a manifest was found.
     /// @throws a C2pa::Exception for errors encountered by the C2PA library.
-    std::optional<string> read_file(const std::filesystem::path &source_path, const std::optional<path> data_dir = std::nullopt)
+    static std::optional<string> read_file(const std::filesystem::path &source_path, const std::optional<path> data_dir = std::nullopt)
     {
         const char *dir = data_dir.has_value() ? data_dir.value().c_str() : NULL;
         char *result = c2pa_read_file(source_path.c_str(), dir);
@@ -87,12 +103,12 @@ namespace c2pa
         return str;
     }
 
-    // Read a file and return an ingredient json as a C2pa::String
-    // source_path: path to the file to read
-    // data_dir: the directory to store binary resources
-    // Returns a string containing the manifest json
-    // Throws a C2pa::Exception for errors encountered by the C2PA library
-    string read_ingredient_file(const path &source_path, const path &data_dir)
+    /// Reads a file and returns an ingredient JSON as a C2pa::String.
+    /// @param source_path the path to the file to read.
+    /// @param data_dir the directory to store binary resources.
+    /// @return a string containing the ingredient json.
+    /// @throws a C2pa::Exception for errors encountered by the C2PA library.
+    static string read_ingredient_file(const path &source_path, const path &data_dir)
     {
         char *result = c2pa_read_ingredient_file(source_path.c_str(), data_dir.c_str());
         if (result == NULL)
@@ -104,7 +120,7 @@ namespace c2pa
         return str;
     }
 
-    // Add the manifest and sign a file
+    /// Adds the manifest and signs a file.
     // source_path: path to the asset to be signed
     // dest_path: the path to write the signed file to
     // manifest: the manifest json to add to the file
@@ -128,7 +144,7 @@ namespace c2pa
         return;
     }
 
-    // IStream Class wrapper for CStream
+    /// IStream Class wrapper for CStream.
     class CppIStream : public CStream
     {
     public:
@@ -237,7 +253,7 @@ namespace c2pa
         }
     };
 
-    // Ostream Class wrapper for CStream
+    /// Ostream Class wrapper for CStream.
     class CppOStream : public CStream
     {
     public:
@@ -334,7 +350,7 @@ namespace c2pa
         }
     };
 
-    // IOStream Class wrapper for CStream
+    /// IOStream Class wrapper for CStream.
     class CppIOStream : public CStream
     {
     public:
@@ -464,8 +480,8 @@ namespace c2pa
         }
     };
 
-    /// @brief Reader class for reading a manifest
-    /// @details This class is used to read and validate a manifest from a stream or file
+    /// @brief Reader class for reading a manifest.
+    /// @details This class is used to read and validate a manifest from a stream or file.
     class Reader
     {
 
@@ -569,8 +585,8 @@ namespace c2pa
     using SignerFunc = std::vector<unsigned char>(const std::vector<unsigned char> &);
 
     // This static callback interfaces with the C level library allowing C++ to use vectors.
-    // do not use directly.
-    intptr_t signer_passthrough(const void *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len)
+    // Do not use directly.
+    static intptr_t signer_passthrough(const void *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len)
     {
         // the context is a pointer to the C++ callback function
         SignerFunc *callback = (SignerFunc *)context;
@@ -804,3 +820,14 @@ namespace c2pa
         }
     };
 }
+
+// Restore warnings
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
+#endif // C2PA_H

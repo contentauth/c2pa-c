@@ -11,6 +11,9 @@
 // specific language governing permissions and limitations under
 // each license.#include "c2pa.h"
 
+#ifndef C2PA_FSTREAM_H
+#define C2PA_FSTREAM_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -94,3 +97,5 @@ int close_file_stream(CStream* stream) {
     c2pa_release_stream(stream);
     return result;
 }
+
+#endif

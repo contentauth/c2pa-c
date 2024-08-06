@@ -142,6 +142,10 @@ Install [cbindgen](https://github.com/mozilla/cbindgen/blob/master/docs.md):
 cargo install --force cbindgen
 ```
 
+The c unit tests require Ninja. Installation instructions are here:
+
+https://github.com/ninja-build/ninja/wiki/Pre-built-Ninja-packages
+
 ### Building 
 
 Building the library requires [GNU make](https://www.gnu.org/software/make/), which is installed on most macOS systems.
