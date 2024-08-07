@@ -16,9 +16,16 @@ clippy:
 	cargo clippy --all-features --all-targets -- -D warnings
 
 test-rust:
-	cargo test --all-features
+	cargo test --
+	cbindgen --config cbindgen.toml --crate c2pa-c --output include/c2pa.h --lang c
 
-release: 
+unit-tests: test-rust
+	mkdir -p target/cmake
+	cmake -S./ -B./target/cmake -G "Ninja"
+	cmake --build ./target/cmake --target unit_tests
+	cd target/cmake; ./unit_tests
+
+release:
 	cargo build --release
 	cbindgen --config cbindgen.toml --crate c2pa-c --output include/c2pa.h --lang c
 
