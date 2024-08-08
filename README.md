@@ -63,6 +63,8 @@ C2paSignerInfo sign_info = {.alg = "es256",
 
 For the list of supported signing algorithms, see [Creating and using an X.509 certificate](https://opensource.contentauthenticity.org/docs/c2patool/x_509).
 
+**WARNING**: Do not access a private key and certificate directly like this in production  because it's not secure. Instead use a hardware security module (HSM) and optionally a Key Management Service (KMS) to access the key; for example as show in the [C2PA Python Example](https://github.com/contentauth/c2pa-python-example).
+
 ### Creating a manifest JSON definition
 
 The manifest JSON string defines the C2PA manifest to add to the file.
