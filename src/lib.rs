@@ -17,7 +17,7 @@ mod error;
 mod json_api;
 mod signer_info;
 
-pub use c2pa::{Builder, Reader};
+pub use c2pa::{AsyncSigner, Builder, Error as C2paError, Result as C2paResult, Reader, Signer, SigningAlg};
 pub use c_api::*;
 pub use c_stream::*;
 pub use error::{Error, Result};
