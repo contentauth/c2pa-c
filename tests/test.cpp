@@ -1,4 +1,4 @@
-// Copyright 2023 Adobe. All rights reserved.
+// Copyright 2024 Adobe. All rights reserved.
 // This file is licensed to you under the Apache License,
 // Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 // or the MIT license (http://opensource.org/licenses/MIT),
@@ -34,7 +34,7 @@ void assert_contains(const char *what, std::string str, const char *substr)
 }
 
 // assert that c2pa_str contains substr or exit
-void assert_exists(const char *what, const char* file_path)
+void assert_exists(const char *what, const char *file_path)
 {
     if (std::filesystem::exists(file_path) == false)
     {
@@ -48,25 +48,29 @@ void assert_exists(const char *what, const char* file_path)
 /// @details This function openssl to be installed as a command line tool
 /// @param data std::vector<unsigned char> - the data to be signed
 /// @return std::vector<unsigned char>  - the signature
-std::vector<unsigned char> my_signer(const std::vector<unsigned char>& data) {
-    if (data.empty()) {
+std::vector<unsigned char> my_signer(const std::vector<unsigned char> &data)
+{
+    if (data.empty())
+    {
         throw std::runtime_error("Signature data is empty");
     }
 
     std::ofstream source("target/cpp_data.bin", std::ios::binary);
-    if (!source) {
+    if (!source)
+    {
         throw std::runtime_error("Failed to open temp signing file");
     }
-    source.write(reinterpret_cast<const char*>(data.data()), data.size());
+    source.write(reinterpret_cast<const char *>(data.data()), data.size());
 
-        // sign the temp file by calling openssl in a shell
+    // sign the temp file by calling openssl in a shell
     system("openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out target/c_signature.sig target/c_data.bin");
 
     std::vector<uint8_t> signature;
 
     // Read the signature back into the output vector
     std::ifstream signature_file("target/c_signature.sig", std::ios::binary);
-    if (!signature_file) {
+    if (!signature_file)
+    {
         throw std::runtime_error("Failed to open signature file");
     }
 
@@ -78,11 +82,13 @@ std::vector<unsigned char> my_signer(const std::vector<unsigned char>& data) {
 int main()
 {
     // test v2 ManifestStoreReader apis
-    try {
+    try
+    {
 
         std::ifstream ifs("tests/fixtures/C.jpg", std::ios::binary);
 
-        if (!ifs) {
+        if (!ifs)
+        {
             throw std::runtime_error("Failed to open file");
         };
 
@@ -97,18 +103,20 @@ int main()
         assert_exists("c2pa::Reader.get_resource", thumb_path);
         ifs.close();
     }
-    catch (c2pa::Exception e) {
+    catch (c2pa::Exception e)
+    {
         cout << "Failed: C2pa::Reader: " << e.what() << endl;
         return (1);
     };
 
     // test v2 ManifestBuilder apis
-    try {
-        char* manifest = load_file("tests/fixtures/training.json");
+    try
+    {
+        char *manifest = load_file("tests/fixtures/training.json");
         char *certs = load_file("tests/fixtures/es256_certs.pem");
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer( &my_signer, Es256, certs, "http://timestamp.digicert.com");
+        c2pa::Signer signer = c2pa::Signer(&my_signer, Es256, certs, "http://timestamp.digicert.com");
 
         const char *signed_path = "target/tmp/C_signed.jpg";
         std::remove(signed_path); // remove the file if it exists
@@ -120,18 +128,20 @@ int main()
         auto manifest_data = builder.sign("tests/fixtures/C.jpg", signed_path, signer);
         assert_exists("c2pa::Builder.sign", signed_path);
     }
-    catch (c2pa::Exception e) {
+    catch (c2pa::Exception e)
+    {
         cout << "Failed: C2pa::Builder: " << e.what() << endl;
         return (1);
     };
 
-   // test v2 ManifestBuilder apis with cpp streams
-    try {
+    // test v2 ManifestBuilder apis with cpp streams
+    try
+    {
         char *manifest = load_file("tests/fixtures/training.json");
         char *certs = load_file("tests/fixtures/es256_certs.pem");
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer( &my_signer, Es256, certs, "http://timestamp.digicert.com");
+        c2pa::Signer signer = c2pa::Signer(&my_signer, Es256, certs, "http://timestamp.digicert.com");
 
         const char *signed_path = "target/tmp/C_signed-stream.jpg";
         std::remove(signed_path); // remove the file if it exists
@@ -139,26 +149,28 @@ int main()
         auto builder = c2pa::Builder(manifest);
 
         std::ifstream source("tests/fixtures/C.jpg", std::ios::binary);
-        if (!source) {
+        if (!source)
+        {
             std::cerr << "Failed to open file: tests/fixtures/C.jpg" << std::endl;
             return 1;
         }
 
         // Create a memory buffer
         std::stringstream memory_buffer(std::ios::in | std::ios::out | std::ios::binary);
-        std::iostream& dest = memory_buffer;
+        std::iostream &dest = memory_buffer;
         auto manifest_data = builder.sign("image/jpeg", source, dest, signer);
         source.close();
-    
+
         // Rewind dest to the start
         dest.flush();
         dest.seekp(0, std::ios::beg);
         auto reader = c2pa::Reader("image/jpeg", dest);
         auto json = reader.json();
         assert_contains("c2pa::Builder.sign", json, "c2pa.training-mining");
-        //cout << "Manifest: " << json << endl;
+        // cout << "Manifest: " << json << endl;
     }
-    catch (c2pa::Exception e) {
+    catch (c2pa::Exception e)
+    {
         cout << "Failed: C2pa::Builder: " << e.what() << endl;
         return (1);
     };
