@@ -1,4 +1,4 @@
-// Copyright 2023 Adobe. All rights reserved.
+// Copyright 2024 Adobe. All rights reserved.
 // This file is licensed to you under the Apache License,
 // Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 // or the MIT license (http://opensource.org/licenses/MIT),
@@ -10,18 +10,10 @@
 // specific language governing permissions and limitations under
 // each license.
 
-mod c_api;
-/// This module exports a C2PA library
-mod c_stream;
-mod error;
-mod json_api;
-mod signer_info;
+#include <c2pa.hpp>
+#include <gtest/gtest.h>
 
-pub use c2pa::{
-    AsyncSigner, Builder, Error as C2paError, Reader, Result as C2paResult, Signer, SigningAlg,
-};
-pub use c_api::*;
-pub use c_stream::*;
-pub use error::{Error, Result};
-pub use json_api::{read_file, read_ingredient_file, sdk_version, sign_file};
-pub use signer_info::SignerInfo;
+TEST(Version, VersionReturnsInCorrectFormat) {
+  auto version = c2pa::version();
+  ASSERT_TRUE(version.find("c2pa-c/0.") != std::string::npos);
+}
