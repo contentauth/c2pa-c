@@ -19,6 +19,7 @@
 #include <stdexcept>
 #include "unit_test.h"
 #include "../include/c2pa.hpp"
+#include "../tests/cmd_signer.hpp"
 
 using namespace std;
 
@@ -48,36 +49,36 @@ void assert_exists(const char *what, const char *file_path)
 /// @details This function openssl to be installed as a command line tool
 /// @param data std::vector<unsigned char> - the data to be signed
 /// @return std::vector<unsigned char>  - the signature
-std::vector<unsigned char> my_signer(const std::vector<unsigned char> &data)
-{
-    if (data.empty())
-    {
-        throw std::runtime_error("Signature data is empty");
-    }
+// std::vector<unsigned char> my_signer(const std::vector<unsigned char> &data)
+// {
+//     if (data.empty())
+//     {
+//         throw std::runtime_error("Signature data is empty");
+//     }
 
-    std::ofstream source("target/cpp_data.bin", std::ios::binary);
-    if (!source)
-    {
-        throw std::runtime_error("Failed to open temp signing file");
-    }
-    source.write(reinterpret_cast<const char *>(data.data()), data.size());
+//     std::ofstream source("target/cpp_data.bin", std::ios::binary);
+//     if (!source)
+//     {
+//         throw std::runtime_error("Failed to open temp signing file");
+//     }
+//     source.write(reinterpret_cast<const char *>(data.data()), data.size());
 
-    // sign the temp file by calling openssl in a shell
-    system("openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out target/c_signature.sig target/c_data.bin");
+//     // sign the temp file by calling openssl in a shell
+//     system("openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out target/c_signature.sig target/c_data.bin");
 
-    std::vector<uint8_t> signature;
+//     std::vector<uint8_t> signature;
 
-    // Read the signature back into the output vector
-    std::ifstream signature_file("target/c_signature.sig", std::ios::binary);
-    if (!signature_file)
-    {
-        throw std::runtime_error("Failed to open signature file");
-    }
+//     // Read the signature back into the output vector
+//     std::ifstream signature_file("target/c_signature.sig", std::ios::binary);
+//     if (!signature_file)
+//     {
+//         throw std::runtime_error("Failed to open signature file");
+//     }
 
-    signature = std::vector<uint8_t>((std::istreambuf_iterator<char>(signature_file)), std::istreambuf_iterator<char>());
+//     signature = std::vector<uint8_t>((std::istreambuf_iterator<char>(signature_file)), std::istreambuf_iterator<char>());
 
-    return signature;
-}
+//     return signature;
+// }
 
 int main()
 {
@@ -116,7 +117,7 @@ int main()
         char *certs = load_file("tests/fixtures/es256_certs.pem");
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer(&my_signer, Es256, certs, "http://timestamp.digicert.com");
+        c2pa::Signer signer = c2pa::Signer(&cmd_signer, Es256, certs, "http://timestamp.digicert.com");
 
         const char *signed_path = "target/tmp/C_signed.jpg";
         std::remove(signed_path); // remove the file if it exists
@@ -141,7 +142,7 @@ int main()
         char *certs = load_file("tests/fixtures/es256_certs.pem");
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer(&my_signer, Es256, certs, "http://timestamp.digicert.com");
+        c2pa::Signer signer = c2pa::Signer(&cmd_signer, Es256, certs, "http://timestamp.digicert.com");
 
         const char *signed_path = "target/tmp/C_signed-stream.jpg";
         std::remove(signed_path); // remove the file if it exists

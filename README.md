@@ -22,7 +22,35 @@ To use this library, include the header file in your code as follows:
 #include "c2pa.hpp"
 ```
 
-### Read and validate C2PA data in a file
+### Read and validate an iostream 
+
+Use the `Reader` constructor to read C2PA data from a stream. This constructor examines the specified stream for C2PA data in the given format and its return value is a Reader that can be used to extract more information. Exceptions are thrown on errors.
+
+```cpp
+  auto reader = c2pa::Reader(<"FORMAT">, <"STREAM">);
+```
+Where:
+
+- `<FORMAT>`- A MIME string format for the stream [supported file formats](#supported-file-formats).
+- `<STREAM>` - An open readable iostream.
+For example:
+
+```cpp
+std::ifstream ifs("tests/fixtures/C.jpg", std::ios::binary);
+
+// the Reader supports streams or file paths
+auto reader = c2pa::Reader("image/jpeg", ifs);
+
+// print out the Manifest Store information
+printf("Manifest Store = %s", reader.json())
+
+// write the thumbnail into a file
+std::ofstream ofs("test_thumbail.jpg", std::ios::binary);
+reader.get_resource("self#jumbf=c2pa.assertions/c2pa.thumbnail.claim.jpeg", ofs);
+ifs.close();
+```
+
+### Read and validate C2PA data in a file using the 
 
 Use the `read_file` function to read C2PA data from the specified file. This function examines the specified asset file for C2PA data and its return value is a JSON report if it finds C2PA data. If there are validation errors, the report includes a `validation_status` field. Exceptions are thrown on errors.
 

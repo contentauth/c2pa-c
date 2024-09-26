@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include "c2pa.h"
+#include "../include/c2pa.h"
 
 ssize_t reader(size_t context, uint8_t *data, size_t len)
 {

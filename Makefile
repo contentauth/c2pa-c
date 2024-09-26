@@ -17,13 +17,14 @@ clippy:
 
 test-rust:
 	cargo test --
-	cbindgen --config cbindgen.toml --crate c2pa-c --output include/c2pa.h --lang c
 
-unit-tests: test-rust
+cmake:
 	mkdir -p target/cmake
 	cmake -S./ -B./target/cmake -G "Ninja"
+
+unit-tests: cmake test-rust release
 	cmake --build ./target/cmake --target unit_tests
-	cd target/cmake; ./unit_tests
+	cd target/cmake; tests/unit_tests
 
 release:
 	cargo build --release
@@ -33,15 +34,19 @@ test-c: release
 	$(CC) $(CFLAGS) tests/test.c -o target/ctest -lc2pa_c -L./target/release
 	$(ENV) target/ctest
 
-test-cpp: release
-	g++ $(CFLAGS) -std=c++17 tests/test.cpp -o target/cpptest -lc2pa_c -L./target/release 
-	$(ENV) target/cpptest
+test-cpp: cmake release 
+	cmake --build ./target/cmake --target cpptest
+	target/cmake/cpptest
 
 example: release
 	g++ $(CFLAGS) -std=c++17 examples/training.cpp -o target/training -lc2pa_c -L./target/release
 	$(ENV) target/training
 
-# Creates a folder wtih c2patool bin, samples and readme
+examples: cmake release
+	cmake --build ./target/cmake --target training
+	cd target/cmake; examples/training
+
+# Creates a folder wtih library, samples and readme
 package:
 	rm -rf target/c2pa-c
 	mkdir -p target/c2pa-c
