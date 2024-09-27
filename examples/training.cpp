@@ -18,7 +18,7 @@
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
-#include "../include/c2pa.hpp"
+#include "c2pa.hpp"
 #include <nlohmann/json.hpp>
 
 // this example uses nlohmann json for parsing the manifest

@@ -13,7 +13,7 @@ FetchContent_MakeAvailable(json)
 project(Examples)
 
 # Include the directory containing the main project headers
-include_directories(${CMAKE_SOURCE_DIR}/src)
+include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # Add example1 executable
 add_executable(training training.cpp)

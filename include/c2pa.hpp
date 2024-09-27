@@ -174,6 +174,9 @@ namespace c2pa
         /// @param sign_cert The certificate to use for signing.
         /// @param tsa_uri  The TSA URI to use for time-stamping.
         Signer(SignerFunc *callback, C2paSigningAlg alg, const string &sign_cert, const string &tsa_uri);
+
+        Signer(C2paSigner *signer) : signer(signer) {}
+        
         ~Signer();
 
         /// @brief  Get the C2paSigner
