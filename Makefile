@@ -40,19 +40,15 @@ test-cpp: cmake release
 	cmake --build ./$(BUILD_DIR) --target cpptest
 	target/cmake/cpptest
 
-example: release
-	g++ $(CFLAGS) -std=c++17 examples/training.cpp -o target/training -lc2pa_c -L./target/release
-	$(ENV) target/training
-
 demo: cmake release
 	cmake --build ./$(BUILD_DIR) --target demo
 	cd $(BUILD_DIR); examples/demo
 
-examples: cmake release
+training: cmake release
 	cmake --build ./$(BUILD_DIR) --target training
 	cd $(BUILD_DIR); examples/training
 
-
+examples: training demo
 # Creates a folder wtih library, samples and readme
 package:
 	rm -rf target/c2pa-c
@@ -64,4 +60,4 @@ package:
 
 test: check-format clippy test-rust test-c test-cpp
 
-all: test example
+all: unit-tests examples
