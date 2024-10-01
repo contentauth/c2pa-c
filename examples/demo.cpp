@@ -95,15 +95,15 @@ int main()
             cout << "thumbnail written to" << thumbnail_path << endl;
         }
     }
-    catch (c2pa::Exception e)
+    catch (c2pa::Exception const &e)
     {
         cout << "C2PA Error: " << e.what() << endl;
     }
-    catch (runtime_error e)
+    catch (runtime_error const &e)
     {
         cout << "setup error" << e.what() << endl;
     }
-    catch (json::parse_error &e)
+    catch (json::parse_error const &e)
     {
         cout << "parse error " << e.what() << endl;
     }

@@ -208,7 +208,7 @@ namespace c2pa
         /// @param uri  The uri of the resource.
         /// @param source_path  The path to the resource file.
         /// @throws C2pa::Exception for errors encountered by the C2PA library.
-        void add_resource(const string uri, const std::filesystem::path &source_path);
+        void add_resource(const string &uri, const std::filesystem::path &source_path);
 
         /// @brief Add an ingredient to the builder.
         /// @param ingredient_json  Any fields of the ingredient you want to define.

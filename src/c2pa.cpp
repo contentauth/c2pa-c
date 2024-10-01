@@ -32,8 +32,8 @@ using namespace c2pa;
 
 namespace c2pa
 {
-    /// Exception class for C2pa errors.
-    /// This class is used to throw exceptions for errors encountered by the C2pa library via c2pa_error().
+    /// Exception class for C2PA errors.
+    /// This class is used to throw exceptions for errors encountered by the C2PA library via c2pa_error().
 
     Exception::Exception() : message(c2pa_error())
     {
@@ -51,7 +51,7 @@ namespace c2pa
         return message.c_str();
     }
 
-    /// Returns the version of the C2pa library.
+    /// Returns the version of the C2PA library.
     string version()
     {
         auto result = c2pa_version();
@@ -63,7 +63,7 @@ namespace c2pa
     /// Loads C2PA settings from a string in a given format.
     /// @param format the mime format of the string.
     /// @param data the string to load.
-    void load_settings(const string format, const string data)
+    void load_settings(const string &format, const string &data)
     {
         c2pa_load_settings(format.c_str(), data.c_str());
     }
@@ -537,7 +537,7 @@ namespace c2pa
             std::copy(signature_vec.begin(), signature_vec.end(), signature);
             return signature_vec.size();
         }
-        catch (const std::exception &e)
+        catch (std::exception const &e)
         {
             // todo pass exceptions to Rust error handling
             // printf("Error: signer_passthrough - %s\n", e.what());
@@ -605,7 +605,7 @@ namespace c2pa
         }
     }
 
-    void Builder::add_resource(const string uri, const std::filesystem::path &source_path)
+    void Builder::add_resource(const string &uri, const std::filesystem::path &source_path)
     {
         ifstream stream = ifstream(source_path);
         if (!stream.is_open())

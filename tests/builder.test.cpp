@@ -62,7 +62,7 @@ TEST(Builder, SignFile)
         auto json = reader.json();
         ASSERT_TRUE(std::filesystem::exists(output_path));
     }
-    catch (c2pa::Exception e)
+    catch (c2pa::Exception const& e)
     {
         FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
     };
@@ -105,7 +105,7 @@ TEST(Builder, SignStream) {
         auto json = reader.json();
         ASSERT_TRUE(json.find("c2pa.training-mining") != std::string::npos);
     }
-    catch (c2pa::Exception e)
+    catch (c2pa::Exception const& e)
     {
         FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
     };

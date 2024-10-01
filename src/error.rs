@@ -107,7 +107,6 @@ impl Error {
             FileNotFound(_) => Self::FileNotFound(err_str),
             UnsupportedType => Self::NotSupported(err_str),
             ClaimVerification(_) | InvalidClaim(_) | JumbfParseError(_) => Self::Verify(err_str),
-            // ImageError => Self::ImageError(err_str),
             _ => Self::Other(err_str),
         }
     }

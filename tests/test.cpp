@@ -170,7 +170,7 @@ int main()
         assert_contains("c2pa::Builder.sign", json, "c2pa.training-mining");
         // cout << "Manifest: " << json << endl;
     }
-    catch (c2pa::Exception e)
+    catch (c2pa::Exception const &e)
     {
         cout << "Failed: C2pa::Builder: " << e.what() << endl;
         return (1);
