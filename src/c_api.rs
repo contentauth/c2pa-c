@@ -68,7 +68,7 @@ impl From<C2paSigningAlg> for SigningAlg {
 
 #[repr(C)]
 pub struct C2paSigner {
-    signer: Box<dyn c2pa::Signer>,
+    pub signer: Box<dyn c2pa::Signer>,
 }
 
 // Internal routine to convert a *const c_char to a rust String or return a NULL error.
@@ -574,7 +574,7 @@ pub unsafe extern "C" fn c2pa_builder_add_ingredient(
     let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
     let ingredient_json = from_cstr_null_check_int!(ingredient_json);
     let format = from_cstr_null_check_int!(format);
-    let result = builder.add_ingredient(&ingredient_json, &format, &mut (*source));
+    let result = builder.add_ingredient_from_stream(&ingredient_json, &format, &mut (*source));
     match result {
         Ok(_builder) => {
             Box::into_raw(builder);
@@ -767,5 +767,42 @@ pub unsafe extern "C" fn c2pa_signer_create(
 pub unsafe extern "C" fn c2pa_signer_free(signer_ptr: *const C2paSigner) {
     if !signer_ptr.is_null() {
         drop(Box::from_raw(signer_ptr as *mut C2paSigner));
+    }
+}
+
+#[no_mangle]
+/// Signs a byte array using the Ed25519 algorithm.
+/// # Safety
+/// The returned value MUST be freed by calling c2pa_signature_free
+/// and it is no longer valid after that call.
+///
+pub unsafe extern "C" fn c2pa_ed25519_sign(
+    bytes: *const c_uchar,
+    len: usize,
+    private_key: *const c_char,
+) -> *const c_uchar {
+    let bytes = std::slice::from_raw_parts(bytes, len);
+    let private_key = from_cstr_null_check!(private_key);
+
+    let result = CallbackSigner::ed25519_sign(bytes, private_key.as_bytes());
+    match result {
+        Ok(signed_bytes) => {
+            let signed_bytes = signed_bytes.into_boxed_slice();
+            let ptr = signed_bytes.as_ptr();
+            std::mem::forget(signed_bytes);
+            ptr
+        }
+        Err(_) => std::ptr::null(),
+    }
+}
+
+#[no_mangle]
+/// Frees a signature allocated by Rust.
+/// # Safety
+/// The signature can only be freed once and is invalid after this call.
+/// The signature must be freed by calling c2pa_signature_free.
+pub unsafe extern "C" fn c2pa_signature_free(signature_ptr: *const u8) {
+    if !signature_ptr.is_null() {
+        drop(Box::from_raw(signature_ptr as *mut u8));
     }
 }

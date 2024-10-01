@@ -75,6 +75,7 @@ pub fn sign_file(
     }
 
     let signer = signer_info.signer()?;
+    #[allow(deprecated)]
     manifest
         .embed(&source, &dest, &*signer)
         .map_err(Error::from_c2pa_error)

@@ -15,7 +15,7 @@
 #include <string.h>
 
 #include "../include/c2pa.h"
-#include "../include/file_stream.h"
+#include "file_stream.h"
 #include "unit_test.h"
 
 int main(void)
