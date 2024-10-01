@@ -8,8 +8,7 @@ authors = ["Gavin Peacock <gpeacock@adobe.com"]
 crate-type = ["lib","cdylib", 'staticlib']
 
 [dependencies]
-c2pa = {path="../c2pa-rs/sdk", features = ["unstable_api", "file_io", "add_thumbnails", "fetch_remote_manifests"] }
-#c2pa = {version = "0.32.1", features = ["unstable_api", "file_io", "add_thumbnails", "fetch_remote_manifests"] }
+c2pa = {version = "0.36.0", features = ["unstable_api", "file_io", "add_thumbnails", "fetch_remote_manifests"] }
 pem = "3.0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_derive = "1.0"
@@ -19,7 +18,6 @@ thiserror = "1.0.49"
 [profile.release]
 strip = true         # Strip symbols from the output binary.
 lto = true           # Enable link-time optimization.
-# it is possible to reduce size to 6mb by using the following options
 #opt-level = "z"     # Optimize for size.
 #codegen-units = 1   # Reduce number of codegen units to increase optimizations.
 #panic = "abort"     # Abort on panic

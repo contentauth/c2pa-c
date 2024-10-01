@@ -6,11 +6,25 @@ This library implements C and C++ APIs that:
 
 This documentation assumes you are using this library with C++.
 
-**WARNING**: This is an early prerelease version of this library.  There may be bugs and unimplemented features, and the API is subject to change.
+**WARNING**: This is a prerelease version of this library.  There may be bugs and unimplemented features, and the API is subject to change.
 
 ## Installation
 
-Add the prebuilt library and header files (`include/c2pa.h` for C or `include/c2pa.hpp` for C++) to your project.
+### C++
+We build with CMake and you can use FetchContent like this:
+```FetchContent_Declare(
+    c2pa_cpp
+    GIT_REPOSITORY https://github.com/contentauth/c2pa-c.git
+    GIT_TAG gpeacock/cmake_work`
+)
+FetchContent_MakeAvailable(c2pa_cpp)
+```
+And then add:
+```"${c2pa_cpp_SOURCE_DIR}/include"```
+to your include path.
+
+### C
+Add the prebuilt library and header file `include/c2pa.h` to your project and add the dynamic library to your library path.
 
 For instructions on how to build the library and run the tests and examples, see [Development](#development) below.
 
