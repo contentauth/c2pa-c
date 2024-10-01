@@ -19,6 +19,7 @@
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include "c2pa.hpp"
+#include "test_signer.hpp"
 #include <nlohmann/json.hpp>
 
 // this example uses nlohmann json for parsing the manifest
@@ -39,6 +40,7 @@ string read_text_file(const fs::path &path)
     return contents.data();
 }
 
+/*
 std::vector<unsigned char> es25519_signer(const std::vector<unsigned char> &data, const std::string &private_key_path)
 {
     if (data.empty())
@@ -109,18 +111,18 @@ std::vector<unsigned char> es25519_signer(const std::vector<unsigned char> &data
 
     return signature;
 }
-
+*/
 // Helper function to get the directory of the current file
 fs::path get_current_directory(const char *file_path)
 {
     return fs::path(file_path).parent_path();
 }
 
-vector<unsigned char> my_signer(const std::vector<unsigned char> &data)
-{
-    fs::path private_key_path = get_current_directory(__FILE__) / "../tests/fixtures/es256_private.key";
-    return es25519_signer(data, private_key_path.c_str());
-};
+// vector<unsigned char> my_signer(const std::vector<unsigned char> &data)
+// {
+//     fs::path private_key_path = get_current_directory(__FILE__) / "../tests/fixtures/es256_private.key";
+//     return es25519_signer(data, private_key_path.c_str());
+// };
 
 /// @brief Example of signing a file with a manifest and reading the manifest back
 /// @details This shows how to write a do not train assertion and read the status back
@@ -146,7 +148,7 @@ int main()
         string certs = read_text_file(certs_path).data();
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer(my_signer, Es256, certs, "http://timestamp.digicert.com");
+        c2pa::Signer signer = c2pa::Signer(test_signer, Es256, certs, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest_json);
         auto manifest_data = builder.sign(image_path, output_path, signer);

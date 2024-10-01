@@ -9,6 +9,8 @@ CFLAGS = -pthread -Wl,--no-as-needed -ldl -lm
 ENV = LD_LIBRARY_PATH=target/release
 endif
 
+BUILD_DIR = target/cmake
+
 check-format:
 	cargo fmt -- --check
 
@@ -19,12 +21,12 @@ test-rust:
 	cargo test --
 
 cmake:
-	mkdir -p target/cmake
-	cmake -S./ -B./target/cmake -G "Ninja"
+	mkdir -p $(BUILD_DIR)
+	cmake -S./ -B./$(BUILD_DIR) -G "Ninja"
 
 unit-tests: cmake test-rust release
-	cmake --build ./target/cmake --target unit_tests
-	cd target/cmake; tests/unit_tests
+	cmake --build ./$(BUILD_DIR) --target unit_tests
+	cd $(BUILD_DIR); tests/unit_tests
 
 release:
 	cargo build --release
@@ -35,16 +37,21 @@ test-c: release
 	$(ENV) target/ctest
 
 test-cpp: cmake release 
-	cmake --build ./target/cmake --target cpptest
+	cmake --build ./$(BUILD_DIR) --target cpptest
 	target/cmake/cpptest
 
 example: release
 	g++ $(CFLAGS) -std=c++17 examples/training.cpp -o target/training -lc2pa_c -L./target/release
 	$(ENV) target/training
 
+demo: cmake release
+	cmake --build ./$(BUILD_DIR) --target demo
+	cd $(BUILD_DIR); examples/demo
+
 examples: cmake release
-	cmake --build ./target/cmake --target training
-	cd target/cmake; examples/training
+	cmake --build ./$(BUILD_DIR) --target training
+	cd $(BUILD_DIR); examples/training
+
 
 # Creates a folder wtih library, samples and readme
 package:

@@ -58,6 +58,8 @@ TEST(Builder, SignFile)
         string ingredient_json = "{\"title\":\"Test Ingredient\"}";
         builder.add_ingredient(ingredient_json, signed_image_path);
         auto manifest_data = builder.sign(signed_image_path, output_path, signer);
+        auto reader = c2pa::Reader(output_path);
+        auto json = reader.json();
         ASSERT_TRUE(std::filesystem::exists(output_path));
     }
     catch (c2pa::Exception e)

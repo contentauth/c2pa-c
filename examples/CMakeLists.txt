@@ -14,9 +14,15 @@ project(Examples)
 
 # Include the directory containing the main project headers
 include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/tests)
 
 # Add example1 executable
 add_executable(training training.cpp)
 target_link_libraries(training nlohmann_json::nlohmann_json)
 target_link_libraries(training OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(training c2pa_cpp) # Link with the main project library if needed
+target_link_libraries(training c2pa_cpp test_signer)
+
+add_executable(demo demo.cpp)
+target_link_libraries(demo nlohmann_json::nlohmann_json)
+target_link_libraries(demo OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(demo c2pa_cpp test_signer) 

@@ -20,7 +20,7 @@ set(RUST_LIB ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.dylib)
 set(RUST_LIB_DEST ${CMAKE_BINARY_DIR}/lib/libc2pa_c.dylib)
 
 # Copy the Rust library from the local path to the target/cmake/src directory
-file(COPY ${RUST_LIB_LOCAL_PATH} DESTINATION ${CMAKE_BINARY_DIR}/lib)
+# file(COPY ${RUST_LIB_LOCAL_PATH} DESTINATION ${CMAKE_BINARY_DIR}/lib)
 
 # Ensure the Rust library is built before linking
 add_custom_command(
@@ -31,19 +31,18 @@ add_custom_command(
 )
 
 # Copy the Rust library to the _deps/bin directory
-#add_custom_command(
-#    OUTPUT ${RUST_LIB_DEST}
-#    COMMAND ${CMAKE_COMMAND} -E copy ${RUST_LIB} ${RUST_LIB_DEST}
-#    DEPENDS ${RUST_LIB}
-#    COMMENT "Copying Rust library to lib directory"
-#)
+add_custom_command(
+    OUTPUT ${RUST_LIB_DEST}
+    COMMAND ${CMAKE_COMMAND} -E copy ${RUST_LIB} ${RUST_LIB_DEST}
+    DEPENDS ${RUST_LIB}
+    COMMENT "Copying Rust library to lib directory"
+)
 
 # Create a custom target for the Rust library
-add_custom_target(build_rust_lib ALL DEPENDS ${RUST_LIB})
+add_custom_target(build_rust_lib ALL DEPENDS ${RUST_LIB} ${RUST_LIB_DEST})
 add_dependencies(c2pa_cpp build_rust_lib)
 
-#set(RUST_LIB ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.dylib)
-target_link_libraries(c2pa_cpp ${RUST_LIB})
+target_link_libraries(c2pa_cpp ${RUST_LIB_DEST})
 
 target_include_directories(c2pa_cpp PUBLIC ${INCLUDES})
 
