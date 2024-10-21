@@ -49,6 +49,7 @@ training: cmake release
 	cd $(BUILD_DIR); examples/training
 
 examples: training demo
+
 # Creates a folder wtih library, samples and readme
 package:
 	rm -rf target/c2pa-c

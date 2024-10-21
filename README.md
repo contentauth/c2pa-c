@@ -1,16 +1,14 @@
 # c2pa-c
 
-This library implements C and C++ APIs that:
+This library implements C++ APIs that:
 - Read and validate C2PA data from media files in [supported formats](#supported-file-formats).
 - Add signed manifests to media files in [supported formats](#supported-file-formats).
-
-This documentation assumes you are using this library with C++.
 
 **WARNING**: This is a prerelease version of this library.  There may be bugs and unimplemented features, and the API is subject to change.
 
 ## Installation
 
-### C++
+### CMake setup
 We build with CMake and you can use FetchContent like this:
 ```FetchContent_Declare(
     c2pa_cpp
@@ -23,10 +21,6 @@ And then add:
 ```"${c2pa_cpp_SOURCE_DIR}/include"```
 to your include path.
 
-### C
-Add the prebuilt library and header file `include/c2pa.h` to your project and add the dynamic library to your library path.
-
-For instructions on how to build the library and run the tests and examples, see [Development](#development) below.
 
 ## Usage
 
@@ -36,14 +30,14 @@ To use this library, include the header file in your code as follows:
 #include "c2pa.hpp"
 ```
 
-### Read and validate an iostream 
+### Read and validate an istream 
 
 Use the `Reader` constructor to read C2PA data from a stream. This constructor examines the specified stream for C2PA data in the given format and its return value is a Reader that can be used to extract more information. Exceptions are thrown on errors.
 
 ```cpp
   auto reader = c2pa::Reader(<"FORMAT">, <"STREAM">);
 ```
-Where:
+The parameters are:
 
 - `<FORMAT>`- A MIME string format for the stream [supported file formats](#supported-file-formats).
 - `<STREAM>` - An open readable iostream.
@@ -64,55 +58,13 @@ reader.get_resource("self#jumbf=c2pa.assertions/c2pa.thumbnail.claim.jpeg", ofs)
 ifs.close();
 ```
 
-### Read and validate C2PA data in a file using the 
-
-Use the `read_file` function to read C2PA data from the specified file. This function examines the specified asset file for C2PA data and its return value is a JSON report if it finds C2PA data. If there are validation errors, the report includes a `validation_status` field. Exceptions are thrown on errors.
-
-```cpp
-auto json_store = C2pa::read_file("<ASSET_FILE>", "<DATA_DIR>")
-```
-
-Where:
-
-- `<ASSET_FILE>`- The asset file to read; The file must be one of the [supported file formats](#supported-file-formats).
-- `<DATA_DIR>` - Optional path to data output directory; If provided, the function extracts any binary resources, such as thumbnails, icons, and C2PA data into that directory. These files are referenced by the identifier fields in the manifest store report.
-
-For example:
-
-```cpp
-auto json_store = C2pa::read_file("work/media_file.jpg", "output/data_dir")
-```
-
-A media file may contain many manifests in a manifest store. The `active_manifest` property in the manifest store identifies the most recently-added manifest.  For a comprehensive reference to the JSON manifest structure, see the [CAI manifest store reference](https://opensource.contentauthenticity.org/docs/manifest/manifest-ref).
-
-### Create a SignerInfo instance
-
-A `SignerInfo` object contains information about a signature.  To create an instance of `SignerInfo`, first set up the signer information from the public and private key files. For example, using the simple `read_text_file` function defined in the [`training.cpp` example](https://github.com/contentauth/c2pa-c/blob/main/examples/training.cpp): 
-
-```cpp
-string certs = read_text_file("path/to/certs.pem").data();
-string private_key = read_text_file("path/to/private.key").data();
-```
-
-Then create a new `SignerInfo` instance using the keys, specifying the signing algorithm in the `.alg` field and optionally a time stamp authority URL in the `.ta_url` field:
-
-```cpp
-C2paSignerInfo sign_info = {.alg = "es256", 
-                            .sign_cert = certs.c_str(), 
-                            .private_key = private_key.c_str(), 
-                            .ta_url = "http://timestamp.digicert.com"};
-```
-
-For the list of supported signing algorithms, see [Creating and using an X.509 certificate](https://opensource.contentauthenticity.org/docs/c2patool/x_509).
-
-**WARNING**: Do not access a private key and certificate directly like this in production  because it's not secure. Instead use a hardware security module (HSM) and optionally a Key Management Service (KMS) to access the key; for example as show in the [C2PA Python Example](https://github.com/contentauth/c2pa-python-example).
-
 ### Creating a manifest JSON definition
 
 The manifest JSON string defines the C2PA manifest to add to the file.
 
 A sample JSON manifest is provided in [tests/fixtures/training.json](https://github.com/contentauth/c2pa-c/blob/main/tests/fixtures/training.json).
 
+For example:
 ```cpp
 const std::string manifest_json = R"{
     "claim_generator": "c2pa_c_test/0.1",
@@ -138,39 +90,53 @@ const std::string manifest_json = R"{
  };
 ```
 
-### Add a signed manifest to a media file
+### Creating a Builder
 
-Use the `sign_file` function to add a signed manifest to a media file.
-
+Use the `Builder` constructor to create a `Builder` instance.
 
 ```cpp
-C2pa::sign_file("<ASSET_FILE>", 
-                         "<SIGNED_ASSET_FILE>",
-                         manifest_json.c_str(),
-                         &sign_info,
-                         "<DATA_DIR>");
+  auto builder = Builder("<MANIFEST_JSON>");
 ```
-
-The parameters are:
-- `<ASSET_FILE>`- Path to the source (original) asset file to read; The file must be one of the [supported file formats](#supported-file-formats).
-- `<SIGNED_ASSET_FILE>` - Path to the destination asset file that will contain a copy of the source asset with the manifest data added.
-- `manifest_json` - An string containing a JSON-formatted manifest data to add to the asset; see [Creating a manifest JSON definition file](#creating-a-manifest-json-definition-file).
-- `sign_info` - A valid `SignerInfo` object instance; see [Generating SignerInfo](#generating-signerinfo).
-- `<DATA_DIR>` - Optional path to data directory from which to load resource files referenced in the manifest JSON; for example, thumbnails, icons, and manifest data for ingredients.  
-
-Exceptions will be thrown on errors.
+The parameter is:
+- `<MANIFEST_JSON>`- A string in JSON format as as described above, defining the manifest to be generated.
 
 For example:
 
 ```cpp
-C2pa::sign_file("path/to/source.jpg", 
-                         "path/to/dest.jpg",
-                         manifest_json.c_str(),
-                         sign_info,
-                         "path/to/data_dir");
+  auto builder = Builder(manifest_json);
 ```
 
-See [training.cpp](https://github.com/contentauth/c2pa-c/blob/main/examples/training.cpp) for an example.
+### Creating Signer
+A sample test signer is provided in the tests folder. It is important that the private key is is kept private. The test signer
+should only be used for testing and development. In production a the private key should be kept in KMS or another secure environment. The SDK requires the public cert chain to be passed in here.
+
+```cpp
+  Signer signer = Signer("<SIGNING_FUNCTION>","<SIGNING_ALG>", "<PUBLIC_CERTS>", "<TIMESTAMP_URL>");
+```
+The parameters are:
+- `<SIGNING_FUNCTION>`- A signing function that returns a signature using `<SIGNING_ALG>` over the bytes passed in.
+- `<SIGNING_ALG>`- The `C2paSigningAlg` from `c2pa.h` associated with the signing function.
+- `<PUBLIC_CERTS>`- A buffer containing the public cert chain.
+- `<TIMESTAMP_URL>`- An optional parameter containing a URL to a public Time Stamp Authority service.
+
+For example:
+```cpp
+Signer signer = Signer(test_signer, Es256, certs, "http://timestamp.digicert.com");
+```
+
+### Signing and embedding a manifest
+```cpp
+  auto manifest_data = builder.sign(image_path, output_path, signer);
+```
+The parameters are:
+- `<SOURCE_ASSET>`- A file path or an istream referencing the asset to sign.
+- `<OUTPUT_ASSET>`- A file path or an iostream referencing the asset to generate.
+- `<SIGNER>` - A `Signer` instance.
+
+For example: 
+```cpp
+  auto manifest_data = builder.sign("source_asset.jpg", "output_asset.jpg", signer);
+```
 
 ## Development
 
@@ -186,7 +152,7 @@ Install [cbindgen](https://github.com/mozilla/cbindgen/blob/master/docs.md):
 cargo install --force cbindgen
 ```
 
-The c unit tests require Ninja. Installation instructions are here:
+The unit tests require Ninja. Installation instructions are here:
 
 https://github.com/ninja-build/ninja/wiki/Pre-built-Ninja-packages
 
@@ -200,12 +166,9 @@ Enter this command to build the C library:
 make release
 ```
 
-The Makefile also has numerous other targets:
-- `test-cpp` to build and run the C++ tests.
-- `test-c` to build and run the C tests.
-- `check-format`, `clippy`, and `test-rust` for Rust linting and testing.
-- `test` to run all of the above targets.
-- `example` to build and run the C++ example.
+The Makefile also has multiple targets:
+- `unit-tests` to run C++ unit tests
+- `examples` to build and run the C++ examples.
 - `all` to run everything.
 
 Results are saved in the `target` directory.

@@ -17,7 +17,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 // LAST_ERROR handling borrowed from Copyright (c) 2018 Michael Bryan
 thread_local! {
-    static LAST_ERROR: RefCell<Option<Error>> = RefCell::new(None);
+    static LAST_ERROR: RefCell<Option<Error>> = const { RefCell::new(None) };
 }
 
 #[derive(Error, Debug)]
