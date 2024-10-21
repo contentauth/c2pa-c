@@ -63,9 +63,14 @@ namespace c2pa
     /// Loads C2PA settings from a string in a given format.
     /// @param format the mime format of the string.
     /// @param data the string to load.
+    /// @throws a C2pa::Exception for errors encountered by the C2PA library.
     void load_settings(const string &format, const string &data)
     {
-        c2pa_load_settings(format.c_str(), data.c_str());
+        auto result = c2pa_load_settings(format.c_str(), data.c_str());
+        if (result != 0)
+        {
+            throw c2pa::Exception();
+        }
     }
 
     /// Reads a file and returns the manifest json as a C2pa::String.

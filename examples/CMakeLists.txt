@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Find OpenSSL
-find_package(OpenSSL REQUIRED)
+find_package(OpenSSL 3.2 REQUIRED)
 
 # install json
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)

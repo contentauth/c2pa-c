@@ -52,6 +52,8 @@ namespace c2pa
 
         CppIStream(const CppIStream &) = delete;
         CppIStream &operator=(const CppIStream &) = delete;
+        CppIStream(CppIStream &&) = delete;
+        CppIStream &operator=(CppIStream &&) = delete;
 
         ~CppIStream();
 

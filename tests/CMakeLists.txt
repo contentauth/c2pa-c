@@ -19,7 +19,7 @@ FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download
 FetchContent_MakeAvailable(json)
 
 # Find OpenSSL
-find_package(OpenSSL REQUIRED)
+find_package(OpenSSL 3.2 REQUIRED)
 
 add_library(test_signer test_signer.cpp)
 # Ensure OpenSSL headers are available
