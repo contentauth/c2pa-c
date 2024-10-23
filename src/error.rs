@@ -17,7 +17,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 // LAST_ERROR handling borrowed from Copyright (c) 2018 Michael Bryan
 thread_local! {
-    static LAST_ERROR: RefCell<Option<Error>> = RefCell::new(None);
+    static LAST_ERROR: RefCell<Option<Error>> = const { RefCell::new(None) };
 }
 
 #[derive(Error, Debug)]
@@ -107,8 +107,6 @@ impl Error {
             FileNotFound(_) => Self::FileNotFound(err_str),
             UnsupportedType => Self::NotSupported(err_str),
             ClaimVerification(_) | InvalidClaim(_) | JumbfParseError(_) => Self::Verify(err_str),
-            #[cfg(feature = "add_thumbnails")]
-            ImageError => Self::ImageError(err_str),
             _ => Self::Other(err_str),
         }
     }

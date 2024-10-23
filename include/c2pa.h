@@ -515,6 +515,26 @@ struct C2paSigner *c2pa_signer_create(const void *context,
 IMPORT extern void c2pa_signer_free(const struct C2paSigner *signer_ptr);
 
 /**
+ * Signs a byte array using the Ed25519 algorithm.
+ * # Safety
+ * The returned value MUST be freed by calling c2pa_signature_free
+ * and it is no longer valid after that call.
+ *
+ */
+IMPORT extern
+const unsigned char *c2pa_ed25519_sign(const unsigned char *bytes,
+                                       uintptr_t len,
+                                       const char *private_key);
+
+/**
+ * Frees a signature allocated by Rust.
+ * # Safety
+ * The signature can only be freed once and is invalid after this call.
+ * The signature must be freed by calling c2pa_signature_free.
+ */
+IMPORT extern void c2pa_signature_free(const uint8_t *signature_ptr);
+
+/**
  * Creates a new C2paStream from context with callbacks
  *
  * This allows implementing streams in other languages
