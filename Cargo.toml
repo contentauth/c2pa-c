@@ -19,6 +19,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_derive = "1.0"
 serde_json = "1.0"
 thiserror = "1.0.64"
+uniffi = { version="0.24.1", features= ["cli", "build"] }
+uniffi_bindgen = { version="0.24.1" }
 
 [profile.release]
 strip = true # Strip symbols from the output binary.
@@ -26,3 +28,10 @@ lto = true   # Enable link-time optimization.
 #opt-level = "z"     # Optimize for size.
 #codegen-units = 1   # Reduce number of codegen units to increase optimizations.
 #panic = "abort"     # Abort on panic
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi_bindgen.rs"
+
+[build-dependencies]
+uniffi = { version = "0.24.1", features = ["build"] }

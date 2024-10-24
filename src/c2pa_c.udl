@@ -1,0 +1,15 @@
+
+namespace c2pa_c {
+  string version();
+  string sdk_version();
+};
+
+enum SigningAlg {
+  "Es256",
+  "Es384",
+  "Es512",
+  "Ps256",
+  "Ps384",
+  "Ps512",
+  "Ed25519"
+};
