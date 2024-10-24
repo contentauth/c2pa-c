@@ -25,3 +25,10 @@ pub use c_stream::*;
 pub use error::{Error, Result};
 pub use json_api::{read_file, read_ingredient_file, sdk_version, sign_file};
 pub use signer_info::SignerInfo;
+
+use uniffi;
+uniffi::include_scaffolding!("c2pa_c");
+
+pub fn version() -> String {
+  format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"),)
+}
