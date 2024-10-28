@@ -398,7 +398,7 @@ pub unsafe extern "C" fn c2pa_reader_free(reader_ptr: *mut C2paReader) {
 pub unsafe extern "C" fn c2pa_reader_json(reader_ptr: *mut C2paReader) -> *mut c_char {
     let c2pa_reader: Box<C2paReader> = Box::from_raw(reader_ptr);
     let json = c2pa_reader.json();
-    Box::into_raw(c2pa_reader);
+    let _ = Box::into_raw(c2pa_reader);
     to_c_string(json)
 }
 
@@ -433,7 +433,7 @@ pub unsafe extern "C" fn c2pa_reader_resource_to_stream(
     let reader: Box<C2paReader> = Box::from_raw(reader_ptr);
     let uri = from_cstr_null_check_int!(uri);
     let result = reader.resource_to_stream(&uri, &mut (*stream));
-    Box::into_raw(reader);
+    let _ = Box::into_raw(reader);
     match result {
         Ok(len) => len as c_int,
         Err(err) => {
@@ -540,7 +540,7 @@ pub unsafe extern "C" fn c2pa_builder_add_resource(
     let result = builder.add_resource(&uri, &mut (*stream));
     match result {
         Ok(_builder) => {
-            Box::into_raw(builder);
+            let _ = Box::into_raw(builder);
             0 as c_int
         }
         Err(err) => {
@@ -577,7 +577,7 @@ pub unsafe extern "C" fn c2pa_builder_add_ingredient(
     let result = builder.add_ingredient_from_stream(&ingredient_json, &format, &mut (*source));
     match result {
         Ok(_builder) => {
-            Box::into_raw(builder);
+            let _ = Box::into_raw(builder);
             0 as c_int
         }
         Err(err) => {
@@ -616,7 +616,7 @@ pub unsafe extern "C" fn c2pa_builder_to_archive(
     let result = builder.to_archive(&mut (*stream));
     match result {
         Ok(_builder) => {
-            Box::into_raw(builder);
+            let _ = Box::into_raw(builder);
             0 as c_int
         }
         Err(err) => {
@@ -664,8 +664,8 @@ pub unsafe extern "C" fn c2pa_builder_sign(
         &mut *source,
         &mut *dest,
     );
-    Box::into_raw(c2pa_signer);
-    Box::into_raw(builder);
+    let _ = Box::into_raw(c2pa_signer);
+    let _ = Box::into_raw(builder);
     match result {
         Ok(manifest_bytes) => {
             let len = manifest_bytes.len() as c_int;
