@@ -36,7 +36,7 @@ test-c: release
 	$(CC) $(CFLAGS) tests/test.c -o target/ctest -lc2pa_c -L./target/release
 	$(ENV) target/ctest
 
-test-cpp: cmake release 
+test-cpp: cmake release
 	cmake --build ./$(BUILD_DIR) --target cpptest
 	target/cmake/cpptest
 
