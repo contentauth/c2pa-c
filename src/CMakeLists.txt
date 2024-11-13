@@ -17,7 +17,7 @@ add_library(c2pa_cpp STATIC ${SOURCES})
 
 # Add the Rust library
 set(RUST_LIB ${CMAKE_SOURCE_DIR}/../target/release/libc2pa_c.dylib)
-set(RUST_LIB_DEST ${CMAKE_BINARY_DIR}/../lib/libc2pa_c.dylib)
+set(RUST_LIB_DEST ${CMAKE_SOURCE_DIR}/../target/release/libc2pa_c.dylib)
 
 # Copy the Rust library from the local path to the target/cmake/src directory
 # file(COPY ${RUST_LIB_LOCAL_PATH} DESTINATION ${CMAKE_BINARY_DIR}/lib)
