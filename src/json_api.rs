@@ -10,7 +10,7 @@
 // specific language governing permissions and limitations under
 // each license.
 
-use c2pa::{Ingredient, Manifest, ManifestStore};
+use c2pa::{Ingredient, Manifest, Reader};
 
 use crate::{Error, Result, SignerInfo};
 
@@ -25,12 +25,14 @@ pub fn sdk_version() -> String {
 /// Any Validation errors will be reported in the validation_status field.
 ///
 pub fn read_file(path: &str, data_dir: Option<String>) -> Result<String> {
-    Ok(match data_dir {
-        Some(dir) => ManifestStore::from_file_with_resources(path, &dir),
-        None => ManifestStore::from_file(path),
-    }
-    .map_err(Error::from_c2pa_error)?
-    .to_string())
+    let reader = Reader::from_file(path).map_err(Error::from_c2pa_error)?;
+    Ok(if let Some(dir) = data_dir {
+        let json = reader.to_string();
+        reader.to_folder(&dir).map_err(Error::from_c2pa_error)?;
+        json
+    } else {
+        reader.to_string()
+    })
 }
 
 /// Returns an Ingredient JSON string from a file path.

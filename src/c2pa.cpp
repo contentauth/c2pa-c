@@ -600,6 +600,19 @@ namespace c2pa
         c2pa_builder_free(builder);
     }
 
+    void Builder::set_no_embed() {
+        c2pa_builder_set_no_embed(builder);
+    }
+
+    void Builder::set_remote_url(const string &remote_url)
+    {
+        int result = c2pa_builder_set_remote_url(builder, remote_url.c_str());
+        if (result < 0)
+        {
+            throw Exception();
+        }
+    }
+
     void Builder::add_resource(const string &uri, istream &source)
     {
         CppIStream c_source = CppIStream(source);
@@ -623,7 +636,7 @@ namespace c2pa
     void Builder::add_ingredient(const string &ingredient_json, const string &format, istream &source)
     {
         CppIStream c_source = CppIStream(source);
-        int result = c2pa_builder_add_ingredient(builder, ingredient_json.c_str(), format.c_str(), c_source.c_stream);
+        int result = c2pa_builder_add_ingredient_from_stream(builder, ingredient_json.c_str(), format.c_str(), c_source.c_stream);
         if (result < 0)
         {
             throw Exception();

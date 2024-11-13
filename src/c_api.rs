@@ -515,6 +515,43 @@ pub unsafe extern "C" fn c2pa_builder_free(builder_ptr: *mut C2paBuilder) {
     }
 }
 
+/// Sets the no-embed flag on the Builder.
+/// When set, the builder will not embed a C2PA manifest store into the asset when signing.
+/// This is useful when creating cloud or sidecar manifests.
+/// # Parameters
+/// * builder_ptr: pointer to a Builder.
+/// # Safety
+/// builder_ptr must be a valid pointer to a Builder.   
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_builder_set_no_embed(builder_ptr: *mut C2paBuilder) {
+    let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
+    builder.set_no_embed(true);
+    let _ = Box::into_raw(builder);
+}
+
+/// Sets the remote URL on the Builder.
+/// When set, the builder will embed a remote URL into the asset when signing.
+/// This is useful when creating cloud based Manifests.
+/// # Parameters
+/// * builder_ptr: pointer to a Builder.
+/// * remote_url: pointer to a C string with the remote URL.
+/// # Errors
+/// Returns -1 if there were errors, otherwise returns 0.
+/// The error string can be retrieved by calling c2pa_error.
+/// # Safety
+/// Reads from NULL-terminated C strings.
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_builder_set_remote_url(
+    builder_ptr: *mut C2paBuilder,
+    remote_url: *const c_char,
+) -> c_int {
+    let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
+    let remote_url = from_cstr_null_check_int!(remote_url);
+    builder.set_remote_url(&remote_url);
+    let _ = Box::into_raw(builder);
+    0 as c_int
+}
+
 /// Adds a resource to the C2paBuilder.
 ///
 /// The resource uri should match an identifier in the manifest definition.
@@ -565,7 +602,7 @@ pub unsafe extern "C" fn c2pa_builder_add_resource(
 /// # Safety
 /// Reads from NULL-terminated C strings.
 #[no_mangle]
-pub unsafe extern "C" fn c2pa_builder_add_ingredient(
+pub unsafe extern "C" fn c2pa_builder_add_ingredient_from_stream(
     builder_ptr: *mut C2paBuilder,
     ingredient_json: *const c_char,
     format: *const c_char,
