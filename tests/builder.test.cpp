@@ -131,11 +131,11 @@ TEST(Builder, SignStreamCloudUrl)
 
         auto builder = c2pa::Builder(manifest);
 
-            // very important to use a URL that does not exist, otherwise you may get a JumbfParseError or JumbfNotFound
+        // very important to use a URL that does not exist, otherwise you may get a JumbfParseError or JumbfNotFound
         builder.set_remote_url("http://this_does_not_exist/foo.jpg");
         builder.set_no_embed();
 
-        //auto manifest_data = builder.sign(signed_image_path, "target/dest.jpg", signer);
+        // auto manifest_data = builder.sign(signed_image_path, "target/dest.jpg", signer);
         std::ifstream source(signed_image_path, std::ios::binary);
         if (!source)
         {
@@ -156,10 +156,54 @@ TEST(Builder, SignStreamCloudUrl)
     catch (c2pa::Exception const &e)
     {
         std::string error_message = e.what();
-        if (error_message.rfind("Remote ", 0) == 0) {
+        if (error_message.rfind("Remote ", 0) == 0)
+        {
             SUCCEED();
-        } else {
+        }
+        else
+        {
             FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
         }
+    };
+}
+
+TEST(Builder, SignDataHashedEmbedded)
+{
+    try
+    {
+        fs::path current_dir = fs::path(__FILE__).parent_path();
+
+        // Construct the paths relative to the current directory
+        fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+        fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+        // fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+
+        auto manifest = read_text_file(manifest_path);
+        auto certs = read_text_file(certs_path);
+
+        // create a signer
+        c2pa::Signer signer = c2pa::Signer(&test_signer, Es256, certs, "http://timestamp.digicert.com");
+
+        auto builder = c2pa::Builder(manifest);
+
+        auto placeholder = builder.data_hashed_placeholder(signer.reserve_size(), "image/jpeg");
+
+        std::string data_hash = R"({
+          "exclusions": [
+            {
+              "start": 20,
+              "length": 45884
+            }
+          ],
+          "name": "jumbf manifest",
+          "alg": "sha256",
+          "hash": "gWZNEOMHQNiULfA/tO5HD2awOwYMA3tnfUPApIr9csk=",
+          "pad": " "
+        })";
+        auto manifest_data = builder.sign_data_hashed_embeddable(signer, data_hash, "image/jpeg");
+    }
+    catch (c2pa::Exception const &e)
+    {
+        FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
     };
 }

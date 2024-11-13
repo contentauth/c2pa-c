@@ -572,6 +572,12 @@ namespace c2pa
         return signer;
     }
 
+    /// @brief  Get the size to reserve for a signature for this signer.
+    uintptr_t Signer::reserve_size()
+    {
+        return c2pa_signer_reserve_size(signer);
+    }
+
     /// @brief  Builder class for creating a manifest implementation.
     Builder::Builder(const string &manifest_json)
     {
@@ -600,7 +606,8 @@ namespace c2pa
         c2pa_builder_free(builder);
     }
 
-    void Builder::set_no_embed() {
+    void Builder::set_no_embed()
+    {
         c2pa_builder_set_no_embed(builder);
     }
 
@@ -662,7 +669,7 @@ namespace c2pa
     {
         CppIStream c_source = CppIStream(source);
         CppOStream c_dest = CppOStream(dest);
-        const unsigned char *c2pa_manifest_bytes = NULL; // TODO: Make returning manifest bytes optional.
+        const unsigned char *c2pa_manifest_bytes = NULL;
         auto result = c2pa_builder_sign(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, signer.c2pa_signer(), &c2pa_manifest_bytes);
         if (result < 0)
         {
@@ -759,4 +766,41 @@ namespace c2pa
         to_archive(dest);
     }
 
-}
+    std::unique_ptr<std::vector<unsigned char>> Builder::data_hashed_placeholder(uintptr_t reserve_size, const string &format)
+    {
+        const unsigned char *c2pa_manifest_bytes = NULL;
+        auto result = c2pa_builder_data_hashed_placeholder(builder, reserve_size, format.c_str(), &c2pa_manifest_bytes);
+        if (result < 0)
+        {
+            throw Exception();
+        }
+        if (c2pa_manifest_bytes != NULL)
+        {
+            // Allocate a new vector on the heap and fill it with the data.
+            auto data = std::make_unique<std::vector<unsigned char>>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
+
+            c2pa_manifest_bytes_free(c2pa_manifest_bytes);
+            return data;
+        }
+        throw(c2pa::Exception("Failed to create data hashed placeholder"));
+    }
+
+    std::unique_ptr<std::vector<unsigned char>> Builder::sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format)
+    {
+        const unsigned char *c2pa_manifest_bytes = NULL;
+        auto result = c2pa_builder_sign_data_hashed_embeddable(builder, signer.c2pa_signer(), data_hash.c_str(), format.c_str(), &c2pa_manifest_bytes);
+        if (result < 0)
+        {
+            throw Exception();
+        }
+        if (c2pa_manifest_bytes != NULL)
+        {
+            // Allocate a new vector on the heap and fill it with the data.
+            auto data = std::make_unique<std::vector<unsigned char>>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
+
+            c2pa_manifest_bytes_free(c2pa_manifest_bytes);
+            return data;
+        }
+        throw(c2pa::Exception("Failed to create data hashed placeholder"));
+    }
+} // namespace c2pa
