@@ -198,6 +198,14 @@ namespace c2pa
 
         ~Builder();
 
+        /// @brief  Set the no embed flag.
+        void set_no_embed();
+
+        /// @brief  Set the remote URL.
+        /// @param remote_url  The remote URL to set.
+        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        void set_remote_url(const string &remote_url);
+
         /// @brief  Add a resource to the builder.
         /// @param uri  The uri of the resource.
         /// @param source  The input stream to read the resource from.
