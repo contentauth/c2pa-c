@@ -929,6 +929,9 @@ pub unsafe extern "C" fn c2pa_signer_create(
 /// # Errors
 /// Returns -1 if there were errors, otherwise returns the size to reserve.
 /// The error string can be retrieved by calling c2pa_error.
+///
+/// # Safety
+/// The signer_ptr must be a valid pointer to a C2paSigner.
 #[no_mangle]
 pub unsafe extern "C" fn c2pa_signer_reserve_size(signer_ptr: *mut C2paSigner) -> i64 {
     if signer_ptr.is_null() {
@@ -938,7 +941,7 @@ pub unsafe extern "C" fn c2pa_signer_reserve_size(signer_ptr: *mut C2paSigner) -
     let c2pa_signer: Box<C2paSigner> = Box::from_raw(signer_ptr);
     let size = c2pa_signer.signer.reserve_size() as i64;
     let _ = Box::into_raw(c2pa_signer);
-    return size;
+    size
 }
 
 /// Frees a C2paSigner allocated by Rust.

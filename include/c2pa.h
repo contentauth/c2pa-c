@@ -596,6 +596,9 @@ struct C2paSigner *c2pa_signer_create(const void *context,
  * # Errors
  * Returns -1 if there were errors, otherwise returns the size to reserve.
  * The error string can be retrieved by calling c2pa_error.
+ *
+ * # Safety
+ * The signer_ptr must be a valid pointer to a C2paSigner.
  */
 IMPORT extern int64_t c2pa_signer_reserve_size(struct C2paSigner *signer_ptr);
 
