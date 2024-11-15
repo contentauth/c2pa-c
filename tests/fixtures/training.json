@@ -7,7 +7,7 @@
   ],
   "assertions": [
     {
-      "label": "c2pa.training-mining",
+      "label": "cawg.training-mining",
       "data": {
         "entries": {
           "cawg.ai_generative_training": {
