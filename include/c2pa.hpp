@@ -176,8 +176,12 @@ namespace c2pa
         Signer(SignerFunc *callback, C2paSigningAlg alg, const string &sign_cert, const string &tsa_uri);
 
         Signer(C2paSigner *signer) : signer(signer) {}
-        
+
         ~Signer();
+
+        /// @brief  Get the size to reserve for a signature for this signer.
+        /// @return Reserved size for the signature.
+        uintptr_t reserve_size();
 
         /// @brief  Get the C2paSigner
         C2paSigner *c2pa_signer();
@@ -267,6 +271,21 @@ namespace c2pa
         /// @param dest_path The path to write the archive file to.
         /// @throws C2pa::Exception for errors encountered by the C2PA library.
         void to_archive(const path &dest_path);
+
+        /// @brief Create a hashed placeholder from the builder.
+        /// @param reserved_size  The size required for a signature from the intended signer.
+        /// @param format  The format of the mime type or extension.
+        /// @return A vector containing the hashed placeholder.
+        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        std::unique_ptr<std::vector<unsigned char>> data_hashed_placeholder(uintptr_t reserved_size, const string &format);
+
+        /// @brief Sign a Builder using the specified signer and data hash.
+        /// @param signer  The signer to use for signing.
+        /// @param data_hash  The data hash to sign.
+        /// @param format  The format of the data hash.
+        /// @return A vector containing the signed data.
+        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        std::unique_ptr<std::vector<unsigned char>> sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format);
 
     private:
         // Private constructor for Builder from an archive (todo: find a better way to handle this)
