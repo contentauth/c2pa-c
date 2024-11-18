@@ -527,6 +527,15 @@ namespace c2pa
         return result;
     }
 
+    void Reader::to_folder(const std::filesystem::path &path)
+    {
+        int result = c2pa_reader_to_folder(c2pa_reader, path.c_str());
+        if (result < 0)
+        {
+            throw Exception();
+        }
+    }
+
     intptr_t signer_passthrough(const void *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len)
     {
         try
