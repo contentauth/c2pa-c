@@ -104,7 +104,7 @@ TEST(Builder, SignStream)
         dest.seekp(0, std::ios::beg);
         auto reader = c2pa::Reader("image/jpeg", dest);
         auto json = reader.json();
-        ASSERT_TRUE(json.find("c2pa.training-mining") != std::string::npos);
+        ASSERT_TRUE(json.find("cawg.training-mining") != std::string::npos);
     }
     catch (c2pa::Exception const &e)
     {
