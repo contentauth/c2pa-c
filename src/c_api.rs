@@ -18,8 +18,8 @@ use std::{
 
 // C has no namespace so we prefix things with C2PA to make them unique
 use c2pa::{
-    settings::load_settings_from_str, Builder as C2paBuilder, CallbackSigner, Reader as C2paReader,
-    SigningAlg,
+    assertions::DataHash, settings::load_settings_from_str, Builder as C2paBuilder, CallbackSigner,
+    Reader as C2paReader, SigningAlg,
 };
 
 use crate::{
@@ -69,6 +69,28 @@ impl From<C2paSigningAlg> for SigningAlg {
 #[repr(C)]
 pub struct C2paSigner {
     pub signer: Box<dyn c2pa::Signer>,
+}
+
+// Internal routine to test for null and return null error
+#[macro_export]
+macro_rules! null_check {
+    ($ptr : expr) => {
+        if $ptr.is_null() {
+            Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
+            return std::ptr::null_mut();
+        }
+    };
+}
+
+// Internal test for null and return -1 error
+#[macro_export]
+macro_rules! null_check_int {
+    ($ptr : expr) => {
+        if $ptr.is_null() {
+            Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
+            return -1;
+        }
+    };
 }
 
 // Internal routine to convert a *const c_char to a rust String or return a NULL error.
@@ -515,6 +537,43 @@ pub unsafe extern "C" fn c2pa_builder_free(builder_ptr: *mut C2paBuilder) {
     }
 }
 
+/// Sets the no-embed flag on the Builder.
+/// When set, the builder will not embed a C2PA manifest store into the asset when signing.
+/// This is useful when creating cloud or sidecar manifests.
+/// # Parameters
+/// * builder_ptr: pointer to a Builder.
+/// # Safety
+/// builder_ptr must be a valid pointer to a Builder.   
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_builder_set_no_embed(builder_ptr: *mut C2paBuilder) {
+    let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
+    builder.set_no_embed(true);
+    let _ = Box::into_raw(builder);
+}
+
+/// Sets the remote URL on the Builder.
+/// When set, the builder will embed a remote URL into the asset when signing.
+/// This is useful when creating cloud based Manifests.
+/// # Parameters
+/// * builder_ptr: pointer to a Builder.
+/// * remote_url: pointer to a C string with the remote URL.
+/// # Errors
+/// Returns -1 if there were errors, otherwise returns 0.
+/// The error string can be retrieved by calling c2pa_error.
+/// # Safety
+/// Reads from NULL-terminated C strings.
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_builder_set_remote_url(
+    builder_ptr: *mut C2paBuilder,
+    remote_url: *const c_char,
+) -> c_int {
+    let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
+    let remote_url = from_cstr_null_check_int!(remote_url);
+    builder.set_remote_url(&remote_url);
+    let _ = Box::into_raw(builder);
+    0 as c_int
+}
+
 /// Adds a resource to the C2paBuilder.
 ///
 /// The resource uri should match an identifier in the manifest definition.
@@ -565,7 +624,7 @@ pub unsafe extern "C" fn c2pa_builder_add_resource(
 /// # Safety
 /// Reads from NULL-terminated C strings.
 #[no_mangle]
-pub unsafe extern "C" fn c2pa_builder_add_ingredient(
+pub unsafe extern "C" fn c2pa_builder_add_ingredient_from_stream(
     builder_ptr: *mut C2paBuilder,
     ingredient_json: *const c_char,
     format: *const c_char,
@@ -642,7 +701,7 @@ pub unsafe extern "C" fn c2pa_builder_to_archive(
 ///
 /// # Safety
 /// Reads from NULL-terminated C strings
-/// If c2pa_data_ptr is not NULL, the returned value MUST be released by calling c2pa_release_string
+/// If manifest_bytes_ptr is not NULL, the returned value MUST be released by calling c2pa_manifest_bytes_free
 /// and it is no longer valid after that call.
 #[no_mangle]
 pub unsafe extern "C" fn c2pa_builder_sign(
@@ -690,6 +749,109 @@ pub unsafe extern "C" fn c2pa_builder_sign(
 pub unsafe extern "C" fn c2pa_manifest_bytes_free(manifest_bytes_ptr: *const c_uchar) {
     if !manifest_bytes_ptr.is_null() {
         drop(Box::from_raw(manifest_bytes_ptr as *mut c_uchar));
+    }
+}
+
+/// Creates a hashed placeholder from a Builder.
+/// The placeholder is used to reserve size in an asset for later signing.
+///
+/// # Parameters
+/// * builder_ptr: pointer to a Builder.
+/// * reserved_size: the size required for a signature from the intended signer.
+/// * format: pointer to a C string with the mime type or extension.
+/// * manifest_bytes_ptr: pointer to a pointer to a c_uchar to return manifest_bytes.
+///
+/// # Errors
+/// Returns -1 if there were errors, otherwise returns the size of the manifest_bytes.
+/// The error string can be retrieved by calling c2pa_error.
+///
+/// # Safety
+/// Reads from NULL-terminated C strings.
+/// If manifest_bytes_ptr is not NULL, the returned value MUST be released by calling c2pa_manifest_bytes_free
+/// and it is no longer valid after that call.
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_builder_data_hashed_placeholder(
+    builder_ptr: *mut C2paBuilder,
+    reserved_size: usize,
+    format: *const c_char,
+    manifest_bytes_ptr: *mut *const c_uchar,
+) -> c_int {
+    null_check_int!(builder_ptr);
+    null_check_int!(manifest_bytes_ptr);
+    let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
+    let format = from_cstr_null_check_int!(format);
+    let result = builder.data_hashed_placeholder(reserved_size, &format);
+    let _ = Box::into_raw(builder);
+    match result {
+        Ok(manifest_bytes) => {
+            let len = manifest_bytes.len() as c_int;
+            *manifest_bytes_ptr =
+                Box::into_raw(manifest_bytes.into_boxed_slice()) as *const c_uchar;
+            len
+        }
+        Err(err) => {
+            Error::from_c2pa_error(err).set_last();
+            -1
+        }
+    }
+}
+
+/// Sign a Builder using the specified signer and data hash.
+/// The data hash is a JSON string containing DataHash information for the asset.
+/// This is a low-level method for advanced use cases where the caller handles embedding the manifest.
+///
+/// # Parameters
+/// * builder_ptr: pointer to a Builder.
+/// * signer: pointer to a C2paSigner.
+/// * data_hash: pointer to a C string with the JSON data hash.
+/// * format: pointer to a C string with the mime type or extension.
+/// * manifest_bytes_ptr: pointer to a pointer to a c_uchar to return manifest_bytes (optional, can be NULL).
+///
+/// # Errors
+/// Returns -1 if there were errors, otherwise returns the size of the manifest_bytes.
+/// The error string can be retrieved by calling c2pa_error.
+///
+/// # Safety
+/// Reads from NULL-terminated C strings.
+/// If manifest_bytes_ptr is not NULL, the returned value MUST be released by calling c2pa_manifest_bytes_free
+/// and it is no longer valid after that call.
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_builder_sign_data_hashed_embeddable(
+    builder_ptr: *mut C2paBuilder,
+    signer: *mut C2paSigner,
+    data_hash: *const c_char,
+    format: *const c_char,
+    manifest_bytes_ptr: *mut *const c_uchar,
+) -> c_int {
+    null_check_int!(builder_ptr);
+    null_check_int!(manifest_bytes_ptr);
+
+    let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
+    let c2pa_signer = Box::from_raw(signer);
+    let data_hash_json = from_cstr_null_check_int!(data_hash);
+    let data_hash: DataHash = match serde_json::from_str(&data_hash_json) {
+        Ok(data_hash) => data_hash,
+        Err(err) => {
+            Error::from_c2pa_error(c2pa::Error::JsonError(err)).set_last();
+            return -1;
+        }
+    };
+    let format = from_cstr_null_check_int!(format);
+    let result =
+        builder.sign_data_hashed_embeddable(c2pa_signer.signer.as_ref(), &data_hash, &format);
+    let _ = Box::into_raw(c2pa_signer);
+    let _ = Box::into_raw(builder);
+    match result {
+        Ok(manifest_bytes) => {
+            let len = manifest_bytes.len() as c_int;
+            *manifest_bytes_ptr =
+                Box::into_raw(manifest_bytes.into_boxed_slice()) as *const c_uchar;
+            len
+        }
+        Err(err) => {
+            Error::from_c2pa_error(err).set_last();
+            -1
+        }
     }
 }
 
@@ -757,6 +919,29 @@ pub unsafe extern "C" fn c2pa_signer_create(
     Box::into_raw(Box::new(C2paSigner {
         signer: Box::new(signer),
     }))
+}
+
+/// Returns the size to reserve for the signature for this signer.
+///
+/// # Parameters
+/// * signer_ptr: pointer to a C2paSigner.
+///
+/// # Errors
+/// Returns -1 if there were errors, otherwise returns the size to reserve.
+/// The error string can be retrieved by calling c2pa_error.
+///
+/// # Safety
+/// The signer_ptr must be a valid pointer to a C2paSigner.
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_signer_reserve_size(signer_ptr: *mut C2paSigner) -> i64 {
+    if signer_ptr.is_null() {
+        Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
+        return -1;
+    }
+    let c2pa_signer: Box<C2paSigner> = Box::from_raw(signer_ptr);
+    let size = c2pa_signer.signer.reserve_size() as i64;
+    let _ = Box::into_raw(c2pa_signer);
+    size
 }
 
 /// Frees a C2paSigner allocated by Rust.

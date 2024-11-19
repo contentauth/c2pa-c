@@ -371,6 +371,34 @@ IMPORT extern struct C2paBuilder *c2pa_builder_from_archive(struct CStream *stre
 IMPORT extern void c2pa_builder_free(struct C2paBuilder *builder_ptr);
 
 /**
+ * Sets the no-embed flag on the Builder.
+ * When set, the builder will not embed a C2PA manifest store into the asset when signing.
+ * This is useful when creating cloud or sidecar manifests.
+ * # Parameters
+ * * builder_ptr: pointer to a Builder.
+ * # Safety
+ * builder_ptr must be a valid pointer to a Builder.
+ */
+IMPORT extern void c2pa_builder_set_no_embed(struct C2paBuilder *builder_ptr);
+
+/**
+ * Sets the remote URL on the Builder.
+ * When set, the builder will embed a remote URL into the asset when signing.
+ * This is useful when creating cloud based Manifests.
+ * # Parameters
+ * * builder_ptr: pointer to a Builder.
+ * * remote_url: pointer to a C string with the remote URL.
+ * # Errors
+ * Returns -1 if there were errors, otherwise returns 0.
+ * The error string can be retrieved by calling c2pa_error.
+ * # Safety
+ * Reads from NULL-terminated C strings.
+ */
+IMPORT extern
+int c2pa_builder_set_remote_url(struct C2paBuilder *builder_ptr,
+                                const char *remote_url);
+
+/**
  * Adds a resource to the C2paBuilder.
  *
  * The resource uri should match an identifier in the manifest definition.
@@ -408,10 +436,10 @@ int c2pa_builder_add_resource(struct C2paBuilder *builder_ptr,
  * Reads from NULL-terminated C strings.
  */
 IMPORT extern
-int c2pa_builder_add_ingredient(struct C2paBuilder *builder_ptr,
-                                const char *ingredient_json,
-                                const char *format,
-                                struct CStream *source);
+int c2pa_builder_add_ingredient_from_stream(struct C2paBuilder *builder_ptr,
+                                            const char *ingredient_json,
+                                            const char *format,
+                                            struct CStream *source);
 
 /**
  * Writes an Archive of the Builder to the destination stream.
@@ -454,7 +482,7 @@ IMPORT extern int c2pa_builder_to_archive(struct C2paBuilder *builder_ptr, struc
  *
  * # Safety
  * Reads from NULL-terminated C strings
- * If c2pa_data_ptr is not NULL, the returned value MUST be released by calling c2pa_release_string
+ * If manifest_bytes_ptr is not NULL, the returned value MUST be released by calling c2pa_manifest_bytes_free
  * and it is no longer valid after that call.
  */
 IMPORT extern
@@ -472,6 +500,59 @@ int c2pa_builder_sign(struct C2paBuilder *builder_ptr,
  * The bytes can only be freed once and are invalid after this call.
  */
 IMPORT extern void c2pa_manifest_bytes_free(const unsigned char *manifest_bytes_ptr);
+
+/**
+ * Creates a hashed placeholder from a Builder.
+ * The placeholder is used to reserve size in an asset for later signing.
+ *
+ * # Parameters
+ * * builder_ptr: pointer to a Builder.
+ * * reserved_size: the size required for a signature from the intended signer.
+ * * format: pointer to a C string with the mime type or extension.
+ * * manifest_bytes_ptr: pointer to a pointer to a c_uchar to return manifest_bytes.
+ *
+ * # Errors
+ * Returns -1 if there were errors, otherwise returns the size of the manifest_bytes.
+ * The error string can be retrieved by calling c2pa_error.
+ *
+ * # Safety
+ * Reads from NULL-terminated C strings.
+ * If manifest_bytes_ptr is not NULL, the returned value MUST be released by calling c2pa_manifest_bytes_free
+ * and it is no longer valid after that call.
+ */
+IMPORT extern
+int c2pa_builder_data_hashed_placeholder(struct C2paBuilder *builder_ptr,
+                                         uintptr_t reserved_size,
+                                         const char *format,
+                                         const unsigned char **manifest_bytes_ptr);
+
+/**
+ * Sign a Builder using the specified signer and data hash.
+ * The data hash is a JSON string containing DataHash information for the asset.
+ * This is a low-level method for advanced use cases where the caller handles embedding the manifest.
+ *
+ * # Parameters
+ * * builder_ptr: pointer to a Builder.
+ * * signer: pointer to a C2paSigner.
+ * * data_hash: pointer to a C string with the JSON data hash.
+ * * format: pointer to a C string with the mime type or extension.
+ * * manifest_bytes_ptr: pointer to a pointer to a c_uchar to return manifest_bytes (optional, can be NULL).
+ *
+ * # Errors
+ * Returns -1 if there were errors, otherwise returns the size of the manifest_bytes.
+ * The error string can be retrieved by calling c2pa_error.
+ *
+ * # Safety
+ * Reads from NULL-terminated C strings.
+ * If manifest_bytes_ptr is not NULL, the returned value MUST be released by calling c2pa_manifest_bytes_free
+ * and it is no longer valid after that call.
+ */
+IMPORT extern
+int c2pa_builder_sign_data_hashed_embeddable(struct C2paBuilder *builder_ptr,
+                                             struct C2paSigner *signer,
+                                             const char *data_hash,
+                                             const char *format,
+                                             const unsigned char **manifest_bytes_ptr);
 
 /**
  * Creates a C2paSigner from a callback and configuration.
@@ -505,6 +586,21 @@ struct C2paSigner *c2pa_signer_create(const void *context,
                                       enum C2paSigningAlg alg,
                                       const char *certs,
                                       const char *tsa_url);
+
+/**
+ * Returns the size to reserve for the signature for this signer.
+ *
+ * # Parameters
+ * * signer_ptr: pointer to a C2paSigner.
+ *
+ * # Errors
+ * Returns -1 if there were errors, otherwise returns the size to reserve.
+ * The error string can be retrieved by calling c2pa_error.
+ *
+ * # Safety
+ * The signer_ptr must be a valid pointer to a C2paSigner.
+ */
+IMPORT extern int64_t c2pa_signer_reserve_size(struct C2paSigner *signer_ptr);
 
 /**
  * Frees a C2paSigner allocated by Rust.
