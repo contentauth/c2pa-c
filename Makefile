@@ -24,10 +24,6 @@ cmake:
 	mkdir -p $(BUILD_DIR)
 	cmake -S./ -B./$(BUILD_DIR) -G "Ninja"
 
-unit-tests: cmake test-rust release
-	cmake --build ./$(BUILD_DIR) --target unit_tests
-	cd $(BUILD_DIR); tests/unit_tests
-
 release:
 	cargo build --release
 	cbindgen --config cbindgen.toml --crate c2pa-c --output include/c2pa.h --lang c
@@ -36,9 +32,9 @@ test-c: release
 	$(CC) $(CFLAGS) tests/test.c -o target/ctest -lc2pa_c -L./target/release
 	$(ENV) target/ctest
 
-test-cpp: cmake release 
-	cmake --build ./$(BUILD_DIR) --target cpptest
-	target/cmake/cpptest
+unit-tests: release cmake test-rust
+	cmake --build ./$(BUILD_DIR) --target unit_tests
+	cd $(BUILD_DIR); tests/unit_tests
 
 demo: cmake release
 	cmake --build ./$(BUILD_DIR) --target demo
@@ -60,4 +56,5 @@ package:
 	cp include/* target/c2pa-c/include
 
 test: check-format clippy test-rust test-c unit-tests
+
 all: unit-tests examples

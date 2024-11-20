@@ -126,7 +126,7 @@ impl Write for CStream {
 /// * `read` - a ReadCallback to read from the stream
 /// * `seek` - a SeekCallback to seek in the stream
 /// * `write` - a WriteCallback to write to the stream
-///     
+///
 /// # Safety
 /// The context must remain valid for the lifetime of the C2paStream
 /// The resulting C2paStream must be released by calling c2pa_release_stream
