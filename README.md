@@ -107,6 +107,7 @@ For example:
 ```
 
 ### Creating Signer
+
 A sample test signer is provided in the tests folder. It is important that the private key is is kept private. The test signer
 should only be used for testing and development. In production a the private key should be kept in KMS or another secure environment. The SDK requires the public cert chain to be passed in here.
 
@@ -125,9 +126,11 @@ Signer signer = Signer(test_signer, Es256, certs, "http://timestamp.digicert.com
 ```
 
 ### Signing and embedding a manifest
+
 ```cpp
   auto manifest_data = builder.sign(image_path, output_path, signer);
 ```
+
 The parameters are:
 - `<SOURCE_ASSET>`- A file path or an istream referencing the asset to sign.
 - `<OUTPUT_ASSET>`- A file path or an iostream referencing the asset to generate.
@@ -197,29 +200,7 @@ The example displays some text to standard out that summarizes whether AI traini
 
 ## Supported file formats
 
- | Extensions    | MIME type                                           |
- |---------------| --------------------------------------------------- |
- | `avi`         | `video/msvideo`, `video/avi`, `application-msvideo` |
- | `avif`        | `image/avif`                                        |
- | `c2pa`        | `application/x-c2pa-manifest-store`                 |
- | `dng`         | `image/x-adobe-dng`                                 |
- | `heic`        | `image/heic`                                        |
- | `heif`        | `image/heif`                                        |
- | `jpg`, `jpeg` | `image/jpeg`                                        |
- | `m4a`         | `audio/mp4`                                         |
- | `mp3`         | `"audio/mpeg"`                                      |
- | `mp4`         | `video/mp4`, `application/mp4` <sup>*</sup>         |
- | `mov`         | `video/quicktime`                                   |
- | `pdf`         | `application/pdf`  <sup>**</sup>                    |
- | `png`         | `image/png`                                         |
- | `svg`         | `image/svg+xml`                                     |
- | `tif`,`tiff`  | `image/tiff`                                        |
- | `wav`         | `audio/x-wav`                                       |
- | `webp`        | `image/webp`                                        |
-
-<sup>*</sup> Fragmented mp4 is not yet supported.
-
-<sup>**</sup> Read only
+The C library [supports the same media file formats](https://github.com/contentauth/c2pa-rs/blob/main/docs/supported-formats.md) as the Rust library. 
 
 ## License
 
