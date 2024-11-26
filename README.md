@@ -8,8 +8,9 @@
 
 <div style={{display: 'none'}}>
 
-For the best experience, read the docs on the [CAI Open Source SDK documentation website](https://opensource.contentauthenticity.org/docs/c2pa-node/).  Some additional documentation for this repository is also available on GitHub:
+For the best experience, read the docs on the [CAI Open Source SDK documentation website](https://opensource.contentauthenticity.org/docs/c2pa-c).  If you want to view the documentation in GitHub, see:
 - [Using the C++ library](docs/usage.md)
+- [Supported formats](https://github.com/contentauth/c2pa-rs/blob/crandmck/reorg-docs/docs/supported-formats.md)
 
 </div>
 
