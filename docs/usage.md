@@ -15,8 +15,9 @@ Use the `Reader` constructor to read C2PA data from a stream. This constructor e
 ```
 The parameters are:
 
-- `<FORMAT>`- A MIME string format for the stream [supported file formats](docs/supported-file-formats).
+- `<FORMAT>`- A MIME string format for the stream; must be one of the [supported file formats](supported-formats.md).
 - `<STREAM>` - An open readable iostream.
+
 For example:
 
 ```cpp

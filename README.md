@@ -1,8 +1,10 @@
 # C2PA C++ library
 
-[The c2pa-c repository](https://github.com/contentauth/c2pa-c) implements C++ APIs that:
+The[c2pa-c repository](https://github.com/contentauth/c2pa-c) implements C++ APIs that:
 - Read and validate C2PA data from media files in supported formats.
 - Add signed manifests to media files in supported formats.
+
+Although this library works for plain C applications, the documentation assumes you're using C++, since that's most common for modern applications.
 
 **WARNING**: This is a prerelease version of this library.  There may be bugs and unimplemented features, and the API is subject to change.
 
