@@ -242,7 +242,7 @@ namespace c2pa
         /// @param signer
         /// @return A vector containing the signed manifest bytes.
         /// @throws C2pa::Exception for errors encountered by the C2PA library.
-        std::unique_ptr<std::vector<unsigned char>> sign(const string &format, istream &source, ostream &dest, Signer &signer);
+        std::vector<unsigned char> sign(const string &format, istream &source, ostream &dest, Signer &signer);
 
         /// @brief Sign a file and write the signed data to an output file.
         /// @param source_path The path to the file to sign.
@@ -250,7 +250,7 @@ namespace c2pa
         /// @param signer A signer object to use when signing.
         /// @return A vector containing the signed manifest bytes.
         /// @throws C2pa::Exception for errors encountered by the C2PA library.
-        std::unique_ptr<std::vector<unsigned char>> sign(const path &source_path, const path &dest_path, Signer &signer);
+        std::vector<unsigned char> sign(const path &source_path, const path &dest_path, Signer &signer);
 
         /// @brief Create a Builder from an archive.
         /// @param archive  The input stream to read the archive from.
@@ -277,7 +277,7 @@ namespace c2pa
         /// @param format  The format of the mime type or extension.
         /// @return A vector containing the hashed placeholder.
         /// @throws C2pa::Exception for errors encountered by the C2PA library.
-        std::unique_ptr<std::vector<unsigned char>> data_hashed_placeholder(uintptr_t reserved_size, const string &format);
+        std::vector<unsigned char> data_hashed_placeholder(uintptr_t reserved_size, const string &format);
 
         /// @brief Sign a Builder using the specified signer and data hash.
         /// @param signer  The signer to use for signing.
@@ -285,7 +285,7 @@ namespace c2pa
         /// @param format  The format of the data hash.
         /// @return A vector containing the signed data.
         /// @throws C2pa::Exception for errors encountered by the C2PA library.
-        std::unique_ptr<std::vector<unsigned char>> sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format);
+        std::vector<unsigned char> sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format);
 
     private:
         // Private constructor for Builder from an archive (todo: find a better way to handle this)
