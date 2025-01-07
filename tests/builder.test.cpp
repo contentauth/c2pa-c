@@ -96,7 +96,7 @@ TEST(Builder, SignStream)
         // Create a memory buffer
         std::stringstream memory_buffer(std::ios::in | std::ios::out | std::ios::binary);
         std::iostream &dest = memory_buffer;
-        auto manifest_data = builder.sign("image/jpeg", source, dest, signer);
+        auto _ = builder.sign("image/jpeg", source, dest, signer);
         source.close();
 
         // Rewind dest to the start
@@ -104,7 +104,7 @@ TEST(Builder, SignStream)
         dest.seekp(0, std::ios::beg);
         auto reader = c2pa::Reader("image/jpeg", dest);
         auto json = reader.json();
-        ASSERT_TRUE(json.find("c2pa.training-mining") != std::string::npos);
+        ASSERT_TRUE(json.find("cawg.training-mining") != std::string::npos);
     }
     catch (c2pa::Exception const &e)
     {

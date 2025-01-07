@@ -8,21 +8,15 @@ authors = ["Gavin Peacock <gpeacock@adobe.com"]
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-c2pa = { version = "0.38.0", features = [
+c2pa = { version = "0.40.0", features = [
     "unstable_api",
     "file_io",
     "add_thumbnails",
     "fetch_remote_manifests",
 ] }
-pem = "3.0.4"
 serde = { version = "1.0", features = ["derive"] }
-serde_derive = "1.0"
 serde_json = "1.0"
 thiserror = "1.0.64"
-
-[dev-dependencies]
-url = "2.2.2" 
-
 
 [profile.release]
 strip = true # Strip symbols from the output binary.
