@@ -34,7 +34,8 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <optional> // C++17
+#include <vector>
+#include <optional>
 
 #include "c2pa.h"
 
@@ -158,7 +159,7 @@ namespace c2pa
     /// @param  data the data to sign.
     /// @return the signature as a vector of bytes.
     /// @details This function type is used to create a callback function for signing.
-    using SignerFunc = vector<unsigned char>(const vector<unsigned char> &);
+    using SignerFunc = std::vector<unsigned char>(const std::vector<unsigned char> &);
 
     /// @brief  Signer class for creating a signer.
     /// @details This class is used to create a signer from a signing algorithm, certificate, and TSA URI.
