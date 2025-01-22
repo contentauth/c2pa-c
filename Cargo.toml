@@ -8,7 +8,7 @@ authors = ["Gavin Peacock <gpeacock@adobe.com"]
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-c2pa = { version = "0.41.0", features = [
+c2pa = { version = "0.41.1", features = [
     "unstable_api",
     "file_io",
     "add_thumbnails",
