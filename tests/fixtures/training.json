@@ -1,4 +1,5 @@
 {
+  "claim_version": 1,
   "claim_generator_info": [
     {
       "name": "c2pa-c test",
