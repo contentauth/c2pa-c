@@ -110,7 +110,7 @@ namespace c2pa
 
     /// @brief Istream Class wrapper for CStream.
     /// @details This class is used to wrap an input stream for use with the C2PA library.
-    class CppIStream : public CStream
+    class C2PA_EXPORT CppIStream : public CStream
     {
     public:
         CStream *c_stream;
@@ -135,7 +135,7 @@ namespace c2pa
 
     /// @brief Ostream Class wrapper for CStream.
     /// @details This class is used to wrap an output stream for use with the C2PA library.
-    class CppOStream : public CStream
+    class C2PA_EXPORT CppOStream : public CStream
     {
     public:
         CStream *c_stream;
@@ -153,7 +153,7 @@ namespace c2pa
 
     /// @brief IOStream Class wrapper for CStream.
     /// @details This class is used to wrap an input/output stream for use with the C2PA library.
-    class CppIOStream : public CStream
+    class C2PA_EXPORT CppIOStream : public CStream
     {
     public:
         CStream *c_stream;
