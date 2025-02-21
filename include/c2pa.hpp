@@ -96,22 +96,77 @@ namespace c2pa
     std::string C2PA_EXPORT read_ingredient_file(const path &source_path, const path &data_dir);
 
     /// Adds the manifest and signs a file.
-    // source_path: path to the asset to be signed
-    // dest_path: the path to write the signed file to
-    // manifest: the manifest json to add to the file
-    // signer_info: the signer info to use for signing
-    // data_dir: the directory to store binary resources (optional)
-    // Throws a C2pa::Exception for errors encountered by the C2PA library
+    /// @param source_path the path to the asset to be signed.
+    /// @param dest_path the path to write the signed file to.
+    /// @param manifest the manifest json to add to the file.
+    /// @param signer_info the signer info to use for signing.
+    /// @param data_dir the directory to store binary resources (optional).
+    /// @throws a C2pa::Exception for errors encountered by the C2PA library.
     void C2PA_EXPORT sign_file(const path &source_path,
                                const path &dest_path,
                                const char *manifest,
                                SignerInfo *signer_info,
                                const std::optional<path> data_dir = std::nullopt);
 
-    // Forward declaration of the opaque CppIOStream classes
-    class C2PA_EXPORT CppIStream;
-    class C2PA_EXPORT CppOStream;
-    class C2PA_EXPORT CppIOStream;
+    /// @brief Istream Class wrapper for CStream.
+    /// @details This class is used to wrap an input stream for use with the C2PA library.
+    class C2PA_EXPORT CppIStream : public CStream
+    {
+    public:
+        CStream *c_stream;
+        template <typename IStream>
+        explicit CppIStream(IStream &istream);
+
+        CppIStream(const CppIStream &) = delete;
+        CppIStream &operator=(const CppIStream &) = delete;
+        CppIStream(CppIStream &&) = delete;
+        CppIStream &operator=(CppIStream &&) = delete;
+
+        ~CppIStream();
+
+    private:
+        static size_t reader(StreamContext *context, void *buffer, size_t size);
+        static int writer(StreamContext *context, const void *buffer, int size);
+        static long seeker(StreamContext *context, long int offset, int whence);
+        static int flusher(StreamContext *context);
+
+        friend class Reader;
+    };
+
+    /// @brief Ostream Class wrapper for CStream.
+    /// @details This class is used to wrap an output stream for use with the C2PA library.
+    class C2PA_EXPORT CppOStream : public CStream
+    {
+    public:
+        CStream *c_stream;
+        template <typename OStream>
+        explicit CppOStream(OStream &ostream);
+
+        ~CppOStream();
+
+    private:
+        static size_t reader(StreamContext *context, void *buffer, size_t size);
+        static int writer(StreamContext *context, const void *buffer, int size);
+        static long seeker(StreamContext *context, long int offset, int whence);
+        static int flusher(StreamContext *context);
+    };
+
+    /// @brief IOStream Class wrapper for CStream.
+    /// @details This class is used to wrap an input/output stream for use with the C2PA library.
+    class C2PA_EXPORT CppIOStream : public CStream
+    {
+    public:
+        CStream *c_stream;
+        template <typename IOStream>
+        CppIOStream(IOStream &iostream);
+        ~CppIOStream();
+
+    private:
+        static size_t reader(StreamContext *context, void *buffer, size_t size);
+        static int writer(StreamContext *context, const void *buffer, int size);
+        static long seeker(StreamContext *context, long int offset, int whence);
+        static int flusher(StreamContext *context);
+    };
 
     /// @brief Reader class for reading a manifest.
     /// @details This class is used to read and validate a manifest from a stream or file.
@@ -284,6 +339,7 @@ namespace c2pa
         /// @param signer  The signer to use for signing.
         /// @param data_hash  The data hash to sign.
         /// @param format  The format of the data hash.
+        /// @param asset  An optional asset to hash according to the data_hash information.
         /// @return A vector containing the signed data.
         /// @throws C2pa::Exception for errors encountered by the C2PA library.
         std::vector<unsigned char> sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format, istream *asset = nullptr);
