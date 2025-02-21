@@ -39,7 +39,7 @@
 
 #include "c2pa.h"
 
-#if defined(_WIN32) || defined(_WIN64) && !defined(_C2PA_DYNAMIC_LOADING)
+#if defined(_WIN32) || defined(_WIN64) && !defined(C2PA_DYNAMIC_LOADING)
 #ifdef BUILDING_C2PA_DLL
 #define C2PA_EXPORT __declspec(dllexport)
 #else
