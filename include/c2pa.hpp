@@ -39,7 +39,7 @@
 
 #include "c2pa.h"
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64) && !defined(_C2PA_DYNAMIC_LOADING)
 #ifdef BUILDING_C2PA_DLL
 #define C2PA_EXPORT __declspec(dllexport)
 #else
@@ -286,7 +286,7 @@ namespace c2pa
         /// @param format  The format of the data hash.
         /// @return A vector containing the signed data.
         /// @throws C2pa::Exception for errors encountered by the C2PA library.
-        std::vector<unsigned char> sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format);
+        std::vector<unsigned char> sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format, istream *asset = nullptr);
 
     private:
         // Private constructor for Builder from an archive (todo: find a better way to handle this)

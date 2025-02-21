@@ -805,6 +805,7 @@ pub unsafe extern "C" fn c2pa_builder_data_hashed_placeholder(
 /// * signer: pointer to a C2paSigner.
 /// * data_hash: pointer to a C string with the JSON data hash.
 /// * format: pointer to a C string with the mime type or extension.
+/// * asset: pointer to a CStream (may be NULL to use pre calculated hashes).
 /// * manifest_bytes_ptr: pointer to a pointer to a c_uchar to return manifest_bytes (optional, can be NULL).
 ///
 /// # Errors
@@ -821,6 +822,7 @@ pub unsafe extern "C" fn c2pa_builder_sign_data_hashed_embeddable(
     signer: *mut C2paSigner,
     data_hash: *const c_char,
     format: *const c_char,
+    asset: *mut CStream,
     manifest_bytes_ptr: *mut *const c_uchar,
 ) -> c_int {
     null_check_int!(builder_ptr);
@@ -829,13 +831,23 @@ pub unsafe extern "C" fn c2pa_builder_sign_data_hashed_embeddable(
     let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
     let c2pa_signer = Box::from_raw(signer);
     let data_hash_json = from_cstr_null_check_int!(data_hash);
-    let data_hash: DataHash = match serde_json::from_str(&data_hash_json) {
+    let mut data_hash: DataHash = match serde_json::from_str(&data_hash_json) {
         Ok(data_hash) => data_hash,
         Err(err) => {
             Error::from_c2pa_error(c2pa::Error::JsonError(err)).set_last();
             return -1;
         }
     };
+    if !asset.is_null() {
+        // calc hashes from the asset stream
+        match data_hash.gen_hash_from_stream(&mut *asset) {
+            Ok(_) => {}
+            Err(err) => {
+                Error::from_c2pa_error(err).set_last();
+                return -1;
+            }
+        }
+    }
     let format = from_cstr_null_check_int!(format);
     let result =
         builder.sign_data_hashed_embeddable(c2pa_signer.signer.as_ref(), &data_hash, &format);

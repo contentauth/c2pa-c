@@ -775,10 +775,16 @@ namespace c2pa
         return data;
     }
 
-    std::vector<unsigned char> Builder::sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format)
+    std::vector<unsigned char> Builder::sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format, istream *asset)
     {
+        int result;
         const unsigned char *c2pa_manifest_bytes = NULL;
-        auto result = c2pa_builder_sign_data_hashed_embeddable(builder, signer.c2pa_signer(), data_hash.c_str(), format.c_str(), &c2pa_manifest_bytes);
+        if (asset) {
+            CppIStream c_asset(*asset);
+            result = c2pa_builder_sign_data_hashed_embeddable(builder, signer.c2pa_signer(), data_hash.c_str(), format.c_str(), c_asset.c_stream, &c2pa_manifest_bytes);
+        } else {
+            result = c2pa_builder_sign_data_hashed_embeddable(builder, signer.c2pa_signer(), data_hash.c_str(), format.c_str(), nullptr, &c2pa_manifest_bytes);
+        }
         if (result < 0 || c2pa_manifest_bytes == NULL)
         {
           throw(c2pa::Exception("Failed to create data hashed placeholder"));
