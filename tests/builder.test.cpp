@@ -207,3 +207,52 @@ TEST(Builder, SignDataHashedEmbedded)
         FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
     };
 }
+
+TEST(Builder, SignDataHashedEmbeddedWithAsset)
+{
+    try
+    {
+        fs::path current_dir = fs::path(__FILE__).parent_path();
+
+        // Construct the paths relative to the current directory
+        fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+        fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+        fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
+
+        auto manifest = read_text_file(manifest_path);
+        auto certs = read_text_file(certs_path);
+
+        // create a signer
+        c2pa::Signer signer = c2pa::Signer(&test_signer, Es256, certs, "http://timestamp.digicert.com");
+
+        auto builder = c2pa::Builder(manifest);
+
+        auto placeholder = builder.data_hashed_placeholder(signer.reserve_size(), "image/jpeg");
+
+        std::string data_hash = R"({
+          "exclusions": [
+            {
+              "start": 20,
+              "length": 45884
+            }
+          ],
+          "name": "jumbf manifest",
+          "alg": "sha256",
+          "hash": "",
+          "pad": " "
+        })";
+
+        std::ifstream asset(image_path, std::ios::binary);
+        if (!asset)
+        {
+            FAIL() << "Failed to open file: " << image_path << std::endl;
+        }
+
+        auto manifest_data = builder.sign_data_hashed_embeddable(signer, data_hash, "image/jpeg", &asset);
+    }
+    catch (c2pa::Exception const &e)
+    {
+        FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
+    };
+}
+
