@@ -21,7 +21,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#if (defined(_WIN32) || defined(_WIN64)) && !defined(_C2PA_DYNAMIC_LOADING)
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(C2PA_DYNAMIC_LOADING)
     #if defined(_STATIC_C2PA) 
         #define IMPORT  __declspec(dllexport)
     #else 
