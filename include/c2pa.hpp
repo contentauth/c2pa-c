@@ -153,6 +153,13 @@ namespace c2pa
         /// @return The number of bytes written.
         /// @throws C2pa::Exception for errors encountered by the C2PA library.
         int get_resource(const string &uri, std::ostream &stream);
+
+        /// @brief Write the manifest json and all resources to a folder.
+        /// @details There is no stream version of this function.
+        /// @param path The path to write the folder to.
+        ///
+        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        void to_folder(const std::filesystem::path &path);
     };
 
     /// @brief  Signer Callback function type.

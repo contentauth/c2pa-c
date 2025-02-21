@@ -465,6 +465,33 @@ pub unsafe extern "C" fn c2pa_reader_resource_to_stream(
     }
 }
 
+/// Writes all the resources in a Reader to a folder.
+///
+/// # Parameters
+/// * reader_ptr: pointer to a Reader.
+/// * folder_path: pointer to a C string with the path to the folder.
+///
+/// # Errors
+/// Returns -1 if there were errors, otherwise returns 0.
+/// The error string can be retrieved by calling c2pa_error.
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_reader_to_folder(
+    reader_ptr: *mut C2paReader,
+    folder_path: *const c_char,
+) -> c_int {
+    let c2pa_reader: Box<C2paReader> = Box::from_raw(reader_ptr);
+    let folder_path = from_cstr_null_check_int!(folder_path);
+    let result = c2pa_reader.to_folder(folder_path);
+    let _ = Box::into_raw(c2pa_reader);
+    match result {
+        Ok(_) => 0,
+        Err(err) => {
+            Error::from_c2pa_error(err).set_last();
+            -1
+        }
+    }
+}
+
 /// Creates a C2paBuilder from a JSON manifest definition string.
 ///
 /// # Errors

@@ -319,6 +319,19 @@ int c2pa_reader_resource_to_stream(struct C2paReader *reader_ptr,
                                    struct CStream *stream);
 
 /**
+ * Writes all the resources in a Reader to a folder.
+ *
+ * # Parameters
+ * * reader_ptr: pointer to a Reader.
+ * * folder_path: pointer to a C string with the path to the folder.
+ *
+ * # Errors
+ * Returns -1 if there were errors, otherwise returns 0.
+ * The error string can be retrieved by calling c2pa_error.
+ */
+IMPORT extern int c2pa_reader_to_folder(struct C2paReader *reader_ptr, const char *folder_path);
+
+/**
  * Creates a C2paBuilder from a JSON manifest definition string.
  *
  * # Errors

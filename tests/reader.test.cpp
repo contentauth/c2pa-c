@@ -10,9 +10,14 @@
 // specific language governing permissions and limitations under
 // each license.
 
-#include <c2pa.hpp>
+
 #include <gtest/gtest.h>
+#include <filesystem>
+#include <fstream>
 #include <nlohmann/json.hpp>
+#include <c2pa.hpp>
+
+namespace fs = std::filesystem;
 
 using nlohmann::json;
 
@@ -31,6 +36,24 @@ TEST(Reader, FileWithManifest)
     auto reader = c2pa::Reader("../../tests/fixtures/C.jpg");
     auto manifest_store_json = reader.json();
     EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
+};
+
+TEST(Reader, ToFolder)
+{
+    // Define the target directory
+    fs::path target_dir = "../../target/dest";
+
+    // Delete the target directory if it exists
+    if (fs::exists(target_dir)) {
+        fs::remove_all(target_dir);
+    }
+
+    auto reader = c2pa::Reader("../../tests/fixtures/C.jpg");
+
+    reader.to_folder(target_dir);
+
+        // Expect the manifest.json file to exist in the target directory
+    EXPECT_TRUE(fs::exists(target_dir / "manifest.json"));
 };
 
 TEST(Reader, FileNoManifest)
