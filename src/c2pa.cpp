@@ -23,7 +23,6 @@
 #include <filesystem> // C++17
 
 #include "c2pa.hpp"
-#include "cpp_io_stream.h"
 
 using path = std::filesystem::path;
 
