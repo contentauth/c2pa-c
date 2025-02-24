@@ -80,9 +80,15 @@ namespace c2pa
     /// @throws a C2pa::Exception for errors encountered by the C2PA library.
     optional<string> read_file(const filesystem::path &source_path, const optional<path> data_dir)
     {
-        const char *dir = data_dir.has_value() ? data_dir.value().c_str() : nullptr;
-        char *result = c2pa_read_file(source_path.c_str(), dir);
-        if (result == nullptr)
+        const std::string data_dir_stdstr = data_dir.has_value()
+                                                ? data_dir.value().u8string()
+                                                : std::string();
+
+        const char *dir = data_dir.has_value() ? data_dir_stdstr.c_str() : nullptr;
+
+        char *result = c2pa_read_file(source_path.u8string().c_str(), dir);
+
+		if (result == nullptr)
         {
             auto exception = c2pa::Exception();
             if (strstr(exception.what(), "ManifestNotFound") != NULL)
@@ -103,7 +109,7 @@ namespace c2pa
     /// @throws a C2pa::Exception for errors encountered by the C2PA library.
     string read_ingredient_file(const path &source_path, const path &data_dir)
     {
-        char *result = c2pa_read_ingredient_file(source_path.c_str(), data_dir.c_str());
+        char *result = c2pa_read_ingredient_file(source_path.u8string().c_str(), data_dir.u8string().c_str());
         if (result == NULL)
         {
             throw c2pa::Exception();
@@ -126,8 +132,12 @@ namespace c2pa
                    c2pa::SignerInfo *signer_info,
                    const std::optional<path> data_dir)
     {
-        const char *dir = data_dir.has_value() ? data_dir.value().c_str() : NULL;
-        char *result = c2pa_sign_file(source_path.c_str(), dest_path.c_str(), manifest, signer_info, dir);
+        const std::string data_dir_stdstr = data_dir.has_value()
+                                                ? data_dir.value().u8string()
+                                                : std::string();
+
+        const char *dir = data_dir.has_value() ? data_dir_stdstr.c_str() : NULL;
+        char *result = c2pa_sign_file(source_path.u8string().c_str(), dest_path.u8string().c_str(), manifest, signer_info, dir);
         if (result == NULL)
         {
 
@@ -141,7 +151,8 @@ namespace c2pa
     template <typename IStream>
     CppIStream::CppIStream(IStream &istream) : CStream()
     {
-        // assert(std::is_base_of<std::istream, IStream>::value, "Stream must be derived from std::istream");
+        static_assert (std::is_base_of<std::istream, IStream>::value,
+                       "Stream must be derived from std::istream");
 
         c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&istream), (ReadCallback)reader, (SeekCallback)seeker, (WriteCallback)writer, (FlushCallback)flusher);
     }
@@ -204,7 +215,7 @@ namespace c2pa
             errno = EIO;
             return -1;
         }
-        int pos = istream->tellg();
+        long pos = (long) istream->tellg();
         if (pos < 0)
         {
             errno = EIO;
@@ -295,7 +306,7 @@ namespace c2pa
             errno = EIO; // Input/output error
             return -1;
         }
-        int pos = ostream->tellp();
+        long pos = (long) ostream->tellp();
         if (pos < 0)
         {
             errno = EIO; // Input/output error
@@ -401,7 +412,7 @@ namespace c2pa
             errno = EIO; // Input/output error
             return -1;
         }
-        int pos = iostream->tellg();
+        long pos = (long) iostream->tellg();
         if (pos < 0)
         {
             errno = EIO; // Input/output error
@@ -419,7 +430,7 @@ namespace c2pa
             errno = EIO; // Input/output error
             return -1;
         }
-        pos = iostream->tellp();
+        pos = (long) iostream->tellp();
         if (pos < 0)
         {
             errno = EIO; // Input/output error
@@ -544,6 +555,7 @@ namespace c2pa
         catch (std::exception const &e)
         {
             // todo pass exceptions to Rust error handling
+			(void) e;
             // printf("Error: signer_passthrough - %s\n", e.what());
             return -1;
         }
