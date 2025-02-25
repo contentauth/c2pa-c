@@ -80,8 +80,14 @@ namespace c2pa
     /// @throws a C2pa::Exception for errors encountered by the C2PA library.
     optional<string> read_file(const filesystem::path &source_path, const optional<path> data_dir)
     {
-        const char *dir = data_dir.has_value() ? data_dir.value().c_str() : nullptr;
-        char *result = c2pa_read_file(source_path.c_str(), dir);
+        const std::string data_dir_stdstr = data_dir.has_value()
+                                                ? data_dir.value().u8string()
+                                                : std::string();
+
+        const char *dir = data_dir.has_value() ? data_dir_stdstr.c_str() : nullptr;
+
+        char *result = c2pa_read_file(source_path.u8string().c_str(), dir);
+
         if (result == nullptr)
         {
             auto exception = c2pa::Exception();
@@ -103,7 +109,7 @@ namespace c2pa
     /// @throws a C2pa::Exception for errors encountered by the C2PA library.
     string read_ingredient_file(const path &source_path, const path &data_dir)
     {
-        char *result = c2pa_read_ingredient_file(source_path.c_str(), data_dir.c_str());
+        char *result = c2pa_read_ingredient_file(source_path.u8string().c_str(), data_dir.u8string().c_str());
         if (result == NULL)
         {
             throw c2pa::Exception();
@@ -126,8 +132,12 @@ namespace c2pa
                    c2pa::SignerInfo *signer_info,
                    const std::optional<path> data_dir)
     {
-        const char *dir = data_dir.has_value() ? data_dir.value().c_str() : NULL;
-        char *result = c2pa_sign_file(source_path.c_str(), dest_path.c_str(), manifest, signer_info, dir);
+        const std::string data_dir_stdstr = data_dir.has_value()
+                                                ? data_dir.value().u8string()
+                                                : std::string();
+
+        const char *dir = data_dir.has_value() ? data_dir_stdstr.c_str() : NULL;
+        char *result = c2pa_sign_file(source_path.u8string().c_str(), dest_path.u8string().c_str(), manifest, signer_info, dir);
         if (result == NULL)
         {
 
@@ -141,9 +151,10 @@ namespace c2pa
     template <typename IStream>
     CppIStream::CppIStream(IStream &istream) : CStream()
     {
-        // assert(std::is_base_of<std::istream, IStream>::value, "Stream must be derived from std::istream");
+        static_assert(std::is_base_of<std::istream, IStream>::value,
+                      "Stream must be derived from std::istream");
 
-        c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&istream), (ReadCallback)reader, (SeekCallback)seeker, (WriteCallback)writer, (FlushCallback)flusher);
+        c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&istream), reader, seeker, writer, flusher);
     }
 
     CppIStream::~CppIStream()
@@ -151,7 +162,7 @@ namespace c2pa
         c2pa_release_stream(c_stream);
     }
 
-    size_t CppIStream::reader(StreamContext *context, void *buffer, size_t size)
+    intptr_t CppIStream::reader(StreamContext *context, uint8_t *buffer, intptr_t size)
     {
         std::istream *istream = (std::istream *)context;
         istream->read((char *)buffer, size);
@@ -174,20 +185,20 @@ namespace c2pa
         return gcount;
     }
 
-    long CppIStream::seeker(StreamContext *context, long int offset, int whence)
+    intptr_t CppIStream::seeker(StreamContext *context, intptr_t offset, C2paSeekMode whence)
     {
         std::istream *istream = (std::istream *)context;
 
         std::ios_base::seekdir dir = std::ios_base::beg;
         switch (whence)
         {
-        case SEEK_SET:
+        case C2paSeekMode::Start:
             dir = std::ios_base::beg;
             break;
-        case SEEK_CUR:
+        case C2paSeekMode::Current:
             dir = std::ios_base::cur;
             break;
-        case SEEK_END:
+        case C2paSeekMode::End:
             dir = std::ios_base::end;
             break;
         };
@@ -204,7 +215,7 @@ namespace c2pa
             errno = EIO;
             return -1;
         }
-        int pos = istream->tellg();
+        long pos = (long)istream->tellg();
         if (pos < 0)
         {
             errno = EIO;
@@ -214,7 +225,7 @@ namespace c2pa
         return pos;
     }
 
-    int CppIStream::writer(StreamContext *context, const void *buffer, int size)
+    intptr_t CppIStream::writer(StreamContext *context, const uint8_t *buffer, intptr_t size)
     {
         std::iostream *iostream = (std::iostream *)context;
         iostream->write((const char *)buffer, size);
@@ -231,7 +242,7 @@ namespace c2pa
         return size;
     }
 
-    int CppIStream::flusher(StreamContext *context)
+    intptr_t CppIStream::flusher(StreamContext *context)
     {
         std::iostream *iostream = (std::iostream *)context;
         iostream->flush();
@@ -244,7 +255,7 @@ namespace c2pa
     CppOStream::CppOStream(OStream &ostream) : CStream()
     {
         static_assert(std::is_base_of<std::ostream, OStream>::value, "Stream must be derived from std::ostream");
-        c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&ostream), (ReadCallback)reader, (SeekCallback)seeker, (WriteCallback)writer, (FlushCallback)flusher);
+        c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&ostream), reader, seeker, writer, flusher);
     }
 
     CppOStream::~CppOStream()
@@ -252,13 +263,13 @@ namespace c2pa
         c2pa_release_stream(c_stream);
     }
 
-    size_t CppOStream::reader(StreamContext *context, void *buffer, size_t size)
+    intptr_t CppOStream::reader(StreamContext *context, uint8_t *buffer, intptr_t size)
     {
         errno = EINVAL; // Invalid argument
         return -1;
     }
 
-    long CppOStream::seeker(StreamContext *context, long int offset, int whence)
+    intptr_t CppOStream::seeker(StreamContext *context, intptr_t offset, C2paSeekMode whence)
     {
         std::ostream *ostream = (std::ostream *)context;
         // printf("seeker ofstream = %p\n", ostream);
@@ -295,7 +306,7 @@ namespace c2pa
             errno = EIO; // Input/output error
             return -1;
         }
-        int pos = ostream->tellp();
+        long pos = (long)ostream->tellp();
         if (pos < 0)
         {
             errno = EIO; // Input/output error
@@ -304,7 +315,7 @@ namespace c2pa
         return pos;
     }
 
-    int CppOStream::writer(StreamContext *context, const void *buffer, int size)
+    intptr_t CppOStream::writer(StreamContext *context, const uint8_t *buffer, intptr_t size)
     {
         std::ostream *ofstream = (std::ostream *)context;
         // printf("writer ofstream = %p\n", ofstream);
@@ -322,7 +333,7 @@ namespace c2pa
         return size;
     }
 
-    int CppOStream::flusher(StreamContext *context)
+    intptr_t CppOStream::flusher(StreamContext *context)
     {
         std::ofstream *ofstream = (std::ofstream *)context;
         ofstream->flush();
@@ -334,14 +345,14 @@ namespace c2pa
     CppIOStream::CppIOStream(IOStream &iostream)
     {
         static_assert(std::is_base_of<std::iostream, IOStream>::value, "Stream must be derived from std::iostream");
-        c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&iostream), (ReadCallback)reader, (SeekCallback)seeker, (WriteCallback)writer, (FlushCallback)flusher);
+        c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&iostream), reader, seeker, writer, flusher);
     }
     CppIOStream::~CppIOStream()
     {
         c2pa_release_stream(c_stream);
     }
 
-    size_t CppIOStream::reader(StreamContext *context, void *buffer, size_t size)
+    intptr_t CppIOStream::reader(StreamContext *context, uint8_t *buffer, intptr_t size)
     {
         std::iostream *iostream = (std::iostream *)context;
         iostream->read((char *)buffer, size);
@@ -364,7 +375,7 @@ namespace c2pa
         return gcount;
     }
 
-    long CppIOStream::seeker(StreamContext *context, long int offset, int whence)
+    intptr_t CppIOStream::seeker(StreamContext *context, intptr_t offset, C2paSeekMode whence)
     {
         iostream *iostream = (std::iostream *)context;
 
@@ -401,7 +412,7 @@ namespace c2pa
             errno = EIO; // Input/output error
             return -1;
         }
-        int pos = iostream->tellg();
+        long pos = (long)iostream->tellg();
         if (pos < 0)
         {
             errno = EIO; // Input/output error
@@ -419,7 +430,7 @@ namespace c2pa
             errno = EIO; // Input/output error
             return -1;
         }
-        pos = iostream->tellp();
+        pos = (long)iostream->tellp();
         if (pos < 0)
         {
             errno = EIO; // Input/output error
@@ -428,7 +439,7 @@ namespace c2pa
         return pos;
     }
 
-    int CppIOStream::writer(StreamContext *context, const void *buffer, int size)
+    intptr_t CppIOStream::writer(StreamContext *context, const uint8_t *buffer, intptr_t size)
     {
         std::iostream *iostream = (std::iostream *)context;
         iostream->write((const char *)buffer, size);
@@ -445,7 +456,7 @@ namespace c2pa
         return size;
     }
 
-    int CppIOStream::flusher(StreamContext *context)
+    intptr_t CppIOStream::flusher(StreamContext *context)
     {
         std::iostream *iostream = (std::iostream *)context;
         iostream->flush();
@@ -544,6 +555,7 @@ namespace c2pa
         catch (std::exception const &e)
         {
             // todo pass exceptions to Rust error handling
+            (void)e;
             // printf("Error: signer_passthrough - %s\n", e.what());
             return -1;
         }
@@ -778,15 +790,18 @@ namespace c2pa
     {
         int result;
         const unsigned char *c2pa_manifest_bytes = NULL;
-        if (asset) {
+        if (asset)
+        {
             CppIStream c_asset(*asset);
             result = c2pa_builder_sign_data_hashed_embeddable(builder, signer.c2pa_signer(), data_hash.c_str(), format.c_str(), c_asset.c_stream, &c2pa_manifest_bytes);
-        } else {
+        }
+        else
+        {
             result = c2pa_builder_sign_data_hashed_embeddable(builder, signer.c2pa_signer(), data_hash.c_str(), format.c_str(), nullptr, &c2pa_manifest_bytes);
         }
         if (result < 0 || c2pa_manifest_bytes == NULL)
         {
-          throw(c2pa::Exception("Failed to create data hashed placeholder"));
+            throw(c2pa::Exception("Failed to create data hashed placeholder"));
         }
 
         auto data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);

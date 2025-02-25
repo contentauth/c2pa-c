@@ -125,10 +125,10 @@ namespace c2pa
         ~CppIStream();
 
     private:
-        static size_t reader(StreamContext *context, void *buffer, size_t size);
-        static int writer(StreamContext *context, const void *buffer, int size);
-        static long seeker(StreamContext *context, long int offset, int whence);
-        static int flusher(StreamContext *context);
+        static intptr_t reader(StreamContext *context, uint8_t *buffer, intptr_t size);
+        static intptr_t writer(StreamContext *context, const uint8_t *buffer, intptr_t size);
+        static intptr_t seeker(StreamContext *context, intptr_t offset, C2paSeekMode whence);
+        static intptr_t flusher(StreamContext *context);
 
         friend class Reader;
     };
@@ -145,10 +145,10 @@ namespace c2pa
         ~CppOStream();
 
     private:
-        static size_t reader(StreamContext *context, void *buffer, size_t size);
-        static int writer(StreamContext *context, const void *buffer, int size);
-        static long seeker(StreamContext *context, long int offset, int whence);
-        static int flusher(StreamContext *context);
+        static intptr_t reader(StreamContext *context, uint8_t *buffer, intptr_t size);
+        static intptr_t writer(StreamContext *context, const uint8_t *buffer, intptr_t size);
+        static intptr_t seeker(StreamContext *context, intptr_t offset, C2paSeekMode whence);
+        static intptr_t flusher(StreamContext *context);
     };
 
     /// @brief IOStream Class wrapper for CStream.
@@ -162,10 +162,10 @@ namespace c2pa
         ~CppIOStream();
 
     private:
-        static size_t reader(StreamContext *context, void *buffer, size_t size);
-        static int writer(StreamContext *context, const void *buffer, int size);
-        static long seeker(StreamContext *context, long int offset, int whence);
-        static int flusher(StreamContext *context);
+        static intptr_t reader(StreamContext *context, uint8_t *buffer, intptr_t size);
+        static intptr_t writer(StreamContext *context, const uint8_t *buffer, intptr_t size);
+        static intptr_t seeker(StreamContext *context, intptr_t offset, C2paSeekMode whence);
+        static intptr_t flusher(StreamContext *context);
     };
 
     /// @brief Reader class for reading a manifest.

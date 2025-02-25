@@ -11,10 +11,7 @@
 // specific language governing permissions and limitations under
 // each license.
 
-use std::{
-    ffi::{c_int, c_long},
-    io::{Read, Seek, Write},
-};
+use std::io::{Read, Seek, Write};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -23,19 +20,36 @@ pub struct StreamContext {
     _priv: (),
 }
 
+#[repr(C)]
+#[derive(Debug)]
+/// An enum to define the seek mode for the seek callback
+/// Start - seek from the start of the stream
+/// Current - seek from the current position in the stream
+/// End - seek from the end of the stream
+pub enum C2paSeekMode {
+    Start = 0,
+    Current = 1,
+    End = 2,
+}
+
 /// Defines a callback to read from a stream
+/// The return value is the number of bytes read, or a negative number for an error
 type ReadCallback =
-    unsafe extern "C" fn(context: *const StreamContext, data: *mut u8, len: usize) -> isize;
+    unsafe extern "C" fn(context: *mut StreamContext, data: *mut u8, len: isize) -> isize;
 
 /// Defines a callback to seek to an offset in a stream
+/// The return value is the new position in the stream, or a negative number for an error
 type SeekCallback =
-    unsafe extern "C" fn(context: *const StreamContext, offset: c_long, mode: c_int) -> c_int;
+    unsafe extern "C" fn(context: *mut StreamContext, offset: isize, mode: C2paSeekMode) -> isize;
 
 /// Defines a callback to write to a stream
+/// The return value is the number of bytes written, or a negative number for an error
 type WriteCallback =
-    unsafe extern "C" fn(context: *const StreamContext, data: *const u8, len: usize) -> isize;
+    unsafe extern "C" fn(context: *mut StreamContext, data: *const u8, len: isize) -> isize;
 
-type FlushCallback = unsafe extern "C" fn(context: *const StreamContext) -> isize;
+/// Defines a callback to flush a stream
+/// The return value is 0 for success, or a negative number for an error
+type FlushCallback = unsafe extern "C" fn(context: *mut StreamContext) -> isize;
 
 #[repr(C)]
 /// A CStream is a Rust Read/Write/Seek stream that can be created in C
@@ -79,7 +93,14 @@ impl CStream {
 
 impl Read for CStream {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let bytes_read = unsafe { (self.reader)(&(*self.context), buf.as_mut_ptr(), buf.len()) };
+        if buf.len() > isize::MAX as usize {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Read buffer is too large",
+            ));
+        }
+        let bytes_read =
+            unsafe { (self.reader)(&mut (*self.context), buf.as_mut_ptr(), buf.len() as isize) };
         // returns a negative number for errors
         if bytes_read < 0 {
             return Err(std::io::Error::last_os_error());
@@ -91,25 +112,34 @@ impl Read for CStream {
 impl Seek for CStream {
     fn seek(&mut self, from: std::io::SeekFrom) -> std::io::Result<u64> {
         let (pos, mode) = match from {
-            std::io::SeekFrom::Current(pos) => (pos, 1),
-            std::io::SeekFrom::Start(pos) => (pos as i64, 0),
-            std::io::SeekFrom::End(pos) => (pos, 2),
+            std::io::SeekFrom::Current(pos) => (pos, C2paSeekMode::Current),
+            std::io::SeekFrom::Start(pos) => (pos as i64, C2paSeekMode::Start),
+            std::io::SeekFrom::End(pos) => (pos, C2paSeekMode::End),
         };
-        let new_pos = unsafe { (self.seeker)(&(*self.context), pos as c_long, mode) };
+
+        let new_pos = unsafe { (self.seeker)(&mut (*self.context), pos as isize, mode) };
         Ok(new_pos as u64)
     }
 }
 
 impl Write for CStream {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        let bytes_written = unsafe { (self.writer)(&(*self.context), buf.as_ptr(), buf.len()) };
+        if buf.len() > isize::MAX as usize {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Write buffer is too large",
+            ));
+        }
+        let bytes_written =
+            unsafe { (self.writer)(&mut (*self.context), buf.as_ptr(), buf.len() as isize) };
         if bytes_written < 0 {
             return Err(std::io::Error::last_os_error());
         }
         Ok(bytes_written as usize)
     }
+
     fn flush(&mut self) -> std::io::Result<()> {
-        let err = unsafe { (self.flusher)(&(*self.context)) };
+        let err = unsafe { (self.flusher)(&mut (*self.context)) };
         if err < 0 {
             return Err(std::io::Error::last_os_error());
         }
