@@ -20,7 +20,7 @@
 #include <errno.h>
 #include "../include/c2pa.h"
 
-ssize_t reader(size_t context, uint8_t *data, size_t len)
+intptr_t reader(StreamContext *context, uint8_t *data, intptr_t len)
 {
     // printf("reader: context = %0lx, data = %p, len = %zu\n", context, data, len);
     size_t count = fread(data, 1, len, (FILE *)context);
@@ -38,7 +38,7 @@ ssize_t reader(size_t context, uint8_t *data, size_t len)
     return count;
 }
 
-long seeker(size_t context, long int offset, int whence)
+intptr_t seeker(StreamContext *context, intptr_t offset, C2paSeekMode whence)
 {
 
     // printf("seeker: context = %0lx, offset = %ld, whence = %d\n", context, offset, whence);
@@ -53,7 +53,7 @@ long seeker(size_t context, long int offset, int whence)
     return ftell((FILE *)context);
 }
 
-ssize_t writer(size_t context, uint8_t *data, size_t len)
+intptr_t writer(StreamContext *context, const uint8_t *data, intptr_t len)
 {
     // printf("writer: context = %zu, data = %p, len = %zu\n", context, data, len);
     size_t count = fwrite(data, 1, len, (FILE *)context);
@@ -69,7 +69,7 @@ ssize_t writer(size_t context, uint8_t *data, size_t len)
     return count;
 }
 
-ssize_t flusher(size_t context)
+intptr_t flusher(StreamContext *context)
 {
     // printf("flusher: context = %zu\n", context);
     int result = fflush((FILE *)context);
@@ -85,7 +85,7 @@ CStream *create_file_stream(FILE *file)
 {
     if (file != NULL)
     {
-        return c2pa_create_stream((StreamContext *)file, (ReadCallback)reader, (SeekCallback)seeker, (WriteCallback)writer, (FlushCallback)flusher);
+        return c2pa_create_stream((StreamContext *)file, reader, seeker, writer, flusher);
     }
     return NULL;
 }

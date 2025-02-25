@@ -39,6 +39,18 @@
 
 
 /**
+ * An enum to define the seek mode for the seek callback
+ * Start - seek from the start of the stream
+ * Current - seek from the current position in the stream
+ * End - seek from the end of the stream
+ */
+typedef enum C2paSeekMode {
+  Start = 0,
+  Current = 1,
+  End = 2,
+} C2paSeekMode;
+
+/**
  * List of supported signing algorithms.
  */
 typedef enum C2paSigningAlg {
@@ -92,22 +104,29 @@ typedef struct StreamContext {
 
 /**
  * Defines a callback to read from a stream
+ * The return value is the number of bytes read, or a negative number for an error
  */
-typedef intptr_t (*ReadCallback)(const struct StreamContext *context, uint8_t *data, uintptr_t len);
+typedef intptr_t (*ReadCallback)(struct StreamContext *context, uint8_t *data, intptr_t len);
 
 /**
  * Defines a callback to seek to an offset in a stream
+ * The return value is the new position in the stream, or a negative number for an error
  */
-typedef int (*SeekCallback)(const struct StreamContext *context, long offset, int mode);
+typedef intptr_t (*SeekCallback)(struct StreamContext *context,
+                                 intptr_t offset,
+                                 enum C2paSeekMode mode);
 
 /**
  * Defines a callback to write to a stream
+ * The return value is the number of bytes written, or a negative number for an error
  */
-typedef intptr_t (*WriteCallback)(const struct StreamContext *context,
-                                  const uint8_t *data,
-                                  uintptr_t len);
+typedef intptr_t (*WriteCallback)(struct StreamContext *context, const uint8_t *data, intptr_t len);
 
-typedef intptr_t (*FlushCallback)(const struct StreamContext *context);
+/**
+ * Defines a callback to flush a stream
+ * The return value is 0 for success, or a negative number for an error
+ */
+typedef intptr_t (*FlushCallback)(struct StreamContext *context);
 
 /**
  * A CStream is a Rust Read/Write/Seek stream that can be created in C
