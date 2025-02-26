@@ -778,7 +778,7 @@ namespace c2pa
         auto result = c2pa_builder_data_hashed_placeholder(builder, reserve_size, format.c_str(), &c2pa_manifest_bytes);
         if (result < 0 || c2pa_manifest_bytes == NULL)
         {
-            throw(c2pa::Exception("Failed to create data hashed placeholder"));
+            throw(Exception());
         }
 
         auto data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
@@ -801,11 +801,25 @@ namespace c2pa
         }
         if (result < 0 || c2pa_manifest_bytes == NULL)
         {
-            throw(c2pa::Exception("Failed to create data hashed placeholder"));
+            throw(Exception());
         }
 
         auto data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
         c2pa_manifest_bytes_free(c2pa_manifest_bytes);
         return data;
+    }
+
+    std::vector<unsigned char> Builder::format_embeddable(const string &format, std::vector<unsigned char> &data)
+    {
+        const unsigned char *c2pa_manifest_bytes = NULL;
+        auto result = c2pa_format_embeddable(format.c_str(), data.data(), data.size(), &c2pa_manifest_bytes);
+        if (result < 0 || c2pa_manifest_bytes == NULL)
+        {
+            throw(Exception());
+        }
+
+        auto formatted_data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
+        c2pa_manifest_bytes_free(c2pa_manifest_bytes);
+        return formatted_data;
     }
 } // namespace c2pa

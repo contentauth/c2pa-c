@@ -248,11 +248,14 @@ TEST(Builder, SignDataHashedEmbeddedWithAsset)
             FAIL() << "Failed to open file: " << image_path << std::endl;
         }
 
-        auto manifest_data = builder.sign_data_hashed_embeddable(signer, data_hash, "image/jpeg", &asset);
+        auto manifest_data = builder.sign_data_hashed_embeddable(signer, data_hash, "application/c2pa", &asset);
+
+        auto embeddable_data = c2pa::Builder::format_embeddable("image/jpeg", manifest_data);
+
+        ASSERT_TRUE(embeddable_data.size() > manifest_data.size());
     }
     catch (c2pa::Exception const &e)
     {
         FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
     };
 }
-
