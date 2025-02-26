@@ -330,19 +330,25 @@ namespace c2pa
 
         /// @brief Create a hashed placeholder from the builder.
         /// @param reserved_size  The size required for a signature from the intended signer.
-        /// @param format  The format of the mime type or extension.
+        /// @param format  The format of the mime type or extension of the asset.
         /// @return A vector containing the hashed placeholder.
         /// @throws C2pa::Exception for errors encountered by the C2PA library.
         std::vector<unsigned char> data_hashed_placeholder(uintptr_t reserved_size, const string &format);
 
         /// @brief Sign a Builder using the specified signer and data hash.
         /// @param signer  The signer to use for signing.
-        /// @param data_hash  The data hash to sign.
-        /// @param format  The format of the data hash.
+        /// @param data_hash  The data hash ranges to sign. This must contain hashes unless and asset is provided.
+        /// @param format  The mime format for embedding into.  Use "c2pa" for an unformatted result.
         /// @param asset  An optional asset to hash according to the data_hash information.
         /// @return A vector containing the signed data.
         /// @throws C2pa::Exception for errors encountered by the C2PA library.
         std::vector<unsigned char> sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format, istream *asset = nullptr);
+
+        /// @brief convert an unformatted manifest data to an embeddable format.
+        /// @param format The format for embedding into.
+        /// @param data An unformatted manifest data block from sign_data_hashed_embeddable using "c2pa" format.
+        /// @return A formatted copy of the data.
+        static std::vector<unsigned char> format_embeddable(const string &format, std::vector<unsigned char> &data);
 
     private:
         // Private constructor for Builder from an archive (todo: find a better way to handle this)

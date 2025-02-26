@@ -576,6 +576,34 @@ int c2pa_builder_sign_data_hashed_embeddable(struct C2paBuilder *builder_ptr,
                                              const unsigned char **manifest_bytes_ptr);
 
 /**
+ * Convert a binary c2pa manifest into an embeddable version for the given format.
+ * A raw manifest (in application/c2pa format) can be uploaded to the cloud but
+ * it cannot be embedded directly into an asset without extra processing.
+ * This method converts the raw manifest into an embeddable version that can be
+ * embedded into an asset.
+ *
+ * # Parameters
+ * * format: pointer to a C string with the mime type or extension.
+ * * manifest_bytes_ptr: pointer to a c_uchar with the raw manifest bytes.
+ * * manifest_bytes_size: the size of the manifest_bytes.
+ * * result_bytes_ptr: pointer to a pointer to a c_uchar to return the embeddable manifest bytes.
+ *
+ * # Errors
+ * Returns -1 if there were errors, otherwise returns the size of the result_bytes.
+ * The error string can be retrieved by calling c2pa_error.
+ *
+ * # Safety
+ * Reads from NULL-terminated C strings.
+ * The returned value MUST be released by calling c2pa_manifest_bytes_free
+ * and it is no longer valid after that call.
+ */
+IMPORT extern
+int c2pa_format_embeddable(const char *format,
+                           const unsigned char *manifest_bytes_ptr,
+                           uintptr_t manifest_bytes_size,
+                           const unsigned char **result_bytes_ptr);
+
+/**
  * Creates a C2paSigner from a callback and configuration.
  *
  * # Parameters

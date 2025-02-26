@@ -867,6 +867,53 @@ pub unsafe extern "C" fn c2pa_builder_sign_data_hashed_embeddable(
     }
 }
 
+/// Convert a binary c2pa manifest into an embeddable version for the given format.
+/// A raw manifest (in application/c2pa format) can be uploaded to the cloud but
+/// it cannot be embedded directly into an asset without extra processing.
+/// This method converts the raw manifest into an embeddable version that can be
+/// embedded into an asset.
+///
+/// # Parameters
+/// * format: pointer to a C string with the mime type or extension.
+/// * manifest_bytes_ptr: pointer to a c_uchar with the raw manifest bytes.
+/// * manifest_bytes_size: the size of the manifest_bytes.
+/// * result_bytes_ptr: pointer to a pointer to a c_uchar to return the embeddable manifest bytes.
+///
+/// # Errors
+/// Returns -1 if there were errors, otherwise returns the size of the result_bytes.
+/// The error string can be retrieved by calling c2pa_error.
+///
+/// # Safety
+/// Reads from NULL-terminated C strings.
+/// The returned value MUST be released by calling c2pa_manifest_bytes_free
+/// and it is no longer valid after that call.
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_format_embeddable(
+    format: *const c_char,
+    manifest_bytes_ptr: *const c_uchar,
+    manifest_bytes_size: usize,
+    result_bytes_ptr: *mut *const c_uchar,
+) -> c_int {
+    null_check_int!(manifest_bytes_ptr);
+    null_check_int!(result_bytes_ptr);
+    let format = from_cstr_null_check_int!(format);
+    let bytes = std::slice::from_raw_parts(manifest_bytes_ptr, manifest_bytes_size);
+
+    // todo: Add a way to do this without using the v1_api Manifest
+    let result = c2pa::Manifest::composed_manifest(bytes, &format);
+    match result {
+        Ok(result_bytes) => {
+            let len = result_bytes.len() as c_int;
+            *result_bytes_ptr = Box::into_raw(result_bytes.into_boxed_slice()) as *const c_uchar;
+            len
+        }
+        Err(err) => {
+            Error::from_c2pa_error(err).set_last();
+            -1
+        }
+    }
+}
+
 /// Creates a C2paSigner from a callback and configuration.
 ///
 /// # Parameters
