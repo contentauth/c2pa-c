@@ -72,21 +72,22 @@ namespace c2pa
         }
     }
 
+    /// converts a filesystem::path to a string in utf-8 format
+    inline std::string path_to_string(const filesystem::path &source_path)
+    {
+        return reinterpret_cast<const char *>(source_path.u8string().c_str());
+    }
+
     /// Reads a file and returns the manifest json as a C2pa::String.
-    /// Note: Paths are UTF-8 encoded, use std.filename.u8string().c_str() if needed.
     /// @param source_path the path to the file to read.
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a string containing the manifest json if a manifest was found.
     /// @throws a C2pa::Exception for errors encountered by the C2PA library.
     optional<string> read_file(const filesystem::path &source_path, const optional<path> data_dir)
     {
-        const std::string data_dir_stdstr = data_dir.has_value()
-                                                ? data_dir.value().u8string()
-                                                : std::string();
+        auto dir = data_dir.has_value() ? path_to_string(data_dir.value()) : string();
 
-        const char *dir = data_dir.has_value() ? data_dir_stdstr.c_str() : nullptr;
-
-        char *result = c2pa_read_file(source_path.u8string().c_str(), dir);
+        char *result = c2pa_read_file(path_to_string(source_path).c_str(), dir.c_str());
 
         if (result == nullptr)
         {
@@ -109,7 +110,7 @@ namespace c2pa
     /// @throws a C2pa::Exception for errors encountered by the C2PA library.
     string read_ingredient_file(const path &source_path, const path &data_dir)
     {
-        char *result = c2pa_read_ingredient_file(source_path.u8string().c_str(), data_dir.u8string().c_str());
+        char *result = c2pa_read_ingredient_file(path_to_string(source_path).c_str(), path_to_string(data_dir).c_str());
         if (result == NULL)
         {
             throw c2pa::Exception();
@@ -132,12 +133,9 @@ namespace c2pa
                    c2pa::SignerInfo *signer_info,
                    const std::optional<path> data_dir)
     {
-        const std::string data_dir_stdstr = data_dir.has_value()
-                                                ? data_dir.value().u8string()
-                                                : std::string();
+        auto dir = data_dir.has_value() ? path_to_string(data_dir.value()) : string();
 
-        const char *dir = data_dir.has_value() ? data_dir_stdstr.c_str() : NULL;
-        char *result = c2pa_sign_file(source_path.u8string().c_str(), dest_path.u8string().c_str(), manifest, signer_info, dir);
+        char *result = c2pa_sign_file(path_to_string(source_path).c_str(), path_to_string(dest_path).c_str(), manifest, signer_info, dir.c_str());
         if (result == NULL)
         {
 
