@@ -31,7 +31,7 @@ using namespace c2pa;
 
 namespace c2pa
 {
-    /// Exception class for C2PA errors.
+    /// C2paException class for C2PA errors.
     /// This class is used to throw exceptions for errors encountered by the C2PA library via c2pa_error().
 
     C2paException::C2paException() : message(c2pa_error())
@@ -62,7 +62,7 @@ namespace c2pa
     /// Loads C2PA settings from a string in a given format.
     /// @param format the mime format of the string.
     /// @param data the string to load.
-    /// @throws a C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     void load_settings(const string &format, const string &data)
     {
         auto result = c2pa_load_settings(format.c_str(), data.c_str());
@@ -82,7 +82,7 @@ namespace c2pa
     /// @param source_path the path to the file to read.
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a string containing the manifest json if a manifest was found.
-    /// @throws a C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     optional<string> read_file(const filesystem::path &source_path, const optional<path> data_dir)
     {
         auto dir = data_dir.has_value() ? path_to_string(data_dir.value()) : string();
@@ -91,8 +91,8 @@ namespace c2pa
 
         if (result == nullptr)
         {
-            auto exception = c2pa::C2paException();
-            if (strstr(exception.what(), "ManifestNotFound") != NULL)
+            auto C2paException = c2pa::C2paException();
+            if (strstr(C2paException.what(), "ManifestNotFound") != NULL)
             {
                 return std::nullopt;
             }
@@ -107,7 +107,7 @@ namespace c2pa
     /// @param source_path the path to the file to read.
     /// @param data_dir the directory to store binary resources.
     /// @return a string containing the ingredient json.
-    /// @throws a C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     string read_ingredient_file(const path &source_path, const path &data_dir)
     {
         char *result = c2pa_read_ingredient_file(path_to_string(source_path).c_str(), path_to_string(data_dir).c_str());
@@ -126,7 +126,7 @@ namespace c2pa
     // manifest: the manifest json to add to the file
     // signer_info: the signer info to use for signing
     // data_dir: the directory to store binary resources (optional)
-    // Throws a C2pa::Exception for errors encountered by the C2PA library
+    // Throws a C2pa::C2paException for errors encountered by the C2PA library
     void sign_file(const path &source_path,
                    const path &dest_path,
                    const char *manifest,
@@ -558,7 +558,7 @@ namespace c2pa
         }
         catch (...)
         {
-            // printf("Error: signer_passthrough - unknown exception\n");
+            // printf("Error: signer_passthrough - unknown C2paException\n");
             return -1;
         }
     }
@@ -598,7 +598,7 @@ namespace c2pa
 
     /// @brief Create a Builder from an archive.
     /// @param archive  The input stream to read the archive from.
-    /// @throws C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     Builder::Builder(istream &archive)
     {
         CppIStream c_archive = CppIStream(archive);
@@ -694,7 +694,7 @@ namespace c2pa
     /// @param dest_path The path to write the signed file to.
     /// @param signer A signer object to use when signing.
     /// @return A vector containing the signed manifest bytes.
-    /// @throws C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     std::vector<unsigned char> Builder::sign(const path &source_path, const path &dest_path, Signer &signer)
     {
         std::ifstream source(source_path, std::ios::binary);
@@ -724,7 +724,7 @@ namespace c2pa
 
     /// @brief Create a Builder from an archive stream.
     /// @param archive The input stream to read the archive from.
-    /// @throws C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     Builder Builder::from_archive(istream &archive)
     {
         return Builder(archive);
@@ -732,7 +732,7 @@ namespace c2pa
 
     /// @brief Create a Builder from an archive file.
     /// @param archive The input path to read the archive from.
-    /// @throws C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     Builder Builder::from_archive(const path &archive_path)
     {
         std::ifstream path(archive_path, std::ios::binary);
@@ -745,7 +745,7 @@ namespace c2pa
 
     /// @brief Write the builder to an archive stream.
     /// @param dest The output stream to write the archive to.
-    /// @throws C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     void Builder::to_archive(ostream &dest)
     {
         CppOStream c_dest = CppOStream(dest);
@@ -758,7 +758,7 @@ namespace c2pa
 
     /// @brief Write the builder to an archive file.
     /// @param dest_path The path to write the archive file to.
-    /// @throws C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     void Builder::to_archive(const path &dest_path)
     {
         std::ofstream dest(dest_path, std::ios::binary);

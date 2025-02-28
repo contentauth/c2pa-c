@@ -48,7 +48,7 @@ namespace c2pa
 
     typedef C2paSignerInfo SignerInfo;
 
-    /// Exception class for C2pa errors.
+    /// C2paException class for C2pa errors.
     /// This class is used to throw exceptions for errors encountered by the C2pa library via c2pa_error().
     class C2PA_API C2paException : public exception
     {
@@ -172,32 +172,32 @@ namespace c2pa
         /// @details The validation_status field in the json contains validation results.
         /// @param format The mime format of the stream.
         /// @param stream The input stream to read from.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         Reader(const std::string &format, std::istream &stream);
 
         /// @brief Create a Reader from a file path.
         /// @param source_path  the path to the file to read.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         Reader(const std::filesystem::path &source_path);
         ~Reader();
 
         /// @brief Get the manifest as a json string.
         /// @return The manifest as a json string.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         string json();
 
         /// @brief  Get a resource from the reader and write it to a file.
         /// @param uri The uri of the resource.
         /// @param path The path to write the resource to.
         /// @return The number of bytes written.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         int get_resource(const string &uri, const std::filesystem::path &path);
 
         /// @brief  Get a resource from the reader  and write it to an output stream.
         /// @param uri The uri of the resource.
         /// @param stream The output stream to write the resource to.
         /// @return The number of bytes written.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         int get_resource(const string &uri, std::ostream &stream);
     };
 
@@ -244,7 +244,7 @@ namespace c2pa
     public:
         /// @brief  Create a Builder from a manifest JSON string.
         /// @param manifest_json  The manifest JSON string.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         Builder(const std::string &manifest_json);
 
         ~Builder();
@@ -254,32 +254,32 @@ namespace c2pa
 
         /// @brief  Set the remote URL.
         /// @param remote_url  The remote URL to set.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         void set_remote_url(const string &remote_url);
 
         /// @brief  Add a resource to the builder.
         /// @param uri  The uri of the resource.
         /// @param source  The input stream to read the resource from.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         void add_resource(const string &uri, istream &source);
 
         /// @brief  Add a resource to the builder.
         /// @param uri  The uri of the resource.
         /// @param source_path  The path to the resource file.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         void add_resource(const string &uri, const std::filesystem::path &source_path);
 
         /// @brief Add an ingredient to the builder.
         /// @param ingredient_json  Any fields of the ingredient you want to define.
         /// @param format  The format of the ingredient file.
         /// @param source  The input stream to read the ingredient from.
-        /// @throws C2pa::Exception for errors encountered by the C2pa library.
+        /// @throws C2pa::C2paException for errors encountered by the C2pa library.
         void add_ingredient(const string &ingredient_json, const string &format, istream &source);
 
         /// @brief Add an ingredient to the builder.
         /// @param ingredient_json  Any fields of the ingredient you want to define.
         /// @param source_path  The path to the ingredient file.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         void add_ingredient(const string &ingredient_json, const std::filesystem::path &source_path);
 
         /// @brief Sign an input stream and write the signed data to an output stream.
@@ -288,7 +288,7 @@ namespace c2pa
         /// @param dest The output stream to write the signed data to.
         /// @param signer
         /// @return A vector containing the signed manifest bytes.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         std::vector<unsigned char> sign(const string &format, istream &source, ostream &dest, Signer &signer);
 
         /// @brief Sign a file and write the signed data to an output file.
@@ -296,34 +296,34 @@ namespace c2pa
         /// @param dest_path The path to write the signed file to.
         /// @param signer A signer object to use when signing.
         /// @return A vector containing the signed manifest bytes.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         std::vector<unsigned char> sign(const path &source_path, const path &dest_path, Signer &signer);
 
         /// @brief Create a Builder from an archive.
         /// @param archive  The input stream to read the archive from.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         static Builder from_archive(istream &archive);
 
         /// @brief Create a Builder from an archive
         /// @param archive_path  the path to the archive file
-        /// @throws C2pa::Exception for errors encountered by the C2PA library
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library
         static Builder from_archive(const std::filesystem::path &archive_path);
 
         /// @brief Write the builder to an archive stream.
         /// @param dest The output stream to write the archive to.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         void to_archive(ostream &dest);
 
         /// @brief Write the builder to an archive file.
         /// @param dest_path The path to write the archive file to.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         void to_archive(const path &dest_path);
 
         /// @brief Create a hashed placeholder from the builder.
         /// @param reserved_size  The size required for a signature from the intended signer.
         /// @param format  The format of the mime type or extension of the asset.
         /// @return A vector containing the hashed placeholder.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         std::vector<unsigned char> data_hashed_placeholder(uintptr_t reserved_size, const string &format);
 
         /// @brief Sign a Builder using the specified signer and data hash.
@@ -332,7 +332,7 @@ namespace c2pa
         /// @param format  The mime format for embedding into.  Use "c2pa" for an unformatted result.
         /// @param asset  An optional asset to hash according to the data_hash information.
         /// @return A vector containing the signed data.
-        /// @throws C2pa::Exception for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         std::vector<unsigned char> sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format, istream *asset = nullptr);
 
         /// @brief convert an unformatted manifest data to an embeddable format.
