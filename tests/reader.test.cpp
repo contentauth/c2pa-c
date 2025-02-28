@@ -35,7 +35,7 @@ TEST(Reader, FileWithManifest)
 
 TEST(Reader, FileNoManifest)
 {
-    EXPECT_THROW({ auto reader = c2pa::Reader("../../tests/fixtures/A.jpg"); }, c2pa::Exception);
+    EXPECT_THROW({ auto reader = c2pa::Reader("../../tests/fixtures/A.jpg"); }, c2pa::C2paException);
 };
 
 TEST(Reader, FileNotFound)
@@ -43,15 +43,15 @@ TEST(Reader, FileNotFound)
     try
     {
         auto reader = c2pa::Reader("foo/xxx.xyz");
-        FAIL() << "Expected c2pa::Exception";
+        FAIL() << "Expected c2pa::C2paException";
     }
-    catch (const c2pa::Exception &e)
+    catch (const c2pa::C2paException &e)
     {
         // EXPECT_STREQ(e.what(), "File not found");
         EXPECT_TRUE(std::string(e.what()).rfind("Failed to open file", 0) == 0);
     }
     catch (...)
     {
-        FAIL() << "Expected c2pa::Exception Failed to open file";
+        FAIL() << "Expected c2pa::C2paException Failed to open file";
     }
 };

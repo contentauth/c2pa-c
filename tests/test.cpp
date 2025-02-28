@@ -69,7 +69,7 @@ int main()
         assert_exists("c2pa::Reader.get_resource", thumb_path);
         ifs.close();
     }
-    catch (c2pa::Exception e)
+    catch (c2pa::C2paException e)
     {
         cout << "Failed: C2pa::Reader: " << e.what() << endl;
         return (1);
@@ -94,7 +94,7 @@ int main()
         auto manifest_data = builder.sign("tests/fixtures/C.jpg", signed_path, signer);
         assert_exists("c2pa::Builder.sign", signed_path);
     }
-    catch (c2pa::Exception e)
+    catch (c2pa::C2paException e)
     {
         cout << "Failed: C2pa::Builder: " << e.what() << endl;
         return (1);
@@ -135,7 +135,7 @@ int main()
         assert_contains("c2pa::Builder.sign", json, "c2pa.training-mining");
         // cout << "Manifest: " << json << endl;
     }
-    catch (c2pa::Exception const &e)
+    catch (c2pa::C2paException const &e)
     {
         cout << "Failed: C2pa::Builder: " << e.what() << endl;
         return (1);

@@ -10,9 +10,9 @@
 // specific language governing permissions and limitations under
 // each license.
 
-mod c_api;
 /// This module exports a C2PA library
-mod c_stream;
+mod c2pa_stream;
+mod c_api;
 mod error;
 mod json_api;
 mod signer_info;
@@ -20,8 +20,8 @@ mod signer_info;
 pub use c2pa::{
     AsyncSigner, Builder, Error as C2paError, Reader, Result as C2paResult, Signer, SigningAlg,
 };
+pub use c2pa_stream::*;
 pub use c_api::*;
-pub use c_stream::*;
 pub use error::{Error, Result};
 pub use json_api::{read_file, read_ingredient_file, sdk_version, sign_file};
 pub use signer_info::SignerInfo;
