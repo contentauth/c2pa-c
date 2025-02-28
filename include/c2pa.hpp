@@ -31,6 +31,7 @@
 #pragma warning(disable : 4505)
 #endif
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -38,16 +39,6 @@
 #include <optional>
 
 #include "c2pa.h"
-
-#if defined(_WIN32) || defined(_WIN64) && !defined(C2PA_DYNAMIC_LOADING)
-#ifdef BUILDING_C2PA_DLL
-#define C2PA_EXPORT __declspec(dllexport)
-#else
-#define C2PA_EXPORT __declspec(dllimport)
-#endif
-#else
-#define C2PA_EXPORT __attribute__((visibility("default")))
-#endif
 
 using path = std::filesystem::path;
 
@@ -59,17 +50,17 @@ namespace c2pa
 
     /// Exception class for C2pa errors.
     /// This class is used to throw exceptions for errors encountered by the C2pa library via c2pa_error().
-    class C2PA_EXPORT Exception : public exception
+    class C2PA_EXPORT C2paException : public exception
     {
     private:
         string message;
 
     public:
-        Exception();
+        C2paException();
 
-        Exception(string what);
+        C2paException(string what);
 
-        virtual const char *what() const throw();
+        virtual const char *what() const noexcept;
     };
 
     /// Returns the version of the C2pa library.
@@ -78,6 +69,7 @@ namespace c2pa
     /// Loads C2PA settings from a string in a given format.
     /// @param format the mime format of the string.
     /// @param data the string to load.
+    /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     void C2PA_EXPORT load_settings(const string format, const string data);
 
     /// Reads a file and returns the manifest json as a C2pa::String.
@@ -85,14 +77,14 @@ namespace c2pa
     /// @param source_path the path to the file to read.
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a string containing the manifest json if a manifest was found.
-    /// @throws a C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     optional<string> C2PA_EXPORT read_file(const filesystem::path &source_path, const optional<path> data_dir = nullopt);
 
     /// Reads a file and returns an ingredient JSON as a C2pa::String.
     /// @param source_path the path to the file to read.
     /// @param data_dir the directory to store binary resources.
     /// @return a string containing the ingredient json.
-    /// @throws a C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     std::string C2PA_EXPORT read_ingredient_file(const path &source_path, const path &data_dir);
 
     /// Adds the manifest and signs a file.
@@ -101,19 +93,19 @@ namespace c2pa
     /// @param manifest the manifest json to add to the file.
     /// @param signer_info the signer info to use for signing.
     /// @param data_dir the directory to store binary resources (optional).
-    /// @throws a C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     void C2PA_EXPORT sign_file(const path &source_path,
                                const path &dest_path,
                                const char *manifest,
                                SignerInfo *signer_info,
                                const std::optional<path> data_dir = std::nullopt);
 
-    /// @brief Istream Class wrapper for CStream.
+    /// @brief Istream Class wrapper for C2paStream.
     /// @details This class is used to wrap an input stream for use with the C2PA library.
-    class C2PA_EXPORT CppIStream : public CStream
+    class C2PA_EXPORT CppIStream : public C2paStream
     {
     public:
-        CStream *c_stream;
+        C2paStream *c_stream;
         template <typename IStream>
         explicit CppIStream(IStream &istream);
 
@@ -133,12 +125,12 @@ namespace c2pa
         friend class Reader;
     };
 
-    /// @brief Ostream Class wrapper for CStream.
+    /// @brief Ostream Class wrapper for C2paStream.
     /// @details This class is used to wrap an output stream for use with the C2PA library.
-    class C2PA_EXPORT CppOStream : public CStream
+    class C2PA_EXPORT CppOStream : public C2paStream
     {
     public:
-        CStream *c_stream;
+        C2paStream *c_stream;
         template <typename OStream>
         explicit CppOStream(OStream &ostream);
 
@@ -151,12 +143,12 @@ namespace c2pa
         static intptr_t flusher(StreamContext *context);
     };
 
-    /// @brief IOStream Class wrapper for CStream.
+    /// @brief IOStream Class wrapper for C2paStream.
     /// @details This class is used to wrap an input/output stream for use with the C2PA library.
-    class C2PA_EXPORT CppIOStream : public CStream
+    class C2PA_EXPORT CppIOStream : public C2paStream
     {
     public:
-        CStream *c_stream;
+        C2paStream *c_stream;
         template <typename IOStream>
         CppIOStream(IOStream &iostream);
         ~CppIOStream();

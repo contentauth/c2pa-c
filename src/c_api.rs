@@ -23,7 +23,7 @@ use c2pa::{
 };
 
 use crate::{
-    c_stream::CStream,
+    c2pa_stream::C2paStream,
     error::Error,
     json_api::{read_file, read_ingredient_file, sign_file},
     signer_info::SignerInfo,
@@ -365,7 +365,7 @@ pub unsafe extern "C" fn c2pa_string_free(s: *mut c_char) {
 ///
 /// Parameters
 /// * format: pointer to a C string with the mime type or extension.
-/// * stream: pointer to a CStream.
+/// * stream: pointer to a C2paStream.
 ///
 /// # Errors
 /// Returns NULL if there were errors, otherwise returns a pointer to a ManifestStore.
@@ -386,7 +386,7 @@ pub unsafe extern "C" fn c2pa_string_free(s: *mut c_char) {
 #[no_mangle]
 pub unsafe extern "C" fn c2pa_reader_from_stream(
     format: *const c_char,
-    stream: *mut CStream,
+    stream: *mut C2paStream,
 ) -> *mut C2paReader {
     let format = from_cstr_null_check!(format);
 
@@ -431,7 +431,7 @@ pub unsafe extern "C" fn c2pa_reader_json(reader_ptr: *mut C2paReader) -> *mut c
 /// # Parameters
 /// * reader_ptr: pointer to a Reader.
 /// * uri: pointer to a C string with the URI to identify the resource.
-/// * stream: pointer to a writable CStream.
+/// * stream: pointer to a writable C2paStream.
 ///
 /// # Errors
 /// Returns -1 if there were errors, otherwise returns size of stream written.
@@ -450,14 +450,14 @@ pub unsafe extern "C" fn c2pa_reader_json(reader_ptr: *mut C2paReader) -> *mut c
 pub unsafe extern "C" fn c2pa_reader_resource_to_stream(
     reader_ptr: *mut C2paReader,
     uri: *const c_char,
-    stream: *mut CStream,
-) -> c_int {
+    stream: *mut C2paStream,
+) -> i64 {
     let reader: Box<C2paReader> = Box::from_raw(reader_ptr);
     let uri = from_cstr_null_check_int!(uri);
     let result = reader.resource_to_stream(&uri, &mut (*stream));
     let _ = Box::into_raw(reader);
     match result {
-        Ok(len) => len as c_int,
+        Ok(len) => len as i64,
         Err(err) => {
             Error::from_c2pa_error(err).set_last();
             -1
@@ -515,7 +515,7 @@ pub unsafe extern "C" fn c2pa_builder_from_json(manifest_json: *const c_char) ->
 /// }
 /// ```
 #[no_mangle]
-pub unsafe extern "C" fn c2pa_builder_from_archive(stream: *mut CStream) -> *mut C2paBuilder {
+pub unsafe extern "C" fn c2pa_builder_from_archive(stream: *mut C2paStream) -> *mut C2paBuilder {
     let result = C2paBuilder::from_archive(&mut (*stream));
     match result {
         Ok(builder) => Box::into_raw(Box::new(builder)),
@@ -581,7 +581,7 @@ pub unsafe extern "C" fn c2pa_builder_set_remote_url(
 /// # Parameters
 /// * builder_ptr: pointer to a Builder.
 /// * uri: pointer to a C string with the URI to identify the resource.
-/// * stream: pointer to a CStream.
+/// * stream: pointer to a C2paStream.
 /// # Errors
 /// Returns -1 if there were errors, otherwise returns 0.
 /// The error string can be retrieved by calling c2pa_error.
@@ -592,7 +592,7 @@ pub unsafe extern "C" fn c2pa_builder_set_remote_url(
 pub unsafe extern "C" fn c2pa_builder_add_resource(
     builder_ptr: *mut C2paBuilder,
     uri: *const c_char,
-    stream: *mut CStream,
+    stream: *mut C2paStream,
 ) -> c_int {
     let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
     let uri = from_cstr_null_check_int!(uri);
@@ -615,7 +615,7 @@ pub unsafe extern "C" fn c2pa_builder_add_resource(
 /// * builder_ptr: pointer to a Builder.
 /// * ingredient_json: pointer to a C string with the JSON ingredient definition.
 /// * format: pointer to a C string with the mime type or extension.
-/// * source: pointer to a CStream.
+/// * source: pointer to a C2paStream.
 ///
 /// # Errors
 /// Returns -1 if there were errors, otherwise returns 0.
@@ -628,7 +628,7 @@ pub unsafe extern "C" fn c2pa_builder_add_ingredient_from_stream(
     builder_ptr: *mut C2paBuilder,
     ingredient_json: *const c_char,
     format: *const c_char,
-    source: *mut CStream,
+    source: *mut C2paStream,
 ) -> c_int {
     let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
     let ingredient_json = from_cstr_null_check_int!(ingredient_json);
@@ -650,7 +650,7 @@ pub unsafe extern "C" fn c2pa_builder_add_ingredient_from_stream(
 ///
 /// # Parameters
 /// * builder_ptr: pointer to a Builder.
-/// * stream: pointer to a writable CStream.
+/// * stream: pointer to a writable C2paStream.
 ///
 /// # Errors
 /// Returns -1 if there were errors, otherwise returns 0.
@@ -669,7 +669,7 @@ pub unsafe extern "C" fn c2pa_builder_add_ingredient_from_stream(
 #[no_mangle]
 pub unsafe extern "C" fn c2pa_builder_to_archive(
     builder_ptr: *mut C2paBuilder,
-    stream: *mut CStream,
+    stream: *mut C2paStream,
 ) -> c_int {
     let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
     let result = builder.to_archive(&mut (*stream));
@@ -690,8 +690,8 @@ pub unsafe extern "C" fn c2pa_builder_to_archive(
 /// # Parameters
 /// * builder_ptr: pointer to a Builder.
 /// * format: pointer to a C string with the mime type or extension.
-/// * source: pointer to a CStream.
-/// * dest: pointer to a writable CStream.
+/// * source: pointer to a C2paStream.
+/// * dest: pointer to a writable C2paStream.
 /// * signer: pointer to a C2paSigner.
 /// * c2pa_bytes_ptr: pointer to a pointer to a c_uchar to return manifest_bytes (optional, can be NULL).
 ///
@@ -707,11 +707,11 @@ pub unsafe extern "C" fn c2pa_builder_to_archive(
 pub unsafe extern "C" fn c2pa_builder_sign(
     builder_ptr: *mut C2paBuilder,
     format: *const c_char,
-    source: *mut CStream,
-    dest: *mut CStream,
+    source: *mut C2paStream,
+    dest: *mut C2paStream,
     signer: *mut C2paSigner,
     manifest_bytes_ptr: *mut *const c_uchar,
-) -> c_int {
+) -> i64 {
     let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
     let format = from_cstr_null_check_int!(format);
 
@@ -727,7 +727,7 @@ pub unsafe extern "C" fn c2pa_builder_sign(
     let _ = Box::into_raw(builder);
     match result {
         Ok(manifest_bytes) => {
-            let len = manifest_bytes.len() as c_int;
+            let len = manifest_bytes.len() as i64;
             if !manifest_bytes_ptr.is_null() {
                 *manifest_bytes_ptr =
                     Box::into_raw(manifest_bytes.into_boxed_slice()) as *const c_uchar;
@@ -775,7 +775,7 @@ pub unsafe extern "C" fn c2pa_builder_data_hashed_placeholder(
     reserved_size: usize,
     format: *const c_char,
     manifest_bytes_ptr: *mut *const c_uchar,
-) -> c_int {
+) -> i64 {
     null_check_int!(builder_ptr);
     null_check_int!(manifest_bytes_ptr);
     let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
@@ -784,7 +784,7 @@ pub unsafe extern "C" fn c2pa_builder_data_hashed_placeholder(
     let _ = Box::into_raw(builder);
     match result {
         Ok(manifest_bytes) => {
-            let len = manifest_bytes.len() as c_int;
+            let len = manifest_bytes.len() as i64;
             *manifest_bytes_ptr =
                 Box::into_raw(manifest_bytes.into_boxed_slice()) as *const c_uchar;
             len
@@ -805,7 +805,7 @@ pub unsafe extern "C" fn c2pa_builder_data_hashed_placeholder(
 /// * signer: pointer to a C2paSigner.
 /// * data_hash: pointer to a C string with the JSON data hash.
 /// * format: pointer to a C string with the mime type or extension.
-/// * asset: pointer to a CStream (may be NULL to use pre calculated hashes).
+/// * asset: pointer to a C2paStream (may be NULL to use pre calculated hashes).
 /// * manifest_bytes_ptr: pointer to a pointer to a c_uchar to return manifest_bytes (optional, can be NULL).
 ///
 /// # Errors
@@ -822,9 +822,9 @@ pub unsafe extern "C" fn c2pa_builder_sign_data_hashed_embeddable(
     signer: *mut C2paSigner,
     data_hash: *const c_char,
     format: *const c_char,
-    asset: *mut CStream,
+    asset: *mut C2paStream,
     manifest_bytes_ptr: *mut *const c_uchar,
-) -> c_int {
+) -> i64 {
     null_check_int!(builder_ptr);
     null_check_int!(manifest_bytes_ptr);
 
@@ -855,7 +855,7 @@ pub unsafe extern "C" fn c2pa_builder_sign_data_hashed_embeddable(
     let _ = Box::into_raw(builder);
     match result {
         Ok(manifest_bytes) => {
-            let len = manifest_bytes.len() as c_int;
+            let len = manifest_bytes.len() as i64;
             *manifest_bytes_ptr =
                 Box::into_raw(manifest_bytes.into_boxed_slice()) as *const c_uchar;
             len
@@ -893,7 +893,7 @@ pub unsafe extern "C" fn c2pa_format_embeddable(
     manifest_bytes_ptr: *const c_uchar,
     manifest_bytes_size: usize,
     result_bytes_ptr: *mut *const c_uchar,
-) -> c_int {
+) -> i64 {
     null_check_int!(manifest_bytes_ptr);
     null_check_int!(result_bytes_ptr);
     let format = from_cstr_null_check_int!(format);
@@ -903,7 +903,7 @@ pub unsafe extern "C" fn c2pa_format_embeddable(
     let result = c2pa::Manifest::composed_manifest(bytes, &format);
     match result {
         Ok(result_bytes) => {
-            let len = result_bytes.len() as c_int;
+            let len = result_bytes.len() as i64;
             *result_bytes_ptr = Box::into_raw(result_bytes.into_boxed_slice()) as *const c_uchar;
             len
         }
@@ -1044,7 +1044,6 @@ pub unsafe extern "C" fn c2pa_ed25519_sign(
 /// Frees a signature allocated by Rust.
 /// # Safety
 /// The signature can only be freed once and is invalid after this call.
-/// The signature must be freed by calling c2pa_signature_free.
 pub unsafe extern "C" fn c2pa_signature_free(signature_ptr: *const u8) {
     if !signature_ptr.is_null() {
         drop(Box::from_raw(signature_ptr as *mut u8));

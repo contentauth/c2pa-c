@@ -62,7 +62,7 @@ TEST(Builder, SignFile)
         auto json = reader.json();
         ASSERT_TRUE(std::filesystem::exists(output_path));
     }
-    catch (c2pa::Exception const &e)
+    catch (c2pa::C2paException const &e)
     {
         FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
     };
@@ -106,7 +106,7 @@ TEST(Builder, SignStream)
         auto json = reader.json();
         ASSERT_TRUE(json.find("cawg.training-mining") != std::string::npos);
     }
-    catch (c2pa::Exception const &e)
+    catch (c2pa::C2paException const &e)
     {
         FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
     };
@@ -153,7 +153,7 @@ TEST(Builder, SignStreamCloudUrl)
         dest.seekp(0, std::ios::beg);
         auto reader = c2pa::Reader("image/jpeg", dest);
     }
-    catch (c2pa::Exception const &e)
+    catch (c2pa::C2paException const &e)
     {
         std::string error_message = e.what();
         if (error_message.rfind("Remote ", 0) == 0)
@@ -202,7 +202,7 @@ TEST(Builder, SignDataHashedEmbedded)
         })";
         auto manifest_data = builder.sign_data_hashed_embeddable(signer, data_hash, "image/jpeg");
     }
-    catch (c2pa::Exception const &e)
+    catch (c2pa::C2paException const &e)
     {
         FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
     };
@@ -254,7 +254,7 @@ TEST(Builder, SignDataHashedEmbeddedWithAsset)
 
         ASSERT_TRUE(embeddable_data.size() > manifest_data.size());
     }
-    catch (c2pa::Exception const &e)
+    catch (c2pa::C2paException const &e)
     {
         FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
     };

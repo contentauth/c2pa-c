@@ -34,18 +34,18 @@ namespace c2pa
     /// Exception class for C2PA errors.
     /// This class is used to throw exceptions for errors encountered by the C2PA library via c2pa_error().
 
-    Exception::Exception() : message(c2pa_error())
+    C2paException::C2paException() : message(c2pa_error())
     {
         auto result = c2pa_error();
         message = string(result);
         c2pa_release_string(result);
     }
 
-    Exception::Exception(string what) : message(what)
+    C2paException::C2paException(string what) : message(what)
     {
     }
 
-    const char *Exception::what() const throw()
+    const char *C2paException::what() const noexcept
     {
         return message.c_str();
     }
@@ -68,7 +68,7 @@ namespace c2pa
         auto result = c2pa_load_settings(format.c_str(), data.c_str());
         if (result != 0)
         {
-            throw c2pa::Exception();
+            throw c2pa::C2paException();
         }
     }
 
@@ -90,12 +90,12 @@ namespace c2pa
 
         if (result == nullptr)
         {
-            auto exception = c2pa::Exception();
+            auto exception = c2pa::C2paException();
             if (strstr(exception.what(), "ManifestNotFound") != NULL)
             {
                 return std::nullopt;
             }
-            throw c2pa::Exception();
+            throw c2pa::C2paException();
         }
         string str = string(result);
         c2pa_release_string(result);
@@ -112,7 +112,7 @@ namespace c2pa
         char *result = c2pa_read_ingredient_file(source_path.u8string().c_str(), data_dir.u8string().c_str());
         if (result == NULL)
         {
-            throw c2pa::Exception();
+            throw c2pa::C2paException();
         }
         string str = string(result);
         c2pa_release_string(result);
@@ -141,15 +141,15 @@ namespace c2pa
         if (result == NULL)
         {
 
-            throw c2pa::Exception();
+            throw c2pa::C2paException();
         }
         c2pa_release_string(result);
         return;
     }
 
-    /// IStream Class wrapper for CStream.
+    /// IStream Class wrapper for C2paStream.
     template <typename IStream>
-    CppIStream::CppIStream(IStream &istream) : CStream()
+    CppIStream::CppIStream(IStream &istream) : C2paStream()
     {
         static_assert(std::is_base_of<std::istream, IStream>::value,
                       "Stream must be derived from std::istream");
@@ -249,10 +249,9 @@ namespace c2pa
         return 0;
     }
 
-    /// Ostream Class wrapper for CStream implementation.
-
+    /// Ostream Class wrapper for C2paStream implementation.
     template <typename OStream>
-    CppOStream::CppOStream(OStream &ostream) : CStream()
+    CppOStream::CppOStream(OStream &ostream) : C2paStream()
     {
         static_assert(std::is_base_of<std::ostream, OStream>::value, "Stream must be derived from std::ostream");
         c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&ostream), reader, seeker, writer, flusher);
@@ -340,7 +339,7 @@ namespace c2pa
         return 0;
     }
 
-    /// IOStream Class wrapper for CStream implementation.
+    /// IOStream Class wrapper for C2paStream implementation.
     template <typename IOStream>
     CppIOStream::CppIOStream(IOStream &iostream)
     {
@@ -470,7 +469,7 @@ namespace c2pa
         c2pa_reader = c2pa_reader_from_stream(format.c_str(), cpp_stream->c_stream);
         if (c2pa_reader == NULL)
         {
-            throw Exception();
+            throw C2paException();
         }
     }
 
@@ -479,7 +478,7 @@ namespace c2pa
         std::ifstream file_stream(source_path, std::ios::binary);
         if (!file_stream.is_open())
         {
-            throw Exception("Failed to open file: " + source_path.string() + " - " + std::strerror(errno));
+            throw C2paException("Failed to open file: " + source_path.string() + " - " + std::strerror(errno));
         }
         string extension = source_path.extension().string();
         if (!extension.empty())
@@ -491,7 +490,7 @@ namespace c2pa
         c2pa_reader = c2pa_reader_from_stream(extension.c_str(), cpp_stream->c_stream);
         if (c2pa_reader == NULL)
         {
-            throw Exception();
+            throw C2paException();
         }
     }
 
@@ -509,7 +508,7 @@ namespace c2pa
         char *result = c2pa_reader_json(c2pa_reader);
         if (result == NULL)
         {
-            throw Exception();
+            throw C2paException();
         }
         string str = string(result);
         c2pa_release_string(result);
@@ -521,7 +520,7 @@ namespace c2pa
         std::ofstream file_stream(path, std::ios::binary);
         if (!file_stream.is_open())
         {
-            throw Exception(); // Handle file open error appropriately
+            throw C2paException(); // Handle file open error appropriately
         }
         return get_resource(uri.c_str(), file_stream);
     }
@@ -532,7 +531,7 @@ namespace c2pa
         int result = c2pa_reader_resource_to_stream(c2pa_reader, uri.c_str(), cpp_stream.c_stream);
         if (result < 0)
         {
-            throw Exception();
+            throw C2paException();
         }
         return result;
     }
@@ -595,7 +594,7 @@ namespace c2pa
         builder = c2pa_builder_from_json(manifest_json.c_str());
         if (builder == NULL)
         {
-            throw Exception();
+            throw C2paException();
         }
     }
 
@@ -608,7 +607,7 @@ namespace c2pa
         builder = c2pa_builder_from_archive(c_archive.c_stream);
         if (builder == NULL)
         {
-            throw Exception();
+            throw C2paException();
         }
     }
 
@@ -627,7 +626,7 @@ namespace c2pa
         int result = c2pa_builder_set_remote_url(builder, remote_url.c_str());
         if (result < 0)
         {
-            throw Exception();
+            throw C2paException();
         }
     }
 
@@ -637,7 +636,7 @@ namespace c2pa
         int result = c2pa_builder_add_resource(builder, uri.c_str(), c_source.c_stream);
         if (result < 0)
         {
-            throw Exception();
+            throw C2paException();
         }
     }
 
@@ -657,7 +656,7 @@ namespace c2pa
         int result = c2pa_builder_add_ingredient_from_stream(builder, ingredient_json.c_str(), format.c_str(), c_source.c_stream);
         if (result < 0)
         {
-            throw Exception();
+            throw C2paException();
         }
     }
 
@@ -684,7 +683,7 @@ namespace c2pa
         auto result = c2pa_builder_sign(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, signer.c2pa_signer(), &c2pa_manifest_bytes);
         if (result < 0 || c2pa_manifest_bytes == NULL)
         {
-            throw Exception();
+            throw C2paException();
         }
 
         auto manifest_bytes = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
@@ -755,7 +754,7 @@ namespace c2pa
         int result = c2pa_builder_to_archive(builder, c_dest.c_stream);
         if (result < 0)
         {
-            throw Exception();
+            throw C2paException();
         }
     }
 
@@ -778,7 +777,7 @@ namespace c2pa
         auto result = c2pa_builder_data_hashed_placeholder(builder, reserve_size, format.c_str(), &c2pa_manifest_bytes);
         if (result < 0 || c2pa_manifest_bytes == NULL)
         {
-            throw(Exception());
+            throw(C2paException());
         }
 
         auto data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
@@ -801,7 +800,7 @@ namespace c2pa
         }
         if (result < 0 || c2pa_manifest_bytes == NULL)
         {
-            throw(Exception());
+            throw(C2paException());
         }
 
         auto data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
@@ -815,7 +814,7 @@ namespace c2pa
         auto result = c2pa_format_embeddable(format.c_str(), data.data(), data.size(), &c2pa_manifest_bytes);
         if (result < 0 || c2pa_manifest_bytes == NULL)
         {
-            throw(Exception());
+            throw(C2paException());
         }
 
         auto formatted_data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);

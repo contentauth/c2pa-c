@@ -81,7 +81,7 @@ intptr_t flusher(StreamContext *context)
     return 0;
 }
 
-CStream *create_file_stream(FILE *file)
+C2paStream *create_file_stream(FILE *file)
 {
     if (file != NULL)
     {
@@ -90,12 +90,12 @@ CStream *create_file_stream(FILE *file)
     return NULL;
 }
 
-void release_stream(CStream *stream)
+void release_stream(C2paStream *stream)
 {
     c2pa_release_stream(stream);
 }
 
-CStream *open_file_stream(const char *path, const char *mode)
+C2paStream *open_file_stream(const char *path, const char *mode)
 {
     FILE *file = fopen(path, mode);
     if (file != NULL)
@@ -106,7 +106,7 @@ CStream *open_file_stream(const char *path, const char *mode)
     return NULL;
 }
 
-int close_file_stream(CStream *stream)
+int close_file_stream(C2paStream *stream)
 {
     FILE *file = (FILE *)stream->context;
     int result = fclose(file);

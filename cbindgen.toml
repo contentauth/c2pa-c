@@ -20,19 +20,26 @@ include_guard = "c2pa_bindings_h"
 
 after_includes = """
 
-#if (defined(_WIN32) || defined(_WIN64)) && !defined(C2PA_DYNAMIC_LOADING)
-    #if defined(_STATIC_C2PA) 
-        #define IMPORT  __declspec(dllexport)
-    #else 
+#if (defined(_WIN32) || defined(_WIN64)) && !C2PA_DYNAMIC_LOADING
+    #if BUILDING_C2PA_DLL
         #if __GNUC__
-            #define IMPORT __attribute__ ((dllimport))
+            #define C2PA_EXPORT __attribute__((dllexport))
         #else
-            #define IMPORT __declspec(dllimport)
+            #define C2PA_EXPORT __declspec(dllexport)
+        #endif
+    #else
+        #if __GNUC__
+            #define C2PA_EXPORT __attribute__((dllimport))
+        #else
+            #define C2PA_EXPORT __declspec(dllimport)
         #endif
     #endif
 #else
-    #define IMPORT
-
+    #if DYNAMIC_LOADING
+        #define C2PA_EXPORT
+    #else
+        #define C2PA_EXPORT __attribute__((visibility("default")))
+    #endif
 #endif
 
 """
@@ -44,5 +51,5 @@ include = ["C2paReader", "C2paBuilder"]
 "C2paConfigC" = "C2paConfig"
 
 [fn]
-prefix = "IMPORT extern"
+prefix = "C2PA_EXPORT extern"
 

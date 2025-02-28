@@ -57,9 +57,9 @@ type WriteCallback =
 type FlushCallback = unsafe extern "C" fn(context: *mut StreamContext) -> isize;
 
 #[repr(C)]
-/// A CStream is a Rust Read/Write/Seek stream that can be created in C
+/// A C2paStream is a Rust Read/Write/Seek stream that can be created in C
 #[derive(Debug)]
-pub struct CStream {
+pub struct C2paStream {
     context: Box<StreamContext>,
     reader: ReadCallback,
     seeker: SeekCallback,
@@ -67,8 +67,8 @@ pub struct CStream {
     flusher: FlushCallback,
 }
 
-impl CStream {
-    /// Creates a new CStream from context with callbacks
+impl C2paStream {
+    /// Creates a new C2paStream from context with callbacks
     /// # Arguments
     /// * `context` - a pointer to a StreamContext
     /// * `read` - a ReadCallback to read from the stream
@@ -95,13 +95,13 @@ impl CStream {
         }
     }
 
-    /// Extracts the context from the CStream (used for testing in Rust)
+    /// Extracts the context from the C2paStream (used for testing in Rust)
     pub fn extract_context(&mut self) -> Box<StreamContext> {
         std::mem::replace(&mut self.context, Box::new(StreamContext { _priv: () }))
     }
 }
 
-impl Read for CStream {
+impl Read for C2paStream {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         if buf.len() > isize::MAX as usize {
             return Err(std::io::Error::new(
@@ -119,7 +119,7 @@ impl Read for CStream {
     }
 }
 
-impl Seek for CStream {
+impl Seek for C2paStream {
     fn seek(&mut self, from: std::io::SeekFrom) -> std::io::Result<u64> {
         let (pos, mode) = match from {
             std::io::SeekFrom::Current(pos) => (pos, C2paSeekMode::Current),
@@ -132,7 +132,7 @@ impl Seek for CStream {
     }
 }
 
-impl Write for CStream {
+impl Write for C2paStream {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         if buf.len() > isize::MAX as usize {
             return Err(std::io::Error::new(
@@ -178,24 +178,24 @@ pub unsafe extern "C" fn c2pa_create_stream(
     seeker: SeekCallback,
     writer: WriteCallback,
     flusher: FlushCallback,
-) -> *mut CStream {
-    Box::into_raw(Box::new(CStream::new(
+) -> *mut C2paStream {
+    Box::into_raw(Box::new(C2paStream::new(
         context, reader, seeker, writer, flusher,
     )))
 }
 
-/// Releases a CStream allocated by Rust
+/// Releases a C2paStream allocated by Rust
 ///
 /// # Safety
 /// can only be released once and is invalid after this call
 #[no_mangle]
-pub unsafe extern "C" fn c2pa_release_stream(stream: *mut CStream) {
+pub unsafe extern "C" fn c2pa_release_stream(stream: *mut C2paStream) {
     if !stream.is_null() {
         drop(Box::from_raw(stream));
     }
 }
 
-/// This struct is used to test the CStream implementation
+/// This struct is used to test the C2paStream implementation
 /// It is a wrapper around a Cursor<Vec<u8>>
 /// It is exported in Rust so that it may be used externally
 pub struct TestCStream {
@@ -267,9 +267,9 @@ impl TestCStream {
         }
     }
 
-    fn into_c_stream(self) -> CStream {
+    fn into_c_stream(self) -> C2paStream {
         unsafe {
-            CStream::new(
+            C2paStream::new(
                 Box::into_raw(Box::new(self)) as *mut StreamContext,
                 Self::reader,
                 Self::seeker,
@@ -279,17 +279,17 @@ impl TestCStream {
         }
     }
 
-    pub fn from_bytes(data: Vec<u8>) -> CStream {
+    pub fn from_bytes(data: Vec<u8>) -> C2paStream {
         let test_stream = Self::new(data);
         test_stream.into_c_stream()
     }
 
-    pub fn from_c_stream(mut c_stream: CStream) -> Self {
+    pub fn from_c_stream(mut c_stream: C2paStream) -> Self {
         let original_context = c_stream.extract_context();
         unsafe { *Box::from_raw(Box::into_raw(original_context) as *mut TestCStream) }
     }
 
-    pub fn drop_c_stream(c_stream: CStream) {
+    pub fn drop_c_stream(c_stream: C2paStream) {
         drop(Self::from_c_stream(c_stream));
     }
 }

@@ -95,7 +95,7 @@ int main()
             cout << "thumbnail written to" << thumbnail_path << endl;
         }
     }
-    catch (c2pa::Exception const &e)
+    catch (c2pa::C2paException const &e)
     {
         cout << "C2PA Error: " << e.what() << endl;
     }
