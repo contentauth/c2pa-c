@@ -73,7 +73,6 @@ namespace c2pa
     void C2PA_EXPORT load_settings(const string format, const string data);
 
     /// Reads a file and returns the manifest json as a C2pa::String.
-    /// Note: Paths are UTF-8 encoded, use std.filename.u8string().c_str() if needed.
     /// @param source_path the path to the file to read.
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a string containing the manifest json if a manifest was found.
