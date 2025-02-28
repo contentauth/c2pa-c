@@ -94,10 +94,10 @@ namespace c2pa
     /// @param data_dir the directory to store binary resources (optional).
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     void C2PA_API sign_file(const path &source_path,
-                               const path &dest_path,
-                               const char *manifest,
-                               SignerInfo *signer_info,
-                               const std::optional<path> data_dir = std::nullopt);
+                            const path &dest_path,
+                            const char *manifest,
+                            SignerInfo *signer_info,
+                            const std::optional<path> data_dir = std::nullopt);
 
     /// @brief Istream Class wrapper for C2paStream.
     /// @details This class is used to wrap an input stream for use with the C2PA library.
