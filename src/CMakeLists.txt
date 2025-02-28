@@ -1,9 +1,14 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.27)
 project(c2pa_cpp)
+
+include(FetchContent)
 
 # Set the C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# Set DLL export for Windows
+add_definitions(-DC2PA_DLL)
 
 # Include directories
 set(INCLUDES ${CMAKE_SOURCE_DIR}/include)
@@ -15,8 +20,15 @@ set(SOURCES c2pa.cpp)
 # Create the static library
 add_library(c2pa_cpp STATIC ${SOURCES})
 
-# Add the Rust library
-set(RUST_LIB ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.dylib)
+# Platform-independent library extension
+if(APPLE)
+    set(RUST_LIB_EXT "dylib")
+elseif(WIN32)
+    set(RUST_LIB_EXT "dll")
+else()
+    set(RUST_LIB_EXT "so")
+endif()
+set(RUST_LIB ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.${RUST_LIB_EXT})
 
 target_link_libraries(c2pa_cpp ${RUST_LIB})
 
@@ -30,3 +42,25 @@ install(TARGETS c2pa_cpp
 
 install(FILES ${INCLUDES}/c2pa.hpp
         DESTINATION include)
+
+# Add version check
+cmake_minimum_required(VERSION 3.27)
+
+# Use release tag instead of commit hash
+FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+)
+
+# Library extension handling
+include(GNUInstallDirs)
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+
+if(MSVC)
+    add_compile_options(/W4)
+else()
+    add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+include(CTest)
+enable_testing()

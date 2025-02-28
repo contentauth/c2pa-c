@@ -828,8 +828,6 @@ pub unsafe extern "C" fn c2pa_builder_sign_data_hashed_embeddable(
     null_check_int!(builder_ptr);
     null_check_int!(manifest_bytes_ptr);
 
-    let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
-    let c2pa_signer = Box::from_raw(signer);
     let data_hash_json = from_cstr_null_check_int!(data_hash);
     let mut data_hash: DataHash = match serde_json::from_str(&data_hash_json) {
         Ok(data_hash) => data_hash,
@@ -849,10 +847,16 @@ pub unsafe extern "C" fn c2pa_builder_sign_data_hashed_embeddable(
         }
     }
     let format = from_cstr_null_check_int!(format);
+
+    let mut builder: Box<C2paBuilder> = Box::from_raw(builder_ptr);
+    let c2pa_signer = Box::from_raw(signer);
+
     let result =
         builder.sign_data_hashed_embeddable(c2pa_signer.signer.as_ref(), &data_hash, &format);
+
     let _ = Box::into_raw(c2pa_signer);
     let _ = Box::into_raw(builder);
+
     match result {
         Ok(manifest_bytes) => {
             let len = manifest_bytes.len() as i64;
@@ -980,6 +984,47 @@ pub unsafe extern "C" fn c2pa_signer_create(
     }))
 }
 
+/// Creates a C2paSigner from a SignerInfo.
+///
+/// # Parameters
+/// * signer_info: a pointer to a C2paSignerInfo.
+///
+/// # Errors
+/// Returns NULL if there were errors, otherwise returns a pointer to a C2paSigner.
+/// The error string can be retrieved by calling c2pa_error.
+/// # Safety
+/// Reads from NULL-terminated C strings
+/// The returned value MUST be released by calling c2pa_signer_free
+/// and it is no longer valid after that call.
+///
+/// # Example
+/// ```c
+/// auto result = c2pa_signer_from_info(signer_info);
+/// if (result == NULL) {
+///     printf("Error: %s\n", c2pa_error());
+/// }
+/// ```
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_signer_from_info(signer_info: &C2paSignerInfo) -> *mut C2paSigner {
+    let signer_info = SignerInfo {
+        alg: from_cstr_null_check!(signer_info.alg),
+        sign_cert: from_cstr_null_check!(signer_info.sign_cert).into_bytes(),
+        private_key: from_cstr_null_check!(signer_info.private_key).into_bytes(),
+        ta_url: from_cstr_option!(signer_info.ta_url),
+    };
+
+    let signer = match signer_info.signer() {
+        Ok(signer) => signer,
+        Err(err) => {
+            err.set_last();
+            return std::ptr::null_mut();
+        }
+    };
+    Box::into_raw(Box::new(C2paSigner {
+        signer: Box::new(signer),
+    }))
+}
+
 /// Returns the size to reserve for the signature for this signer.
 ///
 /// # Parameters
@@ -993,10 +1038,7 @@ pub unsafe extern "C" fn c2pa_signer_create(
 /// The signer_ptr must be a valid pointer to a C2paSigner.
 #[no_mangle]
 pub unsafe extern "C" fn c2pa_signer_reserve_size(signer_ptr: *mut C2paSigner) -> i64 {
-    if signer_ptr.is_null() {
-        Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
-        return -1;
-    }
+    null_check_int!(signer_ptr);
     let c2pa_signer: Box<C2paSigner> = Box::from_raw(signer_ptr);
     let size = c2pa_signer.signer.reserve_size() as i64;
     let _ = Box::into_raw(c2pa_signer);

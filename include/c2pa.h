@@ -21,25 +21,29 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#if (defined(_WIN32) || defined(_WIN64)) && !C2PA_DYNAMIC_LOADING
-    #if BUILDING_C2PA_DLL
-        #if __GNUC__
-            #define C2PA_EXPORT __attribute__((dllexport))
-        #else
-            #define C2PA_EXPORT __declspec(dllexport)
-        #endif
-    #else
-        #if __GNUC__
-            #define C2PA_EXPORT __attribute__((dllimport))
-        #else
-            #define C2PA_EXPORT __declspec(dllimport)
-        #endif
-    #endif
+#if C2PA_DYNAMIC_LOADING
+    #define C2PA_EXPORT
 #else
-    #if DYNAMIC_LOADING
-        #define C2PA_EXPORT
+    #if defined(_WIN32) || defined(_WIN64)
+        #if C2PA_DLL
+            #if __GNUC__
+                #define C2PA_EXPORT __attribute__((dllexport))
+            #else
+                #define C2PA_EXPORT __declspec(dllexport)
+            #endif
+        #else
+            #if __GNUC__
+                #define C2PA_EXPORT __attribute__((dllimport))
+            #else
+                #define C2PA_EXPORT __declspec(dllimport)
+            #endif
+        #endif
     #else
-        #define C2PA_EXPORT __attribute__((visibility("default")))
+        #if __GNUC__
+            #define C2PA_EXPORT __attribute__((visibility("default")))
+        #else
+            #define C2PA_EXPORT
+        #endif
     #endif
 #endif
 
@@ -675,6 +679,31 @@ struct C2paSigner *c2pa_signer_create(const void *context,
                                       enum C2paSigningAlg alg,
                                       const char *certs,
                                       const char *tsa_url);
+
+/**
+ * Creates a C2paSigner from a SignerInfo.
+ *
+ * # Parameters
+ * * signer_info: a pointer to a C2paSignerInfo.
+ *
+ * # Errors
+ * Returns NULL if there were errors, otherwise returns a pointer to a C2paSigner.
+ * The error string can be retrieved by calling c2pa_error.
+ * # Safety
+ * Reads from NULL-terminated C strings
+ * The returned value MUST be released by calling c2pa_signer_free
+ * and it is no longer valid after that call.
+ *
+ * # Example
+ * ```c
+ * auto result = c2pa_signer_from_info(signer_info);
+ * if (result == NULL) {
+ *     printf("Error: %s\n", c2pa_error());
+ * }
+ * ```
+ */
+C2PA_EXPORT extern
+struct C2paSigner *c2pa_signer_from_info(const struct C2paSignerInfo *signer_info);
 
 /**
  * Returns the size to reserve for the signature for this signer.

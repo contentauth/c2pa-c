@@ -20,25 +20,29 @@ include_guard = "c2pa_bindings_h"
 
 after_includes = """
 
-#if (defined(_WIN32) || defined(_WIN64)) && !C2PA_DYNAMIC_LOADING
-    #if BUILDING_C2PA_DLL
-        #if __GNUC__
-            #define C2PA_EXPORT __attribute__((dllexport))
-        #else
-            #define C2PA_EXPORT __declspec(dllexport)
-        #endif
-    #else
-        #if __GNUC__
-            #define C2PA_EXPORT __attribute__((dllimport))
-        #else
-            #define C2PA_EXPORT __declspec(dllimport)
-        #endif
-    #endif
+#if C2PA_DYNAMIC_LOADING
+    #define C2PA_EXPORT
 #else
-    #if DYNAMIC_LOADING
-        #define C2PA_EXPORT
+    #if defined(_WIN32) || defined(_WIN64)
+        #if C2PA_DLL
+            #if __GNUC__
+                #define C2PA_EXPORT __attribute__((dllexport))
+            #else
+                #define C2PA_EXPORT __declspec(dllexport)
+            #endif
+        #else
+            #if __GNUC__
+                #define C2PA_EXPORT __attribute__((dllimport))
+            #else
+                #define C2PA_EXPORT __declspec(dllimport)
+            #endif
+        #endif
     #else
-        #define C2PA_EXPORT __attribute__((visibility("default")))
+        #if __GNUC__
+            #define C2PA_EXPORT __attribute__((visibility("default")))
+        #else
+            #define C2PA_EXPORT
+        #endif
     #endif
 #endif
 
