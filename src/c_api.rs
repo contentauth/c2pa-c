@@ -33,11 +33,15 @@ use crate::{
 mod cbindgen_fix {
     #[repr(C)]
     #[allow(dead_code)]
-    pub struct C2paBuilder;
+    pub struct C2paBuilder {
+        _private: [u8; 0],
+    }
 
     #[repr(C)]
     #[allow(dead_code)]
-    pub struct C2paReader;
+    pub struct C2paReader {
+        _private: [u8; 0],
+    }
 }
 
 /// List of supported signing algorithms.
