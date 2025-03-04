@@ -15,9 +15,6 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
-#include <openssl/evp.h>
-#include <openssl/pem.h>
-#include <openssl/err.h>
 #include "c2pa.hpp"
 #include "test_signer.hpp"
 #include <nlohmann/json.hpp>
@@ -62,7 +59,7 @@ int main()
 
     // Construct the paths relative to the current directory
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
-    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path certs_path = current_dir / "../tests/fixtures/ed25519_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path = current_dir / "../target/example/training.jpg";
 
@@ -74,9 +71,11 @@ int main()
         // load the manifest, certs, and private key
         string manifest_json = read_text_file(manifest_path).data();
         string certs = read_text_file(certs_path).data();
+        string p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key").data();
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer(test_signer, Es256, certs, "http://timestamp.digicert.com");
+        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+        //c2pa::Signer signer = c2pa::Signer(test_signer, Ed25519, certs, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest_json);
         auto manifest_data = builder.sign(image_path, output_path, signer);

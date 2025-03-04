@@ -1,6 +1,12 @@
 OS := $(shell uname)
 CFLAGS = -I. -Wall
 ENV =
+ifeq ($(findstring _NT, $(OS)), _NT)
+CFLAGS += -L./target/release -lc2pa_c
+CC := gcc
+CXX := g++
+ENV = LD_LIBRARY_PATH=target/release
+endif
 ifeq ($(OS), Darwin)
 CFLAGS += -framework Security
 endif
@@ -8,6 +14,11 @@ ifeq ($(OS), Linux)
 CFLAGS = -pthread -Wl,--no-as-needed -ldl -lm
 ENV = LD_LIBRARY_PATH=target/release
 endif
+
+show:
+	@echo $(OS)
+	@echo $(CFLAGS)
+	@echo $(CC)
 
 BUILD_DIR = target/cmake
 
@@ -29,8 +40,8 @@ release:
 	cbindgen --config cbindgen.toml --crate c2pa-c --output include/c2pa.h --lang c
 
 test-c: release
-	$(CC) $(CFLAGS) tests/test.c -o target/ctest -lc2pa_c -L./target/release
-	$(ENV) target/ctest
+	$(CC) $(CFLAGS) tests/test.c -o target/release/ctest -lc2pa_c -L./target/release
+	$(ENV) target/release/ctest
 
 test-cpp: release cmake
 	cd $(BUILD_DIR); ninja;
