@@ -32,8 +32,8 @@ test-c: release
 	$(CC) $(CFLAGS) tests/test.c -o target/ctest -lc2pa_c -L./target/release
 	$(ENV) target/ctest
 
-unit-tests: release cmake test-rust
-	cmake --build ./$(BUILD_DIR) --target unit_tests
+test-cpp: release cmake
+	cd $(BUILD_DIR); ninja;
 	cd $(BUILD_DIR); tests/unit_tests
 
 demo: cmake release
@@ -55,6 +55,6 @@ package:
 	cp README.md target/c2pa-c/README.md
 	cp include/* target/c2pa-c/include
 
-test: test-rust test-c unit-tests
+test: test-rust test-cpp 
 
 all: unit-tests examples
