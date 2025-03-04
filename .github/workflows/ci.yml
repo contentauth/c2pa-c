@@ -40,16 +40,16 @@ jobs:
           toolchain: ${{ matrix.rust_version }}
           components: llvm-tools-preview
 
-      - name: Install C build deps
-        run: |
-          if [ "$RUNNER_OS" == "Linux" ]; then
-            apt-get install ninja-build
-          elif [ "$RUNNER_OS" == "Windows" ]; then
-            winget install Ninja-build.Ninja
-          else
-            brew install ninja
-          fi
-        shell: bash
+      # - name: Install C build deps
+      #   run: |
+      #     if [ "$RUNNER_OS" == "Linux" ]; then
+      #       apt-get install ninja-build
+      #     elif [ "$RUNNER_OS" == "Windows" ]; then
+      #       choco install ninja
+      #     elif [ "$RUNNER_OS" == "macOS" ]; then
+      #       brew install ninja
+      #     fi
+      #   shell: bash
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -58,6 +58,7 @@ jobs:
         run: cargo install cbindgen
 
       - name: Run all tests
+        uses: seanmiddleditch/gha-setup-ninja@master
         run: make test
 
   clippy_check:
