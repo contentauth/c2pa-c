@@ -43,6 +43,9 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
+      - name: Run all tests
+        run: make test
+
   clippy_check:
     name: Clippy
     runs-on: ubuntu-latest
