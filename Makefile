@@ -18,7 +18,7 @@ clippy:
 	cargo clippy --all-features --all-targets -- -D warnings
 
 test-rust:
-	cargo test
+	cargo test --release
 
 cmake:
 	mkdir -p $(BUILD_DIR)
