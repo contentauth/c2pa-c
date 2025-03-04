@@ -984,6 +984,47 @@ pub unsafe extern "C" fn c2pa_signer_create(
     }))
 }
 
+/// Creates a C2paSigner from a SignerInfo.
+/// The signer is created from the sign_cert and private_key fields.
+/// an optional url to an RFC 3161 compliant time server will ensure the signature is timestamped.
+///
+/// # Parameters
+/// * signer_info: pointer to a C2paSignerInfo.
+/// # Errors
+/// Returns NULL if there were errors, otherwise returns a pointer to a C2paSigner.
+/// The error string can be retrieved by calling c2pa_error.
+/// # Safety
+/// Reads from NULL-terminated C strings.
+/// The returned value MUST be released by calling c2pa_signer_free
+/// and it is no longer valid after that call.
+/// # Example
+/// ```c
+/// auto result = c2pa_signer_from_info(signer_info);
+/// if (result == NULL) {
+///    printf("Error: %s\n", c2pa_error());
+/// }
+/// ```
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_signer_from_info(signer_info: &C2paSignerInfo) -> *mut C2paSigner {
+    let signer_info = SignerInfo {
+        alg: from_cstr_null_check!(signer_info.alg),
+        sign_cert: from_cstr_null_check!(signer_info.sign_cert).into_bytes(),
+        private_key: from_cstr_null_check!(signer_info.private_key).into_bytes(),
+        ta_url: from_cstr_option!(signer_info.ta_url),
+    };
+
+    let signer = signer_info.signer();
+    match signer {
+        Ok(signer) => Box::into_raw(Box::new(C2paSigner {
+            signer: Box::new(signer),
+        })),
+        Err(err) => {
+            err.set_last();
+            std::ptr::null_mut()
+        }
+    }
+}
+
 /// Returns the size to reserve for the signature for this signer.
 ///
 /// # Parameters
@@ -1052,5 +1093,106 @@ pub unsafe extern "C" fn c2pa_ed25519_sign(
 pub unsafe extern "C" fn c2pa_signature_free(signature_ptr: *const u8) {
     if !signature_ptr.is_null() {
         drop(Box::from_raw(signature_ptr as *mut u8));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::c_stream::TestCStream;
+    use std::ffi::CString;
+
+    #[test]
+    fn test_ed25519_sign() {
+        let bytes = b"test";
+        let private_key = include_bytes!("../tests/fixtures/ed25519.pem");
+        let private_key = CString::new(private_key).unwrap();
+        let signature =
+            unsafe { c2pa_ed25519_sign(bytes.as_ptr(), bytes.len(), private_key.as_ptr()) };
+        assert!(!signature.is_null());
+        unsafe { c2pa_signature_free(signature) };
+    }
+
+    #[test]
+    fn test_c2pa_signer_from_info() {
+        let certs = include_str!("../tests/fixtures/ed25519.pub");
+        let private_key = include_bytes!("../tests/fixtures/ed25519.pem");
+        let alg = CString::new("Ed25519").unwrap();
+        let sign_cert = CString::new(certs).unwrap();
+        let private_key = CString::new(private_key).unwrap();
+        let signer_info = C2paSignerInfo {
+            alg: alg.as_ptr(),
+            sign_cert: sign_cert.as_ptr(),
+            private_key: private_key.as_ptr(),
+            ta_url: std::ptr::null(),
+        };
+        let signer = unsafe { c2pa_signer_from_info(&signer_info) };
+        assert!(!signer.is_null());
+        unsafe { c2pa_signer_free(signer) };
+    }
+
+    #[test]
+    fn test_signer_from_info_bad_alg() {
+        let alg = CString::new("BadAlg").unwrap();
+        let sign_cert = CString::new("certs").unwrap();
+        let private_key = CString::new("private_key").unwrap();
+        let signer_info = C2paSignerInfo {
+            alg: alg.as_ptr(),
+            sign_cert: sign_cert.as_ptr(),
+            private_key: private_key.as_ptr(),
+            ta_url: std::ptr::null(),
+        };
+        let signer = unsafe { c2pa_signer_from_info(&signer_info) };
+        assert!(signer.is_null());
+        let error = unsafe { c2pa_error() };
+        let error = unsafe { CString::from_raw(error) };
+        assert_eq!(error.to_str().unwrap(), "Other Invalid signing algorithm");
+    }
+
+    #[test]
+    fn test_sign_with_info() {
+        let source_image = include_bytes!("../tests/fixtures/A.jpg");
+        let mut source_stream = TestCStream::from_bytes(source_image.to_vec());
+        let dest_vec = Vec::new();
+        let mut dest_stream = TestCStream::new(dest_vec).into_c_stream();
+        let certs = include_str!("../tests/fixtures/ed25519.pub");
+        let private_key = include_bytes!("../tests/fixtures/ed25519.pem");
+        let alg = CString::new("Ed25519").unwrap();
+        let sign_cert = CString::new(certs).unwrap();
+        let private_key = CString::new(private_key).unwrap();
+        let signer_info = C2paSignerInfo {
+            alg: alg.as_ptr(),
+            sign_cert: sign_cert.as_ptr(),
+            private_key: private_key.as_ptr(),
+            ta_url: std::ptr::null(),
+        };
+        let signer = unsafe { c2pa_signer_from_info(&signer_info) };
+
+        assert!(!signer.is_null());
+        let builder = unsafe { c2pa_builder_from_json(CString::new("{}").unwrap().as_ptr()) };
+        assert!(!builder.is_null());
+        let format = CString::new("image/jpeg").unwrap();
+        let mut manifest_bytes_ptr = std::ptr::null();
+        let result = unsafe {
+            c2pa_builder_sign(
+                builder,
+                format.as_ptr(),
+                &mut source_stream,
+                &mut dest_stream,
+                signer,
+                &mut manifest_bytes_ptr,
+            )
+        };
+        //let error = unsafe { c2pa_error() };
+        // let error = unsafe { CString::from_raw(error) };
+        // assert_eq!(error.to_str().unwrap(), "Other Invalid signing algorithm");
+        assert_eq!(result, 65484);
+        TestCStream::drop_c_stream(source_stream);
+        TestCStream::drop_c_stream(dest_stream);
+        unsafe {
+            c2pa_manifest_bytes_free(manifest_bytes_ptr);
+        }
+        unsafe { c2pa_builder_free(builder) };
+        unsafe { c2pa_signer_free(signer) };
     }
 }

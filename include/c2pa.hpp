@@ -232,6 +232,8 @@ namespace c2pa
 
         Signer(C2paSigner *signer) : signer(signer) {}
 
+        Signer(const string &alg, const string &sign_cert, const string&private_key, const string &tsa_uri = NULL);
+
         ~Signer();
 
         /// @brief  Get the size to reserve for a signature for this signer.

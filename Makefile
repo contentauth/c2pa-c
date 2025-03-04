@@ -43,7 +43,7 @@ test-c: release
 	$(CC) $(CFLAGS) tests/test.c -o target/release/ctest -lc2pa_c -L./target/release
 	$(ENV) target/release/ctest
 
-unit-tests: release cmake test-rus
+unit-tests: release cmake test-rust
 	cmake --build ./$(BUILD_DIR) --target unit_tests
 	cd $(BUILD_DIR); tests/unit_tests
 

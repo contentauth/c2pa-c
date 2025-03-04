@@ -22,7 +22,7 @@ use crate::Error;
 #[derive(Debug)]
 /// An Opaque struct to hold a context value for the stream callbacks
 pub struct StreamContext {
-    _private: [u8; 0],  
+    _private: [u8; 0],
 }
 
 #[repr(C)]
@@ -203,7 +203,7 @@ pub struct TestCStream {
 }
 
 impl TestCStream {
-    fn new(data: Vec<u8>) -> Self {
+    pub fn new(data: Vec<u8>) -> Self {
         Self {
             cursor: Cursor::new(data),
         }
@@ -267,7 +267,7 @@ impl TestCStream {
         }
     }
 
-    fn into_c_stream(self) -> CStream {
+    pub fn into_c_stream(self) -> CStream {
         unsafe {
             CStream::new(
                 Box::into_raw(Box::new(self)) as *mut StreamContext,

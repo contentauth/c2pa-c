@@ -46,9 +46,10 @@ TEST(Builder, SignFile)
     {
         auto manifest = read_text_file(manifest_path);
         auto certs = read_text_file(certs_path);
+        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer(&test_signer, Es256, certs, "http://timestamp.digicert.com");
+        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
         std::remove(output_path.c_str()); // remove the file if it exists
 
@@ -81,9 +82,11 @@ TEST(Builder, SignStream)
 
         auto manifest = read_text_file(manifest_path);
         auto certs = read_text_file(certs_path);
+        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer(&test_signer, Es256, certs, "http://timestamp.digicert.com");
+        
+        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest);
 
@@ -125,9 +128,11 @@ TEST(Builder, SignStreamCloudUrl)
 
         auto manifest = read_text_file(manifest_path);
         auto certs = read_text_file(certs_path);
+        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer(&test_signer, Es256, certs, "http://timestamp.digicert.com");
+        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+        //c2pa::Signer(&test_signer, Ed25519, certs, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest);
 
@@ -180,9 +185,10 @@ TEST(Builder, SignDataHashedEmbedded)
 
         auto manifest = read_text_file(manifest_path);
         auto certs = read_text_file(certs_path);
+        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer(&test_signer, Es256, certs, "http://timestamp.digicert.com");
+        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest);
 
@@ -221,9 +227,10 @@ TEST(Builder, SignDataHashedEmbeddedWithAsset)
 
         auto manifest = read_text_file(manifest_path);
         auto certs = read_text_file(certs_path);
+        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer(&test_signer, Es256, certs, "http://timestamp.digicert.com");
+        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest);
 

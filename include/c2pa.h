@@ -637,6 +637,30 @@ struct C2paSigner *c2pa_signer_create(const void *context,
                                       const char *tsa_url);
 
 /**
+ * Creates a C2paSigner from a SignerInfo.
+ * The signer is created from the sign_cert and private_key fields.
+ * an optional url to an RFC 3161 compliant time server will ensure the signature is timestamped.
+ *
+ * # Parameters
+ * * signer_info: pointer to a C2paSignerInfo.
+ * # Errors
+ * Returns NULL if there were errors, otherwise returns a pointer to a C2paSigner.
+ * The error string can be retrieved by calling c2pa_error.
+ * # Safety
+ * Reads from NULL-terminated C strings.
+ * The returned value MUST be released by calling c2pa_signer_free
+ * and it is no longer valid after that call.
+ * # Example
+ * ```c
+ * auto result = c2pa_signer_from_info(signer_info);
+ * if (result == NULL) {
+ *    printf("Error: %s\n", c2pa_error());
+ * }
+ * ```
+ */
+IMPORT extern struct C2paSigner *c2pa_signer_from_info(const struct C2paSignerInfo *signer_info);
+
+/**
  * Returns the size to reserve for the signature for this signer.
  *
  * # Parameters
