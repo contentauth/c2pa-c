@@ -1099,8 +1099,8 @@ pub unsafe extern "C" fn c2pa_signature_free(signature_ptr: *const u8) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ffi::CString;
     use crate::TestC2paStream;
+    use std::ffi::CString;
 
     #[test]
     fn test_ed25519_sign() {
