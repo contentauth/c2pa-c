@@ -27,8 +27,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ windows-latest, macos-latest, ubuntu-latest ]
-        rust_version: [ stable, 1.82.0 ]
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        rust_version: [stable, 1.82.0]
 
     steps:
       - name: Checkout repository
@@ -39,6 +39,17 @@ jobs:
         with:
           toolchain: ${{ matrix.rust_version }}
           components: llvm-tools-preview
+
+      - name: Install C build deps
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            apt-get install ninja-build
+          elif [ "$RUNNER_OS" == "Windows" ]; then
+            winget install Ninja-build.Ninja
+          else
+            brew install ninja
+          fi
+        shell: bash
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
