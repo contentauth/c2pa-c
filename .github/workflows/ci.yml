@@ -43,6 +43,9 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
+      - name: Install cbindgen
+        run: cargo install cbindgen
+
       - name: Run all tests
         run: make test
 
