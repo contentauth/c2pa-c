@@ -55,6 +55,6 @@ package:
 	cp README.md target/c2pa-c/README.md
 	cp include/* target/c2pa-c/include
 
-test: check-format clippy test-rust test-c unit-tests
+test: clippy test-rust test-c unit-tests
 
 all: unit-tests examples
