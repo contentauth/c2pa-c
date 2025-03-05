@@ -1173,7 +1173,7 @@ mod tests {
         assert!(!builder.is_null());
         let format = CString::new("image/jpeg").unwrap();
         let mut manifest_bytes_ptr = std::ptr::null();
-        let result = unsafe {
+        let _ = unsafe {
             c2pa_builder_sign(
                 builder,
                 format.as_ptr(),

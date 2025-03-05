@@ -16,6 +16,7 @@
 ///          This is an early version, and has not been fully tested.
 ///          Thread safety is not guaranteed due to the use of errno and etc.
 
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string.h>
