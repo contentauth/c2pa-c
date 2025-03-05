@@ -21,18 +21,31 @@ set(SOURCES c2pa.cpp)
 add_library(c2pa_cpp STATIC ${SOURCES})
 
 if(MINGW)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++17")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++17")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 endif()
 
 # Platform-independent library extension
 if(APPLE)
-    target_link_libraries(c2pa_cpp ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.dylib)
+  target_link_libraries(c2pa_cpp
+    ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.dylib
+  )
 elseif(WIN32)
-    target_link_libraries(c2pa_cpp ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll.lib ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll)
+  target_link_libraries(c2pa_cpp
+    ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll.lib
+  )
+
+  add_custom_command(TARGET c2pa_cpp POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll"
+    $<TARGET_FILE_DIR:c2pa_cpp>
+    COMMENT "Copying required c2pa_c.dll to executing directory of tests."
+  )
 else()
-    target_link_libraries(c2pa_cpp ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.so)
+  target_link_libraries(c2pa_cpp
+    ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.so
+  )
 endif()
 
 target_include_directories(c2pa_cpp PUBLIC ${INCLUDES})
@@ -60,9 +73,9 @@ include(GNUInstallDirs)
 set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
 
 if(MSVC)
-    add_compile_options(/W4)
+  add_compile_options(/W4)
 else()
-    add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
 include(CTest)
