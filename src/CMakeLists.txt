@@ -20,6 +20,12 @@ set(SOURCES c2pa.cpp)
 # Create the static library
 add_library(c2pa_cpp STATIC ${SOURCES})
 
+if(MINGW)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++17")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+endif()
+
 # Platform-independent library extension
 if(APPLE)
     target_link_libraries(c2pa_cpp ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.dylib)
