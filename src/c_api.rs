@@ -1183,7 +1183,8 @@ mod tests {
         let signer = unsafe { c2pa_signer_from_info(&signer_info) };
 
         assert!(!signer.is_null());
-        let builder = unsafe { c2pa_builder_from_json(CString::new("{}").unwrap().as_ptr()) };
+        let manifest_def = CString::new("{}").unwrap();
+        let builder = unsafe { c2pa_builder_from_json(manifest_def.as_ptr()) };
         assert!(!builder.is_null());
         let format = CString::new("image/jpeg").unwrap();
         let mut manifest_bytes_ptr = std::ptr::null();
