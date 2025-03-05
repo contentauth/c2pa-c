@@ -30,7 +30,7 @@ clippy:
 
 test-rust:
 	cargo test --release
-
+ 
 cmake:
 	mkdir -p $(BUILD_DIR)
 	cmake -S./ -B./$(BUILD_DIR) -G "Ninja"
@@ -45,6 +45,7 @@ test-c: release
 
 test-cpp: release cmake
 	cd $(BUILD_DIR); ninja;
+	cd $(BUILD_DIR); ls -la tests
 	cd $(BUILD_DIR); tests/unit_tests
 
 demo: cmake release
