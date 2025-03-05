@@ -14,7 +14,7 @@
 #include <gtest/gtest.h>
 #include "test_signer.hpp"
 #include <string>
-#include <algorithm>
+#include <filesystem>
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -25,7 +25,7 @@ string read_text_file(const fs::path &path)
     ifstream file(path);
     if (!file.is_open())
     {
-        throw runtime_error("Could not open file " + string(path));
+        throw runtime_error("Could not open file " + path.string());
     }
     string contents((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
     file.close();
@@ -53,7 +53,7 @@ TEST(Builder, SignFile)
         // create a signer
         c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
-        std::remove(output_path.c_str()); // remove the file if it exists
+        std::filesystem::remove(output_path.c_str()); // remove the file if it exists
 
         auto builder = c2pa::Builder(manifest);
         builder.add_resource("thumbnail", image_path);
