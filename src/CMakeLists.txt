@@ -33,7 +33,11 @@ include_directories(${INCLUDES})
 # Source files
 set(SOURCES c2pa.cpp)
 
-file(GLOB unit_test_files CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.test.cpp")
+file(
+  GLOB unit_test_files
+  CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.test.cpp"
+)
+
 add_executable(c2pa_c_tests ${unit_test_files})
 
 # Create the static library
@@ -51,7 +55,7 @@ if(APPLE)
     ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.dylib
   )
 elseif(WIN32)
-  target_link_libraries(c2pa_cpp
+  target_link_libraries(c2pa_c_tests
     ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll.lib
   )
 
@@ -86,14 +90,6 @@ target_include_directories(c2pa_c_tests PUBLIC "${CMAKE_SOURCE_DIR}/include/")
 target_link_libraries(c2pa_c_tests nlohmann_json::nlohmann_json)
 target_link_libraries(c2pa_c_tests c2pa_cpp)
 target_link_libraries(c2pa_c_tests gtest_main)
-
-# Enable testing
-enable_testing()
-# Use release tag instead of commit hash
-FetchContent_Declare(
-    googletest
-    URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
-)
 
 # Library extension handling
 include(GNUInstallDirs)
