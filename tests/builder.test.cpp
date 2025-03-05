@@ -13,6 +13,8 @@
 #include <c2pa.hpp>
 #include <gtest/gtest.h>
 #include "test_signer.hpp"
+#include <string>
+#include <algorithm>
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -85,7 +87,7 @@ TEST(Builder, SignStream)
         auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
         // create a signer
-        
+
         c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest);
@@ -132,7 +134,7 @@ TEST(Builder, SignStreamCloudUrl)
 
         // create a signer
         c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
-        //c2pa::Signer(&test_signer, Ed25519, certs, "http://timestamp.digicert.com");
+        // c2pa::Signer(&test_signer, Ed25519, certs, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest);
 
