@@ -326,7 +326,9 @@ C2PA_API extern void c2pa_string_free(char *s);
  * ```c
  * auto result = c2pa_reader_from_stream("image/jpeg", stream);
  * if (result == NULL) {
- *     printf("Error: %s\n", c2pa_error());
+ *     let error = c2pa_error();
+ *     printf("Error: %s\n", error);
+ *     c2pa_string_free(error);
  * }
  * ```
  */
@@ -371,7 +373,9 @@ C2PA_API extern char *c2pa_reader_json(struct C2paReader *reader_ptr);
  * ```c
  * result c2pa_reader_resource_to_stream(store, "uri", stream);
  * if (result < 0) {
- *     printf("Error: %s\n", c2pa_error());
+ *     let error = c2pa_error();
+ *     printf("Error: %s\n", error);
+ *     c2pa_string_free(error);
  * }
  * ```
  */
@@ -396,7 +400,9 @@ int64_t c2pa_reader_resource_to_stream(struct C2paReader *reader_ptr,
  * ```c
  * auto result = c2pa_builder_from_json(manifest_json);
  * if (result == NULL) {
- *     printf("Error: %s\n", c2pa_error());
+ *     let error = c2pa_error();
+ *     printf("Error: %s\n", error);
+ *     c2pa_string_free(error);
  * }
  * ```
  */
@@ -418,7 +424,9 @@ C2PA_API extern struct C2paBuilder *c2pa_builder_from_json(const char *manifest_
  * ```c
  * auto result = c2pa_builder_from_archive(stream);
  * if (result == NULL) {
- *     printf("Error: %s\n", c2pa_error());
+ *     let error = c2pa_error();
+ *     printf("Error: %s\n", error);
+ *     c2pa_string_free(error);
  * }
  * ```
  */
@@ -521,7 +529,9 @@ int c2pa_builder_add_ingredient_from_stream(struct C2paBuilder *builder_ptr,
  * ```c
  * auto result = c2pa_builder_to_archive(builder, stream);
  * if (result < 0) {
- *     printf("Error: %s\n", c2pa_error());
+ *     let error = c2pa_error();
+ *     printf("Error: %s\n", error);
+ *     c2pa_string_free(error);
  * }
  * ```
  */
@@ -670,7 +680,9 @@ int64_t c2pa_format_embeddable(const char *format,
  * ```c
  * auto result = c2pa_signer_create(callback, alg, certs, tsa_url);
  * if (result == NULL) {
- *     printf("Error: %s\n", c2pa_error());
+ *     let error = c2pa_error();
+ *     printf("Error: %s\n", error);
+ *     c2pa_string_free(error);
  * }
  * ```
  */
@@ -699,7 +711,9 @@ struct C2paSigner *c2pa_signer_create(const void *context,
  * ```c
  * auto result = c2pa_signer_from_info(signer_info);
  * if (result == NULL) {
- *    printf("Error: %s\n", c2pa_error());
+ *     let error = c2pa_error();
+ *     printf("Error: %s\n", error);
+ *     c2pa_string_free(error);
  * }
  * ```
  */
