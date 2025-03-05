@@ -12,7 +12,6 @@
 
 #include <c2pa.hpp>
 #include <gtest/gtest.h>
-#include "test_signer.hpp"
 #include <string>
 #include <filesystem>
 
@@ -134,7 +133,6 @@ TEST(Builder, SignStreamCloudUrl)
 
         // create a signer
         c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
-        // c2pa::Signer(&test_signer, Ed25519, certs, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest);
 

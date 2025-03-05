@@ -24,8 +24,20 @@
 #if C2PA_DYNAMIC_LOADING
     #define C2PA_API
 #else
-    #if defined(_WIN32)
-        #define C2PA_API __declspec(dllimport)
+    #if defined(_WIN32) || defined(_WIN64)
+        #if C2PA_DLL
+            #if __GNUC__
+                #define C2PA_API __attribute__((dllexport))
+            #else
+                #define C2PA_API __declspec(dllexport)
+            #endif
+        #else
+            #if __GNUC__
+                #define C2PA_API __attribute__((dllimport))
+            #else
+                #define C2PA_API __declspec(dllimport)
+            #endif
+        #endif
     #else
         #if __GNUC__
             #define C2PA_API __attribute__((visibility("default")))
@@ -34,6 +46,7 @@
         #endif
     #endif
 #endif
+
 
 
 

@@ -15,8 +15,8 @@
 # # Add example1 executable
 # add_executable(training training.cpp)
 # target_link_libraries(training nlohmann_json::nlohmann_json)
-# target_link_libraries(training c2pa_cpp test_signer)
+# target_link_libraries(training c2pa_cpp)
 
 # add_executable(demo demo.cpp)
 # target_link_libraries(demo nlohmann_json::nlohmann_json)
-# target_link_libraries(demo c2pa_cpp test_signer)
+# target_link_libraries(demo c2pa_cpp)

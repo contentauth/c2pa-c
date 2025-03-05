@@ -85,21 +85,22 @@ For example:
 
 ## Creating a Signer
 
-A sample test signer is provided in the tests folder. It is important that the private key is is kept private. The test signer
-should only be used for testing and development. In production a the private key should be kept in KMS or another secure environment. The SDK requires the public cert chain to be passed in here.
+For testing you can create a signer using any supported algorithm by with Signer constructor.
+There are multiple forms of constructors. But in this example we show how to create a signer with
+a public and private key.
 
 ```cpp
-  Signer signer = Signer("<SIGNING_FUNCTION>","<SIGNING_ALG>", "<PUBLIC_CERTS>", "<TIMESTAMP_URL>");
+  Signer signer = Signer("<SIGNING_ALG>", "<PUBLIC_CERTS>",  "<PRIVATE_KEY>", "<TIMESTAMP_URL>");
 ```
 The parameters are:
-- `<SIGNING_FUNCTION>`- A signing function that returns a signature using `<SIGNING_ALG>` over the bytes passed in.
 - `<SIGNING_ALG>`- The `C2paSigningAlg` from `c2pa.h` associated with the signing function.
-- `<PUBLIC_CERTS>`- A buffer containing the public cert chain.
+- `<PUBLIC_CERTS>`- A buffer containing the public cert chain in PEM format.
+- `<PRIVATE_KEY>`- A buffer containing the private_key in PEM format.
 - `<TIMESTAMP_URL>`- An optional parameter containing a URL to a public Time Stamp Authority service.
 
 For example:
 ```cpp
-Signer signer = Signer(test_signer, Es256, certs, "http://timestamp.digicert.com");
+Signer signer = c2pa::Signer("Es256", certs, private_key, "http://timestamp.digicert.com");
 ```
 
 ## Signing and embedding a manifest

@@ -16,7 +16,6 @@
 #include <vector>
 #include <stdexcept>
 #include "c2pa.hpp"
-#include "test_signer.hpp"
 #include <nlohmann/json.hpp>
 
 // this example uses nlohmann json for parsing the manifest
@@ -75,7 +74,6 @@ int main()
 
         // create a signer
         c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
-        // c2pa::Signer signer = c2pa::Signer(test_signer, Ed25519, certs, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest_json);
         auto manifest_data = builder.sign(image_path, output_path, signer);
