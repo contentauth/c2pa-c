@@ -3,6 +3,22 @@ project(c2pa_cpp)
 
 include(FetchContent)
 
+# CMake Dependencies
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG v1.16.0
+  OVERRIDE_FIND_PACKAGE)
+
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+# Download json
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+FetchContent_MakeAvailable(json)
+
 # Set the C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -16,6 +32,9 @@ include_directories(${INCLUDES})
 
 # Source files
 set(SOURCES c2pa.cpp)
+
+file(GLOB unit_test_files CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.test.cpp")
+add_executable(c2pa_c_tests ${unit_test_files})
 
 # Create the static library
 add_library(c2pa_cpp STATIC ${SOURCES})
@@ -36,10 +55,10 @@ elseif(WIN32)
     ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll.lib
   )
 
-  add_custom_command(TARGET c2pa_cpp POST_BUILD
+  add_custom_command(TARGET c2pa_c_tests POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll"
-    $<TARGET_FILE_DIR:c2pa_cpp>
+    $<TARGET_FILE_DIR:c2pa_c_tests>
     COMMENT "Copying required c2pa_c.dll to executing directory of tests."
   )
 else()
@@ -62,6 +81,14 @@ install(FILES ${INCLUDES}/c2pa.hpp
 # Add version check
 cmake_minimum_required(VERSION 3.27)
 
+target_include_directories(c2pa_c_tests PUBLIC "${CMAKE_SOURCE_DIR}/include/")
+
+target_link_libraries(c2pa_c_tests nlohmann_json::nlohmann_json)
+target_link_libraries(c2pa_c_tests c2pa_cpp)
+target_link_libraries(c2pa_c_tests gtest_main)
+
+# Enable testing
+enable_testing()
 # Use release tag instead of commit hash
 FetchContent_Declare(
     googletest
