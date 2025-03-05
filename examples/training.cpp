@@ -30,7 +30,7 @@ string read_text_file(const fs::path &path)
     ifstream file(path);
     if (!file.is_open())
     {
-        throw runtime_error("Could not open file " + string(path));
+        throw runtime_error("Could not open file " + path.string());
     }
     string contents((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
     file.close();
@@ -75,7 +75,7 @@ int main()
 
         // create a signer
         c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
-        //c2pa::Signer signer = c2pa::Signer(test_signer, Ed25519, certs, "http://timestamp.digicert.com");
+        // c2pa::Signer signer = c2pa::Signer(test_signer, Ed25519, certs, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest_json);
         auto manifest_data = builder.sign(image_path, output_path, signer);
