@@ -35,7 +35,7 @@ namespace c2pa
     /// C2paException class for C2PA errors.
     /// This class is used to throw exceptions for errors encountered by the C2PA library via c2pa_error().
 
-    C2paException::C2paException() : message(c2pa_error())
+    C2paException::C2paException()
     {
         auto result = c2pa_error();
         message = string(result);
@@ -468,6 +468,7 @@ namespace c2pa
         c2pa_reader = c2pa_reader_from_stream(format.c_str(), cpp_stream->c_stream);
         if (c2pa_reader == NULL)
         {
+            delete cpp_stream;
             throw C2paException();
         }
     }
@@ -489,6 +490,7 @@ namespace c2pa
         c2pa_reader = c2pa_reader_from_stream(extension.c_str(), cpp_stream->c_stream);
         if (c2pa_reader == NULL)
         {
+            delete cpp_stream;
             throw C2paException();
         }
     }
