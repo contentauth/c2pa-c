@@ -22,15 +22,12 @@ add_library(c2pa_cpp STATIC ${SOURCES})
 
 # Platform-independent library extension
 if(APPLE)
-    set(RUST_LIB_EXT "dylib")
+    target_link_libraries(c2pa_cpp ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.dylib)
 elseif(WIN32)
-    set(RUST_LIB_EXT "dll")
+    target_link_libraries(c2pa_cpp ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.lib ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.dll)
 else()
-    set(RUST_LIB_EXT "so")
+    target_link_libraries(c2pa_cpp ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.so)
 endif()
-set(RUST_LIB ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.${RUST_LIB_EXT})
-
-target_link_libraries(c2pa_cpp ${RUST_LIB})
 
 target_include_directories(c2pa_cpp PUBLIC ${INCLUDES})
 
