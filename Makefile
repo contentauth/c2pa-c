@@ -48,7 +48,8 @@ test-cpp: release cmake
 ifeq ($(findstring _NT, $(OS)), _NT)
 	cp target/release/c2pa_c.* $(BUILD_DIR)/tests/
 endif
-	cd $(BUILD_DIR); tests/unit_tests
+	ls -lah $(BUILD_DIR)/tests
+	cd $(BUILD_DIR)/tests; ./unit_tests
 
 demo: cmake release
 	cmake --build ./$(BUILD_DIR) --target demo
