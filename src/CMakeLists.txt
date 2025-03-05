@@ -24,22 +24,12 @@ add_library(c2pa_cpp STATIC ${SOURCES})
 if(APPLE)
     target_link_libraries(c2pa_cpp ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.dylib)
 elseif(WIN32)
-    target_link_libraries(c2pa_cpp ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.lib ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll)
+    target_link_libraries(c2pa_cpp ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll.lib ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll)
 else()
     target_link_libraries(c2pa_cpp ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.so)
 endif()
 
 target_include_directories(c2pa_cpp PUBLIC ${INCLUDES})
-
-# print the CMAKE_SOURCE_DIR
-message(STATUS "CMAKE_SOURCE_DIR: ${CMAKE_SOURCE_DIR}")
-
-# print the contents of the target/release directory
-message(STATUS "Contents of target/release:")
-file(GLOB release_files "${CMAKE_SOURCE_DIR}/target/release/*")
-foreach(file ${release_files})
-    message(STATUS "  ${file}")
-endforeach()
 
 # Define the installation rules
 install(TARGETS c2pa_cpp
