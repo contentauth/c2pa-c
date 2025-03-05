@@ -45,9 +45,6 @@ test-c: release
 
 test-cpp: release cmake
 	cd $(BUILD_DIR); ninja;
-ifeq ($(findstring _NT, $(OS)), _NT)
-	cp target/release/c2pa_c.* $(BUILD_DIR)/tests/
-endif
 	ls -lah $(BUILD_DIR)/tests
 	cd $(BUILD_DIR)/tests; ./unit_tests
 
