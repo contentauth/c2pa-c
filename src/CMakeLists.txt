@@ -31,6 +31,16 @@ endif()
 
 target_include_directories(c2pa_cpp PUBLIC ${INCLUDES})
 
+# print the CMAKE_SOURCE_DIR
+message(STATUS "CMAKE_SOURCE_DIR: ${CMAKE_SOURCE_DIR}")
+
+# print the contents of the target/release directory
+message(STATUS "Contents of target/release:")
+file(GLOB release_files "${CMAKE_SOURCE_DIR}/target/release/*")
+foreach(file ${release_files})
+    message(STATUS "  ${file}")
+endforeach()
+
 # Define the installation rules
 install(TARGETS c2pa_cpp
         ARCHIVE DESTINATION lib
