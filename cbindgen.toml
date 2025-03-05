@@ -46,6 +46,7 @@ after_includes = """
     #endif
 #endif
 
+
 """
 
 [export]
@@ -56,4 +57,3 @@ include = ["C2paReader", "C2paBuilder"]
 
 [fn]
 prefix = "C2PA_API extern"
-

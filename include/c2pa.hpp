@@ -42,6 +42,9 @@
 
 using path = std::filesystem::path;
 
+// NOOP for now, can use later to define static library
+#define C2PA_CPP_API
+
 namespace c2pa
 {
     using namespace std;
@@ -50,7 +53,7 @@ namespace c2pa
 
     /// C2paException class for C2pa errors.
     /// This class is used to throw exceptions for errors encountered by the C2pa library via c2pa_error().
-    class C2PA_API C2paException : public exception
+    class C2PA_CPP_API C2paException : public exception
     {
     private:
         string message;
@@ -64,27 +67,27 @@ namespace c2pa
     };
 
     /// Returns the version of the C2pa library.
-    string C2PA_API version();
+    string C2PA_CPP_API version();
 
     /// Loads C2PA settings from a string in a given format.
     /// @param format the mime format of the string.
     /// @param data the string to load.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    void C2PA_API load_settings(const string format, const string data);
+    void C2PA_CPP_API load_settings(const string format, const string data);
 
     /// Reads a file and returns the manifest json as a C2pa::String.
     /// @param source_path the path to the file to read.
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a string containing the manifest json if a manifest was found.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    optional<string> C2PA_API read_file(const filesystem::path &source_path, const optional<path> data_dir = nullopt);
+    optional<string> C2PA_CPP_API read_file(const filesystem::path &source_path, const optional<path> data_dir = nullopt);
 
     /// Reads a file and returns an ingredient JSON as a C2pa::String.
     /// @param source_path the path to the file to read.
     /// @param data_dir the directory to store binary resources.
     /// @return a string containing the ingredient json.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    std::string C2PA_API read_ingredient_file(const path &source_path, const path &data_dir);
+    std::string C2PA_CPP_API read_ingredient_file(const path &source_path, const path &data_dir);
 
     /// Adds the manifest and signs a file.
     /// @param source_path the path to the asset to be signed.
@@ -93,7 +96,7 @@ namespace c2pa
     /// @param signer_info the signer info to use for signing.
     /// @param data_dir the directory to store binary resources (optional).
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    void C2PA_API sign_file(const path &source_path,
+    void C2PA_CPP_API sign_file(const path &source_path,
                             const path &dest_path,
                             const char *manifest,
                             SignerInfo *signer_info,
@@ -101,7 +104,7 @@ namespace c2pa
 
     /// @brief Istream Class wrapper for C2paStream.
     /// @details This class is used to wrap an input stream for use with the C2PA library.
-    class C2PA_API CppIStream : public C2paStream
+    class C2PA_CPP_API CppIStream : public C2paStream
     {
     public:
         C2paStream *c_stream;
@@ -126,7 +129,7 @@ namespace c2pa
 
     /// @brief Ostream Class wrapper for C2paStream.
     /// @details This class is used to wrap an output stream for use with the C2PA library.
-    class C2PA_API CppOStream : public C2paStream
+    class C2PA_CPP_API CppOStream : public C2paStream
     {
     public:
         C2paStream *c_stream;
@@ -144,7 +147,7 @@ namespace c2pa
 
     /// @brief IOStream Class wrapper for C2paStream.
     /// @details This class is used to wrap an input/output stream for use with the C2PA library.
-    class C2PA_API CppIOStream : public C2paStream
+    class C2PA_CPP_API CppIOStream : public C2paStream
     {
     public:
         C2paStream *c_stream;
@@ -161,7 +164,7 @@ namespace c2pa
 
     /// @brief Reader class for reading a manifest.
     /// @details This class is used to read and validate a manifest from a stream or file.
-    class C2PA_API Reader
+    class C2PA_CPP_API Reader
     {
     private:
         C2paReader *c2pa_reader;
@@ -209,7 +212,7 @@ namespace c2pa
 
     /// @brief  Signer class for creating a signer.
     /// @details This class is used to create a signer from a signing algorithm, certificate, and TSA URI.
-    class C2PA_API Signer
+    class C2PA_CPP_API Signer
     {
     private:
         C2paSigner *signer;
@@ -224,6 +227,8 @@ namespace c2pa
 
         Signer(C2paSigner *signer) : signer(signer) {}
 
+        Signer(const string &alg, const string &sign_cert, const string&private_key, const string &tsa_uri = NULL);
+
         ~Signer();
 
         /// @brief  Get the size to reserve for a signature for this signer.
@@ -236,7 +241,7 @@ namespace c2pa
 
     /// @brief Builder class for creating a manifest.
     /// @details This class is used to create a manifest from a json string and add resources and ingredients to the manifest.
-    class C2PA_API Builder
+    class C2PA_CPP_API Builder
     {
     private:
         C2paBuilder *builder;

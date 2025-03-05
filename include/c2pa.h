@@ -49,6 +49,7 @@
 
 
 
+
 /**
  * An enum to define the seek mode for the seek callback
  * Start - seek from the start of the stream
@@ -80,7 +81,7 @@ typedef struct C2paSigner C2paSigner;
  * An Opaque struct to hold a context value for the stream callbacks
  */
 typedef struct StreamContext {
-
+  uint8_t _private[0];
 } StreamContext;
 
 /**
@@ -147,11 +148,11 @@ typedef struct C2paSignerInfo {
 } C2paSignerInfo;
 
 typedef struct C2paReader {
-
+  uint8_t _private[0];
 } C2paReader;
 
 typedef struct C2paBuilder {
-
+  uint8_t _private[0];
 } C2paBuilder;
 
 /**
@@ -694,18 +695,18 @@ struct C2paSigner *c2pa_signer_create(const void *context,
 
 /**
  * Creates a C2paSigner from a SignerInfo.
+ * The signer is created from the sign_cert and private_key fields.
+ * an optional url to an RFC 3161 compliant time server will ensure the signature is timestamped.
  *
  * # Parameters
- * * signer_info: a pointer to a C2paSignerInfo.
- *
+ * * signer_info: pointer to a C2paSignerInfo.
  * # Errors
  * Returns NULL if there were errors, otherwise returns a pointer to a C2paSigner.
  * The error string can be retrieved by calling c2pa_error.
  * # Safety
- * Reads from NULL-terminated C strings
+ * Reads from NULL-terminated C strings.
  * The returned value MUST be released by calling c2pa_signer_free
  * and it is no longer valid after that call.
- *
  * # Example
  * ```c
  * auto result = c2pa_signer_from_info(signer_info);

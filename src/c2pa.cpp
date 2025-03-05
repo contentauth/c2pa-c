@@ -16,6 +16,7 @@
 ///          This is an early version, and has not been fully tested.
 ///          Thread safety is not guaranteed due to the use of errno and etc.
 
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string.h>
@@ -569,6 +570,12 @@ namespace c2pa
     {
         // Pass the C++ callback as a context to our static callback wrapper.
         signer = c2pa_signer_create((const void *)callback, &signer_passthrough, alg, sign_cert.c_str(), tsa_uri.c_str());
+    }
+
+    Signer::Signer(const string &alg, const string &sign_cert, const string &private_key, const string &tsa_uri)
+    {
+        auto info = C2paSignerInfo {.alg = alg.c_str(), .sign_cert = sign_cert.c_str(), .private_key = private_key.c_str(), .ta_url = tsa_uri.c_str()};
+        signer = c2pa_signer_from_info(&info);
     }
 
     Signer::~Signer()

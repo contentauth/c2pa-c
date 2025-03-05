@@ -15,11 +15,7 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
-#include <openssl/evp.h>
-#include <openssl/pem.h>
-#include <openssl/err.h>
 #include "c2pa.hpp"
-#include "test_signer.hpp"
 #include <nlohmann/json.hpp>
 
 // this example uses nlohmann json for parsing the manifest
@@ -34,7 +30,7 @@ string read_text_file(const fs::path &path)
     ifstream file(path);
     if (!file.is_open())
     {
-        throw runtime_error("Could not open file " + string(path));
+        throw runtime_error("Could not open file " + path.string());
     }
     string contents((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
     file.close();
@@ -67,9 +63,10 @@ int main()
         // load the manifest, certs, and private key
         string manifest_json = read_text_file(manifest_path).data();
         string certs = read_text_file(certs_path).data();
+        string p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key").data();
 
         // create a signer
-        Signer signer = Signer(&test_signer, Es256, certs, "http://timestamp.digicert.com");
+        Signer signer = Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
         auto builder = Builder(manifest_json);
         auto manifest_data = builder.sign(image_path, output_path, signer);
