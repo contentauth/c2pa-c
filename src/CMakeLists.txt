@@ -33,11 +33,7 @@ include_directories(${INCLUDES})
 # Source files
 set(SOURCES c2pa.cpp)
 
-file(
-  GLOB unit_test_files
-  CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.test.cpp"
-)
-
+file(GLOB unit_test_files CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.test.cpp")
 add_executable(c2pa_c_tests ${unit_test_files})
 
 # Create the static library
@@ -56,6 +52,10 @@ if(APPLE)
   )
 elseif(WIN32)
   target_link_libraries(c2pa_c_tests
+    ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll.lib
+  )
+
+  target_link_libraries(c2pa_cpp
     ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll.lib
   )
 
