@@ -32,27 +32,28 @@ int main(void)
     result = c2pa_read_ingredient_file("tests/fixtures/C.jpg", "target/ingredient");
     assert_str_not_null("c2pa_ingredient_from_file", result);
 
-    CStream* input_stream = open_file_stream("tests/fixtures/C.jpg", "rb");
+    C2paStream *input_stream = open_file_stream("tests/fixtures/C.jpg", "rb");
     assert_not_null("open_file_stream", input_stream);
 
-    C2paReader* reader = c2pa_reader_from_stream("image/jpeg", input_stream);
+    C2paReader *reader = c2pa_reader_from_stream("image/jpeg", input_stream);
     assert_not_null("c2pa_reader_from_stream", reader);
 
     close_file_stream(input_stream);
 
-    char* json = c2pa_reader_json(reader);
+    char *json = c2pa_reader_json(reader);
     assert_not_null("c2pa_reader_json", json);
     // printf("manifest json = %s\n", json);
 
-    // we should fetch the active manifest and retrieve the identifier from the thumbnail in that manifest 
+    // we should fetch the active manifest and retrieve the identifier from the thumbnail in that manifest
     char *uri = findValueByKey(json, "identifier");
-    if (uri == NULL) {
+    if (uri == NULL)
+    {
         fprintf(stderr, "FAILED: unable to find identifier in manifest json\n");
         exit(1);
     }
 
-	//Open a file to write the thumbnail into
-    CStream* thumb_stream = open_file_stream("target/thumb_c.jpg", "wb");
+    // Open a file to write the thumbnail into
+    C2paStream *thumb_stream = open_file_stream("target/thumb_c.jpg", "wb");
     assert_not_null("open_file_stream thumbnail", thumb_stream);
 
     // write the thumbnail resource to the stream
@@ -61,7 +62,7 @@ int main(void)
     assert_int("c2pa_reader_resource", res);
 
     c2pa_reader_free(reader);
- 
+
     char *certs = load_file("tests/fixtures/es256_certs.pem");
     char *private_key = load_file("tests/fixtures/es256_private.key");
 
@@ -82,12 +83,12 @@ int main(void)
     C2paBuilder *builder = c2pa_builder_from_json(manifest);
     assert_not_null("c2pa_builder_from_json", builder);
 
-    CStream *archive = open_file_stream("target/tmp/archive.zip", "wb");
+    C2paStream *archive = open_file_stream("target/tmp/archive.zip", "wb");
     int arch_result = c2pa_builder_to_archive(builder, archive);
     assert_int("c2pa_builder_to_archive", arch_result);
     close_file_stream(archive);
 
-    CStream *archive2 = open_file_stream("target/tmp/archive.zip", "rb");
+    C2paStream *archive2 = open_file_stream("target/tmp/archive.zip", "rb");
     C2paBuilder *builder2 = c2pa_builder_from_archive(archive2);
     assert_not_null("c2pa_builder_from_archive", builder2);
     close_file_stream(archive2);
@@ -95,8 +96,8 @@ int main(void)
     C2paSigner *signer = c2pa_signer_create((const void *)"testing context", &signer_callback, Es256, certs, "http://timestamp.digicert.com");
     assert_not_null("c2pa_signer_create", signer);
 
-    CStream *source = open_file_stream("tests/fixtures/C.jpg", "rb");
-    CStream *dest = open_file_stream("target/tmp/earth.jpg", "wb");
+    C2paStream *source = open_file_stream("tests/fixtures/C.jpg", "rb");
+    C2paStream *dest = open_file_stream("target/tmp/earth.jpg", "wb");
 
     int result2 = c2pa_builder_sign(builder2, "image/jpeg", source, dest, signer, NULL);
     assert_int("c2pa_builder_sign", result2);

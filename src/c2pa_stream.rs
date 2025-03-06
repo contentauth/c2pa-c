@@ -22,7 +22,7 @@ use crate::Error;
 #[derive(Debug)]
 /// An Opaque struct to hold a context value for the stream callbacks
 pub struct StreamContext {
-    _priv: (),
+    _private: [u8; 0],
 }
 
 #[repr(C)]
@@ -57,9 +57,9 @@ type WriteCallback =
 type FlushCallback = unsafe extern "C" fn(context: *mut StreamContext) -> isize;
 
 #[repr(C)]
-/// A CStream is a Rust Read/Write/Seek stream that can be created in C
+/// A C2paStream is a Rust Read/Write/Seek stream that can be created in C
 #[derive(Debug)]
-pub struct CStream {
+pub struct C2paStream {
     context: Box<StreamContext>,
     reader: ReadCallback,
     seeker: SeekCallback,
@@ -67,8 +67,8 @@ pub struct CStream {
     flusher: FlushCallback,
 }
 
-impl CStream {
-    /// Creates a new CStream from context with callbacks
+impl C2paStream {
+    /// Creates a new C2paStream from context with callbacks
     /// # Arguments
     /// * `context` - a pointer to a StreamContext
     /// * `read` - a ReadCallback to read from the stream
@@ -95,13 +95,13 @@ impl CStream {
         }
     }
 
-    /// Extracts the context from the CStream (used for testing in Rust)
+    /// Extracts the context from the C2paStream (used for testing in Rust)
     pub fn extract_context(&mut self) -> Box<StreamContext> {
-        std::mem::replace(&mut self.context, Box::new(StreamContext { _priv: () }))
+        std::mem::replace(&mut self.context, Box::new(StreamContext { _private: [] }))
     }
 }
 
-impl Read for CStream {
+impl Read for C2paStream {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         if buf.len() > isize::MAX as usize {
             return Err(std::io::Error::new(
@@ -119,7 +119,7 @@ impl Read for CStream {
     }
 }
 
-impl Seek for CStream {
+impl Seek for C2paStream {
     fn seek(&mut self, from: std::io::SeekFrom) -> std::io::Result<u64> {
         let (pos, mode) = match from {
             std::io::SeekFrom::Current(pos) => (pos, C2paSeekMode::Current),
@@ -132,7 +132,7 @@ impl Seek for CStream {
     }
 }
 
-impl Write for CStream {
+impl Write for C2paStream {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         if buf.len() > isize::MAX as usize {
             return Err(std::io::Error::new(
@@ -178,39 +178,39 @@ pub unsafe extern "C" fn c2pa_create_stream(
     seeker: SeekCallback,
     writer: WriteCallback,
     flusher: FlushCallback,
-) -> *mut CStream {
-    Box::into_raw(Box::new(CStream::new(
+) -> *mut C2paStream {
+    Box::into_raw(Box::new(C2paStream::new(
         context, reader, seeker, writer, flusher,
     )))
 }
 
-/// Releases a CStream allocated by Rust
+/// Releases a C2paStream allocated by Rust
 ///
 /// # Safety
 /// can only be released once and is invalid after this call
 #[no_mangle]
-pub unsafe extern "C" fn c2pa_release_stream(stream: *mut CStream) {
+pub unsafe extern "C" fn c2pa_release_stream(stream: *mut C2paStream) {
     if !stream.is_null() {
         drop(Box::from_raw(stream));
     }
 }
 
-/// This struct is used to test the CStream implementation
+/// This struct is used to test the C2paStream implementation
 /// It is a wrapper around a Cursor<Vec<u8>>
 /// It is exported in Rust so that it may be used externally
-pub struct TestCStream {
+pub struct TestC2paStream {
     cursor: Cursor<Vec<u8>>,
 }
 
-impl TestCStream {
-    fn new(data: Vec<u8>) -> Self {
+impl TestC2paStream {
+    pub fn new(data: Vec<u8>) -> Self {
         Self {
             cursor: Cursor::new(data),
         }
     }
 
     unsafe extern "C" fn reader(context: *mut StreamContext, data: *mut u8, len: isize) -> isize {
-        let stream: &mut TestCStream = &mut *(context as *mut TestCStream);
+        let stream: &mut TestC2paStream = &mut *(context as *mut TestC2paStream);
         let data: &mut [u8] = slice::from_raw_parts_mut(data, len as usize);
         match stream.cursor.read(data) {
             Ok(bytes) => bytes as isize,
@@ -226,7 +226,7 @@ impl TestCStream {
         offset: isize,
         mode: C2paSeekMode,
     ) -> isize {
-        let stream: &mut TestCStream = &mut *(context as *mut TestCStream);
+        let stream: &mut TestC2paStream = &mut *(context as *mut TestC2paStream);
 
         match mode {
             C2paSeekMode::Start => {
@@ -256,7 +256,7 @@ impl TestCStream {
     }
 
     unsafe extern "C" fn writer(context: *mut StreamContext, data: *const u8, len: isize) -> isize {
-        let stream: &mut TestCStream = &mut *(context as *mut TestCStream);
+        let stream: &mut TestC2paStream = &mut *(context as *mut TestC2paStream);
         let data: &[u8] = slice::from_raw_parts(data, len as usize);
         match stream.cursor.write(data) {
             Ok(bytes) => bytes as isize,
@@ -267,9 +267,9 @@ impl TestCStream {
         }
     }
 
-    fn into_c_stream(self) -> CStream {
+    pub fn into_c_stream(self) -> C2paStream {
         unsafe {
-            CStream::new(
+            C2paStream::new(
                 Box::into_raw(Box::new(self)) as *mut StreamContext,
                 Self::reader,
                 Self::seeker,
@@ -279,17 +279,17 @@ impl TestCStream {
         }
     }
 
-    pub fn from_bytes(data: Vec<u8>) -> CStream {
+    pub fn from_bytes(data: Vec<u8>) -> C2paStream {
         let test_stream = Self::new(data);
         test_stream.into_c_stream()
     }
 
-    pub fn from_c_stream(mut c_stream: CStream) -> Self {
+    pub fn from_c_stream(mut c_stream: C2paStream) -> Self {
         let original_context = c_stream.extract_context();
-        unsafe { *Box::from_raw(Box::into_raw(original_context) as *mut TestCStream) }
+        unsafe { *Box::from_raw(Box::into_raw(original_context) as *mut TestC2paStream) }
     }
 
-    pub fn drop_c_stream(c_stream: CStream) {
+    pub fn drop_c_stream(c_stream: C2paStream) {
         drop(Self::from_c_stream(c_stream));
     }
 }
@@ -301,7 +301,7 @@ mod tests {
     #[test]
     fn test_cstream_read() {
         let data = vec![1, 2, 3, 4, 5];
-        let mut c_stream = TestCStream::from_bytes(data);
+        let mut c_stream = TestC2paStream::from_bytes(data);
 
         let mut buf = [0u8; 3];
         assert_eq!(c_stream.read(&mut buf).unwrap(), 3);
@@ -311,13 +311,13 @@ mod tests {
         assert_eq!(c_stream.read(&mut buf).unwrap(), 2);
         assert_eq!(buf, [4, 5, 0]);
 
-        let _test_stream = TestCStream::from_c_stream(c_stream);
+        let _test_stream = TestC2paStream::from_c_stream(c_stream);
     }
 
     #[test]
     fn test_cstream_seek() {
         let data = vec![1, 2, 3, 4, 5];
-        let mut c_stream = TestCStream::from_bytes(data);
+        let mut c_stream = TestC2paStream::from_bytes(data);
 
         c_stream.seek(SeekFrom::Start(2)).unwrap();
         let mut buf = [0u8; 3];
@@ -334,18 +334,18 @@ mod tests {
         assert_eq!(c_stream.read(&mut buf).unwrap(), 3);
         assert_eq!(buf, [2, 3, 4]);
 
-        TestCStream::drop_c_stream(c_stream);
+        TestC2paStream::drop_c_stream(c_stream);
     }
 
     #[test]
     fn test_cstream_write() {
         let data = vec![1, 2, 3, 4, 5];
-        let mut c_stream = TestCStream::from_bytes(data);
+        let mut c_stream = TestC2paStream::from_bytes(data);
         c_stream.seek(SeekFrom::End(0)).unwrap();
         let buf = [6, 7, 8];
         let bytes_written = c_stream.write(&buf).unwrap();
         assert_eq!(bytes_written, 3);
         assert_eq!(c_stream.seek(SeekFrom::End(0)).unwrap(), 8);
-        TestCStream::drop_c_stream(c_stream);
+        TestC2paStream::drop_c_stream(c_stream);
     }
 }

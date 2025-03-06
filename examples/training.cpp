@@ -15,11 +15,7 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
-#include <openssl/evp.h>
-#include <openssl/pem.h>
-#include <openssl/err.h>
 #include "c2pa.hpp"
-#include "test_signer.hpp"
 #include <nlohmann/json.hpp>
 
 // this example uses nlohmann json for parsing the manifest
@@ -33,85 +29,13 @@ string read_text_file(const fs::path &path)
     ifstream file(path);
     if (!file.is_open())
     {
-        throw runtime_error("Could not open file " + string(path));
+        throw runtime_error("Could not open file " + path.string());
     }
     string contents((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
     file.close();
     return contents.data();
 }
 
-/*
-std::vector<unsigned char> es25519_signer(const std::vector<unsigned char> &data, const std::string &private_key_path)
-{
-    if (data.empty())
-    {
-        throw std::runtime_error("Signature data is empty");
-    }
-
-    // Initialize OpenSSL
-    OpenSSL_add_all_algorithms();
-    ERR_load_crypto_strings();
-
-    // Load the private key
-    FILE *key_file = fopen(private_key_path.c_str(), "r");
-    if (!key_file)
-    {
-        throw std::runtime_error("Failed to open private key file");
-    }
-    EVP_PKEY *pkey = PEM_read_PrivateKey(key_file, nullptr, nullptr, nullptr);
-    fclose(key_file);
-    if (!pkey)
-    {
-        throw std::runtime_error("Failed to read private key");
-    }
-
-    // Create and initialize the signing context
-    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
-    if (!ctx)
-    {
-        EVP_PKEY_free(pkey);
-        throw std::runtime_error("Failed to create EVP_MD_CTX");
-    }
-    if (EVP_DigestSignInit(ctx, nullptr, EVP_sha256(), nullptr, pkey) <= 0)
-    {
-        EVP_MD_CTX_free(ctx);
-        EVP_PKEY_free(pkey);
-        throw std::runtime_error("Failed to initialize DigestSign");
-    }
-
-    // Sign the data
-    if (EVP_DigestSignUpdate(ctx, data.data(), data.size()) <= 0)
-    {
-        EVP_MD_CTX_free(ctx);
-        EVP_PKEY_free(pkey);
-        throw std::runtime_error("Failed to update DigestSign");
-    }
-
-    size_t sig_len = 0;
-    if (EVP_DigestSignFinal(ctx, nullptr, &sig_len) <= 0)
-    {
-        EVP_MD_CTX_free(ctx);
-        EVP_PKEY_free(pkey);
-        throw std::runtime_error("Failed to finalize DigestSign (size)");
-    }
-
-    std::vector<unsigned char> signature(sig_len);
-    if (EVP_DigestSignFinal(ctx, signature.data(), &sig_len) <= 0)
-    {
-        EVP_MD_CTX_free(ctx);
-        EVP_PKEY_free(pkey);
-        throw std::runtime_error("Failed to finalize DigestSign (signature)");
-    }
-
-    // Clean up
-    EVP_MD_CTX_free(ctx);
-    EVP_PKEY_free(pkey);
-    EVP_cleanup();
-    ERR_free_strings();
-
-    return signature;
-}
-*/
 // Helper function to get the directory of the current file
 fs::path get_current_directory(const char *file_path)
 {
@@ -134,7 +58,7 @@ int main()
 
     // Construct the paths relative to the current directory
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
-    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path certs_path = current_dir / "../tests/fixtures/ed25519_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path = current_dir / "../target/example/training.jpg";
 
@@ -146,9 +70,10 @@ int main()
         // load the manifest, certs, and private key
         string manifest_json = read_text_file(manifest_path).data();
         string certs = read_text_file(certs_path).data();
+        string p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key").data();
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer(test_signer, Es256, certs, "http://timestamp.digicert.com");
+        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest_json);
         auto manifest_data = builder.sign(image_path, output_path, signer);
@@ -182,7 +107,7 @@ int main()
         }
         cout << "AI training is " << (allowed ? "allowed" : "not allowed") << endl;
     }
-    catch (c2pa::Exception const &e)
+    catch (c2pa::C2paException const &e)
     {
         cout << "C2PA Error: " << e.what() << endl;
     }

@@ -16,6 +16,7 @@
 ///          This is an early version, and has not been fully tested.
 ///          Thread safety is not guaranteed due to the use of errno and etc.
 
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string.h>
@@ -31,21 +32,21 @@ using namespace c2pa;
 
 namespace c2pa
 {
-    /// Exception class for C2PA errors.
+    /// C2paException class for C2PA errors.
     /// This class is used to throw exceptions for errors encountered by the C2PA library via c2pa_error().
 
-    Exception::Exception() : message(c2pa_error())
+    C2paException::C2paException()
     {
         auto result = c2pa_error();
         message = string(result);
         c2pa_release_string(result);
     }
 
-    Exception::Exception(string what) : message(what)
+    C2paException::C2paException(string what) : message(what)
     {
     }
 
-    const char *Exception::what() const throw()
+    const char *C2paException::what() const noexcept
     {
         return message.c_str();
     }
@@ -62,13 +63,13 @@ namespace c2pa
     /// Loads C2PA settings from a string in a given format.
     /// @param format the mime format of the string.
     /// @param data the string to load.
-    /// @throws a C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     void load_settings(const string &format, const string &data)
     {
         auto result = c2pa_load_settings(format.c_str(), data.c_str());
         if (result != 0)
         {
-            throw c2pa::Exception();
+            throw c2pa::C2paException();
         }
     }
 
@@ -82,7 +83,7 @@ namespace c2pa
     /// @param source_path the path to the file to read.
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a string containing the manifest json if a manifest was found.
-    /// @throws a C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     optional<string> read_file(const filesystem::path &source_path, const optional<path> data_dir)
     {
         auto dir = data_dir.has_value() ? path_to_string(data_dir.value()) : string();
@@ -91,12 +92,12 @@ namespace c2pa
 
         if (result == nullptr)
         {
-            auto exception = c2pa::Exception();
-            if (strstr(exception.what(), "ManifestNotFound") != NULL)
+            auto C2paException = c2pa::C2paException();
+            if (strstr(C2paException.what(), "ManifestNotFound") != NULL)
             {
                 return std::nullopt;
             }
-            throw c2pa::Exception();
+            throw c2pa::C2paException();
         }
         string str = string(result);
         c2pa_release_string(result);
@@ -107,13 +108,13 @@ namespace c2pa
     /// @param source_path the path to the file to read.
     /// @param data_dir the directory to store binary resources.
     /// @return a string containing the ingredient json.
-    /// @throws a C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     string read_ingredient_file(const path &source_path, const path &data_dir)
     {
         char *result = c2pa_read_ingredient_file(path_to_string(source_path).c_str(), path_to_string(data_dir).c_str());
         if (result == NULL)
         {
-            throw c2pa::Exception();
+            throw c2pa::C2paException();
         }
         string str = string(result);
         c2pa_release_string(result);
@@ -126,7 +127,7 @@ namespace c2pa
     // manifest: the manifest json to add to the file
     // signer_info: the signer info to use for signing
     // data_dir: the directory to store binary resources (optional)
-    // Throws a C2pa::Exception for errors encountered by the C2PA library
+    // Throws a C2pa::C2paException for errors encountered by the C2PA library
     void sign_file(const path &source_path,
                    const path &dest_path,
                    const char *manifest,
@@ -139,15 +140,15 @@ namespace c2pa
         if (result == NULL)
         {
 
-            throw c2pa::Exception();
+            throw c2pa::C2paException();
         }
         c2pa_release_string(result);
         return;
     }
 
-    /// IStream Class wrapper for CStream.
+    /// IStream Class wrapper for C2paStream.
     template <typename IStream>
-    CppIStream::CppIStream(IStream &istream) : CStream()
+    CppIStream::CppIStream(IStream &istream) : C2paStream()
     {
         static_assert(std::is_base_of<std::istream, IStream>::value,
                       "Stream must be derived from std::istream");
@@ -247,10 +248,9 @@ namespace c2pa
         return 0;
     }
 
-    /// Ostream Class wrapper for CStream implementation.
-
+    /// Ostream Class wrapper for C2paStream implementation.
     template <typename OStream>
-    CppOStream::CppOStream(OStream &ostream) : CStream()
+    CppOStream::CppOStream(OStream &ostream) : C2paStream()
     {
         static_assert(std::is_base_of<std::ostream, OStream>::value, "Stream must be derived from std::ostream");
         c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&ostream), reader, seeker, writer, flusher);
@@ -338,7 +338,7 @@ namespace c2pa
         return 0;
     }
 
-    /// IOStream Class wrapper for CStream implementation.
+    /// IOStream Class wrapper for C2paStream implementation.
     template <typename IOStream>
     CppIOStream::CppIOStream(IOStream &iostream)
     {
@@ -468,7 +468,8 @@ namespace c2pa
         c2pa_reader = c2pa_reader_from_stream(format.c_str(), cpp_stream->c_stream);
         if (c2pa_reader == NULL)
         {
-            throw Exception();
+            delete cpp_stream;
+            throw C2paException();
         }
     }
 
@@ -477,7 +478,7 @@ namespace c2pa
         std::ifstream file_stream(source_path, std::ios::binary);
         if (!file_stream.is_open())
         {
-            throw Exception("Failed to open file: " + source_path.string() + " - " + std::strerror(errno));
+            throw C2paException("Failed to open file: " + source_path.string() + " - " + std::strerror(errno));
         }
         string extension = source_path.extension().string();
         if (!extension.empty())
@@ -489,7 +490,8 @@ namespace c2pa
         c2pa_reader = c2pa_reader_from_stream(extension.c_str(), cpp_stream->c_stream);
         if (c2pa_reader == NULL)
         {
-            throw Exception();
+            delete cpp_stream;
+            throw C2paException();
         }
     }
 
@@ -507,7 +509,7 @@ namespace c2pa
         char *result = c2pa_reader_json(c2pa_reader);
         if (result == NULL)
         {
-            throw Exception();
+            throw C2paException();
         }
         string str = string(result);
         c2pa_release_string(result);
@@ -519,7 +521,7 @@ namespace c2pa
         std::ofstream file_stream(path, std::ios::binary);
         if (!file_stream.is_open())
         {
-            throw Exception(); // Handle file open error appropriately
+            throw C2paException(); // Handle file open error appropriately
         }
         return get_resource(uri.c_str(), file_stream);
     }
@@ -530,7 +532,7 @@ namespace c2pa
         int result = c2pa_reader_resource_to_stream(c2pa_reader, uri.c_str(), cpp_stream.c_stream);
         if (result < 0)
         {
-            throw Exception();
+            throw C2paException();
         }
         return result;
     }
@@ -559,7 +561,7 @@ namespace c2pa
         }
         catch (...)
         {
-            // printf("Error: signer_passthrough - unknown exception\n");
+            // printf("Error: signer_passthrough - unknown C2paException\n");
             return -1;
         }
     }
@@ -568,6 +570,12 @@ namespace c2pa
     {
         // Pass the C++ callback as a context to our static callback wrapper.
         signer = c2pa_signer_create((const void *)callback, &signer_passthrough, alg, sign_cert.c_str(), tsa_uri.c_str());
+    }
+
+    Signer::Signer(const string &alg, const string &sign_cert, const string &private_key, const string &tsa_uri)
+    {
+        auto info = C2paSignerInfo {.alg = alg.c_str(), .sign_cert = sign_cert.c_str(), .private_key = private_key.c_str(), .ta_url = tsa_uri.c_str()};
+        signer = c2pa_signer_from_info(&info);
     }
 
     Signer::~Signer()
@@ -593,20 +601,20 @@ namespace c2pa
         builder = c2pa_builder_from_json(manifest_json.c_str());
         if (builder == NULL)
         {
-            throw Exception();
+            throw C2paException();
         }
     }
 
     /// @brief Create a Builder from an archive.
     /// @param archive  The input stream to read the archive from.
-    /// @throws C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     Builder::Builder(istream &archive)
     {
         CppIStream c_archive = CppIStream(archive);
         builder = c2pa_builder_from_archive(c_archive.c_stream);
         if (builder == NULL)
         {
-            throw Exception();
+            throw C2paException();
         }
     }
 
@@ -625,7 +633,7 @@ namespace c2pa
         int result = c2pa_builder_set_remote_url(builder, remote_url.c_str());
         if (result < 0)
         {
-            throw Exception();
+            throw C2paException();
         }
     }
 
@@ -635,7 +643,7 @@ namespace c2pa
         int result = c2pa_builder_add_resource(builder, uri.c_str(), c_source.c_stream);
         if (result < 0)
         {
-            throw Exception();
+            throw C2paException();
         }
     }
 
@@ -655,7 +663,7 @@ namespace c2pa
         int result = c2pa_builder_add_ingredient_from_stream(builder, ingredient_json.c_str(), format.c_str(), c_source.c_stream);
         if (result < 0)
         {
-            throw Exception();
+            throw C2paException();
         }
     }
 
@@ -682,7 +690,7 @@ namespace c2pa
         auto result = c2pa_builder_sign(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, signer.c2pa_signer(), &c2pa_manifest_bytes);
         if (result < 0 || c2pa_manifest_bytes == NULL)
         {
-            throw Exception();
+            throw C2paException();
         }
 
         auto manifest_bytes = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
@@ -695,7 +703,7 @@ namespace c2pa
     /// @param dest_path The path to write the signed file to.
     /// @param signer A signer object to use when signing.
     /// @return A vector containing the signed manifest bytes.
-    /// @throws C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     std::vector<unsigned char> Builder::sign(const path &source_path, const path &dest_path, Signer &signer)
     {
         std::ifstream source(source_path, std::ios::binary);
@@ -725,7 +733,7 @@ namespace c2pa
 
     /// @brief Create a Builder from an archive stream.
     /// @param archive The input stream to read the archive from.
-    /// @throws C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     Builder Builder::from_archive(istream &archive)
     {
         return Builder(archive);
@@ -733,7 +741,7 @@ namespace c2pa
 
     /// @brief Create a Builder from an archive file.
     /// @param archive The input path to read the archive from.
-    /// @throws C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     Builder Builder::from_archive(const path &archive_path)
     {
         std::ifstream path(archive_path, std::ios::binary);
@@ -746,20 +754,20 @@ namespace c2pa
 
     /// @brief Write the builder to an archive stream.
     /// @param dest The output stream to write the archive to.
-    /// @throws C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     void Builder::to_archive(ostream &dest)
     {
         CppOStream c_dest = CppOStream(dest);
         int result = c2pa_builder_to_archive(builder, c_dest.c_stream);
         if (result < 0)
         {
-            throw Exception();
+            throw C2paException();
         }
     }
 
     /// @brief Write the builder to an archive file.
     /// @param dest_path The path to write the archive file to.
-    /// @throws C2pa::Exception for errors encountered by the C2PA library.
+    /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     void Builder::to_archive(const path &dest_path)
     {
         std::ofstream dest(dest_path, std::ios::binary);
@@ -776,7 +784,7 @@ namespace c2pa
         auto result = c2pa_builder_data_hashed_placeholder(builder, reserve_size, format.c_str(), &c2pa_manifest_bytes);
         if (result < 0 || c2pa_manifest_bytes == NULL)
         {
-            throw(Exception());
+            throw(C2paException());
         }
 
         auto data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
@@ -799,7 +807,7 @@ namespace c2pa
         }
         if (result < 0 || c2pa_manifest_bytes == NULL)
         {
-            throw(Exception());
+            throw(C2paException());
         }
 
         auto data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
@@ -813,7 +821,7 @@ namespace c2pa
         auto result = c2pa_format_embeddable(format.c_str(), data.data(), data.size(), &c2pa_manifest_bytes);
         if (result < 0 || c2pa_manifest_bytes == NULL)
         {
-            throw(Exception());
+            throw(C2paException());
         }
 
         auto formatted_data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);

@@ -13,7 +13,7 @@
 
 cmake_minimum_required(VERSION 3.27)
 
-project(c2pa-c)
+project(c2pa-c VERSION 0.6.0)
 
 set(CMAKE_POLICY_DEFAULT_CMP0135 NEW)
 set(CMAKE_C_STANDARD 17)

@@ -12,7 +12,8 @@
 
 #include <c2pa.hpp>
 #include <gtest/gtest.h>
-#include "test_signer.hpp"
+#include <string>
+#include <filesystem>
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -23,7 +24,7 @@ string read_text_file(const fs::path &path)
     ifstream file(path);
     if (!file.is_open())
     {
-        throw runtime_error("Could not open file " + string(path));
+        throw runtime_error("Could not open file " + path.string());
     }
     string contents((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
     file.close();
@@ -46,11 +47,12 @@ TEST(Builder, SignFile)
     {
         auto manifest = read_text_file(manifest_path);
         auto certs = read_text_file(certs_path);
+        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer(&test_signer, Es256, certs, "http://timestamp.digicert.com");
+        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
-        std::remove(output_path.c_str()); // remove the file if it exists
+        std::filesystem::remove(output_path.c_str()); // remove the file if it exists
 
         auto builder = c2pa::Builder(manifest);
         builder.add_resource("thumbnail", image_path);
@@ -62,7 +64,7 @@ TEST(Builder, SignFile)
         auto json = reader.json();
         ASSERT_TRUE(std::filesystem::exists(output_path));
     }
-    catch (c2pa::Exception const &e)
+    catch (c2pa::C2paException const &e)
     {
         FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
     };
@@ -81,9 +83,11 @@ TEST(Builder, SignStream)
 
         auto manifest = read_text_file(manifest_path);
         auto certs = read_text_file(certs_path);
+        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer(&test_signer, Es256, certs, "http://timestamp.digicert.com");
+
+        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest);
 
@@ -106,7 +110,7 @@ TEST(Builder, SignStream)
         auto json = reader.json();
         ASSERT_TRUE(json.find("cawg.training-mining") != std::string::npos);
     }
-    catch (c2pa::Exception const &e)
+    catch (c2pa::C2paException const &e)
     {
         FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
     };
@@ -125,9 +129,10 @@ TEST(Builder, SignStreamCloudUrl)
 
         auto manifest = read_text_file(manifest_path);
         auto certs = read_text_file(certs_path);
+        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer(&test_signer, Es256, certs, "http://timestamp.digicert.com");
+        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest);
 
@@ -153,7 +158,7 @@ TEST(Builder, SignStreamCloudUrl)
         dest.seekp(0, std::ios::beg);
         auto reader = c2pa::Reader("image/jpeg", dest);
     }
-    catch (c2pa::Exception const &e)
+    catch (c2pa::C2paException const &e)
     {
         std::string error_message = e.what();
         if (error_message.rfind("Remote ", 0) == 0)
@@ -180,9 +185,10 @@ TEST(Builder, SignDataHashedEmbedded)
 
         auto manifest = read_text_file(manifest_path);
         auto certs = read_text_file(certs_path);
+        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer(&test_signer, Es256, certs, "http://timestamp.digicert.com");
+        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest);
 
@@ -202,7 +208,7 @@ TEST(Builder, SignDataHashedEmbedded)
         })";
         auto manifest_data = builder.sign_data_hashed_embeddable(signer, data_hash, "image/jpeg");
     }
-    catch (c2pa::Exception const &e)
+    catch (c2pa::C2paException const &e)
     {
         FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
     };
@@ -221,9 +227,10 @@ TEST(Builder, SignDataHashedEmbeddedWithAsset)
 
         auto manifest = read_text_file(manifest_path);
         auto certs = read_text_file(certs_path);
+        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
         // create a signer
-        c2pa::Signer signer = c2pa::Signer(&test_signer, Es256, certs, "http://timestamp.digicert.com");
+        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
         auto builder = c2pa::Builder(manifest);
 
@@ -254,7 +261,7 @@ TEST(Builder, SignDataHashedEmbeddedWithAsset)
 
         ASSERT_TRUE(embeddable_data.size() > manifest_data.size());
     }
-    catch (c2pa::Exception const &e)
+    catch (c2pa::C2paException const &e)
     {
         FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
     };
