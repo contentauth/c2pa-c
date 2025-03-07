@@ -516,7 +516,7 @@ namespace c2pa
         return str;
     }
 
-    int Reader::get_resource(const string &uri, const std::filesystem::path &path)
+    int64_t Reader::get_resource(const string &uri, const std::filesystem::path &path)
     {
         std::ofstream file_stream(path, std::ios::binary);
         if (!file_stream.is_open())
@@ -526,10 +526,10 @@ namespace c2pa
         return get_resource(uri.c_str(), file_stream);
     }
 
-    int Reader::get_resource(const string &uri, std::ostream &stream)
+    int64_t Reader::get_resource(const string &uri, std::ostream &stream)
     {
         CppOStream cpp_stream(stream);
-        int result = c2pa_reader_resource_to_stream(c2pa_reader, uri.c_str(), cpp_stream.c_stream);
+        int64_t result = c2pa_reader_resource_to_stream(c2pa_reader, uri.c_str(), cpp_stream.c_stream);
         if (result < 0)
         {
             throw C2paException();
@@ -794,7 +794,7 @@ namespace c2pa
 
     std::vector<unsigned char> Builder::sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format, istream *asset)
     {
-        int result;
+        int64_t result;
         const unsigned char *c2pa_manifest_bytes = NULL;
         if (asset)
         {
