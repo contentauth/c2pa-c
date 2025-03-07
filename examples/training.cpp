@@ -53,14 +53,15 @@ fs::path get_current_directory(const char *file_path)
 /// @return 0 on success, 1 on failure
 int main()
 {
-    // Get the current directory of this file
-    fs::path current_dir = get_current_directory(__FILE__);
+    // Get the current directory of this file and calculate paths
+    fs::path current_dir = fs::current_path();  // Get the actual current working directory
+    fs::path workspace_root = current_dir / "../..";
 
-    // Construct the paths relative to the current directory
-    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
-    fs::path certs_path = current_dir / "../tests/fixtures/ed25519_certs.pem";
-    fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../target/example/training.jpg";
+    // Construct the paths relative to the workspace root
+    fs::path manifest_path = workspace_root / "tests/fixtures/training.json";
+    fs::path certs_path = workspace_root / "tests/fixtures/es256_certs.pem";
+    fs::path image_path = workspace_root / "tests/fixtures/A.jpg";
+    fs::path output_path = workspace_root / "target/example/training.jpg";
 
     cout << "The C2pa library version is " << c2pa::version() << endl;
     cout << "RUNNING EXAMPLE training.cpp " << endl;
@@ -70,7 +71,7 @@ int main()
         // load the manifest, certs, and private key
         string manifest_json = read_text_file(manifest_path).data();
         string certs = read_text_file(certs_path).data();
-        string p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key").data();
+        string p_key = read_text_file(workspace_root / "tests/fixtures/es256_private.key").data();
 
         // create a signer
         c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");

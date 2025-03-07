@@ -13,16 +13,22 @@
 #include <c2pa.hpp>
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
+#include <filesystem>
 
 using nlohmann::json;
+namespace fs = std::filesystem;
 
 TEST(ReadFile, ReadFileWithNoManifestReturnsEmptyOptional) {
-  auto result = c2pa::read_file("../../tests/fixtures/A.jpg");
-  ASSERT_TRUE(result->empty());
+  fs::path current_dir = fs::path(__FILE__).parent_path();
+  fs::path test_file = current_dir / "../tests/fixtures/A.jpg";
+  auto result = c2pa::read_file(test_file);
+  ASSERT_FALSE(result.has_value());
 };
 
 TEST(ReadFile, ReadFileWithManifestReturnsSomeValue) {
-  auto result = c2pa::read_file("../../tests/fixtures/C.jpg");
+  fs::path current_dir = fs::path(__FILE__).parent_path();
+  fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+  auto result = c2pa::read_file(test_file);
   ASSERT_TRUE(result.has_value());
 
   // parse result with json

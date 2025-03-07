@@ -1,0 +1,7 @@
+.git
+.gitignore
+target/
+build/
+*.md
+.env
+.DS_Store 
