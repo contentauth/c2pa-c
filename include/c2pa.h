@@ -81,7 +81,7 @@ typedef struct C2paSigner C2paSigner;
  * An Opaque struct to hold a context value for the stream callbacks
  */
 typedef struct StreamContext {
-  uint8_t _private[0];
+
 } StreamContext;
 
 /**
@@ -148,11 +148,11 @@ typedef struct C2paSignerInfo {
 } C2paSignerInfo;
 
 typedef struct C2paReader {
-  uint8_t _private[0];
+
 } C2paReader;
 
 typedef struct C2paBuilder {
-  uint8_t _private[0];
+
 } C2paBuilder;
 
 /**

@@ -475,7 +475,7 @@ namespace c2pa
 
     Reader::Reader(const std::filesystem::path &source_path)
     {
-        std::ifstream file_stream(source_path, std::ios::binary);
+        std::ifstream file_stream(source_path, std::ios_base::binary);
         if (!file_stream.is_open())
         {
             throw C2paException("Failed to open file: " + source_path.string() + " - " + std::strerror(errno));
@@ -518,7 +518,7 @@ namespace c2pa
 
     int64_t Reader::get_resource(const string &uri, const std::filesystem::path &path)
     {
-        std::ofstream file_stream(path, std::ios::binary);
+        std::ofstream file_stream(path, std::ios_base::binary);
         if (!file_stream.is_open())
         {
             throw C2paException(); // Handle file open error appropriately
@@ -574,7 +574,7 @@ namespace c2pa
 
     Signer::Signer(const string &alg, const string &sign_cert, const string &private_key, const string &tsa_uri)
     {
-        auto info = C2paSignerInfo {.alg = alg.c_str(), .sign_cert = sign_cert.c_str(), .private_key = private_key.c_str(), .ta_url = tsa_uri.c_str()};
+        auto info = C2paSignerInfo { alg.c_str(), sign_cert.c_str(), private_key.c_str(), tsa_uri.c_str()};
         signer = c2pa_signer_from_info(&info);
     }
 
@@ -649,7 +649,7 @@ namespace c2pa
 
     void Builder::add_resource(const string &uri, const std::filesystem::path &source_path)
     {
-        ifstream stream = ifstream(source_path);
+        ifstream stream = ifstream(source_path, std::ios_base::binary);
         if (!stream.is_open())
         {
             throw std::runtime_error("Failed to open source file: " + source_path.string());
@@ -669,7 +669,7 @@ namespace c2pa
 
     void Builder::add_ingredient(const string &ingredient_json, const std::filesystem::path &source_path)
     {
-        ifstream stream = ifstream(source_path);
+        ifstream stream = ifstream(source_path, std::ios_base::binary);
         if (!stream.is_open())
         {
             throw std::runtime_error("Failed to open source file: " + source_path.string());
@@ -706,7 +706,7 @@ namespace c2pa
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     std::vector<unsigned char> Builder::sign(const path &source_path, const path &dest_path, Signer &signer)
     {
-        std::ifstream source(source_path, std::ios::binary);
+        std::ifstream source(source_path, std::ios_base::binary);
         if (!source.is_open())
         {
             throw std::runtime_error("Failed to open source file: " + source_path.string());
@@ -717,7 +717,7 @@ namespace c2pa
         {
             std::filesystem::create_directories(dest_dir);
         }
-        std::ofstream dest(dest_path, std::ios::binary);
+        std::ofstream dest(dest_path, std::ios_base::binary);
         if (!dest.is_open())
         {
             throw std::runtime_error("Failed to open destination file: " + dest_path.string());
@@ -744,7 +744,7 @@ namespace c2pa
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     Builder Builder::from_archive(const path &archive_path)
     {
-        std::ifstream path(archive_path, std::ios::binary);
+        std::ifstream path(archive_path, std::ios_base::binary);
         if (!path.is_open())
         {
             throw std::runtime_error("Failed to open archive file: " + archive_path.string());
@@ -770,7 +770,7 @@ namespace c2pa
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     void Builder::to_archive(const path &dest_path)
     {
-        std::ofstream dest(dest_path, std::ios::binary);
+        std::ofstream dest(dest_path, std::ios_base::binary);
         if (!dest.is_open())
         {
             throw std::runtime_error("Failed to open destination file: " + dest_path.string());
