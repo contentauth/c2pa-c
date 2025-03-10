@@ -55,12 +55,13 @@ int main()
 {
     // Get the current directory of this file
     fs::path current_dir = get_current_directory(__FILE__);
+    fs::path project_root = current_dir.parent_path(); // Go up one level to project root
 
-    // Construct the paths relative to the current directory
-    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
-    fs::path certs_path = current_dir / "../tests/fixtures/ed25519_certs.pem";
-    fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../target/example/training.jpg";
+    // Construct the paths relative to the project root
+    fs::path manifest_path = project_root / "tests/fixtures/training.json";
+    fs::path certs_path = project_root / "tests/fixtures/es256_certs.pem";
+    fs::path image_path = project_root / "tests/fixtures/A.jpg";
+    fs::path output_path = project_root / "target/example/training.jpg";
 
     cout << "The C2pa library version is " << c2pa::version() << endl;
     cout << "RUNNING EXAMPLE training.cpp " << endl;

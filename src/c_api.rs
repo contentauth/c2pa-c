@@ -33,15 +33,11 @@ use crate::{
 mod cbindgen_fix {
     #[repr(C)]
     #[allow(dead_code)]
-    pub struct C2paBuilder {
-        _private: [u8; 0],
-    }
+    pub struct C2paBuilder;
 
     #[repr(C)]
     #[allow(dead_code)]
-    pub struct C2paReader {
-        _private: [u8; 0],
-    }
+    pub struct C2paReader;
 }
 
 /// List of supported signing algorithms.
@@ -447,9 +443,9 @@ pub unsafe extern "C" fn c2pa_reader_json(reader_ptr: *mut C2paReader) -> *mut c
 ///
 /// # Example
 /// ```c
-/// result c2pa_reader_resource_to_stream(store, "uri", stream);
+/// auto result = c2pa_reader_resource_to_stream(store, "uri", stream);
 /// if (result < 0) {
-///     let error = c2pa_error();
+///     auto error = c2pa_error();
 ///     printf("Error: %s\n", error);
 ///     c2pa_string_free(error);
 /// }
@@ -488,7 +484,7 @@ pub unsafe extern "C" fn c2pa_reader_resource_to_stream(
 /// ```c
 /// auto result = c2pa_builder_from_json(manifest_json);
 /// if (result == NULL) {
-///     let error = c2pa_error();
+///     auto error = c2pa_error();
 ///     printf("Error: %s\n", error);
 ///     c2pa_string_free(error);
 /// }
@@ -521,7 +517,7 @@ pub unsafe extern "C" fn c2pa_builder_from_json(manifest_json: *const c_char) ->
 /// ```c
 /// auto result = c2pa_builder_from_archive(stream);
 /// if (result == NULL) {
-///     let error = c2pa_error();
+///     auto error = c2pa_error();
 ///     printf("Error: %s\n", error);
 ///     c2pa_string_free(error);
 /// }
@@ -675,7 +671,7 @@ pub unsafe extern "C" fn c2pa_builder_add_ingredient_from_stream(
 /// ```c
 /// auto result = c2pa_builder_to_archive(builder, stream);
 /// if (result < 0) {
-///     let error = c2pa_error();
+///     auto error = c2pa_error();
 ///     printf("Error: %s\n", error);
 ///     c2pa_string_free(error);
 /// }
@@ -953,7 +949,7 @@ pub unsafe extern "C" fn c2pa_format_embeddable(
 /// ```c
 /// auto result = c2pa_signer_create(callback, alg, certs, tsa_url);
 /// if (result == NULL) {
-///     let error = c2pa_error();
+///     auto error = c2pa_error();
 ///     printf("Error: %s\n", error);
 ///     c2pa_string_free(error);
 /// }
@@ -1017,7 +1013,7 @@ pub unsafe extern "C" fn c2pa_signer_create(
 /// ```c
 /// auto result = c2pa_signer_from_info(signer_info);
 /// if (result == NULL) {
-///     let error = c2pa_error();
+///     auto error = c2pa_error();
 ///     printf("Error: %s\n", error);
 ///     c2pa_string_free(error);
 /// }

@@ -194,14 +194,14 @@ namespace c2pa
         /// @param path The path to write the resource to.
         /// @return The number of bytes written.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        int get_resource(const string &uri, const std::filesystem::path &path);
+        int64_t get_resource(const string &uri, const std::filesystem::path &path);
 
         /// @brief  Get a resource from the reader  and write it to an output stream.
         /// @param uri The uri of the resource.
         /// @param stream The output stream to write the resource to.
         /// @return The number of bytes written.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        int get_resource(const string &uri, std::ostream &stream);
+        int64_t get_resource(const string &uri, std::ostream &stream);
     };
 
     /// @brief  Signer Callback function type.

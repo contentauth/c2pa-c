@@ -21,9 +21,7 @@ use crate::Error;
 #[repr(C)]
 #[derive(Debug)]
 /// An Opaque struct to hold a context value for the stream callbacks
-pub struct StreamContext {
-    _private: [u8; 0],
-}
+pub struct StreamContext;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -97,7 +95,7 @@ impl C2paStream {
 
     /// Extracts the context from the C2paStream (used for testing in Rust)
     pub fn extract_context(&mut self) -> Box<StreamContext> {
-        std::mem::replace(&mut self.context, Box::new(StreamContext { _private: [] }))
+        std::mem::replace(&mut self.context, Box::new(StreamContext {}))
     }
 }
 
