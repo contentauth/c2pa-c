@@ -69,4 +69,4 @@ package:
 
 test: test-rust test-cpp 
 
-all: unit-tests examples
+all: test examples
