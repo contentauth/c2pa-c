@@ -5,6 +5,7 @@ ifeq ($(findstring _NT, $(OS)), _NT)
 CFLAGS += -L./target/release -lc2pa_c
 CC := gcc
 CXX := g++
+ENV = PATH="$(shell pwd)/target/release:$(PATH)"
 endif
 ifeq ($(OS), Darwin)
 CFLAGS += -framework Security
@@ -47,10 +48,11 @@ test-cpp: release cmake
 	mkdir -p $(BUILD_DIR)/src/tests/fixtures
 	cp -r tests/fixtures/* $(BUILD_DIR)/src/tests/fixtures/
 ifeq ($(findstring _NT, $(OS)), _NT)
-	@if not exist target\\release\\c2pa_c.dll (echo DLL not found && exit 1)
-	if not exist $(BUILD_DIR)\\src mkdir $(BUILD_DIR)\\src
-	copy /Y target\\release\\c2pa_c.dll $(BUILD_DIR)\\src\\c2pa_c.dll
-	cd $(BUILD_DIR)\\src && $(ENV) .\\c2pa_c_tests
+	@echo "Current directory: $$(pwd)"
+	@echo "DLL location: $$(pwd)/target/release/c2pa_c.dll"
+	@echo "Test exe location: $$(pwd)/$(BUILD_DIR)/src/c2pa_c_tests.exe"
+	cp target/release/c2pa_c.dll $(BUILD_DIR)/src/
+	cd $(BUILD_DIR)/src && $(ENV) cmd /c "set PATH=$$(pwd);%PATH% && c2pa_c_tests.exe"
 else
 	cd $(BUILD_DIR)/src && $(ENV) ./c2pa_c_tests
 endif
