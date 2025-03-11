@@ -44,9 +44,10 @@ test-c: release
 	$(ENV) target/release/ctest
 
 test-cpp: release cmake
-	cd $(BUILD_DIR); ninja;
-	cd $(BUILD_DIR); ls -lah src
-	cd $(BUILD_DIR); ./src/c2pa_c_tests
+	cd $(BUILD_DIR) && ninja
+	mkdir -p $(BUILD_DIR)/src/tests/fixtures
+	cp -r tests/fixtures/* $(BUILD_DIR)/src/tests/fixtures/
+	cd $(BUILD_DIR)/src && $(ENV) ./c2pa_c_tests
 
 demo: cmake release
 	cmake --build ./$(BUILD_DIR) --target demo

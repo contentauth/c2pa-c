@@ -55,15 +55,16 @@ elseif(WIN32)
     ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll.lib
   )
 
-  target_link_libraries(c2pa_cpp
-    ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll.lib
-  )
-
+  # Copy DLL to the test executable directory
   add_custom_command(TARGET c2pa_c_tests POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll"
-    $<TARGET_FILE_DIR:c2pa_c_tests>
-    COMMENT "Copying required c2pa_c.dll to executing directory of tests."
+      "${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll"
+      $<TARGET_FILE_DIR:c2pa_c_tests>
+    COMMENT "Copying c2pa_c.dll to test executable directory"
+  )
+
+  target_link_libraries(c2pa_cpp
+    ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll.lib
   )
 else()
   target_link_libraries(c2pa_cpp

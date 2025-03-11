@@ -13,13 +13,20 @@
 #include <c2pa.hpp>
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
+#include <filesystem>
 
 using nlohmann::json;
+namespace fs = std::filesystem;
 
 TEST(Reader, StreamWithManifest)
 {
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+    
     // read the new manifest and display the JSON
-    std::ifstream file_stream("../../tests/fixtures/C.jpg", std::ios::binary);
+    std::ifstream file_stream(test_file, std::ios::binary);
+    ASSERT_TRUE(file_stream.is_open()) << "Failed to open file: " << test_file;
+    
     auto reader = c2pa::Reader("image/jpeg", file_stream);
     auto manifest_store_json = reader.json();
     EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
@@ -27,15 +34,20 @@ TEST(Reader, StreamWithManifest)
 
 TEST(Reader, FileWithManifest)
 {
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+    
     // read the new manifest and display the JSON
-    auto reader = c2pa::Reader("../../tests/fixtures/C.jpg");
+    auto reader = c2pa::Reader(test_file);
     auto manifest_store_json = reader.json();
     EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
 };
 
 TEST(Reader, FileNoManifest)
 {
-    EXPECT_THROW({ auto reader = c2pa::Reader("../../tests/fixtures/A.jpg"); }, c2pa::C2paException);
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/A.jpg";
+    EXPECT_THROW({ auto reader = c2pa::Reader(test_file); }, c2pa::C2paException);
 };
 
 TEST(Reader, FileNotFound)
@@ -47,7 +59,6 @@ TEST(Reader, FileNotFound)
     }
     catch (const c2pa::C2paException &e)
     {
-        // EXPECT_STREQ(e.what(), "File not found");
         EXPECT_TRUE(std::string(e.what()).rfind("Failed to open file", 0) == 0);
     }
     catch (...)
