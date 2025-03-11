@@ -5,7 +5,6 @@ ifeq ($(findstring _NT, $(OS)), _NT)
 CFLAGS += -L./target/release -lc2pa_c
 CC := gcc
 CXX := g++
-ENV = LD_LIBRARY_PATH=target/release
 endif
 ifeq ($(OS), Darwin)
 CFLAGS += -framework Security
@@ -47,7 +46,14 @@ test-cpp: release cmake
 	cd $(BUILD_DIR) && ninja
 	mkdir -p $(BUILD_DIR)/src/tests/fixtures
 	cp -r tests/fixtures/* $(BUILD_DIR)/src/tests/fixtures/
+ifeq ($(findstring _NT, $(OS)), _NT)
+	@if not exist target\\release\\c2pa_c.dll (echo DLL not found && exit 1)
+	if not exist $(BUILD_DIR)\\src mkdir $(BUILD_DIR)\\src
+	copy /Y target\\release\\c2pa_c.dll $(BUILD_DIR)\\src\\c2pa_c.dll
+	cd $(BUILD_DIR)\\src && $(ENV) .\\c2pa_c_tests
+else
 	cd $(BUILD_DIR)/src && $(ENV) ./c2pa_c_tests
+endif
 
 demo: cmake release
 	cmake --build ./$(BUILD_DIR) --target demo
