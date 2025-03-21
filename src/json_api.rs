@@ -10,6 +10,9 @@
 // specific language governing permissions and limitations under
 // each license.
 
+use cawg_identity::validator::CawgValidator;
+use tokio::runtime::Runtime;
+
 use c2pa::{Ingredient, Manifest, Reader};
 
 use crate::{Error, Result, SignerInfo};
@@ -25,13 +28,17 @@ pub fn sdk_version() -> String {
 /// Any Validation errors will be reported in the validation_status field.
 ///
 pub fn read_file(path: &str, data_dir: Option<String>) -> Result<String> {
-    let reader = Reader::from_file(path).map_err(Error::from_c2pa_error)?;
+    let mut reader = Reader::from_file(path).map_err(Error::from_c2pa_error)?;
+    let runtime = Runtime::new().map_err(|e| Error::Other(e.to_string()))?;
+    runtime
+        .block_on(reader.post_validate_async(&CawgValidator {}))
+        .map_err(Error::from_c2pa_error)?;
     Ok(if let Some(dir) = data_dir {
-        let json = reader.to_string();
+        let json = reader.json();
         reader.to_folder(&dir).map_err(Error::from_c2pa_error)?;
         json
     } else {
-        reader.to_string()
+        reader.json()
     })
 }
 
@@ -119,5 +126,16 @@ mod tests {
         assert!(json_report.contains("C.jpg"));
         assert!(PathBuf::from(data_dir).exists());
         assert!(json_report.contains("thumbnail"));
+    }
+
+    #[test]
+    fn test_verify_from_file_cawg_identity() {
+        let path = test_path("tests/fixtures/C_with_CAWG_data.jpg");
+        let result = read_file(&path, None);
+        assert!(result.is_ok());
+        let json_report = result.unwrap();
+        println!("{}", json_report);
+        assert!(json_report.contains("cawg.identity"));
+        assert!(json_report.contains("cawg.ica.credential_valid"));
     }
 }
