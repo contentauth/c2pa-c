@@ -50,6 +50,22 @@ TEST(Reader, FileNoManifest)
     EXPECT_THROW({ auto reader = c2pa::Reader(test_file); }, c2pa::C2paException);
 };
 
+
+TEST(Reader, FileWithCawgIdentityManifest)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C_with_CAWG_data.jpg";
+    
+    // read the new manifest and display the JSON
+    auto reader = c2pa::Reader(test_file);
+    auto manifest_store_json = reader.json();
+    
+    EXPECT_TRUE(manifest_store_json.find("cawg.identity") != std::string::npos);
+    EXPECT_TRUE(manifest_store_json.find("cawg.ica.credential_valid") != std::string::npos);
+    // Parse the JSON string into a JSON object
+    auto json_obj = json::parse(manifest_store_json);
+};
+
 TEST(Reader, FileNotFound)
 {
     try

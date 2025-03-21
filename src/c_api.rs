@@ -11,11 +11,12 @@
 // specific language governing permissions and limitations under
 // each license.
 
+use cawg_identity::validator::CawgValidator;
 use std::{
     ffi::CString,
     os::raw::{c_char, c_int, c_uchar, c_void},
 };
-
+use tokio::runtime::Runtime;
 // C has no namespace so we prefix things with C2PA to make them unique
 use c2pa::{
     assertions::DataHash, settings::load_settings_from_str, Builder as C2paBuilder, CallbackSigner,
@@ -394,7 +395,24 @@ pub unsafe extern "C" fn c2pa_reader_from_stream(
 
     let result = C2paReader::from_stream(&format, &mut (*stream));
     match result {
-        Ok(reader) => Box::into_raw(Box::new(reader)),
+        Ok(mut reader) => {
+            let runtime = match Runtime::new() {
+                Ok(runtime) => runtime,
+                Err(err) => {
+                    Error::Other(err.to_string()).set_last();
+                    return std::ptr::null_mut();
+                }
+            };
+            let result = runtime.block_on(reader.post_validate_async(&CawgValidator {}));
+            match result {
+                Ok(_) => (),
+                Err(err) => {
+                    Error::from_c2pa_error(err).set_last();
+                    return std::ptr::null_mut();
+                }
+            }
+            Box::into_raw(Box::new(reader))
+        }
         Err(err) => {
             Error::from_c2pa_error(err).set_last();
             std::ptr::null_mut()
