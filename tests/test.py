@@ -30,9 +30,7 @@ builder = c2pa.Builder.from_json('{ }')
 #builder.add_ingredient("tests/fixtures/C.jpg", "image/jpeg")
 #builder.add_resource("thumbnail.jpg", "tests/fixtures/A.jpg")
 source = open("tests/fixtures/C.jpg", "rb");
-dest = open("target/C_signed.jpg", "wb");
-source = c2pa.Stream(source)
-dest = c2pa.Stream(dest)    
+dest = open("target/C_signed.jpg", "wb");  
 result =builder.sign("image/jpeg", source, dest, signer)
 
 reader = c2pa.Reader("target/C_signed.jpg")

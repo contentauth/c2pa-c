@@ -3,7 +3,7 @@ import enum
 import os
 import sys
 from pathlib import Path
-from typing import Optional, Union, Callable
+from typing import Optional, Union, Callable, Any
 
 # Determine the library name based on the platform
 if sys.platform == "win32":
@@ -313,6 +313,12 @@ def sign_file(
 class Stream:
     """High-level wrapper for C2paStream operations."""
     def __init__(self, file):
+        # Validate that the object has the required stream-like methods
+        required_methods = ['read', 'write', 'seek', 'tell', 'flush']
+        missing_methods = [method for method in required_methods if not hasattr(file, method)]
+        if missing_methods:
+            raise TypeError(f"Object must be a stream-like object with methods: {', '.join(required_methods)}. Missing: {', '.join(missing_methods)}")
+        
         self._file = file
         
         def read_callback(ctx, data, length):
@@ -370,8 +376,13 @@ class Stream:
 class Reader:
     """High-level wrapper for C2PA Reader operations."""
     
-    def __init__(self, format_or_path: Union[str, Path], stream: Optional[Stream] = None):
-        """Create a new Reader."""
+    def __init__(self, format_or_path: Union[str, Path], stream: Optional[Any] = None):
+        """Create a new Reader.
+        
+        Args:
+            format_or_path: The format or path to read from
+            stream: Optional stream to read from (any Python stream-like object)
+        """
         self._reader = None
         self._own_stream = None
         self._strings = []  # Keep encoded strings alive
@@ -388,48 +399,6 @@ class Reader:
             # Open the file and create a stream
             file = open(path, 'rb')
             self._own_stream = Stream(file)
-            
-            def read_callback(ctx, data, length):
-                try:
-                    buffer = file.read(length)
-                    for i, b in enumerate(buffer):
-                        data[i] = b
-                    return len(buffer)
-                except Exception:
-                    return -1
-            
-            def seek_callback(ctx, offset, whence):
-                try:
-                    file.seek(offset, whence)
-                    return file.tell()
-                except Exception:
-                    return -1
-            
-            def write_callback(ctx, data, length):
-                return -1  # Read-only
-                
-            def flush_callback(ctx):
-                return 0  # No-op for read-only
-            
-            # Create callbacks that will be kept alive by being instance attributes
-            self._read_cb = ReadCallback(read_callback)
-            self._seek_cb = SeekCallback(seek_callback)
-            self._write_cb = WriteCallback(write_callback)
-            self._flush_cb = FlushCallback(flush_callback)
-            
-            # Create the stream
-            self._own_stream._stream = _lib.c2pa_create_stream(
-                None,
-                self._read_cb,
-                self._seek_cb,
-                self._write_cb,
-                self._flush_cb
-            )
-            
-            if not self._own_stream._stream:
-                file.close()
-                error = _handle_string_result(_lib.c2pa_error())
-                raise C2paError(error)
             
             # Create reader from the file stream
             self._reader = _lib.c2pa_reader_from_stream(
@@ -450,7 +419,8 @@ class Reader:
             # Use the provided stream
             # Keep format string alive
             self._format_str = format_or_path.encode('utf-8')
-            self._reader = _lib.c2pa_reader_from_stream(self._format_str, stream._stream)
+            stream_obj = Stream(stream)
+            self._reader = _lib.c2pa_reader_from_stream(self._format_str, stream_obj._stream)
             
             if not self._reader:
                 error = _handle_string_result(_lib.c2pa_error())
@@ -490,14 +460,26 @@ class Reader:
         result = _lib.c2pa_reader_json(self._reader)
         return _handle_string_result(result)
     
-    def resource_to_stream(self, uri: str, stream: Stream) -> int:
-        """Write a resource to a stream."""
+    def resource_to_stream(self, uri: str, stream: Any) -> int:
+        """Write a resource to a stream.
+        
+        Args:
+            uri: The URI of the resource to write
+            stream: The stream to write to (any Python stream-like object)
+            
+        Returns:
+            The number of bytes written
+            
+        Raises:
+            C2paError: If there was an error writing the resource
+        """
         if not self._reader:
             raise C2paError("Reader is closed")
         
         # Keep uri string alive
         self._uri_str = uri.encode('utf-8')
-        result = _lib.c2pa_reader_resource_to_stream(self._reader, self._uri_str, stream._stream)
+        stream_obj = Stream(stream)
+        result = _lib.c2pa_reader_resource_to_stream(self._reader, self._uri_str, stream_obj._stream)
         
         if result < 0:
             error = _handle_string_result(_lib.c2pa_error())
@@ -575,11 +557,11 @@ class Builder:
         return builder
     
     @classmethod
-    def from_archive(cls, stream: Stream) -> 'Builder':
+    def from_archive(cls, stream: Any) -> 'Builder':
         """Create a new Builder from an archive stream.
         
         Args:
-            stream: The stream containing the archive
+            stream: The stream containing the archive (any Python stream-like object)
             
         Returns:
             A new Builder instance
@@ -588,7 +570,8 @@ class Builder:
             C2paError: If there was an error creating the builder
         """
         builder = cls()
-        builder._builder = _lib.c2pa_builder_from_archive(stream._stream)
+        stream_obj = Stream(stream)
+        builder._builder = _lib.c2pa_builder_from_archive(stream_obj._stream)
         
         if not builder._builder:
             error = _handle_string_result(_lib.c2pa_error())
@@ -644,12 +627,12 @@ class Builder:
             error = _handle_string_result(_lib.c2pa_error())
             raise C2paError(error)
     
-    def add_resource(self, uri: str, stream: Stream):
+    def add_resource(self, uri: str, stream: Any):
         """Add a resource to the builder.
         
         Args:
             uri: The URI to identify the resource
-            stream: The stream containing the resource data
+            stream: The stream containing the resource data (any Python stream-like object)
             
         Raises:
             C2paError: If there was an error adding the resource
@@ -658,19 +641,20 @@ class Builder:
             raise C2paError("Builder is closed")
             
         uri_str = uri.encode('utf-8')
-        result = _lib.c2pa_builder_add_resource(self._builder, uri_str, stream._stream)
+        stream_obj = Stream(stream)
+        result = _lib.c2pa_builder_add_resource(self._builder, uri_str, stream_obj._stream)
         
         if result != 0:
             error = _handle_string_result(_lib.c2pa_error())
             raise C2paError(error)
     
-    def add_ingredient(self, ingredient_json: str, format: str, source: Stream):
+    def add_ingredient(self, ingredient_json: str, format: str, source: Any):
         """Add an ingredient to the builder.
         
         Args:
             ingredient_json: The JSON ingredient definition
             format: The MIME type or extension of the ingredient
-            source: The stream containing the ingredient data
+            source: The stream containing the ingredient data (any Python stream-like object)
             
         Raises:
             C2paError: If there was an error adding the ingredient
@@ -680,19 +664,20 @@ class Builder:
             
         ingredient_str = ingredient_json.encode('utf-8')
         format_str = format.encode('utf-8')
-        result = _lib.c2pa_builder_add_ingredient(self._builder, ingredient_str, format_str, source._stream)
+        source_stream = Stream(source)
+        result = _lib.c2pa_builder_add_ingredient(self._builder, ingredient_str, format_str, source_stream._stream)
         
         if result != 0:
             error = _handle_string_result(_lib.c2pa_error())
             raise C2paError(error)
     
-    def add_ingredient_from_stream(self, ingredient_json: str, format: str, source: Stream):
+    def add_ingredient_from_stream(self, ingredient_json: str, format: str, source: Any):
         """Add an ingredient from a stream to the builder.
         
         Args:
             ingredient_json: The JSON ingredient definition
             format: The MIME type or extension of the ingredient
-            source: The stream containing the ingredient data
+            source: The stream containing the ingredient data (any Python stream-like object)
             
         Raises:
             C2paError: If there was an error adding the ingredient
@@ -702,18 +687,19 @@ class Builder:
             
         ingredient_str = ingredient_json.encode('utf-8')
         format_str = format.encode('utf-8')
+        source_stream = Stream(source)
         result = _lib.c2pa_builder_add_ingredient_from_stream(
-            self._builder, ingredient_str, format_str, source._stream)
+            self._builder, ingredient_str, format_str, source_stream._stream)
         
         if result != 0:
             error = _handle_string_result(_lib.c2pa_error())
             raise C2paError(error)
     
-    def to_archive(self, stream: Stream):
+    def to_archive(self, stream: Any):
         """Write an archive of the builder to a stream.
         
         Args:
-            stream: The stream to write the archive to
+            stream: The stream to write the archive to (any Python stream-like object)
             
         Raises:
             C2paError: If there was an error writing the archive
@@ -721,19 +707,20 @@ class Builder:
         if not self._builder:
             raise C2paError("Builder is closed")
             
-        result = _lib.c2pa_builder_to_archive(self._builder, stream._stream)
+        stream_obj = Stream(stream)
+        result = _lib.c2pa_builder_to_archive(self._builder, stream_obj._stream)
         
         if result != 0:
             error = _handle_string_result(_lib.c2pa_error())
             raise C2paError(error)
     
-    def sign(self, format: str, source: Stream, dest: Stream, signer: Signer) -> tuple[int, Optional[bytes]]:
+    def sign(self, format: str, source: Any, dest: Any, signer: Signer) -> tuple[int, Optional[bytes]]:
         """Sign the builder's content and write to a destination stream.
         
         Args:
             format: The MIME type or extension of the content
-            source: The stream containing the source data
-            dest: The stream to write the signed data to
+            source: The source stream (any Python stream-like object)
+            dest: The destination stream (any Python stream-like object)
             signer: The signer to use
             
         Returns:
@@ -745,14 +732,18 @@ class Builder:
         if not self._builder:
             raise C2paError("Builder is closed")
             
+        # Convert Python streams to Stream objects
+        source_stream = Stream(source)
+        dest_stream = Stream(dest)
+            
         format_str = format.encode('utf-8')
         manifest_bytes_ptr = ctypes.POINTER(ctypes.c_ubyte)()
         
         result = _lib.c2pa_builder_sign(
             self._builder,
             format_str,
-            source._stream,
-            dest._stream,
+            source_stream._stream,
+            dest_stream._stream,
             signer._signer,
             ctypes.byref(manifest_bytes_ptr)
         )
