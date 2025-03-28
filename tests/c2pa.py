@@ -307,24 +307,65 @@ def sign_file(
     )
     return _handle_string_result(result)
 
+
+
 # Helper class for stream operations
 class Stream:
     """High-level wrapper for C2paStream operations."""
-    def __init__(self, context=None):
-        self._context = context
-        self._stream = None
+    def __init__(self, file):
+        self._file = file
         
-    def __enter__(self):
-        return self
+        def read_callback(ctx, data, length):
+            try:
+                buffer = self._file.read(length)
+                for i, b in enumerate(buffer):
+                    data[i] = b
+                return len(buffer)
+            except Exception:
+                return -1
         
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
+        def seek_callback(ctx, offset, whence):
+            try:
+                self._file.seek(offset, whence)
+                return self._file.tell()
+            except Exception:
+                return -1
         
-    def close(self):
-        """Release the stream resources."""
+        def write_callback(ctx, data, length):
+            try:
+                buffer = bytes(data[:length])
+                self._file.write(buffer)
+                return length
+            except Exception:
+                return -1
+        
+        def flush_callback(ctx):
+            try:
+                self._file.flush()
+                return 0
+            except Exception:
+                return -1
+        
+        # Create callbacks that will be kept alive by being instance attributes
+        self._read_cb = ReadCallback(read_callback)
+        self._seek_cb = SeekCallback(seek_callback)
+        self._write_cb = WriteCallback(write_callback)
+        self._flush_cb = FlushCallback(flush_callback)
+        
+        # Create the stream
+        self._stream = _lib.c2pa_create_stream(
+            None,  # context
+            self._read_cb,
+            self._seek_cb,
+            self._write_cb,
+            self._flush_cb
+        )
+        if not self._stream:
+            raise Exception("Failed to create stream")
+
+    def __del__(self):
         if hasattr(self, '_stream') and self._stream:
             _lib.c2pa_release_stream(self._stream)
-            self._stream = None
 
 class Reader:
     """High-level wrapper for C2PA Reader operations."""
@@ -346,7 +387,7 @@ class Reader:
             
             # Open the file and create a stream
             file = open(path, 'rb')
-            self._own_stream = Stream()
+            self._own_stream = Stream(file)
             
             def read_callback(ctx, data, length):
                 try:
@@ -729,6 +770,48 @@ class Builder:
             
         return result, manifest_bytes
 
+    def sign_file(self, source_path: Union[str, Path], dest_path: Union[str, Path], signer: Signer) -> tuple[int, Optional[bytes]]:
+        """Sign a file and write the signed data to an output file.
+        
+        Args:
+            source_path: Path to the source file
+            dest_path: Path to write the signed file to
+            signer: The signer to use
+            
+        Returns:
+            A tuple of (size of C2PA data, optional manifest bytes)
+            
+        Raises:
+            C2paError: If there was an error during signing
+        """
+        if not self._builder:
+            raise C2paError("Builder is closed")
+            
+        source_path_str = str(source_path).encode('utf-8')
+        dest_path_str = str(dest_path).encode('utf-8')
+        manifest_bytes_ptr = ctypes.POINTER(ctypes.c_ubyte)()
+        
+        result = _lib.c2pa_builder_sign_file(
+            self._builder,
+            source_path_str,
+            dest_path_str,
+            signer._signer,
+            ctypes.byref(manifest_bytes_ptr)
+        )
+        
+        if result < 0:
+            error = _handle_string_result(_lib.c2pa_error())
+            raise C2paError(error)
+            
+        manifest_bytes = None
+        if manifest_bytes_ptr:
+            # Convert the manifest bytes to a Python bytes object
+            size = result
+            manifest_bytes = bytes(manifest_bytes_ptr[:size])
+            _lib.c2pa_manifest_bytes_free(manifest_bytes_ptr)
+            
+        return result, manifest_bytes
+
 def format_embeddable(format: str, manifest_bytes: bytes) -> tuple[int, bytes]:
     """Convert a binary C2PA manifest into an embeddable version.
     
@@ -810,7 +893,7 @@ def create_signer_from_info(signer_info: C2paSignerInfo) -> Signer:
     Raises:
         C2paError: If there was an error creating the signer
     """
-    signer_ptr = _lib.c2pa_signer_create_from_info(ctypes.byref(signer_info))
+    signer_ptr = _lib.c2pa_signer_from_info(ctypes.byref(signer_info))
     
     if not signer_ptr:
         error = _handle_string_result(_lib.c2pa_error())
