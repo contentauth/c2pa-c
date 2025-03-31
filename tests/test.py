@@ -24,14 +24,13 @@ signer_info = c2pa.C2paSignerInfo(
     ta_url=None
 )
 
-signer = c2pa.create_signer_from_info(signer_info)
+signer = c2pa.Signer.from_info(signer_info)
 
 builder = c2pa.Builder.from_json('{ }')
-#builder.add_ingredient("tests/fixtures/C.jpg", "image/jpeg")
-#builder.add_resource("thumbnail.jpg", "tests/fixtures/A.jpg")
+
 source = open("tests/fixtures/C.jpg", "rb");
 dest = open("target/C_signed.jpg", "wb");  
-result =builder.sign("image/jpeg", source, dest, signer)
+result =builder.sign(signer, "image/jpeg", source, dest)
 
 reader = c2pa.Reader("target/C_signed.jpg")
 print(reader.json())
