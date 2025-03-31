@@ -402,6 +402,42 @@ pub unsafe extern "C" fn c2pa_reader_from_stream(
     }
 }
 
+/// Creates and verifies a C2paReader from an asset stream with the given format and manifest data.
+///
+/// Parameters
+/// * format: pointer to a C string with the mime type or extension.
+/// * stream: pointer to a C2paStream.
+/// * manifest_data: pointer to the manifest data bytes.
+/// * manifest_size: size of the manifest data bytes.
+///
+/// # Errors
+/// Returns NULL if there were errors, otherwise returns a pointer to a ManifestStore.
+/// The error string can be retrieved by calling c2pa_error.
+///
+/// # Safety
+/// Reads from NULL-terminated C strings.
+/// The returned value MUST be released by calling c2pa_reader_free
+/// and it is no longer valid after that call.
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_reader_from_manifest_data_and_stream(
+    format: *const c_char,
+    stream: *mut C2paStream,
+    manifest_data: *const c_uchar,
+    manifest_size: usize,
+) -> *mut C2paReader {
+    let format = from_cstr_null_check!(format);
+    let manifest_bytes = std::slice::from_raw_parts(manifest_data, manifest_size);
+
+    let result = C2paReader::from_manifest_data_and_stream(manifest_bytes, &format, &mut (*stream));
+    match result {
+        Ok(reader) => Box::into_raw(Box::new(reader)),
+        Err(err) => {
+            Error::from_c2pa_error(err).set_last();
+            std::ptr::null_mut()
+        }
+    }
+}
+
 /// Frees a C2paReader allocated by Rust.
 ///
 /// # Safety
