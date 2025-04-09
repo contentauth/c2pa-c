@@ -1,6 +1,6 @@
 [package]
 name = "c2pa-c"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2021"
 authors = ["Gavin Peacock <gpeacock@adobe.com"]
 
@@ -9,8 +9,8 @@ crate-type = ["lib", "cdylib"]
 
 [dependencies]
 tokio = { version = "1.36", features = ["rt-multi-thread","rt"] }
-cawg-identity = "0.10.1"
-c2pa = { version = "0.48.1", features = [
+cawg-identity = "0.12.0"
+c2pa = { version = "0.49.2", features = [
     "file_io",
     "add_thumbnails",
     "fetch_remote_manifests",
