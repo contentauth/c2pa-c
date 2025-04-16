@@ -588,7 +588,7 @@ int64_t c2pa_builder_sign(struct C2paBuilder *builder_ptr,
                           const char *format,
                           struct C2paStream *source,
                           struct C2paStream *dest,
-                          struct C2paSigner *signer,
+                          struct C2paSigner *signer_ptr,
                           const unsigned char **manifest_bytes_ptr);
 
 /**
@@ -648,7 +648,7 @@ int64_t c2pa_builder_data_hashed_placeholder(struct C2paBuilder *builder_ptr,
  */
 C2PA_API extern
 int64_t c2pa_builder_sign_data_hashed_embeddable(struct C2paBuilder *builder_ptr,
-                                                 struct C2paSigner *signer,
+                                                 struct C2paSigner *signer_ptr,
                                                  const char *data_hash,
                                                  const char *format,
                                                  struct C2paStream *asset,
