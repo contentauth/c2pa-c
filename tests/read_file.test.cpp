@@ -42,7 +42,6 @@ TEST(ReadFile, ReadFileWithCawgIdentityReturnsSomeValue) {
   fs::path test_file = current_dir / "../tests/fixtures/C_with_CAWG_data.jpg";
   auto result = c2pa::read_file(test_file);
   ASSERT_TRUE(result.has_value());
-  std::cout << result.value() << std::endl;
   EXPECT_TRUE(result.value().find("cawg.identity") != std::string::npos);
   EXPECT_TRUE(result.value().find("cawg.ica.credential_valid") != std::string::npos);
 
