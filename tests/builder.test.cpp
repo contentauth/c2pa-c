@@ -41,7 +41,7 @@ TEST(Builder, SignFile)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../target/example/training.jpg";
+    fs::path output_path = current_dir / "../build/example/training.jpg";
 
     try
     {
@@ -140,7 +140,7 @@ TEST(Builder, SignStreamCloudUrl)
         builder.set_remote_url("http://this_does_not_exist/foo.jpg");
         builder.set_no_embed();
 
-        // auto manifest_data = builder.sign(signed_image_path, "target/dest.jpg", signer);
+        // auto manifest_data = builder.sign(signed_image_path, "build/dest.jpg", signer);
         std::ifstream source(signed_image_path, std::ios::binary);
         if (!source)
         {

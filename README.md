@@ -25,7 +25,7 @@ Build the project using CMake and FetchContent like this:
 FetchContent_Declare(
     c2pa_cpp
     GIT_REPOSITORY https://github.com/contentauth/c2pa-c.git
-    GIT_TAG gpeacock/cmake_work`
+    GIT_TAG main
 )
 FetchContent_MakeAvailable(c2pa_cpp)
 ```
@@ -63,7 +63,7 @@ The Makefile has a number of other targets; for example:
 - `examples` to build and run the C++ examples.
 - `all` to run everything.
 
-Results are saved in the `target` directory.
+Results are saved in the `build` directory.
 
 ### Testing
 

@@ -185,7 +185,7 @@ intptr_t signer_callback(const void* context, const unsigned char *data, uintptr
     uint64_t data_len= (uint64_t) len;
     // printf("signer callback: data = %p, len = %ld\n", data, data_len);
     // write data to be signed to a temp file
-    int result = save_file("target/c_data.bin", data, data_len);
+    int result = save_file("build/c_data.bin", data, data_len);
     if (result < 0) {
         printf("signing failed");
         return -1;
@@ -194,10 +194,10 @@ intptr_t signer_callback(const void* context, const unsigned char *data, uintptr
         printf("signer callback unexpected context %s\n", (const char *) context);
     }    
     // sign the temp file by calling openssl in a shell
-    system("openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out target/c_signature.sig target/c_data.bin");
+    system("openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out build/c_signature.sig build/c_data.bin");
 
     // read the signature file
-    FILE* result_file = fopen("target/c_signature.sig", "rb");
+    FILE* result_file = fopen("build/c_signature.sig", "rb");
     if (result_file == NULL) {
         printf("signing failed");
         return -1;

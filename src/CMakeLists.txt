@@ -26,6 +26,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Set DLL export for Windows
 add_definitions(-DC2PA_DLL)
 
+FetchContent_Declare(
+    c2pa_prebuilt
+    URL https://github.com/contentauth/c2pa-c/releases/download/v0.0.1-alpha/c2pa_c_mac_arm.zip
+)
+
+FetchContent_MakeAvailable(c2pa_prebuilt)
+
+# Add the include directory for c2pa.h
+include_directories(${c2pa_prebuilt_SOURCE_DIR}/include)
+
+# Link the prebuilt library
+link_directories(${c2pa_prebuilt_SOURCE_DIR}/lib)
+
+
 # Include directories
 set(INCLUDES ${CMAKE_SOURCE_DIR}/include)
 include_directories(${INCLUDES})
@@ -47,28 +61,29 @@ endif()
 
 # Platform-independent library extension
 if(APPLE)
-  target_link_libraries(c2pa_cpp
-    ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.dylib
+target_link_libraries(c2pa_cpp
+  PRIVATE
+    c2pa_c
   )
 elseif(WIN32)
   target_link_libraries(c2pa_c_tests
-    ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll.lib
+  ${c2pa_prebuilt_SOURCE_DIR}/lib/c2pa_c.dll.lib
   )
 
   # Copy DLL to the test executable directory
   add_custom_command(TARGET c2pa_c_tests POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll"
+      "${c2pa_prebuilt_SOURCE_DIR}/lib/c2pa_c.dll"
       $<TARGET_FILE_DIR:c2pa_c_tests>
     COMMENT "Copying c2pa_c.dll to test executable directory"
   )
 
   target_link_libraries(c2pa_cpp
-    ${CMAKE_SOURCE_DIR}/target/release/c2pa_c.dll.lib
+  ${c2pa_prebuilt_SOURCE_DIR}/lib/c2pa_c.dll.lib
   )
 else()
   target_link_libraries(c2pa_cpp
-    ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.so
+  ${c2pa_prebuilt_SOURCE_DIR}/lib/libc2pa_c.so
   )
 endif()
 

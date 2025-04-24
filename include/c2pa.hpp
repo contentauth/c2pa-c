@@ -38,7 +38,7 @@
 #include <vector>
 #include <optional>
 
-#include "c2pa.h"
+#include <c2pa.h>
 
 using path = std::filesystem::path;
 

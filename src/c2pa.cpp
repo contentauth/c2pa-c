@@ -281,13 +281,13 @@ namespace c2pa
         std::ios_base::seekdir dir = ios_base::beg;
         switch (whence)
         {
-        case SEEK_SET:
+        case C2paSeekMode::Start:
             dir = ios_base::beg;
             break;
-        case SEEK_CUR:
+        case C2paSeekMode::Current:
             dir = ios_base::cur;
             break;
-        case SEEK_END:
+        case C2paSeekMode::End:
             dir = ios_base::end;
             break;
         };
@@ -386,13 +386,13 @@ namespace c2pa
         std::ios_base::seekdir dir = std::ios_base::beg;
         switch (whence)
         {
-        case SEEK_SET:
+        case C2paSeekMode::Start:
             dir = std::ios_base::beg;
             break;
-        case SEEK_CUR:
+        case C2paSeekMode::Current:
             dir = std::ios_base::cur;
             break;
-        case SEEK_END:
+        case C2paSeekMode::End:
             dir = std::ios_base::end;
             break;
         };

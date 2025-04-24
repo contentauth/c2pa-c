@@ -1,5 +1,4 @@
-/target
-/Cargo.lock
+/build
 
 .vscode
 # Mac OS X files
