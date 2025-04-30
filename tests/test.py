@@ -28,8 +28,8 @@ signer = c2pa.Signer.from_info(signer_info)
 
 builder = c2pa.Builder.from_json('{ }')
 
-source = open("tests/fixtures/C.jpg", "rb");
-dest = open("target/C_signed.jpg", "wb");  
+source = open("tests/fixtures/C.jpg", "rb")
+dest = open("target/C_signed.jpg", "wb")
 result =builder.sign(signer, "image/jpeg", source, dest)
 
 reader = c2pa.Reader("target/C_signed.jpg")

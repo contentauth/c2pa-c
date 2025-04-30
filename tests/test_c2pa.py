@@ -259,4 +259,4 @@ def test_context_managers(unsigned_file, signed_file, signer_info):
     with Builder.from_json(manifest_json) as builder:
         assert builder._builder is not None
         builder.set_no_embed()
-        builder.set_remote_url("http://test.url") 
+        builder.set_remote_url("http://test.url")
