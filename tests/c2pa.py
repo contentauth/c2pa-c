@@ -1699,9 +1699,13 @@ def ed25519_sign(data: bytes, private_key: str) -> bytes:
         
     Raises:
         C2paError: If there was an error signing the data
+        C2paError.Encoding: If the private key contains invalid UTF-8 characters
     """
     data_array = (ctypes.c_ubyte * len(data))(*data)
-    key_str = private_key.encode('utf-8')
+    try:
+        key_str = private_key.encode('utf-8')
+    except UnicodeError as e:
+        raise C2paError.Encoding(f"Invalid UTF-8 characters in private key: {str(e)}")
     
     signature_ptr = _lib.c2pa_ed25519_sign(data_array, len(data), key_str)
     
