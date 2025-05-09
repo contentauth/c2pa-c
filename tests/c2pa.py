@@ -1448,7 +1448,7 @@ class Builder:
             raise C2paError.Encoding(self._error_messages['encoding_error'].format(str(e)))
             
         source_stream = Stream(source)
-        result = _lib.c2pa_builder_add_ingredient(self._builder, ingredient_str, format_str, source_stream._stream)
+        result = _lib.c2pa_builder_add_ingredient_from_stream(self._builder, ingredient_str, format_str, source_stream._stream)
         
         if result != 0:
             _handle_string_result(_lib.c2pa_error())
