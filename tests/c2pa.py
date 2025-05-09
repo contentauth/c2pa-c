@@ -572,12 +572,19 @@ class Stream:
                 print(self._error_messages['read'], file=sys.stderr)
                 return -1
             try:
+                if not data or length <= 0:
+                    print(self._error_messages['memory_error'].format("Invalid read parameters"), file=sys.stderr)
+                    return -1
+                    
                 buffer = self._file.read(length)
                 if not buffer:  # EOF
                     return 0
+                    
+                # Ensure we don't write beyond the allocated memory
+                actual_length = min(len(buffer), length)
                 # Direct memory copy for better performance
-                ctypes.memmove(data, buffer, len(buffer))
-                return len(buffer)
+                ctypes.memmove(data, buffer, actual_length)
+                return actual_length
             except Exception as e:
                 print(self._error_messages['read_error'].format(str(e)), file=sys.stderr)
                 return -1
@@ -598,10 +605,21 @@ class Stream:
                 print(self._error_messages['write'], file=sys.stderr)
                 return -1
             try:
-                # Direct memory copy for better performance
-                buffer = (ctypes.c_ubyte * length).from_address(ctypes.addressof(data.contents))
-                self._file.write(buffer)
-                return length
+                if not data or length <= 0:
+                    print(self._error_messages['memory_error'].format("Invalid write parameters"), file=sys.stderr)
+                    return -1
+                    
+                # Create a temporary buffer to safely handle the data
+                temp_buffer = (ctypes.c_ubyte * length)()
+                try:
+                    # Copy data to our temporary buffer
+                    ctypes.memmove(temp_buffer, data, length)
+                    # Write from our safe buffer
+                    self._file.write(bytes(temp_buffer))
+                    return length
+                finally:
+                    # Ensure temporary buffer is cleared
+                    ctypes.memset(temp_buffer, 0, length)
             except Exception as e:
                 print(self._error_messages['write_error'].format(str(e)), file=sys.stderr)
                 return -1
