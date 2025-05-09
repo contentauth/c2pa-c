@@ -546,8 +546,13 @@ class Stream:
         
         self._file = file
         self._stream = None  # Initialize to None to track if stream was created
+        self._closed = False  # Track if the stream has been closed
+        self._initialized = False  # Track if stream was successfully initialized
         
         def read_callback(ctx, data, length):
+            if not self._initialized or self._closed:
+                print("Error: Attempted to read from uninitialized or closed stream", file=sys.stderr)
+                return -1
             try:
                 buffer = self._file.read(length)
                 for i, b in enumerate(buffer):
@@ -558,6 +563,9 @@ class Stream:
                 return -1
         
         def seek_callback(ctx, offset, whence):
+            if not self._initialized or self._closed:
+                print("Error: Attempted to seek in uninitialized or closed stream", file=sys.stderr)
+                return -1
             try:
                 self._file.seek(offset, whence)
                 return self._file.tell()
@@ -566,6 +574,9 @@ class Stream:
                 return -1
         
         def write_callback(ctx, data, length):
+            if not self._initialized or self._closed:
+                print("Error: Attempted to write to uninitialized or closed stream", file=sys.stderr)
+                return -1
             try:
                 buffer = bytes(data[:length])
                 self._file.write(buffer)
@@ -575,6 +586,9 @@ class Stream:
                 return -1
         
         def flush_callback(ctx):
+            if not self._initialized or self._closed:
+                print("Error: Attempted to flush uninitialized or closed stream", file=sys.stderr)
+                return -1
             try:
                 self._file.flush()
                 return 0
@@ -599,31 +613,17 @@ class Stream:
         if not self._stream:
             error = _handle_string_result(_lib.c2pa_error())
             raise Exception(f"Failed to create stream: {error}")
+        
+        self._initialized = True
 
     def __enter__(self):
-        """Context manager entry.
-        
-        Returns:
-            self: The Stream instance
-            
-        Note:
-            The stream is already created in __init__, so we just return self.
-            If stream creation failed, __init__ would have raised an exception.
-        """
+        """Context manager entry."""
+        if not self._initialized:
+            raise RuntimeError("Stream was not properly initialized")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit.
-        
-        Args:
-            exc_type: The exception type if an exception was raised
-            exc_val: The exception value if an exception was raised
-            exc_tb: The exception traceback if an exception was raised
-            
-        Note:
-            We ensure proper cleanup of native resources even if an exception occurs.
-            The close() method handles all cleanup and error logging.
-        """
+        """Context manager exit."""
         self.close()
 
     def __del__(self):
@@ -635,31 +635,53 @@ class Stream:
         
         This method ensures all resources are properly cleaned up, even if errors occur during cleanup.
         Errors during cleanup are logged but not raised to ensure cleanup completes.
+        Multiple calls to close() are handled gracefully.
         """
-        if hasattr(self, '_stream') and self._stream:
-            try:
-                _lib.c2pa_release_stream(self._stream)
-            except Exception as e:
-                print(f"Error releasing stream: {str(e)}", file=sys.stderr)
-            finally:
-                self._stream = None
+        if self._closed:
+            return
 
-        # Clean up callbacks
-        for attr in ['_read_cb', '_seek_cb', '_write_cb', '_flush_cb']:
-            if hasattr(self, attr):
+        try:
+            # Clean up stream first as it depends on callbacks
+            if self._stream:
                 try:
-                    setattr(self, attr, None)
+                    _lib.c2pa_release_stream(self._stream)
                 except Exception as e:
-                    print(f"Error cleaning up callback {attr}: {str(e)}", file=sys.stderr)
+                    print(f"Error releasing stream: {str(e)}", file=sys.stderr)
+                finally:
+                    self._stream = None
 
-        # Clean up file if it exists
-        if hasattr(self, '_file'):
-            try:
-                self._file.close()
-            except Exception as e:
-                print(f"Error closing file: {str(e)}", file=sys.stderr)
-            finally:
-                self._file = None
+            # Clean up callbacks
+            for attr in ['_read_cb', '_seek_cb', '_write_cb', '_flush_cb']:
+                if hasattr(self, attr):
+                    try:
+                        setattr(self, attr, None)
+                    except Exception as e:
+                        print(f"Error cleaning up callback {attr}: {str(e)}", file=sys.stderr)
+
+            # Note: We don't close self._file as we don't own it
+        except Exception as e:
+            print(f"Error during cleanup: {str(e)}", file=sys.stderr)
+        finally:
+            self._closed = True
+            self._initialized = False
+
+    @property
+    def closed(self) -> bool:
+        """Check if the stream is closed.
+        
+        Returns:
+            bool: True if the stream is closed, False otherwise
+        """
+        return self._closed
+
+    @property
+    def initialized(self) -> bool:
+        """Check if the stream is properly initialized.
+        
+        Returns:
+            bool: True if the stream is initialized, False otherwise
+        """
+        return self._initialized
 
 class Reader:
     """High-level wrapper for C2PA Reader operations."""
