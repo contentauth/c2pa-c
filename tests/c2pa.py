@@ -2,6 +2,7 @@ import ctypes
 import enum
 import json
 import sys
+import os
 from pathlib import Path
 from typing import Optional, Union, Callable, Any
 
@@ -91,6 +92,48 @@ def _validate_library_exports(lib):
             "3. A potentially malicious library that's missing critical functions"
         )
 
+def _try_load_library(path):
+    """Attempt to load and validate a library from the given path.
+    
+    Args:
+        path: Path to the library file
+        
+    Returns:
+        The loaded library object if successful
+        
+    Raises:
+        ImportError: If the library cannot be loaded, with specific error messages for:
+                    - Permission errors
+                    - Corrupted libraries
+                    - Missing functions
+                    - Other loading errors
+    """
+    try:
+        # Check file permissions
+        if not os.access(path, os.R_OK):
+            raise ImportError(f"Permission denied: Cannot read library at {path}")
+            
+        # Try to load the library
+        try:
+            lib = ctypes.CDLL(str(path))
+        except OSError as e:
+            if "Permission denied" in str(e):
+                raise ImportError(f"Permission denied: Cannot load library at {path}")
+            elif "invalid ELF header" in str(e) or "not a valid Win32 application" in str(e):
+                raise ImportError(f"Corrupted or invalid library at {path}")
+            else:
+                raise ImportError(f"Failed to load library at {path}: {e}")
+                
+        # Validate the library exports
+        _validate_library_exports(lib)
+        
+        return lib
+        
+    except ImportError:
+        raise
+    except Exception as e:
+        raise ImportError(f"Unexpected error loading library at {path}: {e}")
+
 # Try to find the library in common locations
 _lib_paths = [
     Path(__file__).parent / _lib_name,  # Same directory as this file
@@ -98,11 +141,18 @@ _lib_paths = [
     Path(__file__).parent.parent / "target" / "release" / _lib_name,  # ../target/release
 ]
 
+# Try each path until we find a valid library
 for _path in _lib_paths:
     if _path.exists():
-        _lib = ctypes.CDLL(str(_path))
-        _validate_library_exports(_lib)  # Validate before using the library
-        break
+        try:
+            _lib = _try_load_library(_path)
+            break
+        except ImportError as e:
+            # If this is the last path, raise the error
+            if _path == _lib_paths[-1]:
+                raise ImportError(f"Could not find a valid {_lib_name} in any of: {[str(p) for p in _lib_paths]}\nLast error: {e}")
+            # Otherwise continue to the next path
+            continue
 else:
     raise ImportError(f"Could not find {_lib_name} in any of: {[str(p) for p in _lib_paths]}")
 
