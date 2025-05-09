@@ -568,18 +568,37 @@ class Reader:
         self.close()
     
     def close(self):
-        """Release the reader resources."""
-        if self._reader:
-            _lib.c2pa_reader_free(self._reader)
-            self._reader = None
+        """Release the reader resources.
         
+        This method ensures all resources are properly cleaned up, even if errors occur during cleanup.
+        Errors during cleanup are logged but not raised to ensure cleanup completes.
+        """
+        # Clean up reader
+        if self._reader:
+            try:
+                _lib.c2pa_reader_free(self._reader)
+            except Exception as e:
+                print(f"Error cleaning up reader: {e}", file=sys.stderr)
+            finally:
+                self._reader = None
+        
+        # Clean up stream
         if hasattr(self, '_own_stream') and self._own_stream:
-            self._own_stream.close()
-            self._own_stream = None
-            
+            try:
+                self._own_stream.close()
+            except Exception as e:
+                print(f"Error cleaning up stream: {e}", file=sys.stderr)
+            finally:
+                self._own_stream = None
+        
+        # Clean up file
         if hasattr(self, '_file'):
-            self._file.close()
-            del self._file
+            try:
+                self._file.close()
+            except Exception as e:
+                print(f"Error cleaning up file: {e}", file=sys.stderr)
+            finally:
+                del self._file
     
     def json(self) -> str:
         """Get the manifest store as a JSON string.
