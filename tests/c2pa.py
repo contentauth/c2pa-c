@@ -650,11 +650,11 @@ class Stream:
                 Number of bytes read, or -1 on error
             """
             if not self._initialized or self._closed:
-                print(self._error_messages['read'], file=sys.stderr)
+                # print(self._error_messages['read'], file=sys.stderr)
                 return -1
             try:
                 if not data or length <= 0:
-                    print(self._error_messages['memory_error'].format("Invalid read parameters"), file=sys.stderr)
+                    # print(self._error_messages['memory_error'].format("Invalid read parameters"), file=sys.stderr)
                     return -1
                     
                 buffer = self._file.read(length)
@@ -669,7 +669,7 @@ class Stream:
                 ctypes.memmove(data, buffer_view, actual_length)
                 return actual_length
             except Exception as e:
-                print(self._error_messages['read_error'].format(str(e)), file=sys.stderr)
+                # print(self._error_messages['read_error'].format(str(e)), file=sys.stderr)
                 return -1
         
         def seek_callback(ctx, offset, whence):
@@ -690,13 +690,13 @@ class Stream:
                 New position in the stream, or -1 on error
             """
             if not self._initialized or self._closed:
-                print(self._error_messages['seek'], file=sys.stderr)
+                # print(self._error_messages['seek'], file=sys.stderr)
                 return -1
             try:
                 self._file.seek(offset, whence)
                 return self._file.tell()
             except Exception as e:
-                print(self._error_messages['seek_error'].format(str(e)), file=sys.stderr)
+                # print(self._error_messages['seek_error'].format(str(e)), file=sys.stderr)
                 return -1
         
         def write_callback(ctx, data, length):
@@ -718,11 +718,11 @@ class Stream:
                 Number of bytes written, or -1 on error
             """
             if not self._initialized or self._closed:
-                print(self._error_messages['write'], file=sys.stderr)
+                # print(self._error_messages['write'], file=sys.stderr)
                 return -1
             try:
                 if not data or length <= 0:
-                    print(self._error_messages['memory_error'].format("Invalid write parameters"), file=sys.stderr)
+                    # print(self._error_messages['memory_error'].format("Invalid write parameters"), file=sys.stderr)
                     return -1
                     
                 # Create a temporary buffer to safely handle the data
@@ -737,7 +737,7 @@ class Stream:
                     # Ensure temporary buffer is cleared
                     ctypes.memset(temp_buffer, 0, length)
             except Exception as e:
-                print(self._error_messages['write_error'].format(str(e)), file=sys.stderr)
+                # print(self._error_messages['write_error'].format(str(e)), file=sys.stderr)
                 return -1
         
         def flush_callback(ctx):
@@ -755,13 +755,13 @@ class Stream:
                 0 on success, -1 on error
             """
             if not self._initialized or self._closed:
-                print(self._error_messages['flush'], file=sys.stderr)
+                # print(self._error_messages['flush'], file=sys.stderr)
                 return -1
             try:
                 self._file.flush()
                 return 0
             except Exception as e:
-                print(self._error_messages['flush_error'].format(str(e)), file=sys.stderr)
+                # print(self._error_messages['flush_error'].format(str(e)), file=sys.stderr)
                 return -1
         
         # Create callbacks that will be kept alive by being instance attributes
