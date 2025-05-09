@@ -725,20 +725,30 @@ class Stream:
 class Reader:
     """High-level wrapper for C2PA Reader operations."""
     
-    def __init__(self, format_or_path: Union[str, Path], stream: Optional[Any] = None,  manifest_data: Optional[Any] = None):
+    def __init__(self, format_or_path: Union[str, Path], stream: Optional[Any] = None, manifest_data: Optional[Any] = None):
         """Create a new Reader.
         
         Args:
             format_or_path: The format or path to read from
             stream: Optional stream to read from (any Python stream-like object)
+            manifest_data: Optional manifest data in bytes
         """
         self._reader = None
         self._own_stream = None
-        self._strings = []  # Keep encoded strings alive
+        self._error_messages = {
+            'unsupported': "Unsupported format",
+            'io_error': "IO error: {}",
+            'manifest_error': "Invalid manifest data: must be bytes",
+            'reader_error': "Failed to create reader: {}",
+            'cleanup_error': "Error during cleanup: {}",
+            'stream_error': "Error cleaning up stream: {}",
+            'file_error': "Error cleaning up file: {}",
+            'reader_cleanup': "Error cleaning up reader: {}"
+        }
         
         # Check for unsupported format
         if format_or_path == "badFormat":
-            raise C2paError.NotSupported("Unsupported format")
+            raise C2paError.NotSupported(self._error_messages['unsupported'])
         
         if stream is None:
             # Create a stream from the file path
@@ -749,24 +759,32 @@ class Reader:
             # Keep mime_type string alive
             self._mime_type_str = mime_type.encode('utf-8')
             
-            # Open the file and create a stream
-            file = open(path, 'rb')
-            self._own_stream = Stream(file)
-            
-            # Create reader from the file stream
-            self._reader = _lib.c2pa_reader_from_stream(
-                self._mime_type_str,
-                self._own_stream._stream
-            )
-            
-            if not self._reader:
-                self._own_stream.close()
-                file.close()
-                _handle_string_result(_lib.c2pa_error())
-            
-            # Store the file to close it later
-            self._file = file
-            
+            try:
+                # Open the file and create a stream
+                file = open(path, 'rb')
+                self._own_stream = Stream(file)
+                
+                # Create reader from the file stream
+                self._reader = _lib.c2pa_reader_from_stream(
+                    self._mime_type_str,
+                    self._own_stream._stream
+                )
+                
+                if not self._reader:
+                    self._own_stream.close()
+                    file.close()
+                    _handle_string_result(_lib.c2pa_error())
+                
+                # Store the file to close it later
+                self._file = file
+                
+            except Exception as e:
+                if self._own_stream:
+                    self._own_stream.close()
+                if hasattr(self, '_file'):
+                    self._file.close()
+                raise C2paError.Io(self._error_messages['io_error'].format(str(e)))
+                
         elif isinstance(stream, str):
             # If stream is a string, treat it as a path and try to open it
             try:
@@ -778,9 +796,14 @@ class Reader:
                     self._reader = _lib.c2pa_reader_from_stream(self._format_str, self._own_stream._stream)
                 else:
                     if not isinstance(manifest_data, bytes):
-                        raise TypeError("manifest_data must be bytes")
+                        raise TypeError(self._error_messages['manifest_error'])
                     manifest_array = (ctypes.c_ubyte * len(manifest_data))(*manifest_data)
-                    self._reader = _lib.c2pa_reader_from_manifest_data_and_stream(self._format_str, self._own_stream._stream, manifest_array, len(manifest_data))
+                    self._reader = _lib.c2pa_reader_from_manifest_data_and_stream(
+                        self._format_str, 
+                        self._own_stream._stream, 
+                        manifest_array, 
+                        len(manifest_data)
+                    )
                 
                 if not self._reader:
                     self._own_stream.close()
@@ -793,7 +816,7 @@ class Reader:
                     self._own_stream.close()
                 if hasattr(self, '_file'):
                     self._file.close()
-                raise C2paError.Io(str(e))
+                raise C2paError.Io(self._error_messages['io_error'].format(str(e)))
         else:
             # Use the provided stream
             # Keep format string alive
@@ -803,9 +826,14 @@ class Reader:
                     self._reader = _lib.c2pa_reader_from_stream(self._format_str, stream_obj._stream)
                 else:
                     if not isinstance(manifest_data, bytes):
-                        raise TypeError("manifest_data must be bytes")
+                        raise TypeError(self._error_messages['manifest_error'])
                     manifest_array = (ctypes.c_ubyte * len(manifest_data))(*manifest_data)
-                    self._reader = _lib.c2pa_reader_from_manifest_data_and_stream(self._format_str, stream_obj._stream, manifest_array, len(manifest_data))
+                    self._reader = _lib.c2pa_reader_from_manifest_data_and_stream(
+                        self._format_str, 
+                        stream_obj._stream, 
+                        manifest_array, 
+                        len(manifest_data)
+                    )
                 
                 if not self._reader:
                     _handle_string_result(_lib.c2pa_error())
@@ -836,7 +864,7 @@ class Reader:
                 try:
                     _lib.c2pa_reader_free(self._reader)
                 except Exception as e:
-                    print(f"Error cleaning up reader: {e}", file=sys.stderr)
+                    print(self._error_messages['reader_cleanup'].format(str(e)), file=sys.stderr)
                 finally:
                     self._reader = None
             
@@ -845,7 +873,7 @@ class Reader:
                 try:
                     self._own_stream.close()
                 except Exception as e:
-                    print(f"Error cleaning up stream: {e}", file=sys.stderr)
+                    print(self._error_messages['stream_error'].format(str(e)), file=sys.stderr)
                 finally:
                     self._own_stream = None
             
@@ -854,7 +882,7 @@ class Reader:
                 try:
                     self._file.close()
                 except Exception as e:
-                    print(f"Error cleaning up file: {e}", file=sys.stderr)
+                    print(self._error_messages['file_error'].format(str(e)), file=sys.stderr)
                 finally:
                     self._file = None
 
@@ -862,7 +890,7 @@ class Reader:
             if hasattr(self, '_strings'):
                 self._strings.clear()
         except Exception as e:
-            print(f"Error during cleanup: {e}", file=sys.stderr)
+            print(self._error_messages['cleanup_error'].format(str(e)), file=sys.stderr)
         finally:
             self._closed = True
     
