@@ -470,8 +470,39 @@ class Stream:
             raise Exception("Failed to create stream")
 
     def __del__(self):
+        """Ensure resources are cleaned up if close() wasn't called."""
+        self.close()
+
+    def close(self):
+        """Release the stream resources.
+        
+        This method ensures all resources are properly cleaned up, even if errors occur during cleanup.
+        Errors during cleanup are logged but not raised to ensure cleanup completes.
+        """
         if hasattr(self, '_stream') and self._stream:
-            _lib.c2pa_release_stream(self._stream)
+            try:
+                _lib.c2pa_release_stream(self._stream)
+            except Exception as e:
+                print(f"Error cleaning up stream: {e}", file=sys.stderr)
+            finally:
+                self._stream = None
+
+        # Clean up callbacks
+        for attr in ['_read_cb', '_seek_cb', '_write_cb', '_flush_cb']:
+            if hasattr(self, attr):
+                try:
+                    setattr(self, attr, None)
+                except Exception as e:
+                    print(f"Error cleaning up callback {attr}: {e}", file=sys.stderr)
+
+        # Clean up file if it exists
+        if hasattr(self, '_file'):
+            try:
+                self._file.close()
+            except Exception as e:
+                print(f"Error cleaning up file: {e}", file=sys.stderr)
+            finally:
+                self._file = None
 
 class Reader:
     """High-level wrapper for C2PA Reader operations."""
@@ -789,14 +820,11 @@ class Builder:
             
         return builder
 
-
-
     def set_manifest(self, manifest):
         if not isinstance(manifest, str):
             manifest = json.dumps(manifest)
         super().with_json(manifest)
         return self
-
     
     def __enter__(self):
         return self
