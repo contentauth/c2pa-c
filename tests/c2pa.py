@@ -19,7 +19,6 @@ _REQUIRED_FUNCTIONS = [
     'c2pa_version',
     'c2pa_error',
     'c2pa_string_free',
-    'c2pa_release_string',
     'c2pa_load_settings',
     'c2pa_read_file',
     'c2pa_read_ingredient_file',
@@ -250,7 +249,6 @@ _setup_function(_lib.c2pa_release_stream, [ctypes.POINTER(C2paStream)], None)
 _setup_function(_lib.c2pa_version, [], ctypes.c_void_p)
 _setup_function(_lib.c2pa_error, [], ctypes.c_void_p)
 _setup_function(_lib.c2pa_string_free, [ctypes.c_void_p], None)
-_setup_function(_lib.c2pa_release_string, [ctypes.c_void_p], None)
 _setup_function(_lib.c2pa_load_settings, [ctypes.c_char_p, ctypes.c_char_p], ctypes.c_int)
 _setup_function(_lib.c2pa_read_file, [ctypes.c_char_p, ctypes.c_char_p], ctypes.c_void_p)
 _setup_function(_lib.c2pa_read_ingredient_file, [ctypes.c_char_p, ctypes.c_char_p], ctypes.c_void_p)

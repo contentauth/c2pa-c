@@ -25,7 +25,7 @@ testPath = os.path.join(PROJECT_PATH, "tests", "fixtures", "C.jpg")
 
 class TestC2paSdk(unittest.TestCase):
     def test_version(self):
-        print(sdk_version())
+        # print(sdk_version())
         self.assertIn("0.8.0", sdk_version())
 
 

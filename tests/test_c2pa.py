@@ -1,6 +1,7 @@
 import os
 import unittest
 import tempfile
+import json
 from pathlib import Path
 from c2pa import (
     C2paError,
@@ -76,7 +77,6 @@ class TestC2PA(unittest.TestCase):
         self.assertGreater(len(manifest), 0)
         
         # Verify it's valid JSON
-        import json
         manifest_data = json.loads(manifest)
         self.assertIsInstance(manifest_data, dict)
         # Verify it has expected C2PA structure
@@ -90,7 +90,6 @@ class TestC2PA(unittest.TestCase):
         self.assertIsInstance(ingredient, str)
         
         # Verify it's valid JSON
-        import json
         ingredient_data = json.loads(ingredient)
         self.assertIsInstance(ingredient_data, dict)
         # Verify it has expected ingredient structure
@@ -128,7 +127,6 @@ class TestC2PA(unittest.TestCase):
         self.assertGreater(len(manifest), 0)
         
         # Verify it's valid JSON
-        import json
         manifest_data = json.loads(manifest)
         self.assertIsInstance(manifest_data, dict)
         self.assertIn("claim_generator", manifest_data)
