@@ -781,7 +781,6 @@ class Builder:
         
         if not self._builder:
             _handle_string_result(_lib.c2pa_error())
-            
 
     @classmethod
     def from_json(cls, manifest_json: Any) -> 'Builder':
@@ -820,6 +819,24 @@ class Builder:
             
         return builder
 
+    def __del__(self):
+        """Ensure resources are cleaned up if close() wasn't called."""
+        self.close()
+
+    def close(self):
+        """Release the builder resources.
+        
+        This method ensures all resources are properly cleaned up, even if errors occur during cleanup.
+        Errors during cleanup are logged but not raised to ensure cleanup completes.
+        """
+        if hasattr(self, '_builder') and self._builder:
+            try:
+                _lib.c2pa_builder_free(self._builder)
+            except Exception as e:
+                print(f"Error cleaning up builder: {e}", file=sys.stderr)
+            finally:
+                self._builder = None
+
     def set_manifest(self, manifest):
         if not isinstance(manifest, str):
             manifest = json.dumps(manifest)
@@ -831,12 +848,6 @@ class Builder:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-    
-    def close(self):
-        """Release the builder resources."""
-        if self._builder:
-            _lib.c2pa_builder_free(self._builder)
-            self._builder = None
     
     def set_no_embed(self):
         """Set the no-embed flag.
