@@ -13,6 +13,84 @@ elif sys.platform == "darwin":
 else:
     _lib_name = "libc2pa_c.so"
 
+# Define required function names
+_REQUIRED_FUNCTIONS = [
+    'c2pa_version',
+    'c2pa_error',
+    'c2pa_string_free',
+    'c2pa_release_string',
+    'c2pa_load_settings',
+    'c2pa_read_file',
+    'c2pa_read_ingredient_file',
+    'c2pa_sign_file',
+    'c2pa_reader_from_stream',
+    'c2pa_reader_from_manifest_data_and_stream',
+    'c2pa_reader_free',
+    'c2pa_reader_json',
+    'c2pa_reader_resource_to_stream',
+    'c2pa_builder_from_json',
+    'c2pa_builder_from_archive',
+    'c2pa_builder_free',
+    'c2pa_builder_set_no_embed',
+    'c2pa_builder_set_remote_url',
+    'c2pa_builder_add_resource',
+    'c2pa_builder_add_ingredient_from_stream',
+    'c2pa_builder_to_archive',
+    'c2pa_builder_sign',
+    'c2pa_manifest_bytes_free',
+    'c2pa_builder_data_hashed_placeholder',
+    'c2pa_builder_sign_data_hashed_embeddable',
+    'c2pa_format_embeddable',
+    'c2pa_signer_create',
+    'c2pa_signer_from_info',
+    'c2pa_signer_reserve_size',
+    'c2pa_signer_free',
+    'c2pa_ed25519_sign',
+    'c2pa_signature_free',
+]
+
+def _validate_library_exports(lib):
+    """Validate that all required functions are present in the loaded library.
+    
+    This validation is crucial for several security and reliability reasons:
+    
+    1. Security:
+       - Prevents loading of malicious libraries that might be missing critical functions
+       - Ensures the library has all expected functionality before any code execution
+       - Helps detect tampered or incomplete libraries that could be used for attacks
+    
+    2. Reliability:
+       - Fails fast if the library is incomplete or corrupted
+       - Prevents runtime errors from missing functions
+       - Ensures all required functionality is available before use
+    
+    3. Version Compatibility:
+       - Helps detect version mismatches where the library doesn't have all expected functions
+       - Prevents partial functionality that could lead to undefined behavior
+       - Ensures the library matches the expected API version
+    
+    Args:
+        lib: The loaded library object
+        
+    Raises:
+        ImportError: If any required function is missing, with a detailed message listing
+                    the missing functions. This helps diagnose issues with the library
+                    installation or version compatibility.
+    """
+    missing_functions = []
+    for func_name in _REQUIRED_FUNCTIONS:
+        if not hasattr(lib, func_name):
+            missing_functions.append(func_name)
+    
+    if missing_functions:
+        raise ImportError(
+            f"Library is missing required functions: {', '.join(missing_functions)}\n"
+            "This could indicate:\n"
+            "1. An incomplete or corrupted library installation\n"
+            "2. A version mismatch between the library and this Python wrapper\n"
+            "3. A potentially malicious library that's missing critical functions"
+        )
+
 # Try to find the library in common locations
 _lib_paths = [
     Path(__file__).parent / _lib_name,  # Same directory as this file
@@ -23,6 +101,7 @@ _lib_paths = [
 for _path in _lib_paths:
     if _path.exists():
         _lib = ctypes.CDLL(str(_path))
+        _validate_library_exports(_lib)  # Validate before using the library
         break
 else:
     raise ImportError(f"Could not find {_lib_name} in any of: {[str(p) for p in _lib_paths]}")
