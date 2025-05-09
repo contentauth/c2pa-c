@@ -187,13 +187,33 @@ class C2paSigner(ctypes.Structure):
     _fields_ = []  # Empty as it's opaque in the C API
 
 class C2paStream(ctypes.Structure):
-    """A C2paStream is a Rust Read/Write/Seek stream that can be created in C."""
+    """A C2paStream is a Rust Read/Write/Seek stream that can be created in C.
+    
+    This class represents a low-level stream interface that bridges Python and Rust/C code.
+    It implements the Rust Read/Write/Seek traits in C, allowing for efficient data transfer
+    between Python and the C2PA library without unnecessary copying.
+    
+    The stream is used for various operations including:
+    - Reading manifest data from files
+    - Writing signed content to files
+    - Handling binary resources
+    - Managing ingredient data
+    
+    The structure contains function pointers that implement the stream operations:
+    - reader: Function to read data from the stream
+    - seeker: Function to change the stream position
+    - writer: Function to write data to the stream
+    - flusher: Function to flush any buffered data
+    
+    This is a critical component for performance as it allows direct memory access
+    between Python and the C2PA library without intermediate copies.
+    """
     _fields_ = [
-        ("context", ctypes.POINTER(StreamContext)),
-        ("reader", ReadCallback),
-        ("seeker", SeekCallback),
-        ("writer", WriteCallback),
-        ("flusher", FlushCallback),
+        ("context", ctypes.POINTER(StreamContext)),  # Opaque context pointer for the stream
+        ("reader", ReadCallback),                    # Function to read data from the stream
+        ("seeker", SeekCallback),                    # Function to change stream position
+        ("writer", WriteCallback),                   # Function to write data to the stream
+        ("flusher", FlushCallback),                  # Function to flush buffered data
     ]
 
 class C2paSignerInfo(ctypes.Structure):
@@ -547,8 +567,43 @@ def sign_file(
     return _handle_string_result(result)
 
 class Stream:
-    """High-level wrapper for C2paStream operations."""
+    """High-level wrapper for C2paStream operations that provides a Python-friendly interface.
+    
+    This class serves as a bridge between Python's file-like objects and the low-level C2paStream
+    interface. It provides several important benefits:
+    
+    1. Memory Safety:
+       - Manages memory allocation and deallocation for C callbacks
+       - Prevents memory leaks through proper cleanup in __del__ and close()
+       - Handles buffer management for read/write operations
+    
+    2. Error Handling:
+       - Provides detailed error messages for stream operations
+       - Implements proper error propagation to Python exceptions
+       - Ensures resources are cleaned up even when errors occur
+    
+    3. Resource Management:
+       - Implements context manager protocol (__enter__/__exit__)
+       - Ensures proper cleanup of C resources
+       - Handles file descriptor lifecycle
+    
+    4. Performance:
+       - Minimizes data copying between Python and C
+       - Uses direct memory access where possible
+       - Implements efficient buffer management
+    
+    The class wraps any Python file-like object that implements the standard stream interface
+    (read, write, seek, tell, flush) and provides the necessary callbacks for the C2PA library.
+    """
     def __init__(self, file):
+        """Initialize a new Stream wrapper around a file-like object.
+        
+        Args:
+            file: A file-like object that implements read, write, seek, tell, and flush methods
+            
+        Raises:
+            TypeError: If the file object doesn't implement all required methods
+        """
         # Validate that the object has the required stream-like methods
         required_methods = ['read', 'write', 'seek', 'tell', 'flush']
         missing_methods = [method for method in required_methods if not hasattr(file, method)]
@@ -579,6 +634,23 @@ class Stream:
         }
         
         def read_callback(ctx, data, length):
+            """Callback function for reading data from the Python stream.
+            
+            This function is called by the C2PA library when it needs to read data.
+            It handles:
+            - Stream state validation
+            - Memory safety
+            - Error handling
+            - Buffer management
+            
+            Args:
+                ctx: The stream context (unused)
+                data: Pointer to the buffer to read into
+                length: Maximum number of bytes to read
+                
+            Returns:
+                Number of bytes read, or -1 on error
+            """
             if not self._initialized or self._closed:
                 print(self._error_messages['read'], file=sys.stderr)
                 return -1
@@ -603,6 +675,22 @@ class Stream:
                 return -1
         
         def seek_callback(ctx, offset, whence):
+            """Callback function for seeking in the Python stream.
+            
+            This function is called by the C2PA library when it needs to change
+            the stream position. It handles:
+            - Stream state validation
+            - Position validation
+            - Error handling
+            
+            Args:
+                ctx: The stream context (unused)
+                offset: The offset to seek to
+                whence: The reference point (0=start, 1=current, 2=end)
+                
+            Returns:
+                New position in the stream, or -1 on error
+            """
             if not self._initialized or self._closed:
                 print(self._error_messages['seek'], file=sys.stderr)
                 return -1
@@ -614,6 +702,23 @@ class Stream:
                 return -1
         
         def write_callback(ctx, data, length):
+            """Callback function for writing data to the Python stream.
+            
+            This function is called by the C2PA library when it needs to write data.
+            It handles:
+            - Stream state validation
+            - Memory safety
+            - Error handling
+            - Buffer management
+            
+            Args:
+                ctx: The stream context (unused)
+                data: Pointer to the data to write
+                length: Number of bytes to write
+                
+            Returns:
+                Number of bytes written, or -1 on error
+            """
             if not self._initialized or self._closed:
                 print(self._error_messages['write'], file=sys.stderr)
                 return -1
@@ -638,6 +743,19 @@ class Stream:
                 return -1
         
         def flush_callback(ctx):
+            """Callback function for flushing the Python stream.
+            
+            This function is called by the C2PA library when it needs to ensure
+            all buffered data is written. It handles:
+            - Stream state validation
+            - Error handling
+            
+            Args:
+                ctx: The stream context (unused)
+                
+            Returns:
+                0 on success, -1 on error
+            """
             if not self._initialized or self._closed:
                 print(self._error_messages['flush'], file=sys.stderr)
                 return -1
