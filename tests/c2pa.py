@@ -944,13 +944,17 @@ class Signer:
         Use from_info() or from_callback() instead.
         """
         self._signer = signer_ptr
+        self._closed = False
         self._error_messages = {
             'closed_error': "Signer is closed",
             'cleanup_error': "Error during cleanup: {}",
             'signer_cleanup': "Error cleaning up signer: {}",
             'size_error': "Error getting reserve size: {}",
             'callback_error': "Error in signer callback: {}",
-            'info_error': "Error creating signer from info: {}"
+            'info_error': "Error creating signer from info: {}",
+            'invalid_data': "Invalid data for signing: {}",
+            'invalid_certs': "Invalid certificate data: {}",
+            'invalid_tsa': "Invalid TSA URL: {}"
         }
     
     @classmethod
@@ -966,6 +970,10 @@ class Signer:
         Raises:
             C2paError: If there was an error creating the signer
         """
+        # Validate signer info before creating
+        if not signer_info.sign_cert or not signer_info.private_key:
+            raise C2paError(cls._error_messages['invalid_certs'].format("Missing certificate or private key"))
+            
         signer_ptr = _lib.c2pa_signer_from_info(ctypes.byref(signer_info))
         
         if not signer_ptr:
@@ -995,9 +1003,27 @@ class Signer:
         Raises:
             C2paError: If there was an error creating the signer
         """
+        # Validate inputs before creating
+        if not certs:
+            raise C2paError(cls._error_messages['invalid_certs'].format("Missing certificate data"))
+            
+        if tsa_url and not tsa_url.startswith(('http://', 'https://')):
+            raise C2paError(cls._error_messages['invalid_tsa'].format("Invalid TSA URL format"))
+            
+        # Create a wrapper callback that handles errors and memory management
+        def wrapped_callback(data: bytes) -> bytes:
+            try:
+                if not data:
+                    raise ValueError("Empty data provided for signing")
+                return callback(data)
+            except Exception as e:
+                print(cls._error_messages['callback_error'].format(str(e)), file=sys.stderr)
+                raise C2paError.Signature(str(e))
+        
+        # Create the signer with the wrapped callback
         signer_ptr = _lib.c2pa_signer_create(
             None,  # context
-            SignerCallback(callback),
+            SignerCallback(wrapped_callback),
             alg,
             certs.encode('utf-8'),
             tsa_url.encode('utf-8') if tsa_url else None
@@ -1009,20 +1035,37 @@ class Signer:
         return cls(signer_ptr)
     
     def __enter__(self):
+        """Context manager entry."""
+        if self._closed:
+            raise C2paError(self._error_messages['closed_error'])
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
         self.close()
     
     def close(self):
-        """Release the signer resources."""
-        if self._signer:
-            try:
-                _lib.c2pa_signer_free(self._signer)
-            except Exception as e:
-                print(self._error_messages['signer_cleanup'].format(str(e)), file=sys.stderr)
-            finally:
-                self._signer = None
+        """Release the signer resources.
+        
+        This method ensures all resources are properly cleaned up, even if errors occur during cleanup.
+        Errors during cleanup are logged but not raised to ensure cleanup completes.
+        Multiple calls to close() are handled gracefully.
+        """
+        if self._closed:
+            return
+            
+        try:
+            if self._signer:
+                try:
+                    _lib.c2pa_signer_free(self._signer)
+                except Exception as e:
+                    print(self._error_messages['signer_cleanup'].format(str(e)), file=sys.stderr)
+                finally:
+                    self._signer = None
+        except Exception as e:
+            print(self._error_messages['cleanup_error'].format(str(e)), file=sys.stderr)
+        finally:
+            self._closed = True
     
     def reserve_size(self) -> int:
         """Get the size to reserve for signatures from this signer.
@@ -1033,15 +1076,27 @@ class Signer:
         Raises:
             C2paError: If there was an error getting the size
         """
-        if not self._signer:
+        if self._closed or not self._signer:
             raise C2paError(self._error_messages['closed_error'])
             
-        result = _lib.c2pa_signer_reserve_size(self._signer)
-        
-        if result < 0:
-            _handle_string_result(_lib.c2pa_error())
+        try:
+            result = _lib.c2pa_signer_reserve_size(self._signer)
             
-        return result
+            if result < 0:
+                _handle_string_result(_lib.c2pa_error())
+                
+            return result
+        except Exception as e:
+            raise C2paError(self._error_messages['size_error'].format(str(e)))
+    
+    @property
+    def closed(self) -> bool:
+        """Check if the signer is closed.
+        
+        Returns:
+            bool: True if the signer is closed, False otherwise
+        """
+        return self._closed
 
 class Builder:
     """High-level wrapper for C2PA Builder operations."""
