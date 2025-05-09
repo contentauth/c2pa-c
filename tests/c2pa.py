@@ -519,12 +519,16 @@ def sign_file(
         
     Raises:
         C2paError: If there was an error signing the file
+        C2paError.Encoding: If any of the string inputs contain invalid UTF-8 characters
     """
     # Store encoded strings as attributes of signer_info to keep them alive
-    signer_info._source_str = str(source_path).encode('utf-8')
-    signer_info._dest_str = str(dest_path).encode('utf-8')
-    signer_info._manifest_str = manifest.encode('utf-8')
-    signer_info._data_dir_str = str(data_dir).encode('utf-8') if data_dir else None
+    try:
+        signer_info._source_str = str(source_path).encode('utf-8')
+        signer_info._dest_str = str(dest_path).encode('utf-8')
+        signer_info._manifest_str = manifest.encode('utf-8')
+        signer_info._data_dir_str = str(data_dir).encode('utf-8') if data_dir else None
+    except UnicodeError as e:
+        raise C2paError.Encoding(f"Invalid UTF-8 characters in input strings: {str(e)}")
     
     result = _lib.c2pa_sign_file(
         signer_info._source_str,
@@ -732,6 +736,10 @@ class Reader:
             format_or_path: The format or path to read from
             stream: Optional stream to read from (any Python stream-like object)
             manifest_data: Optional manifest data in bytes
+            
+        Raises:
+            C2paError: If there was an error creating the reader
+            C2paError.Encoding: If any of the string inputs contain invalid UTF-8 characters
         """
         self._reader = None
         self._own_stream = None
@@ -743,7 +751,8 @@ class Reader:
             'cleanup_error': "Error during cleanup: {}",
             'stream_error': "Error cleaning up stream: {}",
             'file_error': "Error cleaning up file: {}",
-            'reader_cleanup': "Error cleaning up reader: {}"
+            'reader_cleanup': "Error cleaning up reader: {}",
+            'encoding_error': "Invalid UTF-8 characters in input: {}"
         }
         
         # Check for unsupported format
@@ -757,7 +766,10 @@ class Reader:
             mime_type = mimetypes.guess_type(path)[0] or 'application/octet-stream'
             
             # Keep mime_type string alive
-            self._mime_type_str = mime_type.encode('utf-8')
+            try:
+                self._mime_type_str = mime_type.encode('utf-8')
+            except UnicodeError as e:
+                raise C2paError.Encoding(self._error_messages['encoding_error'].format(str(e)))
             
             try:
                 # Open the file and create a stream
@@ -1002,6 +1014,7 @@ class Signer:
             
         Raises:
             C2paError: If there was an error creating the signer
+            C2paError.Encoding: If the certificate data or TSA URL contains invalid UTF-8 characters
         """
         # Validate inputs before creating
         if not certs:
@@ -1020,13 +1033,20 @@ class Signer:
                 print(cls._error_messages['callback_error'].format(str(e)), file=sys.stderr)
                 raise C2paError.Signature(str(e))
         
+        # Encode strings with error handling
+        try:
+            certs_bytes = certs.encode('utf-8')
+            tsa_url_bytes = tsa_url.encode('utf-8') if tsa_url else None
+        except UnicodeError as e:
+            raise C2paError.Encoding(cls._error_messages['encoding_error'].format(str(e)))
+        
         # Create the signer with the wrapped callback
         signer_ptr = _lib.c2pa_signer_create(
             None,  # context
             SignerCallback(wrapped_callback),
             alg,
-            certs.encode('utf-8'),
-            tsa_url.encode('utf-8') if tsa_url else None
+            certs_bytes,
+            tsa_url_bytes
         )
         
         if not signer_ptr:
@@ -1102,7 +1122,15 @@ class Builder:
     """High-level wrapper for C2PA Builder operations."""
 
     def __init__(self, manifest_json: Any):
-        """Initialize a new Builder instance."""
+        """Initialize a new Builder instance.
+        
+        Args:
+            manifest_json: The manifest JSON definition (string or dict)
+            
+        Raises:
+            C2paError: If there was an error creating the builder
+            C2paError.Encoding: If the manifest JSON contains invalid UTF-8 characters
+        """
         self._builder = None
         self._error_messages = {
             'builder_error': "Failed to create builder: {}",
@@ -1114,13 +1142,18 @@ class Builder:
             'resource_error': "Error adding resource: {}",
             'ingredient_error': "Error adding ingredient: {}",
             'archive_error': "Error writing archive: {}",
-            'sign_error': "Error during signing: {}"
+            'sign_error': "Error during signing: {}",
+            'encoding_error': "Invalid UTF-8 characters in manifest: {}"
         }
         
         if not isinstance(manifest_json, str):
             manifest_json = json.dumps(manifest_json)
         
-        json_str = manifest_json.encode('utf-8')
+        try:
+            json_str = manifest_json.encode('utf-8')
+        except UnicodeError as e:
+            raise C2paError.Encoding(self._error_messages['encoding_error'].format(str(e)))
+            
         self._builder = _lib.c2pa_builder_from_json(json_str)
         
         if not self._builder:
@@ -1268,12 +1301,17 @@ class Builder:
             
         Raises:
             C2paError: If there was an error adding the ingredient
+            C2paError.Encoding: If the ingredient JSON contains invalid UTF-8 characters
         """
         if not self._builder:
             raise C2paError(self._error_messages['closed_error'])
             
-        ingredient_str = ingredient_json.encode('utf-8')
-        format_str = format.encode('utf-8')
+        try:
+            ingredient_str = ingredient_json.encode('utf-8')
+            format_str = format.encode('utf-8')
+        except UnicodeError as e:
+            raise C2paError.Encoding(self._error_messages['encoding_error'].format(str(e)))
+            
         source_stream = Stream(source)
         result = _lib.c2pa_builder_add_ingredient(self._builder, ingredient_str, format_str, source_stream._stream)
         
@@ -1290,12 +1328,17 @@ class Builder:
             
         Raises:
             C2paError: If there was an error adding the ingredient
+            C2paError.Encoding: If the ingredient JSON or format contains invalid UTF-8 characters
         """
         if not self._builder:
             raise C2paError(self._error_messages['closed_error'])
             
-        ingredient_str = ingredient_json.encode('utf-8')
-        format_str = format.encode('utf-8')
+        try:
+            ingredient_str = ingredient_json.encode('utf-8')
+            format_str = format.encode('utf-8')
+        except UnicodeError as e:
+            raise C2paError.Encoding(self._error_messages['encoding_error'].format(str(e)))
+            
         with Stream(source) as source_stream:
             result = _lib.c2pa_builder_add_ingredient_from_stream(
                 self._builder, ingredient_str, format_str, source_stream._stream)
@@ -1466,13 +1509,20 @@ def create_signer(
         
     Raises:
         C2paError: If there was an error creating the signer
+        C2paError.Encoding: If the certificate data or TSA URL contains invalid UTF-8 characters
     """
+    try:
+        certs_bytes = certs.encode('utf-8')
+        tsa_url_bytes = tsa_url.encode('utf-8') if tsa_url else None
+    except UnicodeError as e:
+        raise C2paError.Encoding(f"Invalid UTF-8 characters in certificate data or TSA URL: {str(e)}")
+    
     signer_ptr = _lib.c2pa_signer_create(
         None,  # context
         SignerCallback(callback),
         alg,
-        certs.encode('utf-8'),
-        tsa_url.encode('utf-8') if tsa_url else None
+        certs_bytes,
+        tsa_url_bytes
     )
     
     if not signer_ptr:
