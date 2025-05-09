@@ -603,33 +603,50 @@ class Reader:
         
         This method ensures all resources are properly cleaned up, even if errors occur during cleanup.
         Errors during cleanup are logged but not raised to ensure cleanup completes.
+        Multiple calls to close() are handled gracefully.
         """
-        # Clean up reader
-        if self._reader:
-            try:
-                _lib.c2pa_reader_free(self._reader)
-            except Exception as e:
-                print(f"Error cleaning up reader: {e}", file=sys.stderr)
-            finally:
-                self._reader = None
-        
-        # Clean up stream
-        if hasattr(self, '_own_stream') and self._own_stream:
-            try:
-                self._own_stream.close()
-            except Exception as e:
-                print(f"Error cleaning up stream: {e}", file=sys.stderr)
-            finally:
-                self._own_stream = None
-        
-        # Clean up file
-        if hasattr(self, '_file'):
-            try:
-                self._file.close()
-            except Exception as e:
-                print(f"Error cleaning up file: {e}", file=sys.stderr)
-            finally:
-                del self._file
+        # Track if we've already cleaned up
+        if not hasattr(self, '_closed'):
+            self._closed = False
+
+        if self._closed:
+            return
+
+        try:
+            # Clean up reader
+            if hasattr(self, '_reader') and self._reader:
+                try:
+                    _lib.c2pa_reader_free(self._reader)
+                except Exception as e:
+                    print(f"Error cleaning up reader: {e}", file=sys.stderr)
+                finally:
+                    self._reader = None
+            
+            # Clean up stream
+            if hasattr(self, '_own_stream') and self._own_stream:
+                try:
+                    self._own_stream.close()
+                except Exception as e:
+                    print(f"Error cleaning up stream: {e}", file=sys.stderr)
+                finally:
+                    self._own_stream = None
+            
+            # Clean up file
+            if hasattr(self, '_file'):
+                try:
+                    self._file.close()
+                except Exception as e:
+                    print(f"Error cleaning up file: {e}", file=sys.stderr)
+                finally:
+                    self._file = None
+
+            # Clear any stored strings
+            if hasattr(self, '_strings'):
+                self._strings.clear()
+        except Exception as e:
+            print(f"Error during cleanup: {e}", file=sys.stderr)
+        finally:
+            self._closed = True
     
     def json(self) -> str:
         """Get the manifest store as a JSON string.
@@ -828,14 +845,28 @@ class Builder:
         
         This method ensures all resources are properly cleaned up, even if errors occur during cleanup.
         Errors during cleanup are logged but not raised to ensure cleanup completes.
+        Multiple calls to close() are handled gracefully.
         """
-        if hasattr(self, '_builder') and self._builder:
-            try:
-                _lib.c2pa_builder_free(self._builder)
-            except Exception as e:
-                print(f"Error cleaning up builder: {e}", file=sys.stderr)
-            finally:
-                self._builder = None
+        # Track if we've already cleaned up
+        if not hasattr(self, '_closed'):
+            self._closed = False
+
+        if self._closed:
+            return
+
+        try:
+            # Clean up builder
+            if hasattr(self, '_builder') and self._builder:
+                try:
+                    _lib.c2pa_builder_free(self._builder)
+                except Exception as e:
+                    print(f"Error cleaning up builder: {e}", file=sys.stderr)
+                finally:
+                    self._builder = None
+        except Exception as e:
+            print(f"Error during cleanup: {e}", file=sys.stderr)
+        finally:
+            self._closed = True
 
     def set_manifest(self, manifest):
         if not isinstance(manifest, str):
