@@ -937,6 +937,22 @@ class Reader:
 class Signer:
     """High-level wrapper for C2PA Signer operations."""
     
+    def __init__(self, signer_ptr: ctypes.POINTER(C2paSigner)):
+        """Initialize a new Signer instance.
+        
+        Note: This constructor is not meant to be called directly.
+        Use from_info() or from_callback() instead.
+        """
+        self._signer = signer_ptr
+        self._error_messages = {
+            'closed_error': "Signer is closed",
+            'cleanup_error': "Error during cleanup: {}",
+            'signer_cleanup': "Error cleaning up signer: {}",
+            'size_error': "Error getting reserve size: {}",
+            'callback_error': "Error in signer callback: {}",
+            'info_error': "Error creating signer from info: {}"
+        }
+    
     @classmethod
     def from_info(cls, signer_info: C2paSignerInfo) -> 'Signer':
         """Create a new Signer from signer information.
@@ -992,14 +1008,6 @@ class Signer:
             
         return cls(signer_ptr)
     
-    def __init__(self, signer_ptr: ctypes.POINTER(C2paSigner)):
-        """Initialize a new Signer instance.
-        
-        Note: This constructor is not meant to be called directly.
-        Use from_info() or from_callback() instead.
-        """
-        self._signer = signer_ptr
-    
     def __enter__(self):
         return self
     
@@ -1009,8 +1017,12 @@ class Signer:
     def close(self):
         """Release the signer resources."""
         if self._signer:
-            _lib.c2pa_signer_free(self._signer)
-            self._signer = None
+            try:
+                _lib.c2pa_signer_free(self._signer)
+            except Exception as e:
+                print(self._error_messages['signer_cleanup'].format(str(e)), file=sys.stderr)
+            finally:
+                self._signer = None
     
     def reserve_size(self) -> int:
         """Get the size to reserve for signatures from this signer.
@@ -1022,7 +1034,7 @@ class Signer:
             C2paError: If there was an error getting the size
         """
         if not self._signer:
-            raise C2paError("Signer is closed")
+            raise C2paError(self._error_messages['closed_error'])
             
         result = _lib.c2pa_signer_reserve_size(self._signer)
         
@@ -1036,6 +1048,20 @@ class Builder:
 
     def __init__(self, manifest_json: Any):
         """Initialize a new Builder instance."""
+        self._builder = None
+        self._error_messages = {
+            'builder_error': "Failed to create builder: {}",
+            'cleanup_error': "Error during cleanup: {}",
+            'builder_cleanup': "Error cleaning up builder: {}",
+            'closed_error': "Builder is closed",
+            'manifest_error': "Invalid manifest data: must be string or dict",
+            'url_error': "Error setting remote URL: {}",
+            'resource_error': "Error adding resource: {}",
+            'ingredient_error': "Error adding ingredient: {}",
+            'archive_error': "Error writing archive: {}",
+            'sign_error': "Error during signing: {}"
+        }
+        
         if not isinstance(manifest_json, str):
             manifest_json = json.dumps(manifest_json)
         
@@ -1106,11 +1132,11 @@ class Builder:
                 try:
                     _lib.c2pa_builder_free(self._builder)
                 except Exception as e:
-                    print(f"Error cleaning up builder: {e}", file=sys.stderr)
+                    print(self._error_messages['builder_cleanup'].format(str(e)), file=sys.stderr)
                 finally:
                     self._builder = None
         except Exception as e:
-            print(f"Error during cleanup: {e}", file=sys.stderr)
+            print(self._error_messages['cleanup_error'].format(str(e)), file=sys.stderr)
         finally:
             self._closed = True
 
@@ -1133,7 +1159,7 @@ class Builder:
         This is useful when creating cloud or sidecar manifests.
         """
         if not self._builder:
-            raise C2paError("Builder is closed")
+            raise C2paError(self._error_messages['closed_error'])
         _lib.c2pa_builder_set_no_embed(self._builder)
     
     def set_remote_url(self, remote_url: str):
@@ -1149,7 +1175,7 @@ class Builder:
             C2paError: If there was an error setting the URL
         """
         if not self._builder:
-            raise C2paError("Builder is closed")
+            raise C2paError(self._error_messages['closed_error'])
             
         url_str = remote_url.encode('utf-8')
         result = _lib.c2pa_builder_set_remote_url(self._builder, url_str)
@@ -1168,7 +1194,7 @@ class Builder:
             C2paError: If there was an error adding the resource
         """
         if not self._builder:
-            raise C2paError("Builder is closed")
+            raise C2paError(self._error_messages['closed_error'])
             
         uri_str = uri.encode('utf-8')
         with Stream(stream) as stream_obj:
@@ -1189,7 +1215,7 @@ class Builder:
             C2paError: If there was an error adding the ingredient
         """
         if not self._builder:
-            raise C2paError("Builder is closed")
+            raise C2paError(self._error_messages['closed_error'])
             
         ingredient_str = ingredient_json.encode('utf-8')
         format_str = format.encode('utf-8')
@@ -1211,7 +1237,7 @@ class Builder:
             C2paError: If there was an error adding the ingredient
         """
         if not self._builder:
-            raise C2paError("Builder is closed")
+            raise C2paError(self._error_messages['closed_error'])
             
         ingredient_str = ingredient_json.encode('utf-8')
         format_str = format.encode('utf-8')
@@ -1232,7 +1258,7 @@ class Builder:
             C2paError: If there was an error writing the archive
         """
         if not self._builder:
-            raise C2paError("Builder is closed")
+            raise C2paError(self._error_messages['closed_error'])
             
         with Stream(stream) as stream_obj:
             result = _lib.c2pa_builder_to_archive(self._builder, stream_obj._stream)
@@ -1256,7 +1282,7 @@ class Builder:
             C2paError: If there was an error during signing
         """
         if not self._builder:
-            raise C2paError("Builder is closed")
+            raise C2paError(self._error_messages['closed_error'])
             
         # Convert Python streams to Stream objects
         source_stream = Stream(source)
@@ -1306,7 +1332,7 @@ class Builder:
             C2paError: If there was an error during signing
         """
         if not self._builder:
-            raise C2paError("Builder is closed")
+            raise C2paError(self._error_messages['closed_error'])
             
         source_path_str = str(source_path).encode('utf-8')
         dest_path_str = str(dest_path).encode('utf-8')
