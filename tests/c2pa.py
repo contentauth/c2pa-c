@@ -545,6 +545,7 @@ class Stream:
             raise TypeError(f"Object must be a stream-like object with methods: {', '.join(required_methods)}. Missing: {', '.join(missing_methods)}")
         
         self._file = file
+        self._stream = None  # Initialize to None to track if stream was created
         
         def read_callback(ctx, data, length):
             try:
@@ -598,6 +599,32 @@ class Stream:
         if not self._stream:
             error = _handle_string_result(_lib.c2pa_error())
             raise Exception(f"Failed to create stream: {error}")
+
+    def __enter__(self):
+        """Context manager entry.
+        
+        Returns:
+            self: The Stream instance
+            
+        Note:
+            The stream is already created in __init__, so we just return self.
+            If stream creation failed, __init__ would have raised an exception.
+        """
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit.
+        
+        Args:
+            exc_type: The exception type if an exception was raised
+            exc_val: The exception value if an exception was raised
+            exc_tb: The exception traceback if an exception was raised
+            
+        Note:
+            We ensure proper cleanup of native resources even if an exception occurs.
+            The close() method handles all cleanup and error logging.
+        """
+        self.close()
 
     def __del__(self):
         """Ensure resources are cleaned up if close() wasn't called."""
@@ -710,17 +737,17 @@ class Reader:
             # Use the provided stream
             # Keep format string alive
             self._format_str = format_or_path.encode('utf-8')
-            stream_obj = Stream(stream)
-            if manifest_data is None:
-                self._reader = _lib.c2pa_reader_from_stream(self._format_str, stream_obj._stream)
-            else:
-                if not isinstance(manifest_data, bytes):
-                    raise TypeError("manifest_data must be bytes")
-                manifest_array = (ctypes.c_ubyte * len(manifest_data))(*manifest_data)
-                self._reader = _lib.c2pa_reader_from_manifest_data_and_stream(self._format_str, stream_obj._stream, manifest_array, len(manifest_data))
-            
-            if not self._reader:
-                _handle_string_result(_lib.c2pa_error())
+            with Stream(stream) as stream_obj:
+                if manifest_data is None:
+                    self._reader = _lib.c2pa_reader_from_stream(self._format_str, stream_obj._stream)
+                else:
+                    if not isinstance(manifest_data, bytes):
+                        raise TypeError("manifest_data must be bytes")
+                    manifest_array = (ctypes.c_ubyte * len(manifest_data))(*manifest_data)
+                    self._reader = _lib.c2pa_reader_from_manifest_data_and_stream(self._format_str, stream_obj._stream, manifest_array, len(manifest_data))
+                
+                if not self._reader:
+                    _handle_string_result(_lib.c2pa_error())
     
     def __enter__(self):
         return self
@@ -810,13 +837,13 @@ class Reader:
         
         # Keep uri string alive
         self._uri_str = uri.encode('utf-8')
-        stream_obj = Stream(stream)
-        result = _lib.c2pa_reader_resource_to_stream(self._reader, self._uri_str, stream_obj._stream)
-        
-        if result < 0:
-            _handle_string_result(_lib.c2pa_error())
-        
-        return result
+        with Stream(stream) as stream_obj:
+            result = _lib.c2pa_reader_resource_to_stream(self._reader, self._uri_str, stream_obj._stream)
+            
+            if result < 0:
+                _handle_string_result(_lib.c2pa_error())
+            
+            return result
 
 class Signer:
     """High-level wrapper for C2PA Signer operations."""
@@ -1055,11 +1082,11 @@ class Builder:
             raise C2paError("Builder is closed")
             
         uri_str = uri.encode('utf-8')
-        stream_obj = Stream(stream)
-        result = _lib.c2pa_builder_add_resource(self._builder, uri_str, stream_obj._stream)
-        
-        if result != 0:
-            _handle_string_result(_lib.c2pa_error())
+        with Stream(stream) as stream_obj:
+            result = _lib.c2pa_builder_add_resource(self._builder, uri_str, stream_obj._stream)
+            
+            if result != 0:
+                _handle_string_result(_lib.c2pa_error())
     
     def add_ingredient(self, ingredient_json: str, format: str, source: Any):
         """Add an ingredient to the builder.
@@ -1099,12 +1126,12 @@ class Builder:
             
         ingredient_str = ingredient_json.encode('utf-8')
         format_str = format.encode('utf-8')
-        source_stream = Stream(source)
-        result = _lib.c2pa_builder_add_ingredient_from_stream(
-            self._builder, ingredient_str, format_str, source_stream._stream)
-        
-        if result != 0:
-            _handle_string_result(_lib.c2pa_error())
+        with Stream(source) as source_stream:
+            result = _lib.c2pa_builder_add_ingredient_from_stream(
+                self._builder, ingredient_str, format_str, source_stream._stream)
+            
+            if result != 0:
+                _handle_string_result(_lib.c2pa_error())
     
     def to_archive(self, stream: Any):
         """Write an archive of the builder to a stream.
@@ -1118,11 +1145,11 @@ class Builder:
         if not self._builder:
             raise C2paError("Builder is closed")
             
-        stream_obj = Stream(stream)
-        result = _lib.c2pa_builder_to_archive(self._builder, stream_obj._stream)
-        
-        if result != 0:
-            _handle_string_result(_lib.c2pa_error())
+        with Stream(stream) as stream_obj:
+            result = _lib.c2pa_builder_to_archive(self._builder, stream_obj._stream)
+            
+            if result != 0:
+                _handle_string_result(_lib.c2pa_error())
     
     def sign(self, signer: Signer, format: str, source: Any, dest: Any = None) -> Optional[bytes]:
         """Sign the builder's content and write to a destination stream.
@@ -1145,30 +1172,35 @@ class Builder:
         # Convert Python streams to Stream objects
         source_stream = Stream(source)
         dest_stream = Stream(dest)
-            
-        format_str = format.encode('utf-8')
-        manifest_bytes_ptr = ctypes.POINTER(ctypes.c_ubyte)()
         
-        result = _lib.c2pa_builder_sign(
-            self._builder,
-            format_str,
-            source_stream._stream,
-            dest_stream._stream,
-            signer._signer,
-            ctypes.byref(manifest_bytes_ptr)
-        )
-        
-        if result < 0:
-            _handle_string_result(_lib.c2pa_error())
+        try:
+            format_str = format.encode('utf-8')
+            manifest_bytes_ptr = ctypes.POINTER(ctypes.c_ubyte)()
             
-        manifest_bytes = None
-        if manifest_bytes_ptr:
-            # Convert the manifest bytes to a Python bytes object
-            size = result
-            manifest_bytes = bytes(manifest_bytes_ptr[:size])
-            _lib.c2pa_manifest_bytes_free(manifest_bytes_ptr)
+            result = _lib.c2pa_builder_sign(
+                self._builder,
+                format_str,
+                source_stream._stream,
+                dest_stream._stream,
+                signer._signer,
+                ctypes.byref(manifest_bytes_ptr)
+            )
             
-        return manifest_bytes
+            if result < 0:
+                _handle_string_result(_lib.c2pa_error())
+                
+            manifest_bytes = None
+            if manifest_bytes_ptr:
+                # Convert the manifest bytes to a Python bytes object
+                size = result
+                manifest_bytes = bytes(manifest_bytes_ptr[:size])
+                _lib.c2pa_manifest_bytes_free(manifest_bytes_ptr)
+                
+            return manifest_bytes
+        finally:
+            # Ensure both streams are cleaned up
+            source_stream.close()
+            dest_stream.close()
 
     def sign_file(self, source_path: Union[str, Path], dest_path: Union[str, Path], signer: Signer) -> tuple[int, Optional[bytes]]:
         """Sign a file and write the signed data to an output file.
