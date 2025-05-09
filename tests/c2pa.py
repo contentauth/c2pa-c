@@ -555,8 +555,10 @@ class Stream:
                 return -1
             try:
                 buffer = self._file.read(length)
-                for i, b in enumerate(buffer):
-                    data[i] = b
+                if not buffer:  # EOF
+                    return 0
+                # Direct memory copy for better performance
+                ctypes.memmove(data, buffer, len(buffer))
                 return len(buffer)
             except Exception as e:
                 print(f"Error reading from stream: {str(e)}", file=sys.stderr)
@@ -578,7 +580,8 @@ class Stream:
                 print("Error: Attempted to write to uninitialized or closed stream", file=sys.stderr)
                 return -1
             try:
-                buffer = bytes(data[:length])
+                # Direct memory copy for better performance
+                buffer = (ctypes.c_ubyte * length).from_address(ctypes.addressof(data.contents))
                 self._file.write(buffer)
                 return length
             except Exception as e:
