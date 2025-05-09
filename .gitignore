@@ -6,3 +6,6 @@
 # Mac OS X files
 .DS_Store
 .idea
+
+# Python cache files
+tests/__pycache__/
