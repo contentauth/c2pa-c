@@ -85,11 +85,8 @@ def _validate_library_exports(lib):
     
     if missing_functions:
         raise ImportError(
-            f"Library is missing required functions: {', '.join(missing_functions)}\n"
-            "This could indicate:\n"
-            "1. An incomplete or corrupted library installation\n"
-            "2. A version mismatch between the library and this Python wrapper\n"
-            "3. A potentially malicious library that's missing critical functions"
+            f"Library is missing required functions symbols: {', '.join(missing_functions)}\n"
+            "This could indicate an incomplete or corrupted library installation or a version mismatch between the library and this Python wrapper"
         )
 
 def _try_load_library(path):
