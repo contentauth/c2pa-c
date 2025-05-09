@@ -370,6 +370,19 @@ class C2paError(Exception):
         """Exception raised for verification errors."""
         pass
 
+class _StringContainer:
+    """Container class to hold encoded strings and prevent them from being garbage collected.
+    
+    This class is used to store encoded strings that need to remain in memory
+    while being used by C functions. The strings are stored as instance attributes
+    to prevent them from being garbage collected.
+    
+    This is an internal implementation detail and should not be used outside this module.
+    """
+    def __init__(self):
+        """Initialize an empty string container."""
+        pass
+
 def _handle_string_result(result: ctypes.c_void_p, check_error: bool = True) -> Optional[str]:
     """Helper function to handle string results from C2PA functions."""
     if not result:  # NULL pointer
@@ -463,10 +476,7 @@ def read_file(path: Union[str, Path], data_dir: Optional[Union[str, Path]] = Non
     Raises:
         C2paError: If there was an error reading the file
     """
-    # Create a container to hold our strings
-    class StringContainer:
-        pass
-    container = StringContainer()
+    container = _StringContainer()
     
     container._path_str = str(path).encode('utf-8')
     container._data_dir_str = str(data_dir).encode('utf-8') if data_dir else None
@@ -487,10 +497,7 @@ def read_ingredient_file(path: Union[str, Path], data_dir: Optional[Union[str, P
     Raises:
         C2paError: If there was an error reading the file
     """
-    # Create a container to hold our strings
-    class StringContainer:
-        pass
-    container = StringContainer()
+    container = _StringContainer()
     
     container._path_str = str(path).encode('utf-8')
     container._data_dir_str = str(data_dir).encode('utf-8') if data_dir else None
