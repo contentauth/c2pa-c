@@ -542,16 +542,34 @@ class Stream:
         required_methods = ['read', 'write', 'seek', 'tell', 'flush']
         missing_methods = [method for method in required_methods if not hasattr(file, method)]
         if missing_methods:
-            raise TypeError(f"Object must be a stream-like object with methods: {', '.join(required_methods)}. Missing: {', '.join(missing_methods)}")
+            raise TypeError("Object must be a stream-like object with methods: {}. Missing: {}".format(
+                ', '.join(required_methods),
+                ', '.join(missing_methods)
+            ))
         
         self._file = file
         self._stream = None  # Initialize to None to track if stream was created
         self._closed = False  # Track if the stream has been closed
         self._initialized = False  # Track if stream was successfully initialized
         
+        # Pre-allocate error message strings to avoid string formatting overhead
+        self._error_messages = {
+            'read': "Error: Attempted to read from uninitialized or closed stream",
+            'seek': "Error: Attempted to seek in uninitialized or closed stream",
+            'write': "Error: Attempted to write to uninitialized or closed stream",
+            'flush': "Error: Attempted to flush uninitialized or closed stream",
+            'read_error': "Error reading from stream: {}",
+            'seek_error': "Error seeking in stream: {}",
+            'write_error': "Error writing to stream: {}",
+            'flush_error': "Error flushing stream: {}",
+            'cleanup_error': "Error during cleanup: {}",
+            'callback_error': "Error cleaning up callback {}: {}",
+            'stream_error': "Error releasing stream: {}"
+        }
+        
         def read_callback(ctx, data, length):
             if not self._initialized or self._closed:
-                print("Error: Attempted to read from uninitialized or closed stream", file=sys.stderr)
+                print(self._error_messages['read'], file=sys.stderr)
                 return -1
             try:
                 buffer = self._file.read(length)
@@ -561,23 +579,23 @@ class Stream:
                 ctypes.memmove(data, buffer, len(buffer))
                 return len(buffer)
             except Exception as e:
-                print(f"Error reading from stream: {str(e)}", file=sys.stderr)
+                print(self._error_messages['read_error'].format(str(e)), file=sys.stderr)
                 return -1
         
         def seek_callback(ctx, offset, whence):
             if not self._initialized or self._closed:
-                print("Error: Attempted to seek in uninitialized or closed stream", file=sys.stderr)
+                print(self._error_messages['seek'], file=sys.stderr)
                 return -1
             try:
                 self._file.seek(offset, whence)
                 return self._file.tell()
             except Exception as e:
-                print(f"Error seeking in stream: {str(e)}", file=sys.stderr)
+                print(self._error_messages['seek_error'].format(str(e)), file=sys.stderr)
                 return -1
         
         def write_callback(ctx, data, length):
             if not self._initialized or self._closed:
-                print("Error: Attempted to write to uninitialized or closed stream", file=sys.stderr)
+                print(self._error_messages['write'], file=sys.stderr)
                 return -1
             try:
                 # Direct memory copy for better performance
@@ -585,18 +603,18 @@ class Stream:
                 self._file.write(buffer)
                 return length
             except Exception as e:
-                print(f"Error writing to stream: {str(e)}", file=sys.stderr)
+                print(self._error_messages['write_error'].format(str(e)), file=sys.stderr)
                 return -1
         
         def flush_callback(ctx):
             if not self._initialized or self._closed:
-                print("Error: Attempted to flush uninitialized or closed stream", file=sys.stderr)
+                print(self._error_messages['flush'], file=sys.stderr)
                 return -1
             try:
                 self._file.flush()
                 return 0
             except Exception as e:
-                print(f"Error flushing stream: {str(e)}", file=sys.stderr)
+                print(self._error_messages['flush_error'].format(str(e)), file=sys.stderr)
                 return -1
         
         # Create callbacks that will be kept alive by being instance attributes
@@ -615,7 +633,7 @@ class Stream:
         )
         if not self._stream:
             error = _handle_string_result(_lib.c2pa_error())
-            raise Exception(f"Failed to create stream: {error}")
+            raise Exception("Failed to create stream: {}".format(error))
         
         self._initialized = True
 
@@ -649,7 +667,7 @@ class Stream:
                 try:
                     _lib.c2pa_release_stream(self._stream)
                 except Exception as e:
-                    print(f"Error releasing stream: {str(e)}", file=sys.stderr)
+                    print(self._error_messages['stream_error'].format(str(e)), file=sys.stderr)
                 finally:
                     self._stream = None
 
@@ -659,11 +677,11 @@ class Stream:
                     try:
                         setattr(self, attr, None)
                     except Exception as e:
-                        print(f"Error cleaning up callback {attr}: {str(e)}", file=sys.stderr)
+                        print(self._error_messages['callback_error'].format(attr, str(e)), file=sys.stderr)
 
             # Note: We don't close self._file as we don't own it
         except Exception as e:
-            print(f"Error during cleanup: {str(e)}", file=sys.stderr)
+            print(self._error_messages['cleanup_error'].format(str(e)), file=sys.stderr)
         finally:
             self._closed = True
             self._initialized = False
