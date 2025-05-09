@@ -56,9 +56,9 @@ def _validate_library_exports(lib):
     This validation is crucial for several security and reliability reasons:
     
     1. Security:
-       - Prevents loading of malicious libraries that might be missing critical functions
+       - Prevents loading of libraries that might be missing critical functions
        - Ensures the library has all expected functionality before any code execution
-       - Helps detect tampered or incomplete libraries that could be used for attacks
+       - Helps detect tampered or incomplete libraries
     
     2. Reliability:
        - Fails fast if the library is incomplete or corrupted
@@ -535,15 +535,14 @@ def sign_file(
     )
     return _handle_string_result(result)
 
-# Helper class for stream operations
 class Stream:
     """High-level wrapper for C2paStream operations."""
     def __init__(self, file):
         # Validate that the object has the required stream-like methods
-        #required_methods = ['read', 'write', 'seek', 'tell', 'flush']
-        #missing_methods = [method for method in required_methods if not hasattr(file, method)]
-        #if missing_methods:
-         #   raise TypeError(f"Object must be a stream-like object with methods: {', '.join(required_methods)}. Missing: {', '.join(missing_methods)}")
+        required_methods = ['read', 'write', 'seek', 'tell', 'flush']
+        missing_methods = [method for method in required_methods if not hasattr(file, method)]
+        if missing_methods:
+            raise TypeError(f"Object must be a stream-like object with methods: {', '.join(required_methods)}. Missing: {', '.join(missing_methods)}")
         
         self._file = file
         
@@ -553,14 +552,16 @@ class Stream:
                 for i, b in enumerate(buffer):
                     data[i] = b
                 return len(buffer)
-            except Exception:
+            except Exception as e:
+                print(f"Error reading from stream: {str(e)}", file=sys.stderr)
                 return -1
         
         def seek_callback(ctx, offset, whence):
             try:
                 self._file.seek(offset, whence)
                 return self._file.tell()
-            except Exception:
+            except Exception as e:
+                print(f"Error seeking in stream: {str(e)}", file=sys.stderr)
                 return -1
         
         def write_callback(ctx, data, length):
@@ -568,14 +569,16 @@ class Stream:
                 buffer = bytes(data[:length])
                 self._file.write(buffer)
                 return length
-            except Exception:
+            except Exception as e:
+                print(f"Error writing to stream: {str(e)}", file=sys.stderr)
                 return -1
         
         def flush_callback(ctx):
             try:
                 self._file.flush()
                 return 0
-            except Exception:
+            except Exception as e:
+                print(f"Error flushing stream: {str(e)}", file=sys.stderr)
                 return -1
         
         # Create callbacks that will be kept alive by being instance attributes
@@ -593,7 +596,8 @@ class Stream:
             self._flush_cb
         )
         if not self._stream:
-            raise Exception("Failed to create stream")
+            error = _handle_string_result(_lib.c2pa_error())
+            raise Exception(f"Failed to create stream: {error}")
 
     def __del__(self):
         """Ensure resources are cleaned up if close() wasn't called."""
@@ -609,7 +613,7 @@ class Stream:
             try:
                 _lib.c2pa_release_stream(self._stream)
             except Exception as e:
-                print(f"Error cleaning up stream: {e}", file=sys.stderr)
+                print(f"Error releasing stream: {str(e)}", file=sys.stderr)
             finally:
                 self._stream = None
 
@@ -619,14 +623,14 @@ class Stream:
                 try:
                     setattr(self, attr, None)
                 except Exception as e:
-                    print(f"Error cleaning up callback {attr}: {e}", file=sys.stderr)
+                    print(f"Error cleaning up callback {attr}: {str(e)}", file=sys.stderr)
 
         # Clean up file if it exists
         if hasattr(self, '_file'):
             try:
                 self._file.close()
             except Exception as e:
-                print(f"Error cleaning up file: {e}", file=sys.stderr)
+                print(f"Error closing file: {str(e)}", file=sys.stderr)
             finally:
                 self._file = None
 
@@ -1341,4 +1345,4 @@ __all__ = [
     'sign_file',
     'format_embeddable',
     'ed25519_sign',
-] 
+]
