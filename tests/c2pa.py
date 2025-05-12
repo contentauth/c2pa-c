@@ -409,6 +409,7 @@ def _handle_string_result(result: ctypes.c_void_p, check_error: bool = True) -> 
             if error:
                 error_str = ctypes.cast(error, ctypes.c_char_p).value.decode('utf-8')
                 _lib.c2pa_string_free(error)
+                print("## error_str:", error_str)
                 parts = error_str.split(' ', 1)
                 if len(parts) > 1:
                     error_type, message = parts
@@ -981,6 +982,7 @@ class Reader:
                     )
                 
                 if not self._reader:
+                    print('## Error creating stream')
                     _handle_string_result(_lib.c2pa_error())
     
     def __enter__(self):
@@ -1041,18 +1043,19 @@ class Reader:
     
     def json(self) -> str:
         """Get the manifest store as a JSON string.
-        
+
         Returns:
             The manifest store as a JSON string
-            
+
         Raises:
             C2paError: If there was an error getting the JSON
         """
+        print("## Pointer when going into reader->json:", self._reader)
         if not self._reader:
             raise C2paError("Reader is closed")
         result = _lib.c2pa_reader_json(self._reader)
         return _handle_string_result(result)
-    
+
     def resource_to_stream(self, uri: str, stream: Any) -> int:
         """Write a resource to a stream.
         
