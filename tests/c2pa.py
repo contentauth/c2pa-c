@@ -249,6 +249,7 @@ def _handle_string_result(result: ctypes.c_void_p, check_error: bool = True) -> 
     if not result:  # NULL pointer
         if check_error:
             error = _lib.c2pa_error()
+            print(f"Error: {error}")
             if error:
                 error_str = ctypes.cast(error, ctypes.c_char_p).value.decode('utf-8')
                 _lib.c2pa_string_free(error)
@@ -291,6 +292,8 @@ def _handle_string_result(result: ctypes.c_void_p, check_error: bool = True) -> 
     # Convert to Python string and free the Rust-allocated memory
     py_string = ctypes.cast(result, ctypes.c_char_p).value.decode('utf-8')
     _lib.c2pa_string_free(result)
+
+    print("########### Error: ", py_string)
     return py_string
 
 def sdk_version() -> str:
@@ -417,10 +420,10 @@ class Stream:
         #required_methods = ['read', 'write', 'seek', 'tell', 'flush']
         #missing_methods = [method for method in required_methods if not hasattr(file, method)]
         #if missing_methods:
-         #   raise TypeError(f"Object must be a stream-like object with methods: {', '.join(required_methods)}. Missing: {', '.join(missing_methods)}")
-        
+        #   raise TypeError(f"Object must be a stream-like object with methods: {', '.join(required_methods)}. Missing: {', '.join(missing_methods)}")
+
         self._file = file
-        
+
         def read_callback(ctx, data, length):
             try:
                 buffer = self._file.read(length)
@@ -429,14 +432,14 @@ class Stream:
                 return len(buffer)
             except Exception:
                 return -1
-        
+
         def seek_callback(ctx, offset, whence):
             try:
                 self._file.seek(offset, whence)
                 return self._file.tell()
             except Exception:
                 return -1
-        
+
         def write_callback(ctx, data, length):
             try:
                 buffer = bytes(data[:length])
@@ -444,20 +447,20 @@ class Stream:
                 return length
             except Exception:
                 return -1
-        
+
         def flush_callback(ctx):
             try:
                 self._file.flush()
                 return 0
             except Exception:
                 return -1
-        
+
         # Create callbacks that will be kept alive by being instance attributes
         self._read_cb = ReadCallback(read_callback)
         self._seek_cb = SeekCallback(seek_callback)
         self._write_cb = WriteCallback(write_callback)
         self._flush_cb = FlushCallback(flush_callback)
-        
+
         # Create the stream
         self._stream = _lib.c2pa_create_stream(
             None,  # context
@@ -859,7 +862,7 @@ class Builder:
         ingredient_str = ingredient_json.encode('utf-8')
         format_str = format.encode('utf-8')
         source_stream = Stream(source)
-        result = _lib.c2pa_builder_add_ingredient(self._builder, ingredient_str, format_str, source_stream._stream)
+        result = _lib.c2pa_builder_add_ingredient_from_stream(self._builder, ingredient_str, format_str, source_stream._stream)
         
         if result != 0:
             _handle_string_result(_lib.c2pa_error())
@@ -907,29 +910,29 @@ class Builder:
     
     def sign(self, signer: Signer, format: str, source: Any, dest: Any = None) -> Optional[bytes]:
         """Sign the builder's content and write to a destination stream.
-        
+
         Args:
             format: The MIME type or extension of the content
             source: The source stream (any Python stream-like object)
             dest: The destination stream (any Python stream-like object)
             signer: The signer to use
-            
+
         Returns:
             A tuple of (size of C2PA data, optional manifest bytes)
-            
+
         Raises:
             C2paError: If there was an error during signing
         """
         if not self._builder:
             raise C2paError("Builder is closed")
-            
+
         # Convert Python streams to Stream objects
         source_stream = Stream(source)
         dest_stream = Stream(dest)
-            
+
         format_str = format.encode('utf-8')
         manifest_bytes_ptr = ctypes.POINTER(ctypes.c_ubyte)()
-        
+
         result = _lib.c2pa_builder_sign(
             self._builder,
             format_str,
@@ -938,17 +941,20 @@ class Builder:
             signer._signer,
             ctypes.byref(manifest_bytes_ptr)
         )
-        
+
         if result < 0:
+            print(f"@@@@@@ Sign HANDLE ERROR: {result}")
             _handle_string_result(_lib.c2pa_error())
-            
+
+        print(f"@@@@@@ Sign Result: {result}")
         manifest_bytes = None
         if manifest_bytes_ptr:
             # Convert the manifest bytes to a Python bytes object
             size = result
             manifest_bytes = bytes(manifest_bytes_ptr[:size])
             _lib.c2pa_manifest_bytes_free(manifest_bytes_ptr)
-            
+
+        print(f"@@@@@@ Returnin manifest bytes: {manifest_bytes}")
         return manifest_bytes
 
     def sign_file(self, source_path: Union[str, Path], dest_path: Union[str, Path], signer: Signer) -> tuple[int, Optional[bytes]]:
@@ -1126,4 +1132,4 @@ __all__ = [
     'sign_file',
     'format_embeddable',
     'ed25519_sign',
-] 
+]

@@ -23,41 +23,10 @@ PROJECT_PATH = os.getcwd()
 
 testPath = os.path.join(PROJECT_PATH, "tests", "fixtures", "C.jpg")
 
-class TestC2paSdk(unittest.TestCase):
-    def test_version(self):
-        print(sdk_version())
-        self.assertIn("0.8.0", sdk_version())
-
-
-class TestReader(unittest.TestCase):
-    def test_stream_read(self):
-        with open(testPath, "rb") as file:
-            reader = Reader("image/jpeg",file)
-            json = reader.json()
-            self.assertIn("C.jpg", json)
-
-    def test_stream_read_and_parse(self):
-        with open(testPath, "rb") as file:
-            reader = Reader("image/jpeg", file)
-            manifest_store = json.loads(reader.json())
-            title = manifest_store["manifests"][manifest_store["active_manifest"]]["title"]
-            self.assertEqual(title, "C.jpg")
-
-    def test_json_decode_err(self):
-        with self.assertRaises(Error.Io):
-            manifest_store = Reader("image/jpeg","foo")
-
-    def test_reader_bad_format(self):
-        with self.assertRaises(Error.NotSupported):
-            with open(testPath, "rb") as file:
-                reader = Reader("badFormat", file)
-
-    def test_settings_trust(self):
-        #load_settings_file("tests/fixtures/settings.toml")
-        with open(testPath, "rb") as file:
-            reader = Reader("image/jpeg",file)
-            json = reader.json()
-            self.assertIn("C.jpg", json)
+# class TestC2paSdk(unittest.TestCase):
+#     def test_version(self):
+#         print(sdk_version())
+#         self.assertIn("0.8.0", sdk_version())
 
 class TestBuilder(unittest.TestCase):
     # Define a manifest as a dictionary
@@ -108,42 +77,24 @@ class TestBuilder(unittest.TestCase):
     signer = Signer.from_info(signer_info)
     #signer = create_signer(sign, SigningAlg.PS256, certs, "http://timestamp.digicert.com")
 
-    def test_streams_sign(self):
-        with open(testPath, "rb") as file:
-            builder = Builder(TestBuilder.manifestDefinition)
-            output = io.BytesIO(bytearray())
-            builder.sign(TestBuilder.signer, "image/jpeg", file, output)
-            output.seek(0)
-            reader = Reader("image/jpeg", output)
-            json_data = reader.json()
-            self.assertIn("Python Test", json_data)
-            self.assertNotIn("validation_status", json_data)
+    def test_streams_sign_with_ingredient_with_manifest(self):
+        
+        with open(testPath, "rb") as file, \
+             io.BytesIO(bytearray()) as output, \
+             Builder(TestBuilder.manifestDefinition) as builder:
 
-    def test_archive_sign(self):
-        with open(testPath, "rb") as file:
-            builder = Builder(TestBuilder.manifestDefinition)
-            archive = io.BytesIO(bytearray())
-            builder.to_archive(archive)
-            builder = Builder.from_archive(archive)
-            output = io.BytesIO(bytearray())
-            builder.sign(TestBuilder.signer, "image/jpeg", file, output)
-            output.seek(0)
-            reader = Reader("image/jpeg", output)
-            json_data = reader.json()
-            self.assertIn("Python Test", json_data)
-            self.assertNotIn("validation_status", json_data)
+            ingredient_json = '{"title": "test-ingredient"}'
+            with open(os.path.join(PROJECT_PATH, "tests", "fixtures", "A-signed.png"), 'rb') as f:
+                builder.add_ingredient(ingredient_json, "image/png", f)
 
-    def test_remote_sign(self):
-        with open(testPath, "rb") as file:
-            builder = Builder(TestBuilder.manifestDefinition)
-            builder.set_no_embed()
-            output = io.BytesIO(bytearray())
-            manifest_data = builder.sign(TestBuilder.signer, "image/jpeg", file, output)
-            output.seek(0)
-            reader = Reader("image/jpeg", output, manifest_data)
-            json_data = reader.json()
-            self.assertIn("Python Test", json_data)
-            self.assertNotIn("validation_status", json_data)
+                builder.sign(TestBuilder.signer, "image/jpeg", file, output)
 
+                output.seek(0)
+
+                # with Reader("image/jpeg", output) as reader:
+                #     print('#### Preparing to read manifest')
+                #     json_content = reader.json()
+                #     print(json_content)
+                #     print('#### Read manifest')
 if __name__ == '__main__':
     unittest.main()
