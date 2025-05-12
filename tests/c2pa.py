@@ -450,6 +450,8 @@ def _handle_string_result(result: ctypes.c_void_p, check_error: bool = True) -> 
     # Convert to Python string and free the Rust-allocated memory
     py_string = ctypes.cast(result, ctypes.c_char_p).value.decode('utf-8')
     _lib.c2pa_string_free(result)
+
+    print("########### Error: ", py_string)
     return py_string
 
 def sdk_version() -> str:
@@ -1498,30 +1500,30 @@ class Builder:
     
     def sign(self, signer: Signer, format: str, source: Any, dest: Any = None) -> Optional[bytes]:
         """Sign the builder's content and write to a destination stream.
-        
+
         Args:
             format: The MIME type or extension of the content
             source: The source stream (any Python stream-like object)
             dest: The destination stream (any Python stream-like object)
             signer: The signer to use
-            
+
         Returns:
             A tuple of (size of C2PA data, optional manifest bytes)
-            
+
         Raises:
             C2paError: If there was an error during signing
         """
         if not self._builder:
             raise C2paError(self._error_messages['closed_error'])
-            
+
         # Convert Python streams to Stream objects
         source_stream = Stream(source)
         dest_stream = Stream(dest)
-        
+
         try:
             format_str = format.encode('utf-8')
             manifest_bytes_ptr = ctypes.POINTER(ctypes.c_ubyte)()
-            
+
             result = _lib.c2pa_builder_sign(
                 self._builder,
                 format_str,
@@ -1530,17 +1532,19 @@ class Builder:
                 signer._signer,
                 ctypes.byref(manifest_bytes_ptr)
             )
-            
+
             if result < 0:
                 _handle_string_result(_lib.c2pa_error())
-                
+
+            print(f"@@@@@@ Sign Result: {result}")
             manifest_bytes = None
             if manifest_bytes_ptr:
                 # Convert the manifest bytes to a Python bytes object
                 size = result
                 manifest_bytes = bytes(manifest_bytes_ptr[:size])
                 _lib.c2pa_manifest_bytes_free(manifest_bytes_ptr)
-                
+
+            print(f"@@@@@@ Returnin manifest bytes: {manifest_bytes}")
             return manifest_bytes
         finally:
             # Ensure both streams are cleaned up
