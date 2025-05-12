@@ -595,10 +595,10 @@ class Stream:
     """
     def __init__(self, file):
         """Initialize a new Stream wrapper around a file-like object.
-        
+
         Args:
             file: A file-like object that implements read, write, seek, tell, and flush methods
-            
+
         Raises:
             TypeError: If the file object doesn't implement all required methods
         """
@@ -610,12 +610,12 @@ class Stream:
                 ', '.join(required_methods),
                 ', '.join(missing_methods)
             ))
-        
+
         self._file = file
         self._stream = None  # Initialize to None to track if stream was created
         self._closed = False  # Track if the stream has been closed
         self._initialized = False  # Track if stream was successfully initialized
-        
+
         # Pre-allocate error message strings to avoid string formatting overhead
         self._error_messages = {
             'read': "Error: Attempted to read from uninitialized or closed stream",
@@ -630,7 +630,7 @@ class Stream:
             'callback_error': "Error cleaning up callback {}: {}",
             'stream_error': "Error releasing stream: {}"
         }
-        
+
         def read_callback(ctx, data, length):
             """Callback function for reading data from the Python stream.
             
@@ -671,7 +671,7 @@ class Stream:
             except Exception as e:
                 # print(self._error_messages['read_error'].format(str(e)), file=sys.stderr)
                 return -1
-        
+
         def seek_callback(ctx, offset, whence):
             """Callback function for seeking in the Python stream.
             
@@ -698,7 +698,7 @@ class Stream:
             except Exception as e:
                 # print(self._error_messages['seek_error'].format(str(e)), file=sys.stderr)
                 return -1
-        
+
         def write_callback(ctx, data, length):
             """Callback function for writing data to the Python stream.
             
@@ -739,7 +739,7 @@ class Stream:
             except Exception as e:
                 # print(self._error_messages['write_error'].format(str(e)), file=sys.stderr)
                 return -1
-        
+
         def flush_callback(ctx):
             """Callback function for flushing the Python stream.
             
@@ -763,13 +763,13 @@ class Stream:
             except Exception as e:
                 # print(self._error_messages['flush_error'].format(str(e)), file=sys.stderr)
                 return -1
-        
+
         # Create callbacks that will be kept alive by being instance attributes
         self._read_cb = ReadCallback(read_callback)
         self._seek_cb = SeekCallback(seek_callback)
         self._write_cb = WriteCallback(write_callback)
         self._flush_cb = FlushCallback(flush_callback)
-        
+
         # Create the stream
         self._stream = _lib.c2pa_create_stream(
             None,  # context
@@ -781,7 +781,7 @@ class Stream:
         if not self._stream:
             error = _handle_string_result(_lib.c2pa_error())
             raise Exception("Failed to create stream: {}".format(error))
-        
+
         self._initialized = True
 
     def __enter__(self):
