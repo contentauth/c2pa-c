@@ -5,6 +5,7 @@ import sys
 import os
 from pathlib import Path
 from typing import Optional, Union, Callable, Any
+import time
 
 # Determine the library name based on the platform
 if sys.platform == "win32":
@@ -566,34 +567,9 @@ def sign_file(
     return _handle_string_result(result)
 
 class Stream:
-    """High-level wrapper for C2paStream operations that provides a Python-friendly interface.
-    
-    This class serves as a bridge between Python's file-like objects and the low-level C2paStream
-    interface. It provides several important benefits:
-    
-    1. Memory Safety:
-       - Manages memory allocation and deallocation for C callbacks
-       - Prevents memory leaks through proper cleanup in __del__ and close()
-       - Handles buffer management for read/write operations
-    
-    2. Error Handling:
-       - Provides detailed error messages for stream operations
-       - Implements proper error propagation to Python exceptions
-       - Ensures resources are cleaned up even when errors occur
-    
-    3. Resource Management:
-       - Implements context manager protocol (__enter__/__exit__)
-       - Ensures proper cleanup of C resources
-       - Handles file descriptor lifecycle
-    
-    4. Performance:
-       - Minimizes data copying between Python and C
-       - Uses direct memory access where possible
-       - Implements efficient buffer management
-    
-    The class wraps any Python file-like object that implements the standard stream interface
-    (read, write, seek, tell, flush) and provides the necessary callbacks for the C2PA library.
-    """
+    # Class-level counter for generating unique stream IDs
+    _next_stream_id = 0
+
     def __init__(self, file):
         """Initialize a new Stream wrapper around a file-like object.
 
@@ -603,7 +579,13 @@ class Stream:
         Raises:
             TypeError: If the file object doesn't implement all required methods
         """
-        # Validate that the object has the required stream-like methods
+        # Generate unique stream ID with timestamp
+        timestamp = int(time.time() * 1000)  # milliseconds since epoch
+        self._stream_id = f"{timestamp}-{Stream._next_stream_id}"
+
+        Stream._next_stream_id += 1
+
+        # Rest of the existing initialization code...
         required_methods = ['read', 'write', 'seek', 'tell', 'flush']
         missing_methods = [method for method in required_methods if not hasattr(file, method)]
         if missing_methods:
@@ -616,6 +598,8 @@ class Stream:
         self._stream = None  # Initialize to None to track if stream was created
         self._closed = False  # Track if the stream has been closed
         self._initialized = False  # Track if stream was successfully initialized
+
+        print(f'## Created stream {self._stream_id} for file {self._file}')
 
         # Pre-allocate error message strings to avoid string formatting overhead
         self._error_messages = {
@@ -634,19 +618,19 @@ class Stream:
 
         def read_callback(ctx, data, length):
             """Callback function for reading data from the Python stream.
-            
+
             This function is called by the C2PA library when it needs to read data.
             It handles:
             - Stream state validation
             - Memory safety
             - Error handling
             - Buffer management
-            
+
             Args:
                 ctx: The stream context (unused)
                 data: Pointer to the buffer to read into
                 length: Maximum number of bytes to read
-                
+
             Returns:
                 Number of bytes read, or -1 on error
             """
@@ -657,11 +641,11 @@ class Stream:
                 if not data or length <= 0:
                     # print(self._error_messages['memory_error'].format("Invalid read parameters"), file=sys.stderr)
                     return -1
-                    
+
                 buffer = self._file.read(length)
                 if not buffer:  # EOF
                     return 0
-                    
+
                 # Ensure we don't write beyond the allocated memory
                 actual_length = min(len(buffer), length)
                 # Create a view of the buffer to avoid copying
@@ -675,18 +659,18 @@ class Stream:
 
         def seek_callback(ctx, offset, whence):
             """Callback function for seeking in the Python stream.
-            
+
             This function is called by the C2PA library when it needs to change
             the stream position. It handles:
             - Stream state validation
             - Position validation
             - Error handling
-            
+
             Args:
                 ctx: The stream context (unused)
                 offset: The offset to seek to
                 whence: The reference point (0=start, 1=current, 2=end)
-                
+
             Returns:
                 New position in the stream, or -1 on error
             """
@@ -702,19 +686,19 @@ class Stream:
 
         def write_callback(ctx, data, length):
             """Callback function for writing data to the Python stream.
-            
+
             This function is called by the C2PA library when it needs to write data.
             It handles:
             - Stream state validation
             - Memory safety
             - Error handling
             - Buffer management
-            
+
             Args:
                 ctx: The stream context (unused)
                 data: Pointer to the data to write
                 length: Number of bytes to write
-                
+
             Returns:
                 Number of bytes written, or -1 on error
             """
@@ -725,7 +709,7 @@ class Stream:
                 if not data or length <= 0:
                     # print(self._error_messages['memory_error'].format("Invalid write parameters"), file=sys.stderr)
                     return -1
-                    
+
                 # Create a temporary buffer to safely handle the data
                 temp_buffer = (ctypes.c_ubyte * length)()
                 try:
@@ -743,15 +727,15 @@ class Stream:
 
         def flush_callback(ctx):
             """Callback function for flushing the Python stream.
-            
+
             This function is called by the C2PA library when it needs to ensure
             all buffered data is written. It handles:
             - Stream state validation
             - Error handling
-            
+
             Args:
                 ctx: The stream context (unused)
-                
+
             Returns:
                 0 on success, -1 on error
             """
@@ -801,11 +785,12 @@ class Stream:
 
     def close(self):
         """Release the stream resources.
-        
+
         This method ensures all resources are properly cleaned up, even if errors occur during cleanup.
         Errors during cleanup are logged but not raised to ensure cleanup completes.
         Multiple calls to close() are handled gracefully.
         """
+
         if self._closed:
             return
 
@@ -813,6 +798,7 @@ class Stream:
             # Clean up stream first as it depends on callbacks
             if self._stream:
                 try:
+                    print(f'## ----- Releasing stream {self._stream_id}')
                     _lib.c2pa_release_stream(self._stream)
                 except Exception as e:
                     print(self._error_messages['stream_error'].format(str(e)), file=sys.stderr)
@@ -854,19 +840,20 @@ class Stream:
 
 class Reader:
     """High-level wrapper for C2PA Reader operations."""
-    
+
     def __init__(self, format_or_path: Union[str, Path], stream: Optional[Any] = None, manifest_data: Optional[Any] = None):
         """Create a new Reader.
-        
+
         Args:
             format_or_path: The format or path to read from
             stream: Optional stream to read from (any Python stream-like object)
             manifest_data: Optional manifest data in bytes
-            
+
         Raises:
             C2paError: If there was an error creating the reader
             C2paError.Encoding: If any of the string inputs contain invalid UTF-8 characters
         """
+
         self._reader = None
         self._own_stream = None
         self._error_messages = {
@@ -880,11 +867,11 @@ class Reader:
             'reader_cleanup': "Error cleaning up reader: {}",
             'encoding_error': "Invalid UTF-8 characters in input: {}"
         }
-        
+
         # Check for unsupported format
         if format_or_path == "badFormat":
             raise C2paError.NotSupported(self._error_messages['unsupported'])
-        
+
         if stream is None:
             # Create a stream from the file path
 
@@ -895,49 +882,49 @@ class Reader:
                 import mimetypes
             else:
                 mimetypes = sys.modules['mimetypes']
-                
+
             path = str(format_or_path)
             mime_type = mimetypes.guess_type(path)[0] or 'application/octet-stream'
-            
+
             # Keep mime_type string alive
             try:
                 self._mime_type_str = mime_type.encode('utf-8')
             except UnicodeError as e:
                 raise C2paError.Encoding(self._error_messages['encoding_error'].format(str(e)))
-            
+
             try:
                 # Open the file and create a stream
                 file = open(path, 'rb')
                 self._own_stream = Stream(file)
-                
-                # Create reader from the file stream
+
+                print("## Stream pointer before reader creation:", self._own_stream._stream)
                 self._reader = _lib.c2pa_reader_from_stream(
                     self._mime_type_str,
                     self._own_stream._stream
                 )
-                
+                print("## Reader pointer after creation:", self._reader)
+
                 if not self._reader:
                     self._own_stream.close()
                     file.close()
                     _handle_string_result(_lib.c2pa_error())
-                
+
                 # Store the file to close it later
                 self._file = file
-                
+
             except Exception as e:
                 if self._own_stream:
                     self._own_stream.close()
                 if hasattr(self, '_file'):
                     self._file.close()
                 raise C2paError.Io(self._error_messages['io_error'].format(str(e)))
-                
         elif isinstance(stream, str):
             # If stream is a string, treat it as a path and try to open it
             try:
                 file = open(stream, 'rb')
                 self._own_stream = Stream(file)
                 self._format_str = format_or_path.encode('utf-8')
-                
+
                 if manifest_data is None:
                     self._reader = _lib.c2pa_reader_from_stream(self._format_str, self._own_stream._stream)
                 else:
@@ -950,12 +937,14 @@ class Reader:
                         manifest_array, 
                         len(manifest_data)
                     )
-                
+
+                print("## Reader created with pointer:", self._reader)
+
                 if not self._reader:
                     self._own_stream.close()
                     file.close()
                     _handle_string_result(_lib.c2pa_error())
-                
+
                 self._file = file
             except Exception as e:
                 if self._own_stream:
@@ -975,29 +964,33 @@ class Reader:
                         raise TypeError(self._error_messages['manifest_error'])
                     manifest_array = (ctypes.c_ubyte * len(manifest_data))(*manifest_data)
                     self._reader = _lib.c2pa_reader_from_manifest_data_and_stream(
-                        self._format_str, 
-                        stream_obj._stream, 
-                        manifest_array, 
+                        self._format_str,
+                        stream_obj._stream,
+                        manifest_array,
                         len(manifest_data)
                     )
-                
+
+                print('## Reader ptr: ', self._reader)
                 if not self._reader:
                     print('## Error creating stream')
                     _handle_string_result(_lib.c2pa_error())
-    
+
     def __enter__(self):
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
+        print('## Exiting the context manager')
         self.close()
-    
+
     def close(self):
         """Release the reader resources.
-        
+
         This method ensures all resources are properly cleaned up, even if errors occur during cleanup.
         Errors during cleanup are logged but not raised to ensure cleanup completes.
         Multiple calls to close() are handled gracefully.
         """
+
+        print('## Closing the stream')
         # Track if we've already cleaned up
         if not hasattr(self, '_closed'):
             self._closed = False
@@ -1014,7 +1007,7 @@ class Reader:
                     print(self._error_messages['reader_cleanup'].format(str(e)), file=sys.stderr)
                 finally:
                     self._reader = None
-            
+
             # Clean up stream
             if hasattr(self, '_own_stream') and self._own_stream:
                 try:
@@ -1023,7 +1016,7 @@ class Reader:
                     print(self._error_messages['stream_error'].format(str(e)), file=sys.stderr)
                 finally:
                     self._own_stream = None
-            
+
             # Clean up file
             if hasattr(self, '_file'):
                 try:
