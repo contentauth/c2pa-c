@@ -52,27 +52,27 @@ _REQUIRED_FUNCTIONS = [
 
 def _validate_library_exports(lib):
     """Validate that all required functions are present in the loaded library.
-    
+
     This validation is crucial for several security and reliability reasons:
-    
+
     1. Security:
        - Prevents loading of libraries that might be missing critical functions
        - Ensures the library has all expected functionality before any code execution
        - Helps detect tampered or incomplete libraries
-    
+
     2. Reliability:
        - Fails fast if the library is incomplete or corrupted
        - Prevents runtime errors from missing functions
        - Ensures all required functionality is available before use
-    
+
     3. Version Compatibility:
        - Helps detect version mismatches where the library doesn't have all expected functions
        - Prevents partial functionality that could lead to undefined behavior
        - Ensures the library matches the expected API version
-    
+
     Args:
         lib: The loaded library object
-        
+
     Raises:
         ImportError: If any required function is missing, with a detailed message listing
                     the missing functions. This helps diagnose issues with the library
@@ -82,7 +82,7 @@ def _validate_library_exports(lib):
     for func_name in _REQUIRED_FUNCTIONS:
         if not hasattr(lib, func_name):
             missing_functions.append(func_name)
-    
+
     if missing_functions:
         raise ImportError(
             f"Library is missing required functions symbols: {', '.join(missing_functions)}\n"
@@ -91,13 +91,13 @@ def _validate_library_exports(lib):
 
 def _try_load_library(path):
     """Attempt to load and validate a library from the given path.
-    
+
     Args:
         path: Path to the library file
-        
+
     Returns:
         The loaded library object if successful
-        
+
     Raises:
         ImportError: If the library cannot be loaded, with specific error messages for:
                     - Permission errors
@@ -109,7 +109,7 @@ def _try_load_library(path):
         # Check file permissions
         if not os.access(path, os.R_OK):
             raise ImportError(f"Permission denied: Cannot read library at {path}")
-            
+
         # Try to load the library
         try:
             lib = ctypes.CDLL(str(path))
@@ -120,12 +120,12 @@ def _try_load_library(path):
                 raise ImportError(f"Corrupted or invalid library at {path}")
             else:
                 raise ImportError(f"Failed to load library at {path}: {e}")
-                
+
         # Validate the library exports
         _validate_library_exports(lib)
-        
+
         return lib
-        
+
     except ImportError:
         raise
     except Exception as e:
@@ -188,23 +188,23 @@ class C2paSigner(ctypes.Structure):
 
 class C2paStream(ctypes.Structure):
     """A C2paStream is a Rust Read/Write/Seek stream that can be created in C.
-    
+
     This class represents a low-level stream interface that bridges Python and Rust/C code.
     It implements the Rust Read/Write/Seek traits in C, allowing for efficient data transfer
     between Python and the C2PA library without unnecessary copying.
-    
+
     The stream is used for various operations including:
     - Reading manifest data from files
     - Writing signed content to files
     - Handling binary resources
     - Managing ingredient data
-    
+
     The structure contains function pointers that implement the stream operations:
     - reader: Function to read data from the stream
     - seeker: Function to change the stream position
     - writer: Function to write data to the stream
     - flusher: Function to flush any buffered data
-    
+
     This is a critical component for performance as it allows direct memory access
     between Python and the C2PA library without intermediate copies.
     """
@@ -570,7 +570,16 @@ def sign_file(
 
 class Stream:
     # Class-level counter for generating unique stream IDs
+    # (useful for tracing streams usage in debug)
     _next_stream_id = 0
+    # Maximum value for a 32-bit signed integer (2^31 - 1)
+    # This prevents integer overflow which could cause:
+    # 1. Unexpected behavior in stream ID generation
+    # 2. Potential security issues if IDs wrap around
+    # 3. Memory issues if the number grows too large
+    # When this limit is reached, we reset to 0 since the timestamp component
+    # of the stream ID ensures uniqueness even after counter reset
+    _MAX_STREAM_ID = 2**31 - 1
 
     def __init__(self, file):
         """Initialize a new Stream wrapper around a file-like object.
@@ -583,8 +592,11 @@ class Stream:
         """
         # Generate unique stream ID with timestamp
         timestamp = int(time.time() * 1000)  # milliseconds since epoch
-        self._stream_id = f"{timestamp}-{Stream._next_stream_id}"
 
+        # Safely increment stream ID with overflow protection
+        if Stream._next_stream_id >= Stream._MAX_STREAM_ID:
+            Stream._next_stream_id = 0  # Reset to 0 if we hit the maximum
+        self._stream_id = f"{timestamp}-{Stream._next_stream_id}"
         Stream._next_stream_id += 1
 
         # Rest of the existing initialization code...
@@ -828,7 +840,7 @@ class Stream:
     @property
     def closed(self) -> bool:
         """Check if the stream is closed.
-        
+
         Returns:
             bool: True if the stream is closed, False otherwise
         """
@@ -837,7 +849,7 @@ class Stream:
     @property
     def initialized(self) -> bool:
         """Check if the stream is properly initialized.
-        
+
         Returns:
             bool: True if the stream is initialized, False otherwise
         """
@@ -1057,36 +1069,36 @@ class Reader:
 
     def resource_to_stream(self, uri: str, stream: Any) -> int:
         """Write a resource to a stream.
-        
+
         Args:
             uri: The URI of the resource to write
             stream: The stream to write to (any Python stream-like object)
-            
+
         Returns:
             The number of bytes written
-            
+
         Raises:
             C2paError: If there was an error writing the resource
         """
         if not self._reader:
             raise C2paError("Reader is closed")
-        
+
         # Keep uri string alive
         self._uri_str = uri.encode('utf-8')
         with Stream(stream) as stream_obj:
             result = _lib.c2pa_reader_resource_to_stream(self._reader, self._uri_str, stream_obj._stream)
-            
+
             if result < 0:
                 _handle_string_result(_lib.c2pa_error())
-            
+
             return result
 
 class Signer:
     """High-level wrapper for C2PA Signer operations."""
-    
+
     def __init__(self, signer_ptr: ctypes.POINTER(C2paSigner)):
         """Initialize a new Signer instance.
-        
+
         Note: This constructor is not meant to be called directly.
         Use from_info() or from_callback() instead.
         """
@@ -1103,31 +1115,31 @@ class Signer:
             'invalid_certs': "Invalid certificate data: {}",
             'invalid_tsa': "Invalid TSA URL: {}"
         }
-    
+
     @classmethod
     def from_info(cls, signer_info: C2paSignerInfo) -> 'Signer':
         """Create a new Signer from signer information.
-        
+
         Args:
             signer_info: The signer configuration
-            
+
         Returns:
             A new Signer instance
-            
+
         Raises:
             C2paError: If there was an error creating the signer
         """
         # Validate signer info before creating
         if not signer_info.sign_cert or not signer_info.private_key:
             raise C2paError(cls._error_messages['invalid_certs'].format("Missing certificate or private key"))
-            
+
         signer_ptr = _lib.c2pa_signer_from_info(ctypes.byref(signer_info))
-        
+
         if not signer_ptr:
             _handle_string_result(_lib.c2pa_error())
-            
+
         return cls(signer_ptr)
-    
+
     @classmethod
     def from_callback(
         cls,
@@ -1137,16 +1149,16 @@ class Signer:
         tsa_url: Optional[str] = None
     ) -> 'Signer':
         """Create a signer from a callback function.
-        
+
         Args:
             callback: Function that signs data and returns the signature
             alg: The signing algorithm to use
             certs: Certificate chain in PEM format
             tsa_url: Optional RFC 3161 timestamp authority URL
-            
+
         Returns:
             A new Signer instance
-            
+
         Raises:
             C2paError: If there was an error creating the signer
             C2paError.Encoding: If the certificate data or TSA URL contains invalid UTF-8 characters
@@ -1154,10 +1166,10 @@ class Signer:
         # Validate inputs before creating
         if not certs:
             raise C2paError(cls._error_messages['invalid_certs'].format("Missing certificate data"))
-            
+
         if tsa_url and not tsa_url.startswith(('http://', 'https://')):
             raise C2paError(cls._error_messages['invalid_tsa'].format("Invalid TSA URL format"))
-            
+
         # Create a wrapper callback that handles errors and memory management
         def wrapped_callback(data: bytes) -> bytes:
             try:
@@ -1167,14 +1179,14 @@ class Signer:
             except Exception as e:
                 print(cls._error_messages['callback_error'].format(str(e)), file=sys.stderr)
                 raise C2paError.Signature(str(e))
-        
+
         # Encode strings with error handling
         try:
             certs_bytes = certs.encode('utf-8')
             tsa_url_bytes = tsa_url.encode('utf-8') if tsa_url else None
         except UnicodeError as e:
             raise C2paError.Encoding(cls._error_messages['encoding_error'].format(str(e)))
-        
+
         # Create the signer with the wrapped callback
         signer_ptr = _lib.c2pa_signer_create(
             None,  # context
@@ -1183,32 +1195,32 @@ class Signer:
             certs_bytes,
             tsa_url_bytes
         )
-        
+
         if not signer_ptr:
             _handle_string_result(_lib.c2pa_error())
-            
+
         return cls(signer_ptr)
-    
+
     def __enter__(self):
         """Context manager entry."""
         if self._closed:
             raise C2paError(self._error_messages['closed_error'])
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         self.close()
-    
+
     def close(self):
         """Release the signer resources.
-        
+
         This method ensures all resources are properly cleaned up, even if errors occur during cleanup.
         Errors during cleanup are logged but not raised to ensure cleanup completes.
         Multiple calls to close() are handled gracefully.
         """
         if self._closed:
             return
-            
+
         try:
             if self._signer:
                 try:
@@ -1221,33 +1233,33 @@ class Signer:
             print(self._error_messages['cleanup_error'].format(str(e)), file=sys.stderr)
         finally:
             self._closed = True
-    
+
     def reserve_size(self) -> int:
         """Get the size to reserve for signatures from this signer.
-        
+
         Returns:
             The size to reserve in bytes
-            
+
         Raises:
             C2paError: If there was an error getting the size
         """
         if self._closed or not self._signer:
             raise C2paError(self._error_messages['closed_error'])
-            
+
         try:
             result = _lib.c2pa_signer_reserve_size(self._signer)
-            
+
             if result < 0:
                 _handle_string_result(_lib.c2pa_error())
-                
+
             return result
         except Exception as e:
             raise C2paError(self._error_messages['size_error'].format(str(e)))
-    
+
     @property
     def closed(self) -> bool:
         """Check if the signer is closed.
-        
+
         Returns:
             bool: True if the signer is closed, False otherwise
         """
@@ -1480,25 +1492,25 @@ class Builder:
             
             if result != 0:
                 _handle_string_result(_lib.c2pa_error())
-    
+
     def to_archive(self, stream: Any):
         """Write an archive of the builder to a stream.
-        
+
         Args:
             stream: The stream to write the archive to (any Python stream-like object)
-            
+
         Raises:
             C2paError: If there was an error writing the archive
         """
         if not self._builder:
             raise C2paError(self._error_messages['closed_error'])
-            
+
         with Stream(stream) as stream_obj:
             result = _lib.c2pa_builder_to_archive(self._builder, stream_obj._stream)
-            
+
             if result != 0:
                 _handle_string_result(_lib.c2pa_error())
-    
+
     def sign(self, signer: Signer, format: str, source: Any, dest: Any = None) -> Optional[bytes]:
         """Sign the builder's content and write to a destination stream.
 
@@ -1554,25 +1566,24 @@ class Builder:
 
     def sign_file(self, source_path: Union[str, Path], dest_path: Union[str, Path], signer: Signer) -> tuple[int, Optional[bytes]]:
         """Sign a file and write the signed data to an output file.
-        
+
         Args:
             source_path: Path to the source file
             dest_path: Path to write the signed file to
-            signer: The signer to use
-            
+
         Returns:
             A tuple of (size of C2PA data, optional manifest bytes)
-            
+
         Raises:
             C2paError: If there was an error during signing
         """
         if not self._builder:
             raise C2paError(self._error_messages['closed_error'])
-            
+
         source_path_str = str(source_path).encode('utf-8')
         dest_path_str = str(dest_path).encode('utf-8')
         manifest_bytes_ptr = ctypes.POINTER(ctypes.c_ubyte)()
-        
+
         result = _lib.c2pa_builder_sign_file(
             self._builder,
             source_path_str,
@@ -1580,17 +1591,17 @@ class Builder:
             signer._signer,
             ctypes.byref(manifest_bytes_ptr)
         )
-        
+
         if result < 0:
             _handle_string_result(_lib.c2pa_error())
-            
+
         manifest_bytes = None
         if manifest_bytes_ptr:
             # Convert the manifest bytes to a Python bytes object
             size = result
             manifest_bytes = bytes(manifest_bytes_ptr[:size])
             _lib.c2pa_manifest_bytes_free(manifest_bytes_ptr)
-            
+
         return result, manifest_bytes
 
 def format_embeddable(format: str, manifest_bytes: bytes) -> tuple[int, bytes]:
