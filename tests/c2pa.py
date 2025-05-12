@@ -777,10 +777,12 @@ class Stream:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
+        print(f'## ~~~~~ Calling exit for stream {self._stream_id}')
         self.close()
 
     def __del__(self):
         """Ensure resources are cleaned up if close() wasn't called."""
+        print(f'## ~~~~~ Calling del for stream {self._stream_id}')
         self.close()
 
     def close(self):
@@ -794,11 +796,12 @@ class Stream:
         if self._closed:
             return
 
+        print(f'## ~~~~~ !! Calling close for stream {self._stream_id}')
         try:
             # Clean up stream first as it depends on callbacks
             if self._stream:
                 try:
-                    print(f'## ----- Releasing stream {self._stream_id}')
+                    print(f'## ~~~~~ Releasing stream {self._stream_id}')
                     _lib.c2pa_release_stream(self._stream)
                 except Exception as e:
                     print(self._error_messages['stream_error'].format(str(e)), file=sys.stderr)
