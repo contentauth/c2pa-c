@@ -601,7 +601,7 @@ class Stream:
         self._closed = False  # Track if the stream has been closed
         self._initialized = False  # Track if stream was successfully initialized
 
-        print(f'## Created stream {self._stream_id} for file {self._file}')
+        # print(f'## Created stream {self._stream_id} for file {self._file}')
 
         # Pre-allocate error message strings to avoid string formatting overhead
         self._error_messages = {
@@ -779,12 +779,12 @@ class Stream:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
-        print(f'## ~~~~~ Calling exit for stream {self._stream_id}')
+        # print(f'## ~~~~~ Calling exit for stream {self._stream_id}')
         self.close()
 
     def __del__(self):
         """Ensure resources are cleaned up if close() wasn't called."""
-        print(f'## ~~~~~ Calling del for stream {self._stream_id}')
+        # print(f'## ~~~~~ Calling del for stream {self._stream_id}')
         self.close()
 
     def close(self):
@@ -798,12 +798,12 @@ class Stream:
         if self._closed:
             return
 
-        print(f'## ~~~~~ !! Calling close for stream {self._stream_id}')
+        # print(f'## ~~~~~ !! Calling close for stream {self._stream_id}')
         try:
             # Clean up stream first as it depends on callbacks
             if self._stream:
                 try:
-                    print(f'## ~~~~~ Releasing stream {self._stream_id}')
+                    # print(f'## ~~~~~ Releasing stream {self._stream_id}')
                     _lib.c2pa_release_stream(self._stream)
                 except Exception as e:
                     print(self._error_messages['stream_error'].format(str(e)), file=sys.stderr)
@@ -902,12 +902,12 @@ class Reader:
                 file = open(path, 'rb')
                 self._own_stream = Stream(file)
 
-                print("## Stream pointer before reader creation:", self._own_stream._stream)
+                # print("## Stream pointer before reader creation:", self._own_stream._stream)
                 self._reader = _lib.c2pa_reader_from_stream(
                     self._mime_type_str,
                     self._own_stream._stream
                 )
-                print("## Reader pointer after creation:", self._reader)
+                # print("## Reader pointer after creation:", self._reader)
 
                 if not self._reader:
                     self._own_stream.close()
@@ -943,7 +943,7 @@ class Reader:
                         len(manifest_data)
                     )
 
-                print("## Reader created with pointer:", self._reader)
+                # print("## Reader created with pointer:", self._reader)
 
                 if not self._reader:
                     self._own_stream.close()
@@ -961,6 +961,7 @@ class Reader:
             # Use the provided stream
             # Keep format string alive
             self._format_str = format_or_path.encode('utf-8')
+
             with Stream(stream) as stream_obj:
                 if manifest_data is None:
                     self._reader = _lib.c2pa_reader_from_stream(self._format_str, stream_obj._stream)
@@ -975,7 +976,7 @@ class Reader:
                         len(manifest_data)
                     )
 
-                print('## Reader ptr: ', self._reader)
+                # print('## Reader ptr: ', self._reader)
                 if not self._reader:
                     print('## Error creating stream')
                     _handle_string_result(_lib.c2pa_error())
@@ -984,7 +985,7 @@ class Reader:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        print('## Exiting the context manager')
+        # print('## Exiting the context manager')
         self.close()
 
     def close(self):
@@ -995,7 +996,7 @@ class Reader:
         Multiple calls to close() are handled gracefully.
         """
 
-        print('## Closing the stream')
+        # print('## Closing the stream')
         # Track if we've already cleaned up
         if not hasattr(self, '_closed'):
             self._closed = False
@@ -1038,7 +1039,7 @@ class Reader:
             print(self._error_messages['cleanup_error'].format(str(e)), file=sys.stderr)
         finally:
             self._closed = True
-    
+
     def json(self) -> str:
         """Get the manifest store as a JSON string.
 
@@ -1048,7 +1049,7 @@ class Reader:
         Raises:
             C2paError: If there was an error getting the JSON
         """
-        print("## Pointer when going into reader->json:", self._reader)
+        # print("## Pointer when going into reader->json:", self._reader)
         if not self._reader:
             raise C2paError("Reader is closed")
         result = _lib.c2pa_reader_json(self._reader)
@@ -1544,7 +1545,7 @@ class Builder:
                 manifest_bytes = bytes(manifest_bytes_ptr[:size])
                 _lib.c2pa_manifest_bytes_free(manifest_bytes_ptr)
 
-            print(f"@@@@@@ Returnin manifest bytes: {manifest_bytes}")
+            print(f"@@@@@@ Returning manifest bytes: {manifest_bytes}")
             return manifest_bytes
         finally:
             # Ensure both streams are cleaned up

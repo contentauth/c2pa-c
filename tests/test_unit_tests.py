@@ -140,33 +140,20 @@ class TestBuilder(unittest.TestCase):
     #                 self._read_manifest(reader)
 
     def test_streams_sign_with_ingredient_with_manifest(self):
-        
-        print('## Opening test file: C.jpg')
-        print('## Opening output stream file: io.BytesIO(bytearray()) ')
         with open(testPath, "rb") as file, \
              io.BytesIO(bytearray()) as output, \
              Builder(TestBuilder.manifestDefinition) as builder:
 
             ingredient_json = '{"title": "test-ingredient"}'
-            print('## Opening signed test file A-signed.png')
             with open(os.path.join(PROJECT_PATH, "tests", "fixtures", "A-signed.png"), 'rb') as f:
-                print('#### Preparing to add an ingredient')
                 builder.add_ingredient(ingredient_json, "image/png", f)
-                print('#### Added an ingredient')
 
-                print('#### Preparing to sign')
                 builder.sign(TestBuilder.signer, "image/jpeg", file, output)
-                print('#### Signed')
 
-                print('#### Resetting output stream location')
                 output.seek(0)
-                print('#### Output stream location reset')
 
-                print('## Creating a reader object')
                 with Reader("image/jpeg", output) as reader:
-                    print('#### Preparing to read manifest')
                     self._read_manifest(reader)
-                    print('#### Read manifest')
 
     # def test_archive_sign(self):
     #     with open(testPath, "rb") as file, \
