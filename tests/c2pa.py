@@ -391,11 +391,11 @@ class C2paError(Exception):
 
 class _StringContainer:
     """Container class to hold encoded strings and prevent them from being garbage collected.
-    
+
     This class is used to store encoded strings that need to remain in memory
     while being used by C functions. The strings are stored as instance attributes
     to prevent them from being garbage collected.
-    
+
     This is an internal implementation detail and should not be used outside this module.
     """
     def __init__(self):
@@ -467,11 +467,11 @@ def version() -> str:
 
 def load_settings(settings: str, format: str = "json") -> None:
     """Load C2PA settings from a string.
-    
+
     Args:
         settings: The settings string to load
         format: The format of the settings string (default: "json")
-        
+
     Raises:
         C2paError: If there was an error loading the settings
     """
@@ -486,43 +486,43 @@ def load_settings(settings: str, format: str = "json") -> None:
 
 def read_file(path: Union[str, Path], data_dir: Optional[Union[str, Path]] = None) -> str:
     """Read a C2PA manifest from a file.
-    
+
     Args:
         path: Path to the file to read
         data_dir: Optional directory to write binary resources to
-        
+
     Returns:
         The manifest as a JSON string
-        
+
     Raises:
         C2paError: If there was an error reading the file
     """
     container = _StringContainer()
-    
+
     container._path_str = str(path).encode('utf-8')
     container._data_dir_str = str(data_dir).encode('utf-8') if data_dir else None
-    
+
     result = _lib.c2pa_read_file(container._path_str, container._data_dir_str)
     return _handle_string_result(result)
 
 def read_ingredient_file(path: Union[str, Path], data_dir: Optional[Union[str, Path]] = None) -> str:
     """Read a C2PA ingredient from a file.
-    
+
     Args:
         path: Path to the file to read
         data_dir: Optional directory to write binary resources to
-        
+
     Returns:
         The ingredient as a JSON string
-        
+
     Raises:
         C2paError: If there was an error reading the file
     """
     container = _StringContainer()
-    
+
     container._path_str = str(path).encode('utf-8')
     container._data_dir_str = str(data_dir).encode('utf-8') if data_dir else None
-    
+
     result = _lib.c2pa_read_ingredient_file(container._path_str, container._data_dir_str)
     return _handle_string_result(result)
 
@@ -534,17 +534,17 @@ def sign_file(
     data_dir: Optional[Union[str, Path]] = None
 ) -> str:
     """Sign a file with a C2PA manifest.
-    
+
     Args:
         source_path: Path to the source file
         dest_path: Path to write the signed file to
         manifest: The manifest JSON string
         signer_info: Signing configuration
         data_dir: Optional directory to write binary resources to
-        
+
     Returns:
         Result information as a JSON string
-        
+
     Raises:
         C2paError: If there was an error signing the file
         C2paError.Encoding: If any of the string inputs contain invalid UTF-8 characters
@@ -557,7 +557,7 @@ def sign_file(
         signer_info._data_dir_str = str(data_dir).encode('utf-8') if data_dir else None
     except UnicodeError as e:
         raise C2paError.Encoding(f"Invalid UTF-8 characters in input strings: {str(e)}")
-    
+
     result = _lib.c2pa_sign_file(
         signer_info._source_str,
         signer_info._dest_str,
@@ -1137,6 +1137,7 @@ class Signer:
         signer_ptr = _lib.c2pa_signer_from_info(ctypes.byref(signer_info))
 
         if not signer_ptr:
+            ## TODO: Raise error
             _handle_string_result(_lib.c2pa_error())
 
         return cls(signer_ptr)
@@ -1198,6 +1199,7 @@ class Signer:
         )
 
         if not signer_ptr:
+            ## TODO: Raise error
             _handle_string_result(_lib.c2pa_error())
 
         return cls(signer_ptr)
@@ -1251,6 +1253,7 @@ class Signer:
             result = _lib.c2pa_signer_reserve_size(self._signer)
 
             if result < 0:
+                ## TODO: Raise error
                 _handle_string_result(_lib.c2pa_error())
 
             return result
@@ -1271,10 +1274,10 @@ class Builder:
 
     def __init__(self, manifest_json: Any):
         """Initialize a new Builder instance.
-        
+
         Args:
             manifest_json: The manifest JSON definition (string or dict)
-            
+
         Raises:
             C2paError: If there was an error creating the builder
             C2paError.Encoding: If the manifest JSON contains invalid UTF-8 characters
@@ -1293,55 +1296,57 @@ class Builder:
             'sign_error': "Error during signing: {}",
             'encoding_error': "Invalid UTF-8 characters in manifest: {}"
         }
-        
+
         if not isinstance(manifest_json, str):
             manifest_json = json.dumps(manifest_json)
-        
+
         try:
             json_str = manifest_json.encode('utf-8')
         except UnicodeError as e:
             raise C2paError.Encoding(self._error_messages['encoding_error'].format(str(e)))
-            
+
         self._builder = _lib.c2pa_builder_from_json(json_str)
-        
+
         if not self._builder:
+            ## TODO: Raise error
             _handle_string_result(_lib.c2pa_error())
 
     @classmethod
     def from_json(cls, manifest_json: Any) -> 'Builder':
         """Create a new Builder from a JSON manifest.
-        
+
         Args:
             manifest_json: The JSON manifest definition
-            
+
         Returns:
             A new Builder instance
-            
+
         Raises:
             C2paError: If there was an error creating the builder
         """
         return cls(manifest_json)
-    
+
     @classmethod
     def from_archive(cls, stream: Any) -> 'Builder':
         """Create a new Builder from an archive stream.
-        
+
         Args:
             stream: The stream containing the archive (any Python stream-like object)
-            
+
         Returns:
             A new Builder instance
-            
+
         Raises:
             C2paError: If there was an error creating the builder
         """
         builder = cls({})
         stream_obj = Stream(stream)
         builder._builder = _lib.c2pa_builder_from_archive(stream_obj._stream)
-        
+
         if not builder._builder:
+            ## TODO: Raise error
             _handle_string_result(_lib.c2pa_error())
-            
+
         return builder
 
     def __del__(self):
@@ -1350,7 +1355,7 @@ class Builder:
 
     def close(self):
         """Release the builder resources.
-        
+
         This method ensures all resources are properly cleaned up, even if errors occur during cleanup.
         Errors during cleanup are logged but not raised to ensure cleanup completes.
         Multiple calls to close() are handled gracefully.
@@ -1381,117 +1386,121 @@ class Builder:
             manifest = json.dumps(manifest)
         super().with_json(manifest)
         return self
-    
+
     def __enter__(self):
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-    
+
     def set_no_embed(self):
         """Set the no-embed flag.
-        
+
         When set, the builder will not embed a C2PA manifest store into the asset when signing.
         This is useful when creating cloud or sidecar manifests.
         """
         if not self._builder:
             raise C2paError(self._error_messages['closed_error'])
         _lib.c2pa_builder_set_no_embed(self._builder)
-    
+
     def set_remote_url(self, remote_url: str):
         """Set the remote URL.
-        
+
         When set, the builder will embed a remote URL into the asset when signing.
         This is useful when creating cloud based Manifests.
-        
+
         Args:
             remote_url: The remote URL to set
-            
+
         Raises:
             C2paError: If there was an error setting the URL
         """
         if not self._builder:
             raise C2paError(self._error_messages['closed_error'])
-            
+
         url_str = remote_url.encode('utf-8')
         result = _lib.c2pa_builder_set_remote_url(self._builder, url_str)
-        
+
         if result != 0:
+            ## TODO: Raise error
             _handle_string_result(_lib.c2pa_error())
-    
+
     def add_resource(self, uri: str, stream: Any):
         """Add a resource to the builder.
-        
+
         Args:
             uri: The URI to identify the resource
             stream: The stream containing the resource data (any Python stream-like object)
-            
+
         Raises:
             C2paError: If there was an error adding the resource
         """
         if not self._builder:
             raise C2paError(self._error_messages['closed_error'])
-            
+
         uri_str = uri.encode('utf-8')
         with Stream(stream) as stream_obj:
             result = _lib.c2pa_builder_add_resource(self._builder, uri_str, stream_obj._stream)
-            
+
             if result != 0:
+                ## TODO: Raise error
                 _handle_string_result(_lib.c2pa_error())
-    
+
     def add_ingredient(self, ingredient_json: str, format: str, source: Any):
         """Add an ingredient to the builder.
-        
+
         Args:
             ingredient_json: The JSON ingredient definition
             format: The MIME type or extension of the ingredient
             source: The stream containing the ingredient data (any Python stream-like object)
-            
+
         Raises:
             C2paError: If there was an error adding the ingredient
             C2paError.Encoding: If the ingredient JSON contains invalid UTF-8 characters
         """
         if not self._builder:
             raise C2paError(self._error_messages['closed_error'])
-            
+
         try:
             ingredient_str = ingredient_json.encode('utf-8')
             format_str = format.encode('utf-8')
         except UnicodeError as e:
             raise C2paError.Encoding(self._error_messages['encoding_error'].format(str(e)))
-            
+
         source_stream = Stream(source)
         result = _lib.c2pa_builder_add_ingredient_from_stream(self._builder, ingredient_str, format_str, source_stream._stream)
-        
+
         if result != 0:
+            ## TODO: Raise error
             _handle_string_result(_lib.c2pa_error())
-    
+
     def add_ingredient_from_stream(self, ingredient_json: str, format: str, source: Any):
         """Add an ingredient from a stream to the builder.
-        
+
         Args:
             ingredient_json: The JSON ingredient definition
             format: The MIME type or extension of the ingredient
             source: The stream containing the ingredient data (any Python stream-like object)
-            
+
         Raises:
             C2paError: If there was an error adding the ingredient
             C2paError.Encoding: If the ingredient JSON or format contains invalid UTF-8 characters
         """
         if not self._builder:
             raise C2paError(self._error_messages['closed_error'])
-            
+
         try:
             ingredient_str = ingredient_json.encode('utf-8')
             format_str = format.encode('utf-8')
         except UnicodeError as e:
             raise C2paError.Encoding(self._error_messages['encoding_error'].format(str(e)))
-            
+
         with Stream(source) as source_stream:
             result = _lib.c2pa_builder_add_ingredient_from_stream(
                 self._builder, ingredient_str, format_str, source_stream._stream)
-            
+
             if result != 0:
+                ## TODO: Raise error
                 _handle_string_result(_lib.c2pa_error())
 
     def to_archive(self, stream: Any):
@@ -1510,6 +1519,7 @@ class Builder:
             result = _lib.c2pa_builder_to_archive(self._builder, stream_obj._stream)
 
             if result != 0:
+                ## TODO: Raise error
                 _handle_string_result(_lib.c2pa_error())
 
     def sign(self, signer: Signer, format: str, source: Any, dest: Any = None) -> Optional[bytes]:
@@ -1609,36 +1619,37 @@ class Builder:
 
 def format_embeddable(format: str, manifest_bytes: bytes) -> tuple[int, bytes]:
     """Convert a binary C2PA manifest into an embeddable version.
-    
+
     Args:
         format: The MIME type or extension of the target format
         manifest_bytes: The raw manifest bytes
-        
+
     Returns:
         A tuple of (size of result bytes, embeddable manifest bytes)
-        
+
     Raises:
         C2paError: If there was an error converting the manifest
     """
     format_str = format.encode('utf-8')
     manifest_array = (ctypes.c_ubyte * len(manifest_bytes))(*manifest_bytes)
     result_bytes_ptr = ctypes.POINTER(ctypes.c_ubyte)()
-    
+
     result = _lib.c2pa_format_embeddable(
         format_str,
         manifest_array,
         len(manifest_bytes),
         ctypes.byref(result_bytes_ptr)
     )
-    
+
     if result < 0:
+        # TODO Handle error better
         _handle_string_result(_lib.c2pa_error())
-        
+
     # Convert the result bytes to a Python bytes object
     size = result
     result_bytes = bytes(result_bytes_ptr[:size])
     _lib.c2pa_manifest_bytes_free(result_bytes_ptr)
-    
+
     return size, result_bytes
 
 def create_signer(
@@ -1648,16 +1659,16 @@ def create_signer(
     tsa_url: Optional[str] = None
 ) -> Signer:
     """Create a signer from a callback function.
-    
+
     Args:
         callback: Function that signs data and returns the signature
         alg: The signing algorithm to use
         certs: Certificate chain in PEM format
         tsa_url: Optional RFC 3161 timestamp authority URL
-        
+
     Returns:
         A new Signer instance
-        
+
     Raises:
         C2paError: If there was an error creating the signer
         C2paError.Encoding: If the certificate data or TSA URL contains invalid UTF-8 characters
@@ -1667,7 +1678,7 @@ def create_signer(
         tsa_url_bytes = tsa_url.encode('utf-8') if tsa_url else None
     except UnicodeError as e:
         raise C2paError.Encoding(f"Invalid UTF-8 characters in certificate data or TSA URL: {str(e)}")
-    
+
     signer_ptr = _lib.c2pa_signer_create(
         None,  # context
         SignerCallback(callback),
@@ -1675,29 +1686,31 @@ def create_signer(
         certs_bytes,
         tsa_url_bytes
     )
-    
+
     if not signer_ptr:
+        # TODO Handle error better
         _handle_string_result(_lib.c2pa_error())
-        
+
     return Signer(signer_ptr)
 
 def create_signer_from_info(signer_info: C2paSignerInfo) -> Signer:
     """Create a signer from signer information.
-    
+
     Args:
         signer_info: The signer configuration
-        
+
     Returns:
         A new Signer instance
-        
+
     Raises:
         C2paError: If there was an error creating the signer
     """
     signer_ptr = _lib.c2pa_signer_from_info(ctypes.byref(signer_info))
-    
+
     if not signer_ptr:
+        # TODO Handle error better
         _handle_string_result(_lib.c2pa_error())
-        
+
     return Signer(signer_ptr)
 
 # Rename the old create_signer to _create_signer since it's now internal
@@ -1705,14 +1718,14 @@ _create_signer = create_signer
 
 def ed25519_sign(data: bytes, private_key: str) -> bytes:
     """Sign data using the Ed25519 algorithm.
-    
+
     Args:
         data: The data to sign
         private_key: The private key in PEM format
-        
+
     Returns:
         The signature bytes
-        
+
     Raises:
         C2paError: If there was an error signing the data
         C2paError.Encoding: If the private key contains invalid UTF-8 characters
@@ -1722,18 +1735,19 @@ def ed25519_sign(data: bytes, private_key: str) -> bytes:
         key_str = private_key.encode('utf-8')
     except UnicodeError as e:
         raise C2paError.Encoding(f"Invalid UTF-8 characters in private key: {str(e)}")
-    
+
     signature_ptr = _lib.c2pa_ed25519_sign(data_array, len(data), key_str)
-    
+
     if not signature_ptr:
+        ## TODO: Raise error
         _handle_string_result(_lib.c2pa_error())
-    
+
     try:
         # Ed25519 signatures are always 64 bytes
         signature = bytes(signature_ptr[:64])
     finally:
         _lib.c2pa_signature_free(signature_ptr)
-    
+
     return signature
 
 __all__ = [
