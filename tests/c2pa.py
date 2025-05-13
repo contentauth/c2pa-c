@@ -1277,6 +1277,7 @@ class Builder:
         Raises:
             C2paError: If there was an error creating the builder
             C2paError.Encoding: If the manifest JSON contains invalid UTF-8 characters
+            C2paError.Json: If the manifest JSON cannot be serialized
         """
         self._builder = None
         self._error_messages = {
@@ -1290,11 +1291,15 @@ class Builder:
             'ingredient_error': "Error adding ingredient: {}",
             'archive_error': "Error writing archive: {}",
             'sign_error': "Error during signing: {}",
-            'encoding_error': "Invalid UTF-8 characters in manifest: {}"
+            'encoding_error': "Invalid UTF-8 characters in manifest: {}",
+            'json_error': "Failed to serialize manifest JSON: {}"
         }
 
         if not isinstance(manifest_json, str):
-            manifest_json = json.dumps(manifest_json)
+            try:
+                manifest_json = json.dumps(manifest_json)
+            except (TypeError, ValueError) as e:
+                raise C2paError.Json(self._error_messages['json_error'].format(str(e)))
 
         try:
             json_str = manifest_json.encode('utf-8')
@@ -1304,8 +1309,10 @@ class Builder:
         self._builder = _lib.c2pa_builder_from_json(json_str)
 
         if not self._builder:
-            ## TODO: Raise error
-            _handle_string_result(_lib.c2pa_error())
+            error = _handle_string_result(_lib.c2pa_error())
+            if error:
+                raise C2paError(error)
+            raise C2paError(self._error_messages['builder_error'].format("Unknown error"))
 
     @classmethod
     def from_json(cls, manifest_json: Any) -> 'Builder':
