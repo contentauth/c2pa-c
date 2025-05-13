@@ -222,5 +222,81 @@ class TestBuilder(unittest.TestCase):
             with Reader("image/jpeg", output, manifest_data) as reader:
                 self._read_manifest(reader)
 
+class TestErrorHandling(unittest.TestCase):
+    def test_create_signer_from_info_error_handling(self):
+        # Test with invalid signer info (missing required fields)
+        invalid_signer_info = C2paSignerInfo(
+            alg=b"es256",
+            sign_cert=None,  # Missing certificate
+            private_key=None,  # Missing private key
+            ta_url=None
+        )
+
+        with self.assertRaises(C2paError) as context:
+            Signer.from_info(invalid_signer_info)
+
+        # Verify we get a meaningful error message
+        error_msg = str(context.exception)
+        self.assertIn("Missing certificate or private key", error_msg)
+
+    def test_create_signer_from_info_later_error_handling(self):
+        # load the public keys from a pem file to create valid signer info
+        data_dir = "tests/fixtures/"
+        with open(data_dir + "es256_certs.pem", "rb") as cert_file, \
+             open(data_dir + "es256_private.key", "rb") as key_file:
+            certs = cert_file.read()
+            key = key_file.read()
+
+            # Test with invalid signer info (invalid algorithm)
+            invalid_signer_info = C2paSignerInfo(
+                alg=b"invalid-algorithm",
+                sign_cert=certs,  # Missing certificate
+                private_key=key,  # Missing private key
+                ta_url=None
+            )
+
+            with self.assertRaises(C2paError) as context:
+                Signer.from_info(invalid_signer_info)
+
+            # Verify we get a meaningful error message
+            error_msg = str(context.exception)
+            self.assertIn("Other Invalid signing algorithm", error_msg)
+
+    def test_reader_initialization_error_handling(self):
+        # Test with non-existent file
+        with self.assertRaises(C2paError.Io) as context:
+            Reader("image/jpeg", "non_existent_file.jpg")
+
+        # Verify we get a meaningful error message
+        error_msg = str(context.exception)
+        self.assertIn("IO error", error_msg)
+
+        # Test with invalid manifest data
+        with self.assertRaises(TypeError) as context:
+            Reader("image/jpeg", io.BytesIO(b"test"), manifest_data="not bytes")
+
+        # Verify we get a meaningful error message
+        error_msg = str(context.exception)
+        self.assertIn("Invalid manifest data", error_msg)
+
+        # Test with invalid format
+        with self.assertRaises(C2paError.NotSupported) as context:
+            Reader("badFormat", io.BytesIO(b"test"))
+
+        # Verify we get a meaningful error message
+        error_msg = str(context.exception)
+        self.assertIn("Unsupported format", error_msg)
+
+    def test_reader_closed_stream_handling(self):
+        # Test with closed stream
+        closed_stream = io.BytesIO(b"test")
+        closed_stream.close()
+        with self.assertRaises(C2paError) as context:
+            Reader("image/jpeg", closed_stream)
+
+        # Verify we get a meaningful error message
+        error_msg = str(context.exception)
+        self.assertIn("Io Undefined error", error_msg)
+
 if __name__ == '__main__':
     unittest.main()
