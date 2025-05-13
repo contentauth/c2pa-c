@@ -1759,8 +1759,10 @@ def ed25519_sign(data: bytes, private_key: str) -> bytes:
     signature_ptr = _lib.c2pa_ed25519_sign(data_array, len(data), key_str)
 
     if not signature_ptr:
-        ## TODO: Raise error
-        _handle_string_result(_lib.c2pa_error())
+        error = _handle_string_result(_lib.c2pa_error())
+        if error:
+            raise C2paError(error)
+        raise C2paError("Failed to sign data with Ed25519")
 
     try:
         # Ed25519 signatures are always 64 bytes
