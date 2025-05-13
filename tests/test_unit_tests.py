@@ -138,7 +138,7 @@ class TestBuilder(unittest.TestCase):
 
     def _read_manifest(self, reader):
         json_data = reader.json()
-        print(json_data)
+        # print(json_data)
         self.assertIn("Python Test", json_data)
         self.assertNotIn("validation_status", json_data)
 
