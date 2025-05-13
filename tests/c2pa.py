@@ -1130,7 +1130,7 @@ class Signer:
             if error:
                 # More detailed error message when possible
                 raise C2paError(error)
-            raise C2paError("Failed to create signer from info")
+            raise C2paError("Failed to create signer from configured signer info")
 
         return cls(signer_ptr)
 
@@ -1247,8 +1247,10 @@ class Signer:
             result = _lib.c2pa_signer_reserve_size(self._signer)
 
             if result < 0:
-                ## TODO: Raise error
-                _handle_string_result(_lib.c2pa_error())
+                error = _handle_string_result(_lib.c2pa_error())
+                if error:
+                    raise C2paError(error)
+                raise C2paError("Failed to get reserve size")
 
             return result
         except Exception as e:
