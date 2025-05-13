@@ -240,14 +240,14 @@ class TestErrorHandling(unittest.TestCase):
         self.assertIn("Missing certificate or private key", error_msg)
 
     def test_create_signer_from_info_later_error_handling(self):
-        # load the public keys from a pem file
+        # load the public keys from a pem file to create valid signer info
         data_dir = "tests/fixtures/"
         with open(data_dir + "es256_certs.pem", "rb") as cert_file, \
              open(data_dir + "es256_private.key", "rb") as key_file:
             certs = cert_file.read()
             key = key_file.read()
 
-            # Test with invalid signer info (missing required fields)
+            # Test with invalid signer info (invalid algorithm)
             invalid_signer_info = C2paSignerInfo(
                 alg=b"invalid-algorithm",
                 sign_cert=certs,  # Missing certificate
