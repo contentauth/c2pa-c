@@ -171,6 +171,8 @@ class TestBuilder(unittest.TestCase):
              Builder(TestBuilder.manifestDefinitionV2) as builder:
 
             ingredient_json = '{"title": "test-ingredient"}'
+            # The A-signed ingredient is recent, signed with v2 claims...
+            # So we need the Builder manifest json to be flagged as v2 too
             with open(os.path.join(PROJECT_PATH, "tests", "fixtures", "A-signed.png"), 'rb') as f:
                 builder.add_ingredient(ingredient_json, "image/png", f)
 
@@ -187,6 +189,8 @@ class TestBuilder(unittest.TestCase):
              Builder(TestBuilder.manifestDefinition) as builder:
 
             ingredient_json = '{"title": "test-ingredient"}'
+            # We are using an ingredient with v2 claims, but the manifest in the builder is v1
+            # So we expect a signing failure here
             with open(os.path.join(PROJECT_PATH, "tests", "fixtures", "A-signed.png"), 'rb') as f:
                 builder.add_ingredient(ingredient_json, "image/png", f)
 
