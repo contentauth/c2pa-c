@@ -1654,8 +1654,10 @@ def format_embeddable(format: str, manifest_bytes: bytes) -> tuple[int, bytes]:
     )
 
     if result < 0:
-        # TODO Handle error better
-        _handle_string_result(_lib.c2pa_error())
+        error = _handle_string_result(_lib.c2pa_error())
+        if error:
+            raise C2paError(error)
+        raise C2paError("Failed to format embeddable manifest")
 
     # Convert the result bytes to a Python bytes object
     size = result
