@@ -262,5 +262,41 @@ class TestErrorHandling(unittest.TestCase):
             error_msg = str(context.exception)
             self.assertIn("Other Invalid signing algorithm", error_msg)
 
+    def test_reader_initialization_error_handling(self):
+        # Test with non-existent file
+        with self.assertRaises(C2paError.Io) as context:
+            Reader("image/jpeg", "non_existent_file.jpg")
+
+        # Verify we get a meaningful error message
+        error_msg = str(context.exception)
+        self.assertIn("IO error", error_msg)
+
+        # Test with invalid manifest data
+        with self.assertRaises(TypeError) as context:
+            Reader("image/jpeg", io.BytesIO(b"test"), manifest_data="not bytes")
+
+        # Verify we get a meaningful error message
+        error_msg = str(context.exception)
+        self.assertIn("Invalid manifest data", error_msg)
+
+        # Test with invalid format
+        with self.assertRaises(C2paError.NotSupported) as context:
+            Reader("badFormat", io.BytesIO(b"test"))
+
+        # Verify we get a meaningful error message
+        error_msg = str(context.exception)
+        self.assertIn("Unsupported format", error_msg)
+
+    def test_reader_closed_stream_handling(self):
+        # Test with closed stream
+        closed_stream = io.BytesIO(b"test")
+        closed_stream.close()
+        with self.assertRaises(C2paError) as context:
+            Reader("image/jpeg", closed_stream)
+
+        # Verify we get a meaningful error message
+        error_msg = str(context.exception)
+        self.assertIn("Io Undefined error", error_msg)
+
 if __name__ == '__main__':
     unittest.main()
