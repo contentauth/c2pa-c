@@ -1340,15 +1340,17 @@ class Builder:
             A new Builder instance
 
         Raises:
-            C2paError: If there was an error creating the builder
+            C2paError: If there was an error creating the builder from the archive
         """
         builder = cls({})
         stream_obj = Stream(stream)
         builder._builder = _lib.c2pa_builder_from_archive(stream_obj._stream)
 
         if not builder._builder:
-            ## TODO: Raise error
-            _handle_string_result(_lib.c2pa_error())
+            error = _handle_string_result(_lib.c2pa_error())
+            if error:
+                raise C2paError(error)
+            raise C2paError("Failed to create builder from archive")
 
         return builder
 
