@@ -1594,7 +1594,9 @@ class Builder:
         )
 
         if result < 0:
-            _handle_string_result(_lib.c2pa_error())
+            error = _handle_string_result(_lib.c2pa_error())
+            if error:
+                raise C2paError(error)
 
         manifest_bytes = None
         if manifest_bytes_ptr:
