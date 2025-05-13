@@ -17,7 +17,7 @@ import json
 import unittest
 from unittest.mock import mock_open, patch
 
-from c2pa import  Builder, C2paError as Error,  Reader, C2paSigningAlg as SigningAlg, C2paSignerInfo, Signer,  sdk_version #,  load_settings_file
+from c2pa import  Builder, C2paError as Error, C2paError, Reader, C2paSigningAlg as SigningAlg, C2paSignerInfo, Signer,  sdk_version #,  load_settings_file
 
 PROJECT_PATH = os.getcwd()
 
@@ -180,6 +180,20 @@ class TestBuilder(unittest.TestCase):
 
                 with Reader("image/jpeg", output) as reader:
                     self._read_manifest(reader)
+
+    def test_streams_handle_claims_version_mismatch_during_signing(self):
+        with open(testPath, "rb") as file, \
+             io.BytesIO(bytearray()) as output, \
+             Builder(TestBuilder.manifestDefinition) as builder:
+
+            ingredient_json = '{"title": "test-ingredient"}'
+            with open(os.path.join(PROJECT_PATH, "tests", "fixtures", "A-signed.png"), 'rb') as f:
+                builder.add_ingredient(ingredient_json, "image/png", f)
+
+                with self.assertRaises(C2paError) as context:
+                    builder.sign(TestBuilder.signer, "image/jpeg", file, output)
+
+                self.assertIn("ingredient version too new", str(context.exception))
 
     def test_archive_sign(self):
         with open(testPath, "rb") as file, \

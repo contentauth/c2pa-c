@@ -446,12 +446,11 @@ def _handle_string_result(result: ctypes.c_void_p, check_error: bool = True) -> 
                         raise C2paError.Verify(message)
                 return error_str
         return None
-    
+
     # Convert to Python string and free the Rust-allocated memory
     py_string = ctypes.cast(result, ctypes.c_char_p).value.decode('utf-8')
     _lib.c2pa_string_free(result)
 
-    print("########### Error: ", py_string)
     return py_string
 
 def sdk_version() -> str:
@@ -990,7 +989,7 @@ class Reader:
 
                 # print('## Reader ptr: ', self._reader)
                 if not self._reader:
-                    print('## Error creating stream')
+                    ## TODO: Raise error
                     _handle_string_result(_lib.c2pa_error())
 
     def __enter__(self):
@@ -1089,7 +1088,9 @@ class Reader:
             result = _lib.c2pa_reader_resource_to_stream(self._reader, self._uri_str, stream_obj._stream)
 
             if result < 0:
-                _handle_string_result(_lib.c2pa_error())
+                error = _handle_string_result(_lib.c2pa_error())
+                if error:
+                    raise C2paError(error)
 
             return result
 
@@ -1547,9 +1548,10 @@ class Builder:
             )
 
             if result < 0:
-                _handle_string_result(_lib.c2pa_error())
+                error = _handle_string_result(_lib.c2pa_error())
+                if error:
+                    raise C2paError(error)
 
-            print(f"@@@@@@ Sign Result: {result}")
             manifest_bytes = None
             if manifest_bytes_ptr:
                 # Convert the manifest bytes to a Python bytes object
@@ -1557,7 +1559,6 @@ class Builder:
                 manifest_bytes = bytes(manifest_bytes_ptr[:size])
                 _lib.c2pa_manifest_bytes_free(manifest_bytes_ptr)
 
-            print(f"@@@@@@ Returning manifest bytes: {manifest_bytes}")
             return manifest_bytes
         finally:
             # Ensure both streams are cleaned up
