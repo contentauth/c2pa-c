@@ -1529,8 +1529,10 @@ class Builder:
             result = _lib.c2pa_builder_to_archive(self._builder, stream_obj._stream)
 
             if result != 0:
-                ## TODO: Raise error
-                _handle_string_result(_lib.c2pa_error())
+                error = _handle_string_result(_lib.c2pa_error())
+                if error:
+                    raise C2paError(error)
+                raise C2paError(self._error_messages['archive_error'].format("Unknown error"))
 
     def sign(self, signer: Signer, format: str, source: Any, dest: Any = None) -> Optional[bytes]:
         """Sign the builder's content and write to a destination stream.
