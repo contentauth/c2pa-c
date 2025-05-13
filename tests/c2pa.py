@@ -1121,13 +1121,16 @@ class Signer:
         """
         # Validate signer info before creating
         if not signer_info.sign_cert or not signer_info.private_key:
-            raise C2paError(cls._error_messages['invalid_certs'].format("Missing certificate or private key"))
+            raise C2paError("Missing certificate or private key")
 
         signer_ptr = _lib.c2pa_signer_from_info(ctypes.byref(signer_info))
 
         if not signer_ptr:
-            ## TODO: Raise error
-            _handle_string_result(_lib.c2pa_error())
+            error = _handle_string_result(_lib.c2pa_error())
+            if error:
+                # More detailed error message when possible
+                raise C2paError(error)
+            raise C2paError("Failed to create signer from info")
 
         return cls(signer_ptr)
 
@@ -1702,8 +1705,11 @@ def create_signer_from_info(signer_info: C2paSignerInfo) -> Signer:
     signer_ptr = _lib.c2pa_signer_from_info(ctypes.byref(signer_info))
 
     if not signer_ptr:
-        # TODO Handle error better
-        _handle_string_result(_lib.c2pa_error())
+        error = _handle_string_result(_lib.c2pa_error())
+        if error:
+            # More detailed error message when possible
+            raise C2paError(error)
+        raise C2paError("Failed to create signer from info")
 
     return Signer(signer_ptr)
 

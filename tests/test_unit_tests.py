@@ -222,5 +222,45 @@ class TestBuilder(unittest.TestCase):
             with Reader("image/jpeg", output, manifest_data) as reader:
                 self._read_manifest(reader)
 
+class TestErrorHandling(unittest.TestCase):
+    def test_create_signer_from_info_error_handling(self):
+        # Test with invalid signer info (missing required fields)
+        invalid_signer_info = C2paSignerInfo(
+            alg=b"es256",
+            sign_cert=None,  # Missing certificate
+            private_key=None,  # Missing private key
+            ta_url=None
+        )
+
+        with self.assertRaises(C2paError) as context:
+            Signer.from_info(invalid_signer_info)
+
+        # Verify we get a meaningful error message
+        error_msg = str(context.exception)
+        self.assertIn("Missing certificate or private key", error_msg)
+
+    def test_create_signer_from_info_later_error_handling(self):
+        # load the public keys from a pem file
+        data_dir = "tests/fixtures/"
+        with open(data_dir + "es256_certs.pem", "rb") as cert_file, \
+             open(data_dir + "es256_private.key", "rb") as key_file:
+            certs = cert_file.read()
+            key = key_file.read()
+
+            # Test with invalid signer info (missing required fields)
+            invalid_signer_info = C2paSignerInfo(
+                alg=b"invalid-algorithm",
+                sign_cert=certs,  # Missing certificate
+                private_key=key,  # Missing private key
+                ta_url=None
+            )
+
+            with self.assertRaises(C2paError) as context:
+                Signer.from_info(invalid_signer_info)
+
+            # Verify we get a meaningful error message
+            error_msg = str(context.exception)
+            self.assertIn("Other Invalid signing algorithm", error_msg)
+
 if __name__ == '__main__':
     unittest.main()
