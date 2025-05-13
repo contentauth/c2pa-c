@@ -1450,8 +1450,10 @@ class Builder:
             result = _lib.c2pa_builder_add_resource(self._builder, uri_str, stream_obj._stream)
 
             if result != 0:
-                ## TODO: Raise error
-                _handle_string_result(_lib.c2pa_error())
+                error = _handle_string_result(_lib.c2pa_error())
+                if error:
+                    raise C2paError(error)
+                raise C2paError(self._error_messages['resource_error'].format("Unknown error"))
 
     def add_ingredient(self, ingredient_json: str, format: str, source: Any):
         """Add an ingredient to the builder.
