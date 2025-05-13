@@ -279,14 +279,11 @@ _setup_function(_lib.c2pa_builder_set_remote_url, [ctypes.POINTER(C2paBuilder), 
 _setup_function(_lib.c2pa_builder_add_resource, 
     [ctypes.POINTER(C2paBuilder), ctypes.c_char_p, ctypes.POINTER(C2paStream)],
     ctypes.c_int)
-#_setup_function(_lib.c2pa_builder_add_ingredient,
-#    [ctypes.POINTER(C2paBuilder), ctypes.c_char_p, ctypes.c_char_p, ctypes.POINTER(C2paStream)],
-#    ctypes.c_int)
-
-# Set up additional Builder function prototypes
 _setup_function(_lib.c2pa_builder_add_ingredient_from_stream,
     [ctypes.POINTER(C2paBuilder), ctypes.c_char_p, ctypes.c_char_p, ctypes.POINTER(C2paStream)],
     ctypes.c_int)
+
+# Set up additional Builder function prototypes
 _setup_function(_lib.c2pa_builder_to_archive,
     [ctypes.POINTER(C2paBuilder), ctypes.POINTER(C2paStream)],
     ctypes.c_int)
@@ -1480,8 +1477,10 @@ class Builder:
         result = _lib.c2pa_builder_add_ingredient_from_stream(self._builder, ingredient_str, format_str, source_stream._stream)
 
         if result != 0:
-            ## TODO: Raise error
-            _handle_string_result(_lib.c2pa_error())
+            error = _handle_string_result(_lib.c2pa_error())
+            if error:
+                raise C2paError(error)
+            raise C2paError(self._error_messages['ingredient_error'].format("Unknown error"))
 
     def add_ingredient_from_stream(self, ingredient_json: str, format: str, source: Any):
         """Add an ingredient from a stream to the builder.
@@ -1509,8 +1508,10 @@ class Builder:
                 self._builder, ingredient_str, format_str, source_stream._stream)
 
             if result != 0:
-                ## TODO: Raise error
-                _handle_string_result(_lib.c2pa_error())
+                error = _handle_string_result(_lib.c2pa_error())
+                if error:
+                    raise C2paError(error)
+                raise C2paError(self._error_messages['ingredient_error'].format("Unknown error"))
 
     def to_archive(self, stream: Any):
         """Write an archive of the builder to a stream.
