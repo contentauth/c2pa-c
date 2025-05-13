@@ -914,7 +914,10 @@ class Reader:
                 if not self._reader:
                     self._own_stream.close()
                     file.close()
-                    _handle_string_result(_lib.c2pa_error())
+                    error = _handle_string_result(_lib.c2pa_error())
+                    if error:
+                        raise C2paError(error)
+                    raise C2paError(self._error_messages['reader_error'].format("Unknown error"))
 
                 # Store the file to close it later
                 self._file = file
@@ -939,16 +942,19 @@ class Reader:
                         raise TypeError(self._error_messages['manifest_error'])
                     manifest_array = (ctypes.c_ubyte * len(manifest_data))(*manifest_data)
                     self._reader = _lib.c2pa_reader_from_manifest_data_and_stream(
-                        self._format_str, 
-                        self._own_stream._stream, 
-                        manifest_array, 
+                        self._format_str,
+                        self._own_stream._stream,
+                        manifest_array,
                         len(manifest_data)
                     )
 
                 if not self._reader:
                     self._own_stream.close()
                     file.close()
-                    _handle_string_result(_lib.c2pa_error())
+                    error = _handle_string_result(_lib.c2pa_error())
+                    if error:
+                        raise C2paError(error)
+                    raise C2paError(self._error_messages['reader_error'].format("Unknown error"))
 
                 self._file = file
             except Exception as e:
@@ -977,8 +983,10 @@ class Reader:
                     )
 
                 if not self._reader:
-                    ## TODO: Raise error
-                    _handle_string_result(_lib.c2pa_error())
+                    error = _handle_string_result(_lib.c2pa_error())
+                    if error:
+                        raise C2paError(error)
+                    raise C2paError(self._error_messages['reader_error'].format("Unknown error"))
 
     def __enter__(self):
         return self
