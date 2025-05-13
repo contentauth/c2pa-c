@@ -1188,8 +1188,10 @@ class Signer:
         )
 
         if not signer_ptr:
-            ## TODO: Raise error
-            _handle_string_result(_lib.c2pa_error())
+            error = _handle_string_result(_lib.c2pa_error())
+            if error:
+                raise C2paError(error)
+            raise C2paError("Failed to create signer")
 
         return cls(signer_ptr)
 
@@ -1677,8 +1679,11 @@ def create_signer(
     )
 
     if not signer_ptr:
-        # TODO Handle error better
-        _handle_string_result(_lib.c2pa_error())
+        error = _handle_string_result(_lib.c2pa_error())
+        if error:
+            # More detailed error message when possible
+            raise C2paError(error)
+        raise C2paError("Failed to create signer")
 
     return Signer(signer_ptr)
 
