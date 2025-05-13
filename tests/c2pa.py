@@ -1418,7 +1418,7 @@ class Builder:
             remote_url: The remote URL to set
 
         Raises:
-            C2paError: If there was an error setting the URL
+            C2paError: If there was an error setting the remote URL
         """
         if not self._builder:
             raise C2paError(self._error_messages['closed_error'])
@@ -1427,8 +1427,10 @@ class Builder:
         result = _lib.c2pa_builder_set_remote_url(self._builder, url_str)
 
         if result != 0:
-            ## TODO: Raise error
-            _handle_string_result(_lib.c2pa_error())
+            error = _handle_string_result(_lib.c2pa_error())
+            if error:
+                raise C2paError(error)
+            raise C2paError(self._error_messages['url_error'].format("Unknown error"))
 
     def add_resource(self, uri: str, stream: Any):
         """Add a resource to the builder.
