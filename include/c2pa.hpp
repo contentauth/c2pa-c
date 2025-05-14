@@ -206,7 +206,7 @@ namespace c2pa
         /// @brief Get the raw C2paReader pointer.
         /// @return The raw C2paReader pointer.
         /// @note This is intended for internal use and compatibility with C APIs.
-        C2paReader* get_raw_reader() const { return c2pa_reader; }
+        C2paReader* get_api_internal_raw_reader() const { return c2pa_reader; }
     };
 
     /// @brief  Signer Callback function type.
