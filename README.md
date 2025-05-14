@@ -36,15 +36,6 @@ And then add `"${c2pa_cpp_SOURCE_DIR}/include"` to your include path.
 
 This project has been tested on macOS and should also work on common Linux distributions.
 
-### Prerequisites
-
-If you haven't already done so, install [Rust](https://www.rust-lang.org/tools/install).
-
-Install [cbindgen](https://github.com/mozilla/cbindgen/blob/master/docs.md):
-
-```sh
-cargo install --force cbindgen
-```
 
 You must install the [Ninja](https://github.com/ninja-build/ninja/wiki/Pre-built-Ninja-packages) build system to run the unit tests. 
 

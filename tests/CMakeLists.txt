@@ -16,7 +16,7 @@
 # FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
 # FetchContent_MakeAvailable(json)
 
-# # Add the Rust library
+# # Add the c2pa library
 # set(RUST_LIB ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.dylib)
 
 # # Create the unit test target.
