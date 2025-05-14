@@ -17,7 +17,7 @@ import json
 import unittest
 from unittest.mock import mock_open, patch
 
-from c2pa import  Builder, C2paError as Error,  Reader, C2paSigningAlg as SigningAlg, C2paSignerInfo, Signer,  sdk_version #,  load_settings_file
+from c2pa import  Builder, C2paError as Error, C2paError, Reader, C2paSigningAlg as SigningAlg, C2paSignerInfo, Signer,  sdk_version #,  load_settings_file
 
 PROJECT_PATH = os.getcwd()
 
@@ -88,6 +88,32 @@ class TestBuilder(unittest.TestCase):
         ]
     }
 
+    manifestDefinitionV2 = {
+        "claim_generator": "python_test",
+        "claim_generator_info": [{
+            "name": "python_test",
+            "version": "0.0.1",
+        }],
+        "claim_version": 2,
+        "format": "image/jpeg",
+        "title": "Python Test Image",
+        "ingredients": [],
+        "assertions": [
+            {   'label': 'stds.schema-org.CreativeWork',
+                'data': {
+                    '@context': 'http://schema.org/',
+                    '@type': 'CreativeWork',
+                    'author': [
+                        {   '@type': 'Person',
+                            'name': 'Gavin Peacock'
+                        }
+                    ]
+                },
+                'kind': 'Json'
+            }
+        ]
+    }
+
     # Define a function that signs data with PS256 using a private key
     #def sign(data: bytes) -> bytes:
     #    key = open("tests/fixtures/ps256.pem","rb").read()
@@ -112,6 +138,7 @@ class TestBuilder(unittest.TestCase):
 
     def _read_manifest(self, reader):
         json_data = reader.json()
+        # print(json_data)
         self.assertIn("Python Test", json_data)
         self.assertNotIn("validation_status", json_data)
 
@@ -123,6 +150,54 @@ class TestBuilder(unittest.TestCase):
             output.seek(0)
             with Reader("image/jpeg", output) as reader:
                 self._read_manifest(reader)
+
+    def test_streams_sign_with_ingredient(self):
+        with open(testPath, "rb") as file, \
+             io.BytesIO(bytearray()) as output, \
+             Builder(TestBuilder.manifestDefinition) as builder:
+
+            ingredient_json = '{"title": "test-ingredient"}'
+            with open(os.path.join(PROJECT_PATH, "tests", "fixtures", "A.png"), 'rb') as f:
+                builder.add_ingredient(ingredient_json, "image/png", f)
+
+                builder.sign(TestBuilder.signer, "image/jpeg", file, output)
+                output.seek(0)
+                with Reader("image/jpeg", output) as reader:
+                    self._read_manifest(reader)
+
+    def test_streams_sign_with_ingredient_with_manifest_v2(self):
+        with open(testPath, "rb") as file, \
+             io.BytesIO(bytearray()) as output, \
+             Builder(TestBuilder.manifestDefinitionV2) as builder:
+
+            ingredient_json = '{"title": "test-ingredient"}'
+            # The A-signed ingredient is recent, signed with v2 claims...
+            # So we need the Builder manifest json to be flagged as v2 too
+            with open(os.path.join(PROJECT_PATH, "tests", "fixtures", "A-signed.png"), 'rb') as f:
+                builder.add_ingredient(ingredient_json, "image/png", f)
+
+                builder.sign(TestBuilder.signer, "image/jpeg", file, output)
+
+                output.seek(0)
+
+                with Reader("image/jpeg", output) as reader:
+                    self._read_manifest(reader)
+
+    def test_streams_handle_claims_version_mismatch_during_signing(self):
+        with open(testPath, "rb") as file, \
+             io.BytesIO(bytearray()) as output, \
+             Builder(TestBuilder.manifestDefinition) as builder:
+
+            ingredient_json = '{"title": "test-ingredient"}'
+            # We are using an ingredient with v2 claims, but the manifest in the builder is v1
+            # So we expect a signing failure here
+            with open(os.path.join(PROJECT_PATH, "tests", "fixtures", "A-signed.png"), 'rb') as f:
+                builder.add_ingredient(ingredient_json, "image/png", f)
+
+                with self.assertRaises(C2paError) as context:
+                    builder.sign(TestBuilder.signer, "image/jpeg", file, output)
+
+                self.assertIn("ingredient version too new", str(context.exception))
 
     def test_archive_sign(self):
         with open(testPath, "rb") as file, \
@@ -146,6 +221,82 @@ class TestBuilder(unittest.TestCase):
             output.seek(0)
             with Reader("image/jpeg", output, manifest_data) as reader:
                 self._read_manifest(reader)
+
+class TestErrorHandling(unittest.TestCase):
+    def test_create_signer_from_info_error_handling(self):
+        # Test with invalid signer info (missing required fields)
+        invalid_signer_info = C2paSignerInfo(
+            alg=b"es256",
+            sign_cert=None,  # Missing certificate
+            private_key=None,  # Missing private key
+            ta_url=None
+        )
+
+        with self.assertRaises(C2paError) as context:
+            Signer.from_info(invalid_signer_info)
+
+        # Verify we get a meaningful error message
+        error_msg = str(context.exception)
+        self.assertIn("Missing certificate or private key", error_msg)
+
+    def test_create_signer_from_info_later_error_handling(self):
+        # load the public keys from a pem file to create valid signer info
+        data_dir = "tests/fixtures/"
+        with open(data_dir + "es256_certs.pem", "rb") as cert_file, \
+             open(data_dir + "es256_private.key", "rb") as key_file:
+            certs = cert_file.read()
+            key = key_file.read()
+
+            # Test with invalid signer info (invalid algorithm)
+            invalid_signer_info = C2paSignerInfo(
+                alg=b"invalid-algorithm",
+                sign_cert=certs,  # Missing certificate
+                private_key=key,  # Missing private key
+                ta_url=None
+            )
+
+            with self.assertRaises(C2paError) as context:
+                Signer.from_info(invalid_signer_info)
+
+            # Verify we get a meaningful error message
+            error_msg = str(context.exception)
+            self.assertIn("Other Invalid signing algorithm", error_msg)
+
+    def test_reader_initialization_error_handling(self):
+        # Test with non-existent file
+        with self.assertRaises(C2paError.Io) as context:
+            Reader("image/jpeg", "non_existent_file.jpg")
+
+        # Verify we get a meaningful error message
+        error_msg = str(context.exception)
+        self.assertIn("IO error", error_msg)
+
+        # Test with invalid manifest data
+        with self.assertRaises(TypeError) as context:
+            Reader("image/jpeg", io.BytesIO(b"test"), manifest_data="not bytes")
+
+        # Verify we get a meaningful error message
+        error_msg = str(context.exception)
+        self.assertIn("Invalid manifest data", error_msg)
+
+        # Test with invalid format
+        with self.assertRaises(C2paError.NotSupported) as context:
+            Reader("badFormat", io.BytesIO(b"test"))
+
+        # Verify we get a meaningful error message
+        error_msg = str(context.exception)
+        self.assertIn("Unsupported format", error_msg)
+
+    def test_reader_closed_stream_handling(self):
+        # Test with closed stream
+        closed_stream = io.BytesIO(b"test")
+        closed_stream.close()
+        with self.assertRaises(C2paError) as context:
+            Reader("image/jpeg", closed_stream)
+
+        # Verify we get a meaningful error message
+        error_msg = str(context.exception)
+        self.assertIn("Io Undefined error", error_msg)
 
 if __name__ == '__main__':
     unittest.main()
