@@ -337,6 +337,40 @@ struct C2paReader *c2pa_reader_from_stream(const char *format,
                                            struct C2paStream *stream);
 
 /**
+ * Creates and verifies a C2paReader from manifest data and an asset stream.
+ *
+ * Parameters
+ * * manifest_data: pointer to the manifest data bytes.
+ * * manifest_data_size: size of the manifest data in bytes.
+ * * format: pointer to a C string with the mime type or extension.
+ * * stream: pointer to a C2paStream.
+ *
+ * # Errors
+ * Returns NULL if there were errors, otherwise returns a pointer to a ManifestStore.
+ * The error string can be retrieved by calling c2pa_error.
+ *
+ * # Safety
+ * Reads from NULL-terminated C strings.
+ * The returned value MUST be released by calling c2pa_reader_free
+ * and it is no longer valid after that call.
+ *
+ * # Example
+ * ```c
+ * auto result = c2pa_reader_from_manifest_data_and_stream(manifest_data, manifest_data_size, "image/jpeg", stream);
+ * if (result == NULL) {
+ *     let error = c2pa_error();
+ *     printf("Error: %s\n", error);
+ *     c2pa_string_free(error);
+ * }
+ * ```
+ */
+C2PA_API extern
+struct C2paReader *c2pa_reader_from_manifest_data_and_stream(const unsigned char *manifest_data,
+                                                             uintptr_t manifest_data_size,
+                                                             const char *format,
+                                                             struct C2paStream *stream);
+
+/**
  * Frees a C2paReader allocated by Rust.
  *
  * # Safety

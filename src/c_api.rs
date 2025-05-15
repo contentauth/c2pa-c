@@ -420,6 +420,70 @@ pub unsafe extern "C" fn c2pa_reader_from_stream(
     }
 }
 
+/// Creates and verifies a C2paReader from manifest data and an asset stream.
+///
+/// Parameters
+/// * manifest_data: pointer to the manifest data bytes.
+/// * manifest_data_size: size of the manifest data in bytes.
+/// * format: pointer to a C string with the mime type or extension.
+/// * stream: pointer to a C2paStream.
+///
+/// # Errors
+/// Returns NULL if there were errors, otherwise returns a pointer to a ManifestStore.
+/// The error string can be retrieved by calling c2pa_error.
+///
+/// # Safety
+/// Reads from NULL-terminated C strings.
+/// The returned value MUST be released by calling c2pa_reader_free
+/// and it is no longer valid after that call.
+///
+/// # Example
+/// ```c
+/// auto result = c2pa_reader_from_manifest_data_and_stream(manifest_data, manifest_data_size, "image/jpeg", stream);
+/// if (result == NULL) {
+///     let error = c2pa_error();
+///     printf("Error: %s\n", error);
+///     c2pa_string_free(error);
+/// }
+/// ```
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_reader_from_manifest_data_and_stream(
+    manifest_data: *const c_uchar,
+    manifest_data_size: usize,
+    format: *const c_char,
+    stream: *mut C2paStream,
+) -> *mut C2paReader {
+    null_check!(manifest_data);
+    let format = from_cstr_null_check!(format);
+    let manifest_data = std::slice::from_raw_parts(manifest_data, manifest_data_size);
+
+    let result = C2paReader::from_manifest_data_and_stream(manifest_data, &format, &mut (*stream));
+    match result {
+        Ok(mut reader) => {
+            let runtime = match Runtime::new() {
+                Ok(runtime) => runtime,
+                Err(err) => {
+                    Error::Other(err.to_string()).set_last();
+                    return std::ptr::null_mut();
+                }
+            };
+            let result = runtime.block_on(reader.post_validate_async(&CawgValidator {}));
+            match result {
+                Ok(_) => (),
+                Err(err) => {
+                    Error::from_c2pa_error(err).set_last();
+                    return std::ptr::null_mut();
+                }
+            }
+            Box::into_raw(Box::new(reader))
+        }
+        Err(err) => {
+            Error::from_c2pa_error(err).set_last();
+            std::ptr::null_mut()
+        }
+    }
+}
+
 /// Frees a C2paReader allocated by Rust.
 ///
 /// # Safety
