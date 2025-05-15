@@ -365,10 +365,10 @@ struct C2paReader *c2pa_reader_from_stream(const char *format,
  * ```
  */
 C2PA_API extern
-struct C2paReader *c2pa_reader_from_manifest_data_and_stream(const unsigned char *manifest_data,
-                                                             uintptr_t manifest_data_size,
-                                                             const char *format,
-                                                             struct C2paStream *stream);
+struct C2paReader *c2pa_reader_from_manifest_data_and_stream(const char *format,
+                                                             struct C2paStream *stream,
+                                                             const unsigned char *manifest_data,
+                                                             uintptr_t manifest_size);
 
 /**
  * Frees a C2paReader allocated by Rust.

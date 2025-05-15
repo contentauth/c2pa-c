@@ -72,13 +72,15 @@ pub struct C2paSigner {
     pub signer: Box<dyn c2pa::Signer>,
 }
 
-// Internal routine to test for null and return null error
+// Null check macro for C pointers.
 #[macro_export]
 macro_rules! null_check {
-    ($ptr : expr) => {
+    (($ptr:expr), $transform:expr, $default:expr) => {
         if $ptr.is_null() {
             Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
-            return std::ptr::null_mut();
+            return $default;
+        } else {
+            $transform($ptr)
         }
     };
 }
@@ -137,6 +139,46 @@ macro_rules! from_cstr_option {
                     .into_owned(),
             )
         }
+    };
+}
+
+// Internal routine to handle Result types, set errors on Err, and return default values
+#[macro_export]
+macro_rules! result_check {
+    ($result:expr, $transform:expr, $default:expr) => {
+        match $result {
+            Ok(value) => $transform(value),
+            Err(err) => {
+                Error::from_c2pa_error(err).set_last();
+                return $default;
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! ok_or_return_null {
+    ($result:expr, $transform:expr) => {
+        result_check!($result, $transform, std::ptr::null_mut())
+    };
+}
+
+#[macro_export]
+macro_rules! return_boxed {
+    ($result:expr) => {
+        ok_or_return_null!($result, |value| Box::into_raw(Box::new(value)))
+    };
+}
+
+/// If the expression is null, set the last error and return std::ptr::null_mut().
+#[macro_export]
+macro_rules! from_cstr_or_return_null {
+    ($ptr : expr) => {
+        null_check!(
+            ($ptr),
+            |ptr| { std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned() },
+            std::ptr::null_mut()
+        )
     };
 }
 
@@ -448,40 +490,16 @@ pub unsafe extern "C" fn c2pa_reader_from_stream(
 /// ```
 #[no_mangle]
 pub unsafe extern "C" fn c2pa_reader_from_manifest_data_and_stream(
-    manifest_data: *const c_uchar,
-    manifest_data_size: usize,
     format: *const c_char,
     stream: *mut C2paStream,
+    manifest_data: *const c_uchar,
+    manifest_size: usize,
 ) -> *mut C2paReader {
-    null_check!(manifest_data);
-    let format = from_cstr_null_check!(format);
-    let manifest_data = std::slice::from_raw_parts(manifest_data, manifest_data_size);
+    let format = from_cstr_or_return_null!(format);
+    let manifest_bytes = std::slice::from_raw_parts(manifest_data, manifest_size);
 
-    let result = C2paReader::from_manifest_data_and_stream(manifest_data, &format, &mut (*stream));
-    match result {
-        Ok(mut reader) => {
-            let runtime = match Runtime::new() {
-                Ok(runtime) => runtime,
-                Err(err) => {
-                    Error::Other(err.to_string()).set_last();
-                    return std::ptr::null_mut();
-                }
-            };
-            let result = runtime.block_on(reader.post_validate_async(&CawgValidator {}));
-            match result {
-                Ok(_) => (),
-                Err(err) => {
-                    Error::from_c2pa_error(err).set_last();
-                    return std::ptr::null_mut();
-                }
-            }
-            Box::into_raw(Box::new(reader))
-        }
-        Err(err) => {
-            Error::from_c2pa_error(err).set_last();
-            std::ptr::null_mut()
-        }
-    }
+    let result = C2paReader::from_manifest_data_and_stream(manifest_bytes, &format, &mut (*stream));
+    return_boxed!(result)
 }
 
 /// Frees a C2paReader allocated by Rust.
