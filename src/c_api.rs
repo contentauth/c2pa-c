@@ -72,13 +72,21 @@ pub struct C2paSigner {
     pub signer: Box<dyn c2pa::Signer>,
 }
 
-// Internal routine to test for null and return null error
+// Null check macro for C pointers.
 #[macro_export]
 macro_rules! null_check {
     ($ptr : expr) => {
         if $ptr.is_null() {
             Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
             return std::ptr::null_mut();
+        }
+    };
+    (($ptr:expr), $transform:expr, $default:expr) => {
+        if $ptr.is_null() {
+            Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
+            return $default;
+        } else {
+            $transform($ptr)
         }
     };
 }
@@ -94,33 +102,41 @@ macro_rules! null_check_int {
     };
 }
 
+/// If the expression is null, set the last error and return std::ptr::null_mut().
+#[macro_export]
+macro_rules! from_cstr {
+    ($ptr:expr, $return_type:expr) => {{
+        if $ptr.is_null() {
+            Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
+            return $return_type;
+        }
+        std::ffi::CStr::from_ptr($ptr)
+            .to_string_lossy()
+            .into_owned()
+    }};
+}
+
 // Internal routine to convert a *const c_char to a rust String or return a NULL error.
 #[macro_export]
 macro_rules! from_cstr_null_check {
-    ($ptr : expr) => {
-        if $ptr.is_null() {
-            Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
-            return std::ptr::null_mut();
-        } else {
-            std::ffi::CStr::from_ptr($ptr)
-                .to_string_lossy()
-                .into_owned()
-        }
+    ($ptr:expr) => {
+        from_cstr!($ptr, std::ptr::null_mut())
     };
 }
 
 // Internal routine to convert a *const c_char to a rust String or return a -1 int error.
 #[macro_export]
 macro_rules! from_cstr_null_check_int {
-    ($ptr : expr) => {
-        if $ptr.is_null() {
-            Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
-            return -1;
-        } else {
-            std::ffi::CStr::from_ptr($ptr)
-                .to_string_lossy()
-                .into_owned()
-        }
+    ($ptr:expr) => {
+        from_cstr!($ptr, -1)
+    };
+}
+
+/// If the expression is null, set the last error and return std::ptr::null_mut().
+#[macro_export]
+macro_rules! from_cstr_or_return_null {
+    ($ptr:expr) => {
+        from_cstr!($ptr, std::ptr::null_mut())
     };
 }
 
@@ -137,6 +153,34 @@ macro_rules! from_cstr_option {
                     .into_owned(),
             )
         }
+    };
+}
+
+// Internal routine to handle Result types, set errors on Err, and return default values
+#[macro_export]
+macro_rules! result_check {
+    ($result:expr, $transform:expr, $default:expr) => {
+        match $result {
+            Ok(value) => $transform(value),
+            Err(err) => {
+                Error::from_c2pa_error(err).set_last();
+                return $default;
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! ok_or_return_null {
+    ($result:expr, $transform:expr) => {
+        result_check!($result, $transform, std::ptr::null_mut())
+    };
+}
+
+#[macro_export]
+macro_rules! return_boxed {
+    ($result:expr) => {
+        ok_or_return_null!($result, |value| Box::into_raw(Box::new(value)))
     };
 }
 
@@ -418,6 +462,36 @@ pub unsafe extern "C" fn c2pa_reader_from_stream(
             std::ptr::null_mut()
         }
     }
+}
+
+/// Creates and verifies a C2paReader from manifest data and an asset stream.
+///
+/// Parameters
+/// * manifest_data: pointer to the manifest data bytes.
+/// * manifest_data_size: size of the manifest data in bytes.
+/// * format: pointer to a C string with the mime type or extension.
+/// * stream: pointer to a C2paStream.
+///
+/// # Errors
+/// Returns NULL if there were errors, otherwise returns a pointer to a ManifestStore.
+/// The error string can be retrieved by calling c2pa_error.
+///
+/// # Safety
+/// Reads from NULL-terminated C strings.
+/// The returned value MUST be released by calling c2pa_reader_free
+/// and it is no longer valid after that call.
+#[no_mangle]
+pub unsafe extern "C" fn c2pa_reader_from_manifest_data_and_stream(
+    format: *const c_char,
+    stream: *mut C2paStream,
+    manifest_data: *const c_uchar,
+    manifest_size: usize,
+) -> *mut C2paReader {
+    let format = from_cstr_or_return_null!(format);
+    let manifest_bytes = std::slice::from_raw_parts(manifest_data, manifest_size);
+
+    let result = C2paReader::from_manifest_data_and_stream(manifest_bytes, &format, &mut (*stream));
+    return_boxed!(result)
 }
 
 /// Frees a C2paReader allocated by Rust.
