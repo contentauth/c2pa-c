@@ -11,7 +11,7 @@
 // specific language governing permissions and limitations under
 // each license.
 
-use cawg_identity::validator::CawgValidator;
+use c2pa::identity::validator::CawgValidator;
 use std::{
     ffi::CString,
     os::raw::{c_char, c_int, c_uchar, c_void},

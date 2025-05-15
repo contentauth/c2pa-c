@@ -30,7 +30,7 @@ clippy:
 
 test-rust:
 	cargo test --release
- 
+
 cmake:
 	mkdir -p $(BUILD_DIR)
 	cmake -S./ -B./$(BUILD_DIR) -G "Ninja"
@@ -76,6 +76,6 @@ package:
 	cp README.md target/c2pa-c/README.md
 	cp include/* target/c2pa-c/include
 
-test: test-rust test-cpp 
+test: test-rust test-cpp
 
 all: test examples
