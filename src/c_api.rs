@@ -104,43 +104,39 @@ macro_rules! null_check_int {
 
 /// If the expression is null, set the last error and return std::ptr::null_mut().
 #[macro_export]
-macro_rules! from_cstr_or_return_null {
-    ($ptr : expr) => {
-        null_check!(
-            ($ptr),
-            |ptr| { std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned() },
-            std::ptr::null_mut()
-        )
-    };
+macro_rules! from_cstr {
+    ($ptr:expr, $return_type:expr) => {{
+        if $ptr.is_null() {
+            Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
+            return $return_type;
+        }
+        std::ffi::CStr::from_ptr($ptr)
+            .to_string_lossy()
+            .into_owned()
+    }};
 }
 
 // Internal routine to convert a *const c_char to a rust String or return a NULL error.
 #[macro_export]
 macro_rules! from_cstr_null_check {
-    ($ptr : expr) => {
-        if $ptr.is_null() {
-            Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
-            return std::ptr::null_mut();
-        } else {
-            std::ffi::CStr::from_ptr($ptr)
-                .to_string_lossy()
-                .into_owned()
-        }
+    ($ptr:expr) => {
+        from_cstr!($ptr, std::ptr::null_mut())
     };
 }
 
 // Internal routine to convert a *const c_char to a rust String or return a -1 int error.
 #[macro_export]
 macro_rules! from_cstr_null_check_int {
-    ($ptr : expr) => {
-        if $ptr.is_null() {
-            Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
-            return -1;
-        } else {
-            std::ffi::CStr::from_ptr($ptr)
-                .to_string_lossy()
-                .into_owned()
-        }
+    ($ptr:expr) => {
+        from_cstr!($ptr, -1)
+    };
+}
+
+/// If the expression is null, set the last error and return std::ptr::null_mut().
+#[macro_export]
+macro_rules! from_cstr_or_return_null {
+    ($ptr:expr) => {
+        from_cstr!($ptr, std::ptr::null_mut())
     };
 }
 
