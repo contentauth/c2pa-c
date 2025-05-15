@@ -353,16 +353,6 @@ struct C2paReader *c2pa_reader_from_stream(const char *format,
  * Reads from NULL-terminated C strings.
  * The returned value MUST be released by calling c2pa_reader_free
  * and it is no longer valid after that call.
- *
- * # Example
- * ```c
- * auto result = c2pa_reader_from_manifest_data_and_stream(manifest_data, manifest_data_size, "image/jpeg", stream);
- * if (result == NULL) {
- *     let error = c2pa_error();
- *     printf("Error: %s\n", error);
- *     c2pa_string_free(error);
- * }
- * ```
  */
 C2PA_API extern
 struct C2paReader *c2pa_reader_from_manifest_data_and_stream(const char *format,

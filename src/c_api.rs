@@ -75,6 +75,12 @@ pub struct C2paSigner {
 // Null check macro for C pointers.
 #[macro_export]
 macro_rules! null_check {
+    ($ptr : expr) => {
+        if $ptr.is_null() {
+            Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
+            return std::ptr::null_mut();
+        }
+    };
     (($ptr:expr), $transform:expr, $default:expr) => {
         if $ptr.is_null() {
             Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
@@ -93,6 +99,18 @@ macro_rules! null_check_int {
             Error::set_last(Error::NullParameter(stringify!($ptr).to_string()));
             return -1;
         }
+    };
+}
+
+/// If the expression is null, set the last error and return std::ptr::null_mut().
+#[macro_export]
+macro_rules! from_cstr_or_return_null {
+    ($ptr : expr) => {
+        null_check!(
+            ($ptr),
+            |ptr| { std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned() },
+            std::ptr::null_mut()
+        )
     };
 }
 
@@ -167,18 +185,6 @@ macro_rules! ok_or_return_null {
 macro_rules! return_boxed {
     ($result:expr) => {
         ok_or_return_null!($result, |value| Box::into_raw(Box::new(value)))
-    };
-}
-
-/// If the expression is null, set the last error and return std::ptr::null_mut().
-#[macro_export]
-macro_rules! from_cstr_or_return_null {
-    ($ptr : expr) => {
-        null_check!(
-            ($ptr),
-            |ptr| { std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned() },
-            std::ptr::null_mut()
-        )
     };
 }
 
@@ -478,16 +484,6 @@ pub unsafe extern "C" fn c2pa_reader_from_stream(
 /// Reads from NULL-terminated C strings.
 /// The returned value MUST be released by calling c2pa_reader_free
 /// and it is no longer valid after that call.
-///
-/// # Example
-/// ```c
-/// auto result = c2pa_reader_from_manifest_data_and_stream(manifest_data, manifest_data_size, "image/jpeg", stream);
-/// if (result == NULL) {
-///     let error = c2pa_error();
-///     printf("Error: %s\n", error);
-///     c2pa_string_free(error);
-/// }
-/// ```
 #[no_mangle]
 pub unsafe extern "C" fn c2pa_reader_from_manifest_data_and_stream(
     format: *const c_char,
