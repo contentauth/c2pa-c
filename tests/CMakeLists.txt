@@ -29,6 +29,6 @@ add_test(NAME c_test COMMAND ctest)
 
 # Set the environment variable so tests find the shared library
 set_tests_properties(cpp_tests c_test PROPERTIES
-    ENVIRONMENT "LD_LIBRARY_PATH=${c2pa_prebuilt_SOURCE_DIR}/lib:$ENV{LD_LIBRARY_PATH}"
+    ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:c2pa_c>:$ENV{LD_LIBRARY_PATH}"
 )
 
