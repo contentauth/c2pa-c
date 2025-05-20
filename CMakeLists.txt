@@ -24,6 +24,8 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "13.3")
 
+add_compile_options(-Wall -Wextra -Werror)
+
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(tests)
 ADD_SUBDIRECTORY(examples)

@@ -263,6 +263,9 @@ namespace c2pa
 
     intptr_t CppOStream::reader(StreamContext *context, uint8_t *buffer, intptr_t size)
     {
+        (void) context;
+        (void) buffer;
+        (void) size;
         errno = EINVAL; // Invalid argument
         return -1;
     }

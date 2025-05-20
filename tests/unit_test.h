@@ -206,7 +206,7 @@ intptr_t signer_callback(const void* context, const unsigned char *data, uintptr
     long sig_len = ftell(result_file);
     rewind(result_file);
 
-    if (sig_len > sig_max_len) {
+    if (sig_len > (long) sig_max_len) {
         printf("signing failed");
         return -1;
     }
