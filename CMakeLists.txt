@@ -13,7 +13,11 @@
 
 cmake_minimum_required(VERSION 3.27)
 
-project(c2pa-c VERSION 0.6.0)
+# This is the version of this C++ project
+project(c2pa-c VERSION 0.7.0)
+
+# Set the version of the c2pa_rs library used here
+set(C2PA_VERSION "0.51.1")
 
 set(CMAKE_POLICY_DEFAULT_CMP0135 NEW)
 set(CMAKE_C_STANDARD 17)
@@ -21,4 +25,5 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "13.3")
 
 ADD_SUBDIRECTORY(src)
+ADD_SUBDIRECTORY(tests)
 ADD_SUBDIRECTORY(examples)

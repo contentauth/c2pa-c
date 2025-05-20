@@ -6,8 +6,6 @@ The [c2pa-c repository](https://github.com/contentauth/c2pa-c) implements C++ AP
 
 Although this library works for plain C applications, the documentation assumes you're using C++, since that's most common for modern applications.
 
-**WARNING**: This is a prerelease version of this library.  There may be bugs and unimplemented features, and the API is subject to change.
-
 <div style={{display: 'none'}}>
 
 For the best experience, read the docs on the [CAI Open Source SDK documentation website](https://opensource.contentauthenticity.org/docs/c2pa-c).  If you want to view the documentation in GitHub, see:
@@ -16,21 +14,34 @@ For the best experience, read the docs on the [CAI Open Source SDK documentation
 
 </div>
 
-## Installation
+## Using c2pa_cpp in Your Application
 
-### CMake setup
-Build the project using CMake and FetchContent like this:
+The recommended way to use this library in your own CMake project is with [FetchContent](https://cmake.org/cmake/help/latest/module/FetchContent.html):
 
-```c
+```cmake
+include(FetchContent)
+
 FetchContent_Declare(
     c2pa_cpp
     GIT_REPOSITORY https://github.com/contentauth/c2pa-c.git
-    GIT_TAG main
+    GIT_TAG main  # Or use a specific release tag
 )
 FetchContent_MakeAvailable(c2pa_cpp)
+
+add_executable(myapp main.cpp)
+target_link_libraries(myapp PRIVATE c2pa_cpp)
 ```
 
-And then add `"${c2pa_cpp_SOURCE_DIR}/include"` to your include path.
+This will automatically fetch, build, and link the `c2pa_cpp` library and its dependencies.  
+
+> **Note:**  
+> This project uses pre-built dynamic libraries from the [c2pa-rs](https://github.com/contentauth/c2pa-rs) repository. It should select the correct library for your platform. If your platform is not supported, you can build your own library using the c2pa_rs repo.
+
+### Example Usage
+
+See the [`examples/`](examples/) directory for sample applications that demonstrate how to use the library in practice.  
+
+---
 
 ## Development
 
