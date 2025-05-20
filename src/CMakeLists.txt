@@ -47,13 +47,13 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(c2pa_prebuilt)
 
 # Check if we got our prebuilt library
-if(NOT EXISTS "${C2PA_C_LIB}")
-    message(FATAL_ERROR
-        "The c2pa prebuilt library was not downloaded or does not exist for this platform/version:\n"
-        "  ${C2PA_PREBUILT_URL}\n"
-        "Please check https://github.com/contentauth/c2pa-rs/releases for available binaries."
-    )
-endif()
+# if(NOT EXISTS "${C2PA_C_LIB}")
+#     message(FATAL_ERROR
+#         "The c2pa prebuilt library was not downloaded or does not exist for this platform/version:\n"
+#         "  ${C2PA_PREBUILT_URL}\n"
+#         "Please check https://github.com/contentauth/c2pa-rs/releases for available binaries."
+#     )
+# endif()
 
 # Define the C++ library and add sources
 add_library(c2pa_cpp STATIC c2pa.cpp)
