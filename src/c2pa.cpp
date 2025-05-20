@@ -13,7 +13,6 @@
 /// @file   c2pa.cpp
 /// @brief  C++ wrapper for the C2PA C library.
 /// @details This is used for creating and verifying C2PA manifests.
-///          This is an early version, and has not been fully tested.
 ///          Thread safety is not guaranteed due to the use of errno and etc.
 
 #include <cstring>
