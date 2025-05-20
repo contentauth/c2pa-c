@@ -202,6 +202,11 @@ namespace c2pa
         /// @return The number of bytes written.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         int64_t get_resource(const string &uri, std::ostream &stream);
+
+        /// @brief Get the raw C2paReader pointer.
+        /// @return The raw C2paReader pointer.
+        /// @note This is intended for internal API use and compatibility with C APIs.
+        C2paReader* get_api_internal_raw_reader() const { return c2pa_reader; }
     };
 
     /// @brief  Signer Callback function type.
