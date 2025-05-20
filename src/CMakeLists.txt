@@ -30,11 +30,16 @@ endif()
 set(C2PA_PREBUILT_ZIP "c2pa-v${C2PA_VERSION}-${C2PA_PREBUILT_ARCH}.zip")
 set(C2PA_PREBUILT_URL "https://github.com/contentauth/c2pa-rs/releases/download/c2pa-v${C2PA_VERSION}/${C2PA_PREBUILT_ZIP}")
 
+message(STATUS "fetching c2pa_prebuilt url: ${C2PA_PREBUILT_URL}")
+
 FetchContent_Declare(
     c2pa_prebuilt
     URL ${C2PA_PREBUILT_URL}
 )
 FetchContent_MakeAvailable(c2pa_prebuilt)
+if(NOT EXISTS "${c2pa_prebuilt_SOURCE_DIR}/lib")
+    message(FATAL_ERROR "c2pa_prebuilt library was not downloaded or extracted correctly!")
+endif()
 
 # Define the C++ library and add sources
 add_library(c2pa_cpp STATIC c2pa.cpp)
