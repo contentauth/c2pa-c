@@ -30,7 +30,7 @@ auto reader = c2pa::Reader("image/jpeg", ifs);
 printf("Manifest Store = %s", reader.json())
 
 // write the thumbnail into a file
-std::ofstream ofs("test_thumbail.jpg", std::ios::binary);
+std::ofstream ofs("test_thumbnail.jpg", std::ios::binary);
 reader.get_resource("self#jumbf=c2pa.assertions/c2pa.thumbnail.claim.jpeg", ofs);
 ifs.close();
 ```
@@ -131,4 +131,4 @@ make examples
 
 This example adds the manifest [`tests/fixtures/training.json`](https://github.com/contentauth/c2pa-c/blob/main/tests/fixtures/training.json) to the image file [`tests/fixtures/A.jpg`](https://github.com/contentauth/c2pa-c/blob/main/tests/fixtures/A.jpg) using the sample private key and certificate in the [`tests/fixtures`](https://github.com/contentauth/c2pa-c/tree/main/tests/fixtures) directory.
 
-The example displays some text to standard out that summarizes whether AI training is allowed based on the specified manifest and then saves the resulting image file with attached manifest to `target/example/training.jpg`.
+The example displays some text to standard out that summarizes whether AI training is allowed based on the specified manifest and then saves the resulting image file with attached manifest to `build/example/training.jpg`.
