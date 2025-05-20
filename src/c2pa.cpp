@@ -86,9 +86,14 @@ namespace c2pa
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     optional<string> read_file(const filesystem::path &source_path, const optional<path> data_dir)
     {
-        auto dir = data_dir.has_value() ? path_to_string(data_dir.value()) : string();
+        const char* dir_ptr = nullptr;
+        std::string dir_str;
+        if (data_dir.has_value()) {
+            dir_str = path_to_string(data_dir.value());
+            dir_ptr = dir_str.c_str();
+        }
 
-        char *result = c2pa_read_file(path_to_string(source_path).c_str(), dir.c_str());
+        char *result = c2pa_read_file(path_to_string(source_path).c_str(), dir_ptr);
 
         if (result == nullptr)
         {
