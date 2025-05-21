@@ -4,14 +4,10 @@ BUILD_DIR = build
 
 cmake:
 	cmake -S . -B $(BUILD_DIR) -G "Ninja"
+	cmake --build $(BUILD_DIR)
 
-test-c: cmake
-	cmake --build $(BUILD_DIR) --target ctest
-	$(BUILD_DIR)/tests/ctest
-
-test-cpp: cmake
-	cmake --build $(BUILD_DIR) --target c2pa_c_tests
-	$(BUILD_DIR)/tests/c2pa_c_tests
+test: cmake
+	cd $(BUILD_DIR) && ctest --output-on-failure
 
 demo: cmake
 	cmake --build $(BUILD_DIR) --target demo
@@ -22,8 +18,6 @@ training: cmake
 	$(BUILD_DIR)/examples/training
 
 examples: training demo
-
-test: test-c test-cpp
 
 all: test examples
 

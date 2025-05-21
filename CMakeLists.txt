@@ -26,6 +26,8 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "13.3")
 
 add_compile_options(-Wall -Wextra -Werror)
 
+enable_testing() 
+
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(tests)
 ADD_SUBDIRECTORY(examples)
