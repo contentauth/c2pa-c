@@ -1,36 +1,40 @@
-# project(unit_tests)
+cmake_minimum_required(VERSION 3.16)
 
-# # CMake Dependencies
-# include(FetchContent)
-# FetchContent_Declare(
-#   googletest
-#   GIT_REPOSITORY https://github.com/google/googletest.git
-#   GIT_TAG v1.16.0
-#   OVERRIDE_FIND_PACKAGE)
+# GoogleTest via FetchContent
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+)
+FetchContent_MakeAvailable(googletest)
 
-# # For Windows: Prevent overriding the parent project's compiler/linker settings
-# set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-# FetchContent_MakeAvailable(googletest)
+# C++ tests
+file(GLOB CPP_TESTS "*.test.cpp")
+add_executable(c2pa_c_tests ${CPP_TESTS})
+target_link_libraries(c2pa_c_tests
+  PRIVATE
+    c2pa_cpp
+    nlohmann_json::nlohmann_json
+    gtest_main
+)
+# C tests
+add_executable(ctest test.c)
+target_link_libraries(ctest PRIVATE c2pa_c)
 
-# # Download json
-# FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
-# FetchContent_MakeAvailable(json)
+# Register tests with CTest
+#add_test(NAME cpp_tests COMMAND c2pa_c_tests)
+add_test(NAME c_test COMMAND ctest)
 
-# # Add the Rust library
-# set(RUST_LIB ${CMAKE_SOURCE_DIR}/target/release/libc2pa_c.dylib)
+# Set the environment variable so tests find the shared library
+#set_tests_properties(cpp_tests c_test EXPORT_PROPERTIES
+include(GoogleTest)
+gtest_discover_tests(c2pa_c_tests
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:c2pa_c>:$ENV{LD_LIBRARY_PATH}"
+)
 
-# # Create the unit test target.
-# file(GLOB unit_test_files CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.test.cpp")
-# add_executable(unit_tests ${unit_test_files})
-# target_include_directories(unit_tests PUBLIC "${CMAKE_SOURCE_DIR}/include/")
-
-# target_link_libraries(unit_tests nlohmann_json::nlohmann_json)
-# target_link_libraries(unit_tests ${RUST_C_LIB})
-# target_link_libraries(unit_tests c2pa_cpp)
-# target_link_libraries(unit_tests gtest_main)
-
-# # Enable testing
-# enable_testing()
-
-# # Add test cases
-# add_test(NAME unit_tests COMMAND unit_tests)
+# Set the environment variable for the C test as well
+set_tests_properties(c_test PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:c2pa_c>:$ENV{LD_LIBRARY_PATH}"
+)

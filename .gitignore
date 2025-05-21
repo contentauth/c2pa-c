@@ -1,5 +1,13 @@
-/target
-/Cargo.lock
+/build
+
+_deps
+# CMake files
+CMakeFiles
+CMakeCache.txt
+cmake_install.cmake
+CMakeOutput.log
+CMakeError.log
+CMakeLists.txt.user
 
 .vscode
 # Mac OS X files

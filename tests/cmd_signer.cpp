@@ -22,7 +22,7 @@ std::vector<unsigned char> cmd_signer(const std::vector<unsigned char> &data)
         throw std::runtime_error("Signature data is empty");
     }
 
-    std::ofstream source("target/cpp_data.bin", std::ios::binary);
+    std::ofstream source("build/cpp_data.bin", std::ios::binary);
     if (!source)
     {
         throw std::runtime_error("Failed to open temp signing file");
@@ -30,12 +30,12 @@ std::vector<unsigned char> cmd_signer(const std::vector<unsigned char> &data)
     source.write(reinterpret_cast<const char *>(data.data()), data.size());
 
     // sign the temp file by calling openssl in a shell
-    system("openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out target/c_signature.sig target/c_data.bin");
+    system("openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out build/c_signature.sig build/c_data.bin");
 
     std::vector<uint8_t> signature;
 
     // Read the signature back into the output vector
-    std::ifstream signature_file("target/c_signature.sig", std::ios::binary);
+    std::ifstream signature_file("build/c_signature.sig", std::ios::binary);
     if (!signature_file)
     {
         throw std::runtime_error("Failed to open signature file");

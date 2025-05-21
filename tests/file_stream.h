@@ -25,7 +25,7 @@ intptr_t reader(StreamContext *context, uint8_t *data, intptr_t len)
     // printf("reader: context = %0lx, data = %p, len = %zu\n", context, data, len);
     size_t count = fread(data, 1, len, (FILE *)context);
     // printf(" reader File %zu len = %zu, count = %zu\n", context, len, count);
-    if (count != len)
+    if (count != (size_t)len)
     {
         // do not report EOF as an error
         if (ferror((FILE *)context))
@@ -57,7 +57,7 @@ intptr_t writer(StreamContext *context, const uint8_t *data, intptr_t len)
 {
     // printf("writer: context = %zu, data = %p, len = %zu\n", context, data, len);
     size_t count = fwrite(data, 1, len, (FILE *)context);
-    if (count != len)
+    if (count != (size_t) len)
     {
         if (ferror((FILE *)context))
         {
