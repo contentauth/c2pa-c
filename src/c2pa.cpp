@@ -13,7 +13,6 @@
 /// @file   c2pa.cpp
 /// @brief  C++ wrapper for the C2PA C library.
 /// @details This is used for creating and verifying C2PA manifests.
-///          This is an early version, and has not been fully tested.
 ///          Thread safety is not guaranteed due to the use of errno and etc.
 
 #include <cstring>
@@ -86,9 +85,14 @@ namespace c2pa
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     optional<string> read_file(const filesystem::path &source_path, const optional<path> data_dir)
     {
-        auto dir = data_dir.has_value() ? path_to_string(data_dir.value()) : string();
+        const char* dir_ptr = nullptr;
+        std::string dir_str;
+        if (data_dir.has_value()) {
+            dir_str = path_to_string(data_dir.value());
+            dir_ptr = dir_str.c_str();
+        }
 
-        char *result = c2pa_read_file(path_to_string(source_path).c_str(), dir.c_str());
+        char *result = c2pa_read_file(path_to_string(source_path).c_str(), dir_ptr);
 
         if (result == nullptr)
         {
@@ -263,6 +267,9 @@ namespace c2pa
 
     intptr_t CppOStream::reader(StreamContext *context, uint8_t *buffer, intptr_t size)
     {
+        (void) context;
+        (void) buffer;
+        (void) size;
         errno = EINVAL; // Invalid argument
         return -1;
     }
@@ -281,13 +288,13 @@ namespace c2pa
         std::ios_base::seekdir dir = ios_base::beg;
         switch (whence)
         {
-        case SEEK_SET:
+        case C2paSeekMode::Start:
             dir = ios_base::beg;
             break;
-        case SEEK_CUR:
+        case C2paSeekMode::Current:
             dir = ios_base::cur;
             break;
-        case SEEK_END:
+        case C2paSeekMode::End:
             dir = ios_base::end;
             break;
         };
@@ -386,13 +393,13 @@ namespace c2pa
         std::ios_base::seekdir dir = std::ios_base::beg;
         switch (whence)
         {
-        case SEEK_SET:
+        case C2paSeekMode::Start:
             dir = std::ios_base::beg;
             break;
-        case SEEK_CUR:
+        case C2paSeekMode::Current:
             dir = std::ios_base::cur;
             break;
-        case SEEK_END:
+        case C2paSeekMode::End:
             dir = std::ios_base::end;
             break;
         };

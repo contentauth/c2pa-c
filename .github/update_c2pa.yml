@@ -1,0 +1,29 @@
+name: Update c2pa_rs Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      c2pa_version:
+        description: 'c2pa-rs version (e.g., 0.51.1)'
+        required: true
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Update C2PA_VERSION in CMakeLists.txt
+      run: |
+        version="${{ github.event.inputs.c2pa_version }}"
+        sed -i "s/set(C2PA_VERSION \".*\")/set(C2PA_VERSION \"${version}\")/" CMakeLists.txt
+
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v6
+      with:
+        commit-message: "chore: bump C2PA_VERSION to ${{ github.event.inputs.c2pa_version }}"
+        branch: bump-c2pa-version-${{ github.event.inputs.c2pa_version }}
+        title: "Bump C2PA_VERSION to ${{ github.event.inputs.c2pa_version }}"
+        body: |
+          This PR updates C2PA_VERSION in CMakeLists.txt to ${{ github.event.inputs.c2pa_version }}.
