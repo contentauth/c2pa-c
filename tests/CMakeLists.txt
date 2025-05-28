@@ -21,6 +21,9 @@ add_custom_command(TARGET c2pa_c_tests POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${C2PA_C_LIB}" $<TARGET_FILE_DIR:c2pa_c_tests>
 )
+set_target_properties(c2pa_c_tests PROPERTIES
+    BUILD_RPATH "$ORIGIN/../_deps/c2pa_prebuilt-src/lib"
+)
 
 # C tests
 add_executable(ctest test.c)
@@ -39,11 +42,11 @@ add_test(NAME c_test COMMAND ctest)
 include(GoogleTest)
 gtest_discover_tests(c2pa_c_tests
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:c2pa_c>:$ENV{LD_LIBRARY_PATH}"
+    PROPERTIES ENVIRONMENT "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/_deps/c2pa_prebuilt-src/lib:$ENV{LD_LIBRARY_PATH}"
 )
 
 # Set the environment variable for the C test as well
 set_tests_properties(c_test PROPERTIES
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:c2pa_c>:$ENV{LD_LIBRARY_PATH}"
+    ENVIRONMENT "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/_deps/c2pa_prebuilt-src/lib:$ENV{LD_LIBRARY_PATH}"
 )
