@@ -9,6 +9,14 @@ FetchContent_MakeAvailable(json)
 # Example executables
 add_executable(training training.cpp)
 target_link_libraries(training PRIVATE nlohmann_json::nlohmann_json c2pa_cpp)
+add_custom_command(TARGET training POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${C2PA_C_LIB}" $<TARGET_FILE_DIR:training>
+)
 
 add_executable(demo demo.cpp)
 target_link_libraries(demo PRIVATE nlohmann_json::nlohmann_json c2pa_cpp)
+add_custom_command(TARGET demo POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${C2PA_C_LIB}" $<TARGET_FILE_DIR:demo>
+)

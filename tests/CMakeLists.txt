@@ -17,9 +17,18 @@ target_link_libraries(c2pa_c_tests
     nlohmann_json::nlohmann_json
     gtest_main
 )
+add_custom_command(TARGET c2pa_c_tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${C2PA_C_LIB}" $<TARGET_FILE_DIR:c2pa_c_tests>
+)
+
 # C tests
 add_executable(ctest test.c)
 target_link_libraries(ctest PRIVATE c2pa_c)
+add_custom_command(TARGET ctest POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${C2PA_C_LIB}" $<TARGET_FILE_DIR:ctest>
+)
 
 # Register tests with CTest
 #add_test(NAME cpp_tests COMMAND c2pa_c_tests)

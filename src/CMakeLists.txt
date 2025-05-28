@@ -14,17 +14,23 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Set DLL export for Windows
 add_definitions(-DC2PA_DLL)
 
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+    set(C2PA_PROCESSOR "aarch64")
+else()
+    set(C2PA_PROCESSOR "x86_64")
+endif()
+
 # Detect platform and architecture for the prebuilt zip
 if(APPLE)
-    if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
-        set(C2PA_PREBUILT_ARCH "aarch64-apple-darwin")
-    else()
-        set(C2PA_PREBUILT_ARCH "x86_64-apple-darwin")
-    endif()
+    set(C2PA_PREBUILT_ARCH "${C2PA_PROCESSOR}-apple-darwin")
+    set(C2PA_LIB_NAME "libc2pa_c.dylib")
 elseif(WIN32)
-    set(C2PA_PREBUILT_ARCH "x86_64-pc-windows-msvc")
+    set(C2PA_PREBUILT_ARCH "${C2PA_PROCESSOR}-pc-windows-msvc")
+    set(C2PA_LIB_NAME "c2pa_c.dll")
+    set(C2PA_IMPLIB_NAME "c2pa_c.dll.lib")
 else()
-    set(C2PA_PREBUILT_ARCH "x86_64-unknown-linux-gnu")
+    set(C2PA_PREBUILT_ARCH "${C2PA_PROCESSOR}-unknown-linux-gnu")
+    set(C2PA_C_LIB "libc2pa_c.so")
 endif()
 
 set(C2PA_PREBUILT_ZIP "c2pa-v${C2PA_VERSION}-${C2PA_PREBUILT_ARCH}.zip")
@@ -38,13 +44,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(c2pa_prebuilt)
 
-if(APPLE)
-    set(C2PA_C_LIB "${c2pa_prebuilt_SOURCE_DIR}/lib/libc2pa_c.dylib")
-elseif(WIN32)
-    set(C2PA_C_LIB "${c2pa_prebuilt_SOURCE_DIR}/lib/c2pa_c.dll.lib")
-else()
-    set(C2PA_C_LIB "${c2pa_prebuilt_SOURCE_DIR}/lib/libc2pa_c.so")
-endif()
+set(C2PA_C_LIB "${c2pa_prebuilt_SOURCE_DIR}/lib/${C2PA_LIB_NAME}")
+set(C2PA_C_LIB "${C2PA_C_LIB}" PARENT_SCOPE)
 
 # Check if we got our prebuilt library
 if(NOT EXISTS "${C2PA_C_LIB}")
@@ -62,63 +63,56 @@ add_library(c2pa_cpp STATIC c2pa.cpp)
 target_include_directories(c2pa_cpp
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${c2pa_prebuilt_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
-        ${c2pa_prebuilt_SOURCE_DIR}/include
 )
 
-# Create an imported target for the prebuilt C library (so clients can just link to c2pa_cpp)
 add_library(c2pa_c SHARED IMPORTED GLOBAL)
 set_target_properties(c2pa_c PROPERTIES
     IMPORTED_LOCATION "${C2PA_C_LIB}"
     INTERFACE_INCLUDE_DIRECTORIES "${c2pa_prebuilt_SOURCE_DIR}/include"
 )
+if(WIN32)
+    set_target_properties(c2pa_c PROPERTIES
+        IMPORTED_IMPLIB "${c2pa_prebuilt_SOURCE_DIR}/lib/${C2PA_IMPLIB_NAME}"
+    )
+endif()
 
 # Link the C++ library to the C library (PUBLIC so clients get it automatically)
 target_link_libraries(c2pa_cpp PUBLIC c2pa_c)
 
 # Optionally, install rules for consumers
 install(TARGETS c2pa_cpp
+    EXPORT c2pa_cppTargets
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
 )
+
+# Install the export set (for build-tree and install-tree usage)
+install(EXPORT c2pa_cppTargets
+    FILE c2pa_cppTargets.cmake
+    NAMESPACE c2pa_cpp::
+    DESTINATION lib/cmake/c2pa_cpp
+)
+
 install(FILES ${CMAKE_SOURCE_DIR}/include/c2pa.hpp DESTINATION include)
-
-#  copy the prebuilt library to the build directory after building for testing
-function(copy_c2pa_c_shared_lib target)
-    if(WIN32)
-        add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${c2pa_prebuilt_SOURCE_DIR}/lib/c2pa_c.dll"
-                $<TARGET_FILE_DIR:${target}>
-        )
-    elseif(APPLE)
-        add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${c2pa_prebuilt_SOURCE_DIR}/lib/libc2pa_c.dylib"
-                $<TARGET_FILE_DIR:${target}>
-        )
-    elseif(UNIX)
-        add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${c2pa_prebuilt_SOURCE_DIR}/lib/libc2pa_c.so"
-                $<TARGET_FILE_DIR:${target}>
-        )
-    endif()
-endfunction()
-
-# Copy shared library to tests directory
-add_custom_target(copy_c2pa_c_shared_lib_tests ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${C2PA_C_LIB}"
-        "${CMAKE_BINARY_DIR}/tests"
-    DEPENDS c2pa_c
+install(DIRECTORY "${c2pa_prebuilt_SOURCE_DIR}/include/"
+    DESTINATION include
+    FILES_MATCHING PATTERN "*.h"
 )
-
-# Copy shared library to examples directory
-add_custom_target(copy_c2pa_c_shared_lib_examples ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${C2PA_C_LIB}"
-        "${CMAKE_BINARY_DIR}/examples"
-    DEPENDS c2pa_c
+if(APPLE)
+    install(FILES "${C2PA_C_LIB}" DESTINATION lib)
+elseif(UNIX)
+    install(FILES "${C2PA_C_LIB}" DESTINATION lib)
+endif()
+if(WIN32)
+install(FILES
+    "${C2PA_C_LIB}"
+    DESTINATION bin
 )
+install(FILES
+    "${c2pa_prebuilt_SOURCE_DIR}/lib/${C2PA_IMPLIB_NAME}"
+    DESTINATION lib
+)
+endif()
