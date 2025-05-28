@@ -30,7 +30,7 @@ elseif(WIN32)
     set(C2PA_IMPLIB_NAME "c2pa_c.dll.lib")
 else()
     set(C2PA_PREBUILT_ARCH "${C2PA_PROCESSOR}-unknown-linux-gnu")
-    set(C2PA_C_LIB_NAME "libc2pa_c.so")
+    set(C2PA_LIB_NAME "libc2pa_c.so")
 endif()
 
 set(C2PA_PREBUILT_ZIP "c2pa-v${C2PA_VERSION}-${C2PA_PREBUILT_ARCH}.zip")
