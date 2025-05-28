@@ -28,14 +28,14 @@ add_executable(ctest test.c)
 target_link_libraries(ctest PRIVATE c2pa_c)
 
 # Register tests with CTest
-add_test(NAME c_test COMMAND ctest)
+add_test(NAME ctest COMMAND ctest)
 
-set_tests_properties(c_test PROPERTIES
+set_tests_properties(ctest PROPERTIES
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:c_test>:$ENV{LD_LIBRARY_PATH}"
+    ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:ctest>:$ENV{LD_LIBRARY_PATH}"
 )
 
-set_target_properties(c_test PROPERTIES
+set_target_properties(ctest PROPERTIES
     BUILD_RPATH "$ORIGIN"
 )
 
