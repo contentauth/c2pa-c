@@ -38,5 +38,9 @@ jobs:
       - name: Install Ninja (Cmake build generator)
         uses: seanmiddleditch/gha-setup-ninja@master
 
+      - name: Print make version and path
+        run: |
+          which make
+          make --version
       - name: Run tests
         run: make test
