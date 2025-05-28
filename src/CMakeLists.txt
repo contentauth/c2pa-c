@@ -84,7 +84,7 @@ install(TARGETS c2pa_cpp
 )
 install(FILES ${CMAKE_SOURCE_DIR}/include/c2pa.hpp DESTINATION include)
 
-// copy the prebuilt library to the build directory after building for testing
+#  copy the prebuilt library to the build directory after building for testing
 if(WIN32)
     add_custom_command(TARGET c2pa_cpp POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
