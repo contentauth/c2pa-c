@@ -35,7 +35,7 @@ set_tests_properties(c_test PROPERTIES
     ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:c_test>:$ENV{LD_LIBRARY_PATH}"
 )
 
-set_target_properties(c2pa_c_tests PROPERTIES
+set_target_properties(c_test PROPERTIES
     BUILD_RPATH "$ORIGIN"
 )
 
@@ -45,9 +45,9 @@ message(STATUS "C2PA_C_LIB: ${C2PA_C_LIB}")
 message(STATUS "CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
 
 # copy the C library to the test directory
-add_custom_target(copy_c2pa_c_lib ALL
+add_custom_command(TARGET c2pa_c_tests POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${C2PA_C_LIB}" $<TARGET_FILE_DIR:c2pa_c_tests>
+)
+add_custom_command(TARGET ctest POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${C2PA_C_LIB}" $<TARGET_FILE_DIR:ctest>
 )
-add_dependencies(c2pa_c_tests copy_c2pa_c_lib)
-add_dependencies(ctest copy_c2pa_c_lib)
