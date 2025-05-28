@@ -85,16 +85,40 @@ install(TARGETS c2pa_cpp
 install(FILES ${CMAKE_SOURCE_DIR}/include/c2pa.hpp DESTINATION include)
 
 #  copy the prebuilt library to the build directory after building for testing
-if(WIN32)
-    add_custom_command(TARGET c2pa_cpp POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${c2pa_prebuilt_SOURCE_DIR}/lib/c2pa_c.dll"
-            $<TARGET_FILE_DIR:c2pa_cpp>
-    )
-elseif(UNIX AND NOT APPLE)
-    add_custom_command(TARGET c2pa_cpp POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${c2pa_prebuilt_SOURCE_DIR}/lib/libc2pa_c.so"
-            $<TARGET_FILE_DIR:c2pa_cpp>
-    )
-endif()
+function(copy_c2pa_c_shared_lib target)
+    if(WIN32)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${c2pa_prebuilt_SOURCE_DIR}/lib/c2pa_c.dll"
+                $<TARGET_FILE_DIR:${target}>
+        )
+    elseif(APPLE)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${c2pa_prebuilt_SOURCE_DIR}/lib/libc2pa_c.dylib"
+                $<TARGET_FILE_DIR:${target}>
+        )
+    elseif(UNIX)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${c2pa_prebuilt_SOURCE_DIR}/lib/libc2pa_c.so"
+                $<TARGET_FILE_DIR:${target}>
+        )
+    endif()
+endfunction()
+
+# Copy shared library to tests directory
+add_custom_target(copy_c2pa_c_shared_lib_tests ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${C2PA_C_LIB}"
+        "${CMAKE_BINARY_DIR}/tests"
+    DEPENDS c2pa_c
+)
+
+# Copy shared library to examples directory
+add_custom_target(copy_c2pa_c_shared_lib_examples ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${C2PA_C_LIB}"
+        "${CMAKE_BINARY_DIR}/examples"
+    DEPENDS c2pa_c
+)
