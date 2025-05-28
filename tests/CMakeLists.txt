@@ -35,7 +35,13 @@ set_tests_properties(c_test PROPERTIES
 add_custom_target(copy_c2pa_c_lib ALL
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${C2PA_C_LIB}" "${CMAKE_BINARY_DIR}"
-    BYPRODUCTS "${CMAKE_BINARY_DIR}/$(notdir ${C2PA_C_LIB})"
 )
 add_dependencies(c2pa_c_tests copy_c2pa_c_lib)
 add_dependencies(ctest copy_c2pa_c_lib)
+
+set_target_properties(c2pa_c_tests PROPERTIES
+    BUILD_RPATH "$ORIGIN/.."
+)
+
+message(STATUS "C2PA_C_LIB: ${C2PA_C_LIB}")
+message(STATUS "CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
