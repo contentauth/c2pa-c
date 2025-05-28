@@ -8,33 +8,49 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
+
 # C++ tests
 file(GLOB CPP_TESTS "*.test.cpp")
 add_executable(c2pa_c_tests ${CPP_TESTS})
-target_link_libraries(c2pa_c_tests
-  PRIVATE
-    c2pa_cpp
-    nlohmann_json::nlohmann_json
-    gtest_main
+target_link_libraries(c2pa_c_tests PRIVATE c2pa_cpp nlohmann_json::nlohmann_json gtest_main)
+
+include(GoogleTest)
+gtest_discover_tests(c2pa_c_tests
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    PROPERTIES ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:c2pa_c_tests>:$ENV{LD_LIBRARY_PATH}"
 )
+set_target_properties(c2pa_c_tests PROPERTIES
+    BUILD_RPATH "$ORIGIN"
+)
+
 # C tests
 add_executable(ctest test.c)
 target_link_libraries(ctest PRIVATE c2pa_c)
 
 # Register tests with CTest
-#add_test(NAME cpp_tests COMMAND c2pa_c_tests)
-add_test(NAME c_test COMMAND ctest)
+add_test(NAME ctest COMMAND ctest)
 
-# Set the environment variable so tests find the shared library
-#set_tests_properties(cpp_tests c_test EXPORT_PROPERTIES
-include(GoogleTest)
-gtest_discover_tests(c2pa_c_tests
+set_tests_properties(ctest PROPERTIES
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:c2pa_c>:$ENV{LD_LIBRARY_PATH}"
+    ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:ctest>:$ENV{LD_LIBRARY_PATH}"
 )
 
-# Set the environment variable for the C test as well
-set_tests_properties(c_test PROPERTIES
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:c2pa_c>:$ENV{LD_LIBRARY_PATH}"
+set_target_properties(ctest PROPERTIES
+    BUILD_RPATH "$ORIGIN"
 )
+
+message(STATUS "C2PA_C_LIB: ${C2PA_C_LIB}")
+message(STATUS "CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
+
+# copy the C library to the test directory
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+
+add_custom_command(
+    OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${C2PA_LIB_NAME}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${C2PA_C_LIB}" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${C2PA_LIB_NAME}
+    DEPENDS ${C2PA_C_LIB}
+)
+add_custom_target(copy_c2pa_c_lib ALL DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${C2PA_LIB_NAME})
+add_dependencies(c2pa_c_tests copy_c2pa_c_lib)
+add_dependencies(ctest copy_c2pa_c_lib)
+
