@@ -43,10 +43,14 @@ message(STATUS "C2PA_C_LIB: ${C2PA_C_LIB}")
 message(STATUS "CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
 
 # copy the C library to the test directory
-add_custom_target(copy_c2pa_c_lib ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${C2PA_C_LIB}" $<TARGET_FILE_DIR:c2pa_c_tests>
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${C2PA_C_LIB}" $<TARGET_FILE_DIR:ctest>
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+
+add_custom_command(
+    OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${C2PA_LIB_NAME}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${C2PA_C_LIB}" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${C2PA_LIB_NAME}
+    DEPENDS ${C2PA_C_LIB}
 )
+add_custom_target(copy_c2pa_c_lib ALL DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${C2PA_LIB_NAME})
 add_dependencies(c2pa_c_tests copy_c2pa_c_lib)
 add_dependencies(ctest copy_c2pa_c_lib)
 

@@ -32,6 +32,7 @@ else()
     set(C2PA_PREBUILT_ARCH "${C2PA_PROCESSOR}-unknown-linux-gnu")
     set(C2PA_LIB_NAME "libc2pa_c.so")
 endif()
+set(C2PA_C_LIB "${C2PA_LIB_NAME}" PARENT_SCOPE)
 
 set(C2PA_PREBUILT_ZIP "c2pa-v${C2PA_VERSION}-${C2PA_PREBUILT_ARCH}.zip")
 set(C2PA_PREBUILT_URL "https://github.com/contentauth/c2pa-rs/releases/download/c2pa-v${C2PA_VERSION}/${C2PA_PREBUILT_ZIP}")
