@@ -39,8 +39,6 @@ set_target_properties(ctest PROPERTIES
     BUILD_RPATH "$ORIGIN"
 )
 
-get_target_property(TEST_DIR c2pa_c_tests RUNTIME_OUTPUT_DIRECTORY)
-message(STATUS "Test exe dir: ${TEST_DIR}")
 message(STATUS "C2PA_C_LIB: ${C2PA_C_LIB}")
 message(STATUS "CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
 
@@ -52,6 +50,3 @@ add_custom_target(copy_c2pa_c_lib ALL
 add_dependencies(c2pa_c_tests copy_c2pa_c_lib)
 add_dependencies(ctest copy_c2pa_c_lib)
 
-set_tests_properties(c2pa_c_tests PROPERTIES
-    RESOURCE copy_c2pa_c_lib
-)
