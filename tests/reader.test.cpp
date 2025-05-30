@@ -32,6 +32,11 @@ TEST(Reader, StreamWithManifest)
     EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
 };
 
+TEST(Reader, SupportedTypes) {
+    auto supported_types = c2pa::Reader::supported_mime_types();
+    EXPECT_TRUE(std::find(supported_types.begin(), supported_types.end(), "image/jpeg") != supported_types.end());
+}
+
 TEST(Reader, FileWithManifest)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();

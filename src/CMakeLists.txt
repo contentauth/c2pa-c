@@ -16,7 +16,7 @@ add_definitions(-DC2PA_DLL)
 
 # Detect platform and architecture for the prebuilt zip
 if(APPLE)
-    if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
         set(C2PA_PREBUILT_ARCH "aarch64-apple-darwin")
     else()
         set(C2PA_PREBUILT_ARCH "x86_64-apple-darwin")
