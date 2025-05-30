@@ -207,6 +207,10 @@ namespace c2pa
         /// @return The raw C2paReader pointer.
         /// @note This is intended for internal API use and compatibility with C APIs.
         C2paReader* get_api_internal_raw_reader() const { return c2pa_reader; }
+
+        /// @brief Returns a vector of mime types that the SDK is able to
+        /// read manifests from.
+        static std::vector<std::string> supported_mime_types();
     };
 
     /// @brief  Signer Callback function type.
@@ -351,9 +355,12 @@ namespace c2pa
         /// @return A formatted copy of the data.
         static std::vector<unsigned char> format_embeddable(const string &format, std::vector<unsigned char> &data);
 
+        /// @brief Returns a vector of mime types that the SDK is able to sign.
+        static std::vector<std::string> supported_mime_types();
+
     private:
         // Private constructor for Builder from an archive (todo: find a better way to handle this)
-        Builder(istream &archive);
+        explicit Builder(istream &archive);
     };
 }
 

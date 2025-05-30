@@ -29,6 +29,26 @@ using path = std::filesystem::path;
 using namespace std;
 using namespace c2pa;
 
+namespace {
+  /// @brief Converts a C array of C strings to a std::vector of std::string.
+  /// @param mime_types Pointer to an array of C strings (const char*).
+  /// @param count Number of elements in the array.
+  /// @return A std::vector containing the strings from the input array.
+  /// @details This function takes ownership of the input array and frees it
+  ///          using c2pa_free_string_array().
+  std::vector<std::string> c_mime_types_to_vector(const char* const* mime_types, uintptr_t count) {
+    std::vector<std::string> result;
+    if (mime_types == nullptr) { return result; }
+
+    for(uintptr_t i = 0; i < count; i++) {
+      result.emplace_back(mime_types[i]);
+    }
+
+    c2pa_free_string_array(mime_types, count);
+    return result;
+  }
+}
+
 namespace c2pa
 {
     /// C2paException class for C2PA errors.
@@ -544,6 +564,12 @@ namespace c2pa
         return result;
     }
 
+    std::vector<std::string> Reader::supported_mime_types() {
+      uintptr_t count = 0;
+      auto ptr = c2pa_reader_supported_mime_types(&count);
+      return c_mime_types_to_vector(ptr, count);
+    }
+
     intptr_t signer_passthrough(const void *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len)
     {
         try
@@ -834,5 +860,11 @@ namespace c2pa
         auto formatted_data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
         c2pa_manifest_bytes_free(c2pa_manifest_bytes);
         return formatted_data;
+    }
+
+    std::vector<std::string> Builder::supported_mime_types() {
+      uintptr_t count = 0;
+      auto ptr = c2pa_builder_supported_mime_types(&count);
+      return c_mime_types_to_vector(ptr, count);
     }
 } // namespace c2pa
