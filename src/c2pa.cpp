@@ -30,23 +30,54 @@ using namespace std;
 using namespace c2pa;
 
 namespace {
-  /// @brief Converts a C array of C strings to a std::vector of std::string.
-  /// @param mime_types Pointer to an array of C strings (const char*).
-  /// @param count Number of elements in the array.
-  /// @return A std::vector containing the strings from the input array.
-  /// @details This function takes ownership of the input array and frees it
-  ///          using c2pa_free_string_array().
-  std::vector<std::string> c_mime_types_to_vector(const char* const* mime_types, uintptr_t count) {
-    std::vector<std::string> result;
-    if (mime_types == nullptr) { return result; }
 
-    for(uintptr_t i = 0; i < count; i++) {
-      result.emplace_back(mime_types[i]);
-    }
+/// @brief Converts a C array of C strings to a std::vector of std::string.
+/// @param mime_types Pointer to an array of C strings (const char*).
+/// @param count Number of elements in the array.
+/// @return A std::vector containing the strings from the input array.
+/// @details This function takes ownership of the input array and frees it
+///          using c2pa_free_string_array().
+std::vector<std::string> c_mime_types_to_vector(const char* const* mime_types, uintptr_t count) {
+  std::vector<std::string> result;
+  if (mime_types == nullptr) { return result; }
 
-    c2pa_free_string_array(mime_types, count);
-    return result;
+  for(uintptr_t i = 0; i < count; i++) {
+    result.emplace_back(mime_types[i]);
   }
+
+  c2pa_free_string_array(mime_types, count);
+  return result;
+}
+
+intptr_t signer_passthrough(const void *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len)
+{
+  try
+  {
+    // the context is a pointer to the C++ callback function
+    SignerFunc *callback = (SignerFunc *)context;
+    std::vector<uint8_t> data_vec(data, data + len);
+    std::vector<uint8_t> signature_vec = (callback)(data_vec);
+    if (signature_vec.size() > sig_max_len)
+    {
+      return -1;
+    }
+    std::copy(signature_vec.begin(), signature_vec.end(), signature);
+    return signature_vec.size();
+  }
+  catch (std::exception const &e)
+  {
+    // todo pass exceptions to Rust error handling
+    (void)e;
+    // printf("Error: signer_passthrough - %s\n", e.what());
+    return -1;
+  }
+  catch (...)
+  {
+    // printf("Error: signer_passthrough - unknown C2paException\n");
+    return -1;
+  }
+}
+
 }
 
 namespace c2pa
@@ -568,35 +599,6 @@ namespace c2pa
       uintptr_t count = 0;
       auto ptr = c2pa_reader_supported_mime_types(&count);
       return c_mime_types_to_vector(ptr, count);
-    }
-
-    intptr_t signer_passthrough(const void *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len)
-    {
-        try
-        {
-            // the context is a pointer to the C++ callback function
-            SignerFunc *callback = (SignerFunc *)context;
-            std::vector<uint8_t> data_vec(data, data + len);
-            std::vector<uint8_t> signature_vec = (callback)(data_vec);
-            if (signature_vec.size() > sig_max_len)
-            {
-                return -1;
-            }
-            std::copy(signature_vec.begin(), signature_vec.end(), signature);
-            return signature_vec.size();
-        }
-        catch (std::exception const &e)
-        {
-            // todo pass exceptions to Rust error handling
-            (void)e;
-            // printf("Error: signer_passthrough - %s\n", e.what());
-            return -1;
-        }
-        catch (...)
-        {
-            // printf("Error: signer_passthrough - unknown C2paException\n");
-            return -1;
-        }
     }
 
     Signer::Signer(SignerFunc *callback, C2paSigningAlg alg, const string &sign_cert, const string &tsa_uri)
