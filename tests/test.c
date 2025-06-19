@@ -21,7 +21,7 @@
 int main(void)
 {
     char *version = c2pa_version();
-    assert_contains("version", version, "c2pa-c/0.");
+    assert_contains("version", version, "c_api/0.");
 
     char *result1 = c2pa_read_file("tests/fixtures/C.jpg", NULL);
     assert_str_not_null("c2pa_read_file_no_data_dir", result1);
@@ -77,7 +77,7 @@ int main(void)
     result = c2pa_sign_file("tests/fixtures/foo.jpg", "build/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
     assert_null("c2pa_sign_file_not_found", result, "FileNotFound");
 
-    result = c2pa_sign_file("tests/fixtures/es256_certs.pem", "build/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
+    result = c2pa_sign_file("tests/fixtures/es256_certs.pem", "build/tmp/earth1.pem", manifest, &sign_info, "tests/fixtures");
     assert_null("c2pa_sign_file_not_supported", result, "NotSupported");
 
     C2paBuilder *builder = c2pa_builder_from_json(manifest);
