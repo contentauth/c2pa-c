@@ -40,6 +40,15 @@ FetchContent_MakeAvailable(c2pa_prebuilt)
 
 if(APPLE)
     set(C2PA_C_LIB "${c2pa_prebuilt_SOURCE_DIR}/lib/libc2pa_c.dylib")
+    add_custom_command(
+        OUTPUT "${C2PA_C_LIB}.fixed"
+        COMMAND install_name_tool -id "@rpath/libc2pa_c.dylib" "${C2PA_C_LIB}"
+        COMMAND touch "${C2PA_C_LIB}.fixed"
+        DEPENDS "${C2PA_C_LIB}"
+        COMMENT "Fixing install_name for libc2pa_c.dylib"
+        VERBATIM
+    )
+    add_custom_target(fix_c2pa_c_dylib ALL DEPENDS "${C2PA_C_LIB}.fixed")
 elseif(WIN32)
     set(C2PA_C_LIB "${c2pa_prebuilt_SOURCE_DIR}/lib/c2pa_c.dll.lib")
 else()
@@ -86,3 +95,7 @@ install(TARGETS c2pa_cpp
     RUNTIME DESTINATION bin
 )
 install(FILES ${CMAKE_SOURCE_DIR}/include/c2pa.hpp DESTINATION include)
+
+if(APPLE)
+    add_dependencies(c2pa_cpp fix_c2pa_c_dylib)
+endif()
