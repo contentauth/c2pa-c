@@ -576,7 +576,6 @@ namespace c2pa
         return result;
     }
 
-
     Signer::Signer(SignerFunc *callback, C2paSigningAlg alg, const string &sign_cert, const string &tsa_uri)
     {
         // Pass the C++ callback as a context to our static callback wrapper.
