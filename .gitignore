@@ -1,4 +1,5 @@
 /target
+/include/c2pa.h
 /Cargo.lock
 
 .vscode
