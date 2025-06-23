@@ -13,7 +13,6 @@
 /// @file   c2pa.cpp
 /// @brief  C++ wrapper for the C2PA C library.
 /// @details This is used for creating and verifying C2PA manifests.
-///          This is an early version, and has not been fully tested.
 ///          Thread safety is not guaranteed due to the use of errno and etc.
 
 #include <cstring>
@@ -29,6 +28,38 @@ using path = std::filesystem::path;
 
 using namespace std;
 using namespace c2pa;
+
+namespace {
+
+intptr_t signer_passthrough(const void *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len)
+{
+  try
+  {
+    // the context is a pointer to the C++ callback function
+    SignerFunc *callback = (SignerFunc *)context;
+    std::vector<uint8_t> data_vec(data, data + len);
+    std::vector<uint8_t> signature_vec = (callback)(data_vec);
+    if (signature_vec.size() > sig_max_len)
+    {
+      return -1;
+    }
+    std::copy(signature_vec.begin(), signature_vec.end(), signature);
+    return signature_vec.size();
+  }
+  catch (std::exception const &e)
+  {
+    // todo pass exceptions to Rust error handling
+    (void)e;
+    // printf("Error: signer_passthrough - %s\n", e.what());
+    return -1;
+  }
+  catch (...)
+  {
+    // printf("Error: signer_passthrough - unknown C2paException\n");
+    return -1;
+  }
+}
+}
 
 namespace c2pa
 {
@@ -86,9 +117,14 @@ namespace c2pa
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     optional<string> read_file(const filesystem::path &source_path, const optional<path> data_dir)
     {
-        auto dir = data_dir.has_value() ? path_to_string(data_dir.value()) : string();
+        const char* dir_ptr = nullptr;
+        std::string dir_str;
+        if (data_dir.has_value()) {
+            dir_str = path_to_string(data_dir.value());
+            dir_ptr = dir_str.c_str();
+        }
 
-        char *result = c2pa_read_file(path_to_string(source_path).c_str(), dir.c_str());
+        char *result = c2pa_read_file(path_to_string(source_path).c_str(), dir_ptr);
 
         if (result == nullptr)
         {
@@ -263,6 +299,9 @@ namespace c2pa
 
     intptr_t CppOStream::reader(StreamContext *context, uint8_t *buffer, intptr_t size)
     {
+        (void) context;
+        (void) buffer;
+        (void) size;
         errno = EINVAL; // Invalid argument
         return -1;
     }
@@ -281,13 +320,13 @@ namespace c2pa
         std::ios_base::seekdir dir = ios_base::beg;
         switch (whence)
         {
-        case SEEK_SET:
+        case C2paSeekMode::Start:
             dir = ios_base::beg;
             break;
-        case SEEK_CUR:
+        case C2paSeekMode::Current:
             dir = ios_base::cur;
             break;
-        case SEEK_END:
+        case C2paSeekMode::End:
             dir = ios_base::end;
             break;
         };
@@ -386,13 +425,13 @@ namespace c2pa
         std::ios_base::seekdir dir = std::ios_base::beg;
         switch (whence)
         {
-        case SEEK_SET:
+        case C2paSeekMode::Start:
             dir = std::ios_base::beg;
             break;
-        case SEEK_CUR:
+        case C2paSeekMode::Current:
             dir = std::ios_base::cur;
             break;
-        case SEEK_END:
+        case C2paSeekMode::End:
             dir = std::ios_base::end;
             break;
         };
@@ -535,35 +574,6 @@ namespace c2pa
             throw C2paException();
         }
         return result;
-    }
-
-    static intptr_t signer_passthrough(const void *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len)
-    {
-        try
-        {
-            // the context is a pointer to the C++ callback function
-            SignerFunc *callback = (SignerFunc *)context;
-            std::vector<uint8_t> data_vec(data, data + len);
-            std::vector<uint8_t> signature_vec = (callback)(data_vec);
-            if (signature_vec.size() > sig_max_len)
-            {
-                return -1;
-            }
-            std::copy(signature_vec.begin(), signature_vec.end(), signature);
-            return signature_vec.size();
-        }
-        catch (std::exception const &e)
-        {
-            // todo pass exceptions to Rust error handling
-            (void)e;
-            // printf("Error: signer_passthrough - %s\n", e.what());
-            return -1;
-        }
-        catch (...)
-        {
-            // printf("Error: signer_passthrough - unknown C2paException\n");
-            return -1;
-        }
     }
 
     Signer::Signer(SignerFunc *callback, C2paSigningAlg alg, const string &sign_cert, const string &tsa_uri)

@@ -14,22 +14,22 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../include/c2pa.h"
+#include <c2pa.h>
 #include "file_stream.h"
 #include "unit_test.h"
 
 int main(void)
 {
     char *version = c2pa_version();
-    assert_contains("version", version, "c2pa-c/0.");
+    assert_contains("version", version, "c_api/0.");
 
     char *result1 = c2pa_read_file("tests/fixtures/C.jpg", NULL);
     assert_str_not_null("c2pa_read_file_no_data_dir", result1);
 
-    char *result = c2pa_read_file("tests/fixtures/C.jpg", "target/tmp");
+    char *result = c2pa_read_file("tests/fixtures/C.jpg", "build/tmp");
     assert_str_not_null("c2pa_read_file", result);
 
-    result = c2pa_read_ingredient_file("tests/fixtures/C.jpg", "target/ingredient");
+    result = c2pa_read_ingredient_file("tests/fixtures/C.jpg", "build/ingredient");
     assert_str_not_null("c2pa_ingredient_from_file", result);
 
     C2paStream *input_stream = open_file_stream("tests/fixtures/C.jpg", "rb");
@@ -53,7 +53,7 @@ int main(void)
     }
 
     // Open a file to write the thumbnail into
-    C2paStream *thumb_stream = open_file_stream("target/thumb_c.jpg", "wb");
+    C2paStream *thumb_stream = open_file_stream("build/thumb_c.jpg", "wb");
     assert_not_null("open_file_stream thumbnail", thumb_stream);
 
     // write the thumbnail resource to the stream
@@ -71,24 +71,24 @@ int main(void)
     // create a sign_info struct
     C2paSignerInfo sign_info = {.alg = "es256", .sign_cert = certs, .private_key = private_key, .ta_url = "http://timestamp.digicert.com"};
 
-    result = c2pa_sign_file("tests/fixtures/C.jpg", "target/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
+    result = c2pa_sign_file("tests/fixtures/C.jpg", "build/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
     assert_not_null("c2pa_sign_file_ok", result);
 
-    result = c2pa_sign_file("tests/fixtures/foo.jpg", "target/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
+    result = c2pa_sign_file("tests/fixtures/foo.jpg", "build/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
     assert_null("c2pa_sign_file_not_found", result, "FileNotFound");
 
-    result = c2pa_sign_file("tests/fixtures/es256_certs.pem", "target/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
+    result = c2pa_sign_file("tests/fixtures/es256_certs.pem", "build/tmp/earth1.pem", manifest, &sign_info, "tests/fixtures");
     assert_null("c2pa_sign_file_not_supported", result, "NotSupported");
 
     C2paBuilder *builder = c2pa_builder_from_json(manifest);
     assert_not_null("c2pa_builder_from_json", builder);
 
-    C2paStream *archive = open_file_stream("target/tmp/archive.zip", "wb");
+    C2paStream *archive = open_file_stream("build/tmp/archive.zip", "wb");
     int arch_result = c2pa_builder_to_archive(builder, archive);
     assert_int("c2pa_builder_to_archive", arch_result);
     close_file_stream(archive);
 
-    C2paStream *archive2 = open_file_stream("target/tmp/archive.zip", "rb");
+    C2paStream *archive2 = open_file_stream("build/tmp/archive.zip", "rb");
     C2paBuilder *builder2 = c2pa_builder_from_archive(archive2);
     assert_not_null("c2pa_builder_from_archive", builder2);
     close_file_stream(archive2);
@@ -97,11 +97,19 @@ int main(void)
     assert_not_null("c2pa_signer_create", signer);
 
     C2paStream *source = open_file_stream("tests/fixtures/C.jpg", "rb");
-    C2paStream *dest = open_file_stream("target/tmp/earth.jpg", "wb");
+    C2paStream *dest = open_file_stream("build/tmp/earth.jpg", "wb");
 
-    int result2 = c2pa_builder_sign(builder2, "image/jpeg", source, dest, signer, NULL);
+    const unsigned char *manifest_bytes = NULL; // todo: test passing NULL instead of a pointer
+    int result2 = c2pa_builder_sign(builder2, "image/jpeg", source, dest, signer, &manifest_bytes);
     assert_int("c2pa_builder_sign", result2);
 
+    const unsigned char *formatted_bytes = NULL;
+    int64_t result3 = c2pa_format_embeddable("image/jpeg", manifest_bytes, 0, (const unsigned char **)&formatted_bytes);
+    assert_int("c2pa_format_embeddable", result3);
+    c2pa_manifest_bytes_free(manifest_bytes);
+    c2pa_manifest_bytes_free(formatted_bytes);
+
+    
     close_file_stream(source);
     close_file_stream(dest);
 
