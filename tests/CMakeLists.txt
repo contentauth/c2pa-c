@@ -25,9 +25,9 @@ function(setup_c2pa_runtime_deps target_name)
             add_custom_command(TARGET ${target_name} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E echo "=== Windows DLL Debug Info for ${target_name} ==="
                 COMMAND ${CMAKE_COMMAND} -E echo "Listing prebuilt lib directory contents:"
-                COMMAND ${CMAKE_COMMAND} -E ls "${C2PA_PREBUILT_INCLUDE_DIR}/../lib" || echo "Failed to list prebuilt lib directory"
+                COMMAND cmd /c "dir ${C2PA_PREBUILT_INCLUDE_DIR}\\..\\lib" || echo "Failed to list prebuilt lib directory"
                 COMMAND ${CMAKE_COMMAND} -E echo "Target directory contents:"
-                COMMAND ${CMAKE_COMMAND} -E ls "$<TARGET_FILE_DIR:${target_name}>" || echo "Failed to list target directory"
+                COMMAND cmd /c "dir $<TARGET_FILE_DIR:${target_name}>" || echo "Failed to list target directory"
                 COMMENT "Windows DLL debugging for ${target_name}"
             )
         else()
@@ -87,11 +87,23 @@ endif()
 
 # For better reliability, especially on Linux, manually add tests instead of auto-discovery
 # This avoids the working directory and library path issues during discovery
-add_test(NAME cpp_tests COMMAND c2pa_c_tests)
+if(WIN32)
+    # On Windows, use full path to executable (like the working debug test)
+    add_test(NAME cpp_tests COMMAND "${CMAKE_BINARY_DIR}/tests/c2pa_c_tests.exe")
+else()
+    add_test(NAME cpp_tests COMMAND c2pa_c_tests)
+endif()
+
 set_tests_properties(cpp_tests PROPERTIES
     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
-    ENVIRONMENT "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH}"
 )
+
+# Set platform-specific environment
+if(UNIX AND NOT WIN32)
+    set_tests_properties(cpp_tests PROPERTIES
+        ENVIRONMENT "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH}"
+    )
+endif()
 
 # On Windows, add a debug test to try running the executable directly
 if(WIN32)
@@ -101,9 +113,6 @@ if(WIN32)
     
     add_test(NAME cpp_tests_check_deps_windows
         COMMAND cmd /c "dir ${CMAKE_BINARY_DIR}\\tests"
-    )
-    set_tests_properties(cpp_tests_check_deps_windows PROPERTIES
-        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
     )
     
     add_test(NAME cpp_tests_verbose_dll_debug
