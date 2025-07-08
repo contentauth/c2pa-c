@@ -37,9 +37,17 @@ target_link_libraries(c2pa_c_tests PRIVATE c2pa_cpp nlohmann_json::nlohmann_json
 setup_c2pa_runtime_deps(c2pa_c_tests)
 
 include(GoogleTest)
+
+# Set environment for test discovery on Linux
+if(UNIX AND NOT APPLE)
+    set(ENV{LD_LIBRARY_PATH} "${CMAKE_BINARY_DIR}/_deps/c2pa_prebuilt-src/lib:$ENV{LD_LIBRARY_PATH}")
+endif()
+
 gtest_discover_tests(c2pa_c_tests
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     PROPERTIES ENVIRONMENT "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/_deps/c2pa_prebuilt-src/lib:$ENV{LD_LIBRARY_PATH}"
+    DISCOVERY_TIMEOUT 10
+    DISCOVERY_MODE PRE_TEST
 )
 
 # C tests
