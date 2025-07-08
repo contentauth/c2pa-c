@@ -20,12 +20,15 @@ function(setup_c2pa_runtime_deps target_name)
             COMMENT "Copying c2pa_c library to ${target_name} directory"
         )
         
-        # On Windows, add debugging commands to check DLL dependencies
+        # On Windows, copy all DLLs from the prebuilt lib directory
         if(WIN32)
             add_custom_command(TARGET ${target_name} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E echo "=== Windows DLL Debug Info for ${target_name} ==="
-                COMMAND dir $<TARGET_FILE_DIR:${target_name}> || echo "Failed to list directory"
-                COMMAND where dumpbin >nul 2>&1 && dumpbin /dependents $<TARGET_FILE:${target_name}> || echo "dumpbin not available"
+                COMMAND cmd /c "echo Listing all DLLs in prebuilt lib directory:"
+                COMMAND cmd /c "dir ${C2PA_PREBUILT_INCLUDE_DIR}\\..\\lib\\*.dll" || echo "No additional DLLs found"
+                COMMAND ${CMAKE_COMMAND} -E echo "Copying all DLLs to target directory..."
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${C2PA_PREBUILT_INCLUDE_DIR}/../lib/*.dll" $<TARGET_FILE_DIR:${target_name}> || echo "No additional DLLs to copy"
+                COMMAND cmd /c "dir $<TARGET_FILE_DIR:${target_name}>" || echo "Failed to list directory"
                 COMMENT "Windows DLL debugging for ${target_name}"
             )
         else()
@@ -97,9 +100,17 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E echo "Attempting to run c2pa_c_tests.exe directly..."
     )
     add_test(NAME cpp_tests_check_deps_windows
-        COMMAND cmd /c "cd ${CMAKE_BINARY_DIR}/tests && dir && echo. && echo Trying to run executable... && c2pa_c_tests.exe --help"
+        COMMAND cmd /c "cd ${CMAKE_BINARY_DIR}\\tests && dir && echo. && echo Available DLLs: && echo. && where c2pa_c.dll && echo. && echo Trying to run executable... && c2pa_c_tests.exe --help"
     )
     set_tests_properties(cpp_tests_check_deps_windows PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+    )
+    
+    # Add a test to check if we can run the executable with verbose DLL loading
+    add_test(NAME cpp_tests_verbose_dll_debug
+        COMMAND cmd /c "cd ${CMAKE_BINARY_DIR}\\tests && echo Checking DLL dependencies && echo. && c2pa_c_tests.exe --gtest_list_tests"
+    )
+    set_tests_properties(cpp_tests_verbose_dll_debug PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
     )
 endif()
