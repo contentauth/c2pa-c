@@ -33,7 +33,14 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
 # Note: We don't set CMAKE_BUILD_RPATH to the prebuilt directory
 # because we copy libraries to each executable's directory instead
 
-add_compile_options(-Wall -Wextra -Werror)
+# Set compiler-specific warning flags
+if(MSVC)
+    # MSVC warning flags
+    add_compile_options(/W4 /WX)
+else()
+    # GCC/Clang warning flags
+    add_compile_options(-Wall -Wextra -Werror)
+endif()
 
 enable_testing() 
 
