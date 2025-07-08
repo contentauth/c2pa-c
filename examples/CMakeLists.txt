@@ -8,22 +8,31 @@ FetchContent_MakeAvailable(json)
 
 # Function to setup runtime dependencies for any target
 function(setup_c2pa_runtime_deps target_name)
-    # Set RPATH for Unix systems to find shared libraries
-    if(UNIX)
-        set_target_properties(${target_name} PROPERTIES
-            BUILD_RPATH "${CMAKE_BINARY_DIR}/_deps/c2pa_prebuilt-src/lib"
-            INSTALL_RPATH "${CMAKE_BINARY_DIR}/_deps/c2pa_prebuilt-src/lib"
-            BUILD_RPATH_USE_ORIGIN TRUE
-        )
-    endif()
-    
-    # Copy shared libraries to executable directory on Windows
-    if(WIN32 AND DEFINED C2PA_C_LIB)
+    # Copy shared library to executable directory on all platforms
+    if(DEFINED C2PA_C_LIB)
         add_custom_command(TARGET ${target_name} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${C2PA_C_LIB}"
             $<TARGET_FILE_DIR:${target_name}>
             COMMENT "Copying c2pa_c library to ${target_name} directory"
+        )
+    endif()
+    
+    # On Linux, set RPATH to look in the executable's directory
+    if(UNIX AND NOT APPLE)
+        set_target_properties(${target_name} PROPERTIES
+            BUILD_RPATH "$ORIGIN"
+            INSTALL_RPATH "$ORIGIN"
+            BUILD_WITH_INSTALL_RPATH TRUE
+        )
+    endif()
+    
+    # On macOS, override the RPATH to remove hardcoded paths
+    if(APPLE)
+        set_target_properties(${target_name} PROPERTIES
+            BUILD_RPATH "@executable_path"
+            INSTALL_RPATH "@executable_path"
+            BUILD_WITH_INSTALL_RPATH TRUE
         )
     endif()
 endfunction()

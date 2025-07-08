@@ -27,13 +27,11 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "13.3")
 # Set RPATH settings for shared library discovery
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+# Disable automatic RPATH from link paths since we copy libraries to executable directories
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
 
-# Add the build directory to RPATH
-if(UNIX AND NOT WIN32)
-    set(CMAKE_BUILD_RPATH "${CMAKE_BINARY_DIR}/_deps/c2pa_prebuilt-src/lib")
-    list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_BINARY_DIR}/_deps/c2pa_prebuilt-src/lib")
-endif()
+# Note: We don't set CMAKE_BUILD_RPATH to the prebuilt directory
+# because we copy libraries to each executable's directory instead
 
 add_compile_options(-Wall -Wextra -Werror)
 

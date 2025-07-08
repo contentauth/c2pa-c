@@ -17,9 +17,22 @@ function(setup_c2pa_runtime_deps target_name)
             "${C2PA_C_LIB}"
             $<TARGET_FILE_DIR:${target_name}>
             COMMAND ${CMAKE_COMMAND} -E echo "Copied ${C2PA_C_LIB} to $<TARGET_FILE_DIR:${target_name}>"
-            COMMAND ls -la $<TARGET_FILE_DIR:${target_name}> || echo "Failed to list directory"
             COMMENT "Copying c2pa_c library to ${target_name} directory"
         )
+        
+        # On Windows, add debugging commands to check DLL dependencies
+        if(WIN32)
+            add_custom_command(TARGET ${target_name} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E echo "=== Windows DLL Debug Info for ${target_name} ==="
+                COMMAND dir $<TARGET_FILE_DIR:${target_name}> || echo "Failed to list directory"
+                COMMAND where dumpbin >nul 2>&1 && dumpbin /dependents $<TARGET_FILE:${target_name}> || echo "dumpbin not available"
+                COMMENT "Windows DLL debugging for ${target_name}"
+            )
+        else()
+            add_custom_command(TARGET ${target_name} POST_BUILD
+                COMMAND ls -la $<TARGET_FILE_DIR:${target_name}> || echo "Failed to list directory"
+            )
+        endif()
     endif()
     
     # On Linux, set RPATH to look in the executable's directory
@@ -27,6 +40,15 @@ function(setup_c2pa_runtime_deps target_name)
         set_target_properties(${target_name} PROPERTIES
             BUILD_RPATH "$ORIGIN"
             INSTALL_RPATH "$ORIGIN"
+            BUILD_WITH_INSTALL_RPATH TRUE
+        )
+    endif()
+    
+    # On macOS, override the RPATH to remove hardcoded paths
+    if(APPLE)
+        set_target_properties(${target_name} PROPERTIES
+            BUILD_RPATH "@executable_path"
+            INSTALL_RPATH "@executable_path"
             BUILD_WITH_INSTALL_RPATH TRUE
         )
     endif()
@@ -47,6 +69,19 @@ set_tests_properties(cpp_tests PROPERTIES
     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
     ENVIRONMENT "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH}"
 )
+
+# On Windows, add a debug test to try running the executable directly
+if(WIN32)
+    add_test(NAME cpp_tests_debug_windows 
+        COMMAND ${CMAKE_COMMAND} -E echo "Attempting to run c2pa_c_tests.exe directly..."
+    )
+    add_test(NAME cpp_tests_check_deps_windows
+        COMMAND cmd /c "cd ${CMAKE_BINARY_DIR}/tests && dir && echo. && echo Trying to run executable... && c2pa_c_tests.exe --help"
+    )
+    set_tests_properties(cpp_tests_check_deps_windows PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+    )
+endif()
 
 # C tests
 add_executable(ctest test.c)
