@@ -76,9 +76,23 @@ set_target_properties(c2pa_c PROPERTIES
     IMPORTED_LOCATION "${C2PA_C_LIB}"
     INTERFACE_INCLUDE_DIRECTORIES "${c2pa_prebuilt_SOURCE_DIR}/include"
 )
+
+# On Windows, set the import library
 if(WIN32)
     set_target_properties(c2pa_c PROPERTIES
         IMPORTED_IMPLIB "${c2pa_prebuilt_SOURCE_DIR}/lib/${C2PA_IMPLIB_NAME}"
+    )
+endif()
+
+# Set up library search paths for all platforms
+set_target_properties(c2pa_c PROPERTIES
+    INTERFACE_LINK_DIRECTORIES "${c2pa_prebuilt_SOURCE_DIR}/lib"
+)
+
+# For Unix systems, ensure the library can be found at runtime
+if(UNIX)
+    set_target_properties(c2pa_c PROPERTIES
+        IMPORTED_NO_SONAME OFF
     )
 endif()
 
