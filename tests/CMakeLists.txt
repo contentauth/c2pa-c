@@ -24,11 +24,10 @@ function(setup_c2pa_runtime_deps target_name)
         if(WIN32)
             add_custom_command(TARGET ${target_name} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E echo "=== Windows DLL Debug Info for ${target_name} ==="
-                COMMAND cmd /c "echo Listing all DLLs in prebuilt lib directory:"
-                COMMAND cmd /c "dir ${C2PA_PREBUILT_INCLUDE_DIR}\\..\\lib\\*.dll" || echo "No additional DLLs found"
-                COMMAND ${CMAKE_COMMAND} -E echo "Copying all DLLs to target directory..."
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${C2PA_PREBUILT_INCLUDE_DIR}/../lib/*.dll" $<TARGET_FILE_DIR:${target_name}> || echo "No additional DLLs to copy"
-                COMMAND cmd /c "dir $<TARGET_FILE_DIR:${target_name}>" || echo "Failed to list directory"
+                COMMAND ${CMAKE_COMMAND} -E echo "Listing prebuilt lib directory contents:"
+                COMMAND ${CMAKE_COMMAND} -E ls "${C2PA_PREBUILT_INCLUDE_DIR}/../lib" || echo "Failed to list prebuilt lib directory"
+                COMMAND ${CMAKE_COMMAND} -E echo "Target directory contents:"
+                COMMAND ${CMAKE_COMMAND} -E ls "$<TARGET_FILE_DIR:${target_name}>" || echo "Failed to list target directory"
                 COMMENT "Windows DLL debugging for ${target_name}"
             )
         else()
@@ -99,25 +98,50 @@ if(WIN32)
     add_test(NAME cpp_tests_debug_windows 
         COMMAND ${CMAKE_COMMAND} -E echo "Attempting to run c2pa_c_tests.exe directly..."
     )
+    
     add_test(NAME cpp_tests_check_deps_windows
-        COMMAND cmd /c "cd ${CMAKE_BINARY_DIR}\\tests && dir && echo. && echo Available DLLs: && echo. && where c2pa_c.dll && echo. && echo Trying to run executable... && c2pa_c_tests.exe --help"
+        COMMAND cmd /c "dir ${CMAKE_BINARY_DIR}\\tests"
     )
     set_tests_properties(cpp_tests_check_deps_windows PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
     )
     
-    # Add a test to check if we can run the executable with verbose DLL loading
     add_test(NAME cpp_tests_verbose_dll_debug
-        COMMAND cmd /c "cd ${CMAKE_BINARY_DIR}\\tests && echo Checking DLL dependencies && echo. && c2pa_c_tests.exe --gtest_list_tests"
+        COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_BINARY_DIR}/tests" ${CMAKE_COMMAND} -E echo "Checking if c2pa_c_tests.exe exists and can be executed"
     )
-    set_tests_properties(cpp_tests_verbose_dll_debug PROPERTIES
+    
+    # Try to run the actual test to see what the DLL error is
+    add_test(NAME cpp_tests_dll_error_debug
+        COMMAND cmd /c "${CMAKE_BINARY_DIR}/tests/c2pa_c_tests.exe --gtest_list_tests"
+    )
+    set_tests_properties(cpp_tests_dll_error_debug PROPERTIES
+        WILL_FAIL TRUE  # We expect this to fail, but we want to see the error
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+    )
+    
+    # Check what compiler we're using vs what the DLL was compiled with
+    add_test(NAME windows_compiler_info
+        COMMAND ${CMAKE_COMMAND} -E echo "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}"
+    )
+    
+    # Try to check DLL dependencies using PowerShell (available on Windows CI)
+    add_test(NAME windows_dll_dependencies
+        COMMAND powershell -Command "Get-ChildItem ${CMAKE_BINARY_DIR}\\tests\\*.dll | ForEach-Object { Write-Host 'DLL:' $_.Name; try { [System.Reflection.Assembly]::LoadFile($_.FullName) | Out-Null; Write-Host 'Can load:' $_.Name } catch { Write-Host 'Cannot load:' $_.Name '- Error:' $_.Exception.Message } }"
+    )
+    set_tests_properties(windows_dll_dependencies PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
     )
 endif()
 
 # C tests
 add_executable(ctest test.c)
-target_link_libraries(ctest PRIVATE "${C2PA_C_LIB}")
+if(WIN32)
+    # On Windows, link to the import library (.lib file)
+    target_link_libraries(ctest PRIVATE "${C2PA_PREBUILT_INCLUDE_DIR}/../lib/c2pa_c.dll.lib")
+else()
+    # On Unix systems, link directly to the shared library
+    target_link_libraries(ctest PRIVATE "${C2PA_C_LIB}")
+endif()
 target_include_directories(ctest PRIVATE "${C2PA_PREBUILT_INCLUDE_DIR}")
 setup_c2pa_runtime_deps(ctest)
 
