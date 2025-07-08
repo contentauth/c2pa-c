@@ -20,6 +20,14 @@
 
 int main(void)
 {
+    // Clean up any existing test output files
+    remove("build/tmp/earth1.jpg");
+    remove("build/tmp/earth2.jpg");
+    remove("build/tmp/earth3.jpg");
+    remove("build/tmp/earth1.pem");
+    remove("build/tmp/archive.zip");
+    remove("build/thumb_c.jpg");
+
     char *version = c2pa_version();
     assert_contains("version", version, "c_api/0.");
 
@@ -71,10 +79,10 @@ int main(void)
     // create a sign_info struct
     C2paSignerInfo sign_info = {.alg = "es256", .sign_cert = certs, .private_key = private_key, .ta_url = "http://timestamp.digicert.com"};
 
-    result = c2pa_sign_file("tests/fixtures/C.jpg", "build/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
+    result = c2pa_sign_file("tests/fixtures/C.jpg", "build/tmp/earth1.jpg", manifest, &sign_info, "tests/fixtures");
     assert_not_null("c2pa_sign_file_ok", result);
 
-    result = c2pa_sign_file("tests/fixtures/foo.jpg", "build/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
+    result = c2pa_sign_file("tests/fixtures/foo.jpg", "build/tmp/earth2.jpg", manifest, &sign_info, "tests/fixtures");
     assert_null("c2pa_sign_file_not_found", result, "FileNotFound");
 
     result = c2pa_sign_file("tests/fixtures/es256_certs.pem", "build/tmp/earth1.pem", manifest, &sign_info, "tests/fixtures");
@@ -97,7 +105,7 @@ int main(void)
     assert_not_null("c2pa_signer_create", signer);
 
     C2paStream *source = open_file_stream("tests/fixtures/C.jpg", "rb");
-    C2paStream *dest = open_file_stream("build/tmp/earth.jpg", "wb");
+    C2paStream *dest = open_file_stream("build/tmp/earth3.jpg", "wb");
 
     const unsigned char *manifest_bytes = NULL; // todo: test passing NULL instead of a pointer
     int result2 = c2pa_builder_sign(builder2, "image/jpeg", source, dest, signer, &manifest_bytes);
