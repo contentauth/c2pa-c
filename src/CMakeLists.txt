@@ -92,9 +92,13 @@ endif()
 
 # Define the C++ library and add sources
 add_library(c2pa_cpp STATIC c2pa.cpp)
-target_compile_options(c2pa_cpp PRIVATE
-    -Werror
-)
+
+# Set compiler-specific flags for the C++ library
+if(MSVC)
+    target_compile_options(c2pa_cpp PRIVATE /WX)
+else()
+    target_compile_options(c2pa_cpp PRIVATE -Werror)
+endif()
 
 # Expose public headers and prebuilt C API headers to clients
 target_include_directories(c2pa_cpp
