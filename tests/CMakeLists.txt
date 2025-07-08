@@ -21,6 +21,15 @@ function(setup_c2pa_runtime_deps target_name)
             COMMENT "Copying c2pa_c library to ${target_name} directory"
         )
     endif()
+    
+    # On Linux, set RPATH to look in the executable's directory
+    if(UNIX AND NOT APPLE)
+        set_target_properties(${target_name} PROPERTIES
+            BUILD_RPATH "$ORIGIN"
+            INSTALL_RPATH "$ORIGIN"
+            BUILD_WITH_INSTALL_RPATH TRUE
+        )
+    endif()
 endfunction()
 
 # C++ tests
