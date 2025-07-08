@@ -45,6 +45,7 @@ include(GoogleTest)
 add_test(NAME cpp_tests COMMAND c2pa_c_tests)
 set_tests_properties(cpp_tests PROPERTIES
     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+    ENVIRONMENT "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH}"
 )
 
 # C tests
@@ -56,5 +57,6 @@ setup_c2pa_runtime_deps(ctest)
 add_test(NAME c_test COMMAND ctest)
 set_tests_properties(c_test PROPERTIES
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    ENVIRONMENT "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH}"
 )
 
