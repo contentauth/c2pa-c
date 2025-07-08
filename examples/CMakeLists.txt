@@ -25,6 +25,9 @@ function(setup_c2pa_runtime_deps target_name)
             INSTALL_RPATH "$ORIGIN"
             BUILD_WITH_INSTALL_RPATH TRUE
         )
+        # Force override any inherited RPATH
+        set_property(TARGET ${target_name} PROPERTY BUILD_RPATH "$ORIGIN")
+        set_property(TARGET ${target_name} PROPERTY INSTALL_RPATH "$ORIGIN")
     endif()
     
     # On macOS, override the RPATH to remove hardcoded paths
@@ -34,6 +37,9 @@ function(setup_c2pa_runtime_deps target_name)
             INSTALL_RPATH "@executable_path"
             BUILD_WITH_INSTALL_RPATH TRUE
         )
+        # Force override any inherited RPATH
+        set_property(TARGET ${target_name} PROPERTY BUILD_RPATH "@executable_path")
+        set_property(TARGET ${target_name} PROPERTY INSTALL_RPATH "@executable_path")
     endif()
 endfunction()
 

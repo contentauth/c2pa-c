@@ -47,6 +47,7 @@ FetchContent_MakeAvailable(c2pa_prebuilt)
 
 set(C2PA_C_LIB "${c2pa_prebuilt_SOURCE_DIR}/lib/${C2PA_LIB_NAME}")
 set(C2PA_C_LIB "${C2PA_C_LIB}" PARENT_SCOPE)
+set(C2PA_PREBUILT_INCLUDE_DIR "${c2pa_prebuilt_SOURCE_DIR}/include" PARENT_SCOPE)
 
 # Check if we got our prebuilt library
 if(NOT EXISTS "${C2PA_C_LIB}")
@@ -98,32 +99,12 @@ target_include_directories(c2pa_cpp
         $<INSTALL_INTERFACE:include>
 )
 
-add_library(c2pa_c SHARED IMPORTED GLOBAL)
-set_target_properties(c2pa_c PROPERTIES
-    IMPORTED_LOCATION "${C2PA_C_LIB}"
-    INTERFACE_INCLUDE_DIRECTORIES "${c2pa_prebuilt_SOURCE_DIR}/include"
+# Link the C++ library to the C library file directly to avoid RPATH issues
+target_link_libraries(c2pa_cpp PRIVATE "${C2PA_C_LIB}")
+target_include_directories(c2pa_cpp PUBLIC 
+    $<BUILD_INTERFACE:${c2pa_prebuilt_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
-
-# On Windows, set the import library
-if(WIN32)
-    set_target_properties(c2pa_c PROPERTIES
-        IMPORTED_IMPLIB "${c2pa_prebuilt_SOURCE_DIR}/lib/${C2PA_IMPLIB_NAME}"
-    )
-endif()
-
-# Set up library search paths for all platforms
-# Note: We don't set INTERFACE_LINK_DIRECTORIES here because we copy
-# the library to each executable's directory instead
-
-# For Unix systems, ensure the library can be found at runtime
-if(UNIX)
-    set_target_properties(c2pa_c PROPERTIES
-        IMPORTED_NO_SONAME OFF
-    )
-endif()
-
-# Link the C++ library to the C library (PUBLIC so clients get it automatically)
-target_link_libraries(c2pa_cpp PUBLIC c2pa_c)
 
 # Optionally, install rules for consumers
 install(TARGETS c2pa_cpp

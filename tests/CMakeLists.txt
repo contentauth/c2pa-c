@@ -106,7 +106,8 @@ endif()
 
 # C tests
 add_executable(ctest test.c)
-target_link_libraries(ctest PRIVATE c2pa_c)
+target_link_libraries(ctest PRIVATE "${C2PA_C_LIB}")
+target_include_directories(ctest PRIVATE "${C2PA_PREBUILT_INCLUDE_DIR}")
 setup_c2pa_runtime_deps(ctest)
 
 # Register tests with CTest
