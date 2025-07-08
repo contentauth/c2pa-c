@@ -16,6 +16,8 @@ function(setup_c2pa_runtime_deps target_name)
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${C2PA_C_LIB}"
             $<TARGET_FILE_DIR:${target_name}>
+            COMMAND ${CMAKE_COMMAND} -E echo "Copied ${C2PA_C_LIB} to $<TARGET_FILE_DIR:${target_name}>"
+            COMMAND ls -la $<TARGET_FILE_DIR:${target_name}> || echo "Failed to list directory"
             COMMENT "Copying c2pa_c library to ${target_name} directory"
         )
     endif()
@@ -28,9 +30,12 @@ target_link_libraries(c2pa_c_tests PRIVATE c2pa_cpp nlohmann_json::nlohmann_json
 setup_c2pa_runtime_deps(c2pa_c_tests)
 
 include(GoogleTest)
-gtest_discover_tests(c2pa_c_tests
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    DISCOVERY_TIMEOUT 10
+
+# For better reliability, especially on Linux, manually add tests instead of auto-discovery
+# This avoids the working directory and library path issues during discovery
+add_test(NAME cpp_tests COMMAND c2pa_c_tests)
+set_tests_properties(cpp_tests PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
 )
 
 # C tests
