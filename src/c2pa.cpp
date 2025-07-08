@@ -29,6 +29,38 @@ using path = std::filesystem::path;
 using namespace std;
 using namespace c2pa;
 
+namespace {
+
+intptr_t signer_passthrough(const void *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len)
+{
+  try
+  {
+    // the context is a pointer to the C++ callback function
+    SignerFunc *callback = (SignerFunc *)context;
+    std::vector<uint8_t> data_vec(data, data + len);
+    std::vector<uint8_t> signature_vec = (callback)(data_vec);
+    if (signature_vec.size() > sig_max_len)
+    {
+      return -1;
+    }
+    std::copy(signature_vec.begin(), signature_vec.end(), signature);
+    return signature_vec.size();
+  }
+  catch (std::exception const &e)
+  {
+    // todo pass exceptions to Rust error handling
+    (void)e;
+    // printf("Error: signer_passthrough - %s\n", e.what());
+    return -1;
+  }
+  catch (...)
+  {
+    // printf("Error: signer_passthrough - unknown C2paException\n");
+    return -1;
+  }
+}
+}
+
 namespace c2pa
 {
     /// C2paException class for C2PA errors.
@@ -542,35 +574,6 @@ namespace c2pa
             throw C2paException();
         }
         return result;
-    }
-
-    intptr_t signer_passthrough(const void *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len)
-    {
-        try
-        {
-            // the context is a pointer to the C++ callback function
-            SignerFunc *callback = (SignerFunc *)context;
-            std::vector<uint8_t> data_vec(data, data + len);
-            std::vector<uint8_t> signature_vec = (callback)(data_vec);
-            if (signature_vec.size() > sig_max_len)
-            {
-                return -1;
-            }
-            std::copy(signature_vec.begin(), signature_vec.end(), signature);
-            return signature_vec.size();
-        }
-        catch (std::exception const &e)
-        {
-            // todo pass exceptions to Rust error handling
-            (void)e;
-            // printf("Error: signer_passthrough - %s\n", e.what());
-            return -1;
-        }
-        catch (...)
-        {
-            // printf("Error: signer_passthrough - unknown C2paException\n");
-            return -1;
-        }
     }
 
     Signer::Signer(SignerFunc *callback, C2paSigningAlg alg, const string &sign_cert, const string &tsa_uri)

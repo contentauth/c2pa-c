@@ -80,8 +80,7 @@ int main(void)
     result = c2pa_sign_file("tests/fixtures/foo.jpg", "build/tmp/earth2.jpg", manifest, &sign_info, "tests/fixtures");
     assert_null("c2pa_sign_file_not_found", result, "FileNotFound");
 
-    remove("build/tmp/earth.pem");
-    result = c2pa_sign_file("tests/fixtures/es256_certs.pem", "build/tmp/earth.pem", manifest, &sign_info, "tests/fixtures");
+    result = c2pa_sign_file("tests/fixtures/es256_certs.pem", "build/tmp/earth1.pem", manifest, &sign_info, "tests/fixtures");
     assert_null("c2pa_sign_file_not_supported", result, "NotSupported");
 
     C2paBuilder *builder = c2pa_builder_from_json(manifest);
