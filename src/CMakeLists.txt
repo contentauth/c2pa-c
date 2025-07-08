@@ -112,9 +112,8 @@ if(WIN32)
 endif()
 
 # Set up library search paths for all platforms
-set_target_properties(c2pa_c PROPERTIES
-    INTERFACE_LINK_DIRECTORIES "${c2pa_prebuilt_SOURCE_DIR}/lib"
-)
+# Note: We don't set INTERFACE_LINK_DIRECTORIES here because we copy
+# the library to each executable's directory instead
 
 # For Unix systems, ensure the library can be found at runtime
 if(UNIX)
