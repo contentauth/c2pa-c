@@ -117,6 +117,16 @@ add_executable(ctest test.c)
 if(WIN32)
     # On Windows, link to the import library (.lib file)
     target_link_libraries(ctest PRIVATE "${C2PA_PREBUILT_INCLUDE_DIR}/../lib/c2pa_c.dll.lib")
+    
+    # Add MSVC-specific compile options for C code to handle prebuilt library issues
+    if(MSVC)
+        target_compile_options(ctest PRIVATE
+            /wd4996  # Disable deprecated function warnings (strerror, strncpy, etc.)
+            /wd4244  # Disable type conversion warnings  
+            /wd4267  # Disable size_t conversion warnings
+            /wd2016  # Disable "C requires struct to have at least one member" error
+        )
+    endif()
 else()
     # On Unix systems, link directly to the shared library
     target_link_libraries(ctest PRIVATE "${C2PA_C_LIB}")
