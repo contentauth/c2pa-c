@@ -28,6 +28,11 @@ elseif(WIN32)
     set(C2PA_PREBUILT_ARCH "${C2PA_PROCESSOR}-pc-windows-msvc")
     set(C2PA_LIB_NAME "c2pa_c.dll")
     set(C2PA_IMPLIB_NAME "c2pa_c.dll.lib")
+    
+    # Warn about potential ABI issues with MinGW
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        message(WARNING "Using MinGW with MSVC-compiled DLL may cause ABI compatibility issues. Consider using MSVC compiler on Windows.")
+    endif()
 else()
     set(C2PA_PREBUILT_ARCH "${C2PA_PROCESSOR}-unknown-linux-gnu")
     set(C2PA_LIB_NAME "libc2pa_c.so")
@@ -100,7 +105,13 @@ target_include_directories(c2pa_cpp
 )
 
 # Link the C++ library to the C library file directly to avoid RPATH issues
-target_link_libraries(c2pa_cpp PRIVATE "${C2PA_C_LIB}")
+if(WIN32)
+    # On Windows, link to the import library (.lib file)
+    target_link_libraries(c2pa_cpp PRIVATE "${c2pa_prebuilt_SOURCE_DIR}/lib/${C2PA_IMPLIB_NAME}")
+else()
+    # On Unix systems, link directly to the shared library
+    target_link_libraries(c2pa_cpp PRIVATE "${C2PA_C_LIB}")
+endif()
 target_include_directories(c2pa_cpp PUBLIC 
     $<BUILD_INTERFACE:${c2pa_prebuilt_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>

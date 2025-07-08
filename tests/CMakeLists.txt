@@ -88,8 +88,8 @@ endif()
 # For better reliability, especially on Linux, manually add tests instead of auto-discovery
 # This avoids the working directory and library path issues during discovery
 if(WIN32)
-    # On Windows, start with the same approach as the working debug test
-    add_test(NAME cpp_tests COMMAND cmd /c "${CMAKE_BINARY_DIR}/tests/c2pa_c_tests.exe --gtest_list_tests")
+    # On Windows, use cmd /c to run the test executable
+    add_test(NAME cpp_tests COMMAND cmd /c "${CMAKE_BINARY_DIR}/tests/c2pa_c_tests.exe")
 else()
     add_test(NAME cpp_tests COMMAND c2pa_c_tests)
 endif()
@@ -105,49 +105,10 @@ if(UNIX AND NOT WIN32)
     )
 endif()
 
-# On Windows, add a debug test to try running the executable directly
+# On Windows, add a debug test to check dependencies
 if(WIN32)
-    add_test(NAME cpp_tests_debug_windows 
-        COMMAND ${CMAKE_COMMAND} -E echo "Attempting to run c2pa_c_tests.exe directly..."
-    )
-    
     add_test(NAME cpp_tests_check_deps_windows
-        COMMAND cmd /c "dir \"${CMAKE_BINARY_DIR}\\tests\""
-    )
-    
-    add_test(NAME cpp_tests_verbose_dll_debug
-        COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_BINARY_DIR}/tests" ${CMAKE_COMMAND} -E echo "Checking if c2pa_c_tests.exe exists and can be executed"
-    )
-    
-    # Try to run the actual test to see what the DLL error is
-    add_test(NAME cpp_tests_dll_error_debug
-        COMMAND cmd /c "${CMAKE_BINARY_DIR}/tests/c2pa_c_tests.exe --gtest_list_tests"
-    )
-    set_tests_properties(cpp_tests_dll_error_debug PROPERTIES
-        WILL_FAIL TRUE  # We expect this to fail, but we want to see the error
-        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
-    )
-    
-    # Try to actually run the tests (not just list them)
-    add_test(NAME cpp_tests_actual_run_debug
-        COMMAND cmd /c "${CMAKE_BINARY_DIR}/tests/c2pa_c_tests.exe --gtest_filter=*Version*"
-    )
-    set_tests_properties(cpp_tests_actual_run_debug PROPERTIES
-        WILL_FAIL TRUE  # We expect this might fail, but we want to see the error
-        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
-    )
-    
-    # Check what compiler we're using vs what the DLL was compiled with
-    add_test(NAME windows_compiler_info
-        COMMAND ${CMAKE_COMMAND} -E echo "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}"
-    )
-    
-    # Try to check DLL dependencies using PowerShell (available on Windows CI)
-    add_test(NAME windows_dll_dependencies
-        COMMAND powershell -Command "Get-ChildItem ${CMAKE_BINARY_DIR}\\tests\\*.dll | ForEach-Object { Write-Host 'DLL:' $_.Name; try { [System.Reflection.Assembly]::LoadFile($_.FullName) | Out-Null; Write-Host 'Can load:' $_.Name } catch { Write-Host 'Cannot load:' $_.Name '- Error:' $_.Exception.Message } }"
-    )
-    set_tests_properties(windows_dll_dependencies PROPERTIES
-        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+        COMMAND cmd /c "dir \"${CMAKE_BINARY_DIR}/tests\""
     )
 endif()
 
