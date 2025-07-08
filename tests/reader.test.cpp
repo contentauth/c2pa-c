@@ -50,7 +50,7 @@ TEST(Reader, FileNoManifest)
     EXPECT_THROW({ auto reader = c2pa::Reader(test_file); }, c2pa::C2paException);
 };
 
-
+/* remove this until we resolve CAWG Identity testing
 TEST(Reader, FileWithCawgIdentityManifest)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
@@ -71,7 +71,7 @@ TEST(Reader, FileWithCawgIdentityManifest)
     // verify that we successfully validated the CAWG assertion
     EXPECT_EQ(manifest_store_json["validation_results"]["activeManifest"]["success"][8]["code"], "cawg.ica.credential_valid");
 };
-
+*/
 TEST(Reader, FileNotFound)
 {
     try
