@@ -21,7 +21,7 @@
 int main(void)
 {
     char *version = c2pa_version();
-    assert_contains("version", version, "c_api/0.");
+    assert_contains("version", version, "c2pa-c-ffi/0.");
 
     char *result1 = c2pa_read_file("tests/fixtures/C.jpg", NULL);
     assert_str_not_null("c2pa_read_file_no_data_dir", result1);

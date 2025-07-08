@@ -57,6 +57,33 @@ if(NOT EXISTS "${C2PA_C_LIB}")
     )
 endif()
 
+# Fix hardcoded install name on macOS
+if(APPLE)
+    find_program(INSTALL_NAME_TOOL install_name_tool REQUIRED)
+    
+    # Check current install name before fixing
+    execute_process(
+        COMMAND otool -D "${C2PA_C_LIB}"
+        OUTPUT_VARIABLE CURRENT_INSTALL_NAME
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    message(STATUS "Current install name: ${CURRENT_INSTALL_NAME}")
+    
+    # Fix the install name to use @rpath
+    execute_process(
+        COMMAND ${INSTALL_NAME_TOOL} -id "@rpath/${C2PA_LIB_NAME}" "${C2PA_C_LIB}"
+        RESULT_VARIABLE INSTALL_NAME_RESULT
+        OUTPUT_QUIET
+        ERROR_QUIET
+    )
+    
+    if(INSTALL_NAME_RESULT EQUAL 0)
+        message(STATUS "Successfully fixed install name for ${C2PA_LIB_NAME}")
+    else()
+        message(WARNING "Failed to fix install name for ${C2PA_LIB_NAME} (result: ${INSTALL_NAME_RESULT})")
+    endif()
+endif()
+
 # Define the C++ library and add sources
 add_library(c2pa_cpp STATIC c2pa.cpp)
 target_compile_options(c2pa_cpp PRIVATE
