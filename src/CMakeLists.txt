@@ -128,15 +128,16 @@ install(TARGETS c2pa_cpp
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
 )
+install(FILES ${CMAKE_SOURCE_DIR}/include/c2pa.hpp DESTINATION include)
 
-# Install the export set (for build-tree and install-tree usage)
+# Install the export set (for build-tree and install-tree usage) - added from main
 install(EXPORT c2pa_cppTargets
     FILE c2pa_cppTargets.cmake
     NAMESPACE c2pa_cpp::
     DESTINATION lib/cmake/c2pa_cpp
 )
 
-install(FILES ${CMAKE_SOURCE_DIR}/include/c2pa.hpp DESTINATION include)
+# Install prebuilt headers and libraries - added from main
 install(DIRECTORY "${c2pa_prebuilt_SOURCE_DIR}/include/"
     DESTINATION include
     FILES_MATCHING PATTERN "*.h"
@@ -147,12 +148,12 @@ elseif(UNIX)
     install(FILES "${C2PA_C_LIB}" DESTINATION lib)
 endif()
 if(WIN32)
-install(FILES
-    "${C2PA_C_LIB}"
-    DESTINATION bin
-)
-install(FILES
-    "${c2pa_prebuilt_SOURCE_DIR}/lib/${C2PA_IMPLIB_NAME}"
-    DESTINATION lib
-)
+    install(FILES
+        "${C2PA_C_LIB}"
+        DESTINATION bin
+    )
+    install(FILES
+        "${c2pa_prebuilt_SOURCE_DIR}/lib/${C2PA_IMPLIB_NAME}"
+        DESTINATION lib
+    )
 endif()

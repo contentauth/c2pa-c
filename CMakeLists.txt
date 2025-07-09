@@ -14,7 +14,7 @@
 cmake_minimum_required(VERSION 3.27)
 
 # This is the version of this C++ project
-project(c2pa-c VERSION 0.7.0)
+project(c2pa-c VERSION 0.8.0)
 
 # Set the version of the c2pa_rs library used here
 set(C2PA_VERSION "0.57.0")
@@ -42,7 +42,7 @@ else()
     add_compile_options(-Wall -Wextra -Werror)
 endif()
 
-enable_testing() 
+enable_testing()
 
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(tests)
