@@ -21,6 +21,7 @@
 #include <string.h>
 #include <optional>   // C++17
 #include <filesystem> // C++17
+#include <system_error> // For std::system_error
 
 #include "c2pa.hpp"
 
@@ -536,7 +537,9 @@ namespace c2pa
         std::ifstream file_stream(source_path, std::ios_base::binary);
         if (!file_stream.is_open())
         {
-            throw C2paException("Failed to open file: " + source_path.string() + " - " + std::strerror(errno));
+            // Use std::system_error for cross-platform error handling
+            throw C2paException("Failed to open file: " + source_path.string() + " - " + 
+                               std::system_error(errno, std::system_category()).what());
         }
         string extension = source_path.extension().string();
         if (!extension.empty())
@@ -586,8 +589,8 @@ namespace c2pa
 
     int64_t Reader::get_resource(const string &uri, std::ostream &stream)
     {
-        CppOStream cpp_stream(stream);
-        int64_t result = c2pa_reader_resource_to_stream(c2pa_reader, uri.c_str(), cpp_stream.c_stream);
+        CppOStream output_stream(stream);
+        int64_t result = c2pa_reader_resource_to_stream(c2pa_reader, uri.c_str(), output_stream.c_stream);
         if (result < 0)
         {
             throw C2paException();

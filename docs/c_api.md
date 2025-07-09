@@ -41,10 +41,10 @@ string private_key = read_text_file("path/to/private.key").data();
 Then create a new `SignerInfo` instance using the keys, specifying the signing algorithm in the `.alg` field and optionally a time stamp authority URL in the `.ta_url` field:
 
 ```cpp
-C2paSignerInfo sign_info = {.alg = "es256", 
-                            .sign_cert = certs.c_str(), 
-                            .private_key = private_key.c_str(), 
-                            .ta_url = "http://timestamp.digicert.com"};
+C2paSignerInfo sign_info = {"es256", 
+                            certs.c_str(), 
+                            private_key.c_str(), 
+                            "http://timestamp.digicert.com"};
 ```
 
 For the list of supported signing algorithms, see [Creating and using an X.509 certificate](https://opensource.contentauthenticity.org/docs/c2patool/x_509).
