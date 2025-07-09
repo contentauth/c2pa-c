@@ -105,12 +105,6 @@ if(UNIX AND NOT WIN32)
     )
 endif()
 
-# On Windows, add a debug test to check dependencies
-if(WIN32)
-    add_test(NAME cpp_tests_check_deps_windows
-        COMMAND cmd /c "dir")
-endif()
-
 # C tests
 add_executable(ctest test.c)
 if(WIN32)
