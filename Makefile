@@ -1,23 +1,27 @@
 OS := $(shell uname)
 
+# Build directories
 BUILD_DIR = build
 DEBUG_BUILD_DIR = build/debug
 RELEASE_BUILD_DIR = build/release
 
-# Default debug build
-cmake:
+# Default target
+all: test examples
+
+# Debug build
+debug:
 	cmake -S . -B $(DEBUG_BUILD_DIR) -G "Ninja" -DCMAKE_BUILD_TYPE=Debug
 	cmake --build $(DEBUG_BUILD_DIR)
 
-# Debug build (explicit)
-debug: 
-	cmake -S . -B $(DEBUG_BUILD_DIR) -G "Ninja" -DCMAKE_BUILD_TYPE=Debug
-	cmake --build $(DEBUG_BUILD_DIR)
-
-# Release build with separate directory
-release: 
+# Release build
+release:
 	cmake -S . -B $(RELEASE_BUILD_DIR) -G "Ninja" -DCMAKE_BUILD_TYPE=Release
 	cmake --build $(RELEASE_BUILD_DIR)
+
+# Legacy cmake target (uses release build)
+cmake: release
+
+# Test targets
 
 test: debug
 	cd $(DEBUG_BUILD_DIR) && ctest --output-on-failure
@@ -43,8 +47,6 @@ training-release: release
 
 examples: training demo
 
-all: test examples
-
 clean:
 	rm -rf $(BUILD_DIR)
 
@@ -54,3 +56,4 @@ clean-debug:
 clean-release:
 	rm -rf $(RELEASE_BUILD_DIR)
 
+.PHONY: all debug release cmake test test-release demo training examples clean

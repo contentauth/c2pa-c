@@ -29,7 +29,7 @@ int main(void)
     remove("build/thumb_c.jpg");
 
     char *version = c2pa_version();
-    assert_contains("version", version, "c_api/0.");
+    assert_contains("version", version, "c2pa-c-ffi/0.");
 
     char *result1 = c2pa_read_file("tests/fixtures/C.jpg", NULL);
     assert_str_not_null("c2pa_read_file_no_data_dir", result1);
@@ -76,15 +76,17 @@ int main(void)
 
     char *manifest = load_file("tests/fixtures/training.json");
 
-    // create a sign_info struct
-    C2paSignerInfo sign_info = {.alg = "es256", .sign_cert = certs, .private_key = private_key, .ta_url = "http://timestamp.digicert.com"};
+    // create a sign_info struct (using positional initialization to avoid designated initializers)
+    C2paSignerInfo sign_info = {"es256", certs, private_key, "http://timestamp.digicert.com"};
 
     result = c2pa_sign_file("tests/fixtures/C.jpg", "build/tmp/earth1.jpg", manifest, &sign_info, "tests/fixtures");
     assert_not_null("c2pa_sign_file_ok", result);
 
+
     result = c2pa_sign_file("tests/fixtures/foo.jpg", "build/tmp/earth2.jpg", manifest, &sign_info, "tests/fixtures");
     assert_null("c2pa_sign_file_not_found", result, "FileNotFound");
 
+    remove("build/tmp/earth1.pem");
     result = c2pa_sign_file("tests/fixtures/es256_certs.pem", "build/tmp/earth1.pem", manifest, &sign_info, "tests/fixtures");
     assert_null("c2pa_sign_file_not_supported", result, "NotSupported");
 

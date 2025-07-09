@@ -214,6 +214,14 @@ TEST(Builder, SignDataHashedEmbedded)
     };
 }
 
+TEST(Builder, supported_mime_types_returns_types) {
+  auto supported_types = c2pa::Builder::supported_mime_types();
+  auto begin = supported_types.begin();
+  auto end = supported_types.end();
+  EXPECT_TRUE(std::find(begin, end, "image/jpeg") != end);
+  EXPECT_TRUE(std::find(begin, end, "application/c2pa") != end);
+}
+
 TEST(Builder, SignDataHashedEmbeddedWithAsset)
 {
     try
