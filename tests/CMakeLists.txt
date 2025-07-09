@@ -88,8 +88,8 @@ endif()
 # For better reliability, especially on Linux, manually add tests instead of auto-discovery
 # This avoids the working directory and library path issues during discovery
 if(WIN32)
-    # On Windows, use cmd /c to run the test executable
-    add_test(NAME cpp_tests COMMAND cmd /c "${CMAKE_BINARY_DIR}/tests/c2pa_c_tests.exe")
+    # On Windows, just run the test executable directly - CTest handles it properly
+    add_test(NAME cpp_tests COMMAND c2pa_c_tests.exe)
 else()
     add_test(NAME cpp_tests COMMAND c2pa_c_tests)
 endif()
@@ -108,8 +108,7 @@ endif()
 # On Windows, add a debug test to check dependencies
 if(WIN32)
     add_test(NAME cpp_tests_check_deps_windows
-        COMMAND cmd /c "dir \"${CMAKE_BINARY_DIR}/tests\""
-    )
+        COMMAND cmd /c "dir")
 endif()
 
 # C tests
