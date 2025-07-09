@@ -1,0 +1,161 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+        - auto
+        - patch
+        - minor
+        - major
+      custom_version:
+        description: 'Custom version (optional, overrides version_type)'
+        required: false
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Determine version bump
+      id: version
+      run: |
+        # Get current version from CMakeLists.txt
+        CURRENT_VERSION=$(grep "project(c2pa-c VERSION" CMakeLists.txt | sed -n 's/.*VERSION \([0-9.]*\).*/\1/p')
+        echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        
+        # Determine bump type based on trigger
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          # Manual trigger
+          if [ -n "${{ github.event.inputs.custom_version }}" ]; then
+            NEW_VERSION="${{ github.event.inputs.custom_version }}"
+            BUMP="custom"
+          else
+            MANUAL_BUMP="${{ github.event.inputs.version_type }}"
+            if [ "$MANUAL_BUMP" = "auto" ]; then
+              # Auto-detect from recent commits
+              COMMITS=$(git log HEAD~5..HEAD --oneline)
+              if echo "$COMMITS" | grep -qE "^[a-f0-9]+ (feat!|BREAKING CHANGE)"; then
+                BUMP="major"
+              elif echo "$COMMITS" | grep -qE "^[a-f0-9]+ feat"; then
+                BUMP="minor"
+              elif echo "$COMMITS" | grep -qE "^[a-f0-9]+ (fix|chore|docs)"; then
+                BUMP="patch"
+              else
+                BUMP="patch"  # Default for manual
+              fi
+            else
+              BUMP="$MANUAL_BUMP"
+            fi
+          fi
+        else
+          # Automatic trigger from push
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          COMMITS=$(git log $LAST_TAG..HEAD --oneline)
+          
+          if echo "$COMMITS" | grep -qE "^[a-f0-9]+ (feat!|BREAKING CHANGE)"; then
+            BUMP="major"
+          elif echo "$COMMITS" | grep -qE "^[a-f0-9]+ feat"; then
+            BUMP="minor"
+          elif echo "$COMMITS" | grep -qE "^[a-f0-9]+ (fix|chore|docs)"; then
+            BUMP="patch"
+          else
+            echo "No version bump needed"
+            exit 0
+          fi
+        fi
+        
+        # Calculate new version if not custom
+        if [ "$BUMP" != "custom" ]; then
+          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+          case $BUMP in
+            major) NEW_VERSION="$((major + 1)).0.0" ;;
+            minor) NEW_VERSION="$major.$((minor + 1)).0" ;;
+            patch) NEW_VERSION="$major.$minor.$((patch + 1))" ;;
+          esac
+        fi
+        
+        echo "bump_type=$BUMP" >> $GITHUB_OUTPUT
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "Version bump: $CURRENT_VERSION -> $NEW_VERSION ($BUMP)"
+
+    - name: Update version in CMakeLists.txt
+      if: steps.version.outputs.new_version != ''
+      run: |
+        NEW_VERSION=${{ steps.version.outputs.new_version }}
+        sed -i "s/project(c2pa-c VERSION [0-9.]*)/project(c2pa-c VERSION $NEW_VERSION)/" CMakeLists.txt
+        echo "Updated version to $NEW_VERSION"
+
+    - name: Install dependencies
+      if: steps.version.outputs.new_version != ''
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build
+
+    - name: Run tests
+      if: steps.version.outputs.new_version != ''
+      run: |
+        echo "Running tests before release..."
+        make test          # Debug build and test
+        make test-release  # Release build and test
+        echo "✅ All tests passed!"
+
+    - name: Commit version bump
+      if: steps.version.outputs.new_version != ''
+      run: |
+        NEW_VERSION=${{ steps.version.outputs.new_version }}
+        
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add CMakeLists.txt
+        git commit -m "chore(release): $NEW_VERSION [skip ci]"
+        git push
+
+    - name: Create tag and release
+      if: steps.version.outputs.new_version != ''
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        NEW_VERSION=${{ steps.version.outputs.new_version }}
+        
+        # Create and push tag
+        git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
+        git push origin "v$NEW_VERSION"
+        
+        # Generate release notes
+        LAST_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+        if [ -n "$LAST_TAG" ]; then
+          COMMITS=$(git log $LAST_TAG..HEAD --oneline --no-merges)
+          COMPARE_URL="https://github.com/${{ github.repository }}/compare/$LAST_TAG...v$NEW_VERSION"
+        else
+          COMMITS=$(git log --oneline --no-merges -10)
+          COMPARE_URL="https://github.com/${{ github.repository }}/commits/main"
+        fi
+        
+        # Create release
+        cat > release_notes.md << EOF
+        ## What's Changed
+        
+        $COMMITS
+        
+        **Full Changelog**: $COMPARE_URL
+        EOF
+        
+        gh release create "v$NEW_VERSION" \
+          --title "Release v$NEW_VERSION" \
+          --notes-file release_notes.md
