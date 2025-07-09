@@ -120,11 +120,15 @@ if(WIN32)
     
     # Add MSVC-specific compile options for C code to handle prebuilt library issues
     if(MSVC)
+        # The prebuilt library has empty structs which are invalid in C but valid in C++
+        # Compile as C++ to work around this prebuilt library limitation
+        set_target_properties(ctest PROPERTIES 
+            COMPILE_OPTIONS "/TP"  # Force compile as C++
+        )
         target_compile_options(ctest PRIVATE
             /wd4996  # Disable deprecated function warnings (strerror, strncpy, etc.)
             /wd4244  # Disable type conversion warnings  
             /wd4267  # Disable size_t conversion warnings
-            /wd2016  # Disable "C requires struct to have at least one member" error
         )
     endif()
 else()
