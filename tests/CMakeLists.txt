@@ -124,6 +124,8 @@ if(WIN32)
         # Compile as C++ to work around this prebuilt library limitation
         set_target_properties(ctest PROPERTIES 
             COMPILE_OPTIONS "/TP"  # Force compile as C++
+            CXX_STANDARD 20       # Use C++20 for designated initializers
+            CXX_STANDARD_REQUIRED ON
         )
         target_compile_options(ctest PRIVATE
             /wd4996  # Disable deprecated function warnings (strerror, strncpy, etc.)

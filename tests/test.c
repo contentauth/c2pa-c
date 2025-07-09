@@ -68,8 +68,8 @@ int main(void)
 
     char *manifest = load_file("tests/fixtures/training.json");
 
-    // create a sign_info struct
-    C2paSignerInfo sign_info = {.alg = "es256", .sign_cert = certs, .private_key = private_key, .ta_url = "http://timestamp.digicert.com"};
+    // create a sign_info struct (using positional initialization to avoid designated initializers)
+    C2paSignerInfo sign_info = {"es256", certs, private_key, "http://timestamp.digicert.com"};
 
     // Remove the file if it exists
     remove("build/tmp/earth.jpg");
