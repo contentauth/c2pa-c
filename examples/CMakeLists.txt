@@ -12,3 +12,6 @@ target_link_libraries(training PRIVATE nlohmann_json::nlohmann_json c2pa_cpp)
 
 add_executable(demo demo.cpp)
 target_link_libraries(demo PRIVATE nlohmann_json::nlohmann_json c2pa_cpp)
+
+add_executable(ingredient_folder ingredient_folder.cpp)
+target_link_libraries(ingredient_folder PRIVATE nlohmann_json::nlohmann_json c2pa_cpp)
