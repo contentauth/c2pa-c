@@ -70,6 +70,52 @@ TEST(Builder, SignFile)
     };
 };
 
+
+class SimplePathSignTest : public ::testing::TestWithParam<std::string> {};
+INSTANTIATE_TEST_SUITE_P(
+    BuilderSignCallToVerifyMiscFileTypes,
+    SimplePathSignTest,
+    ::testing::Values(
+        "A.jpg",
+        "C.jpg",
+        "C_with_CAWG_data.jpg",
+        "sample1.gif",
+        "sample1.mp3",
+        "sample1.wav",
+        "sample1.webp",
+        "sample2.svg",
+        "video1.mp4"
+        )
+);
+TEST_P(SimplePathSignTest, SignsFileTypes) {
+  fs::path current_dir = fs::path(__FILE__).parent_path();
+
+  // Construct the paths relative to the current directory
+  fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+  fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+  fs::path asset_path = current_dir / "../tests/fixtures" / SimplePathSignTest::GetParam();
+
+  fs::path output_path = current_dir / "../build/example" / SimplePathSignTest::GetParam();
+  std::filesystem::remove(output_path.c_str()); // remove the file if it exists
+
+  auto manifest = read_text_file(manifest_path);
+  auto certs = read_text_file(certs_path);
+  auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+  // create a signer
+  auto signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+  auto builder = c2pa::Builder(manifest);
+
+  std::vector<unsigned char> manifest_data;
+  ASSERT_NO_THROW(manifest_data = builder.sign(asset_path, output_path, signer));
+  ASSERT_FALSE(manifest_data.empty());
+
+  ASSERT_TRUE(std::filesystem::exists(output_path));
+
+  auto reader = c2pa::Reader(output_path);
+  ASSERT_NO_THROW(reader.json());
+}
+
 TEST(Builder, SignStream)
 {
     try
