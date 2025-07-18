@@ -302,8 +302,18 @@ namespace c2pa
         /// @param dest The output stream to write the signed data to.
         /// @param signer
         /// @return A vector containing the signed manifest bytes.
-        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library
+        /// @deprecated Use `sign(const string&, istream&, iostream&, Signer&)`
         std::vector<unsigned char> sign(const string &format, istream &source, ostream &dest, Signer &signer);
+
+        /// @brief Sign an input stream and write the signed data to an output stream.
+        /// @param format The format of the output stream.
+        /// @param source The input stream to sign.
+        /// @param dest The in/output stream to write the signed data to.
+        /// @param signer
+        /// @return A vector containing the signed manifest bytes.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        std::vector<unsigned char> sign(const string &format, istream &source, iostream &dest, Signer &signer);
 
         /// @brief Sign a file and write the signed data to an output file.
         /// @param source_path The path to the file to sign.

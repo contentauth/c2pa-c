@@ -722,8 +722,24 @@ namespace c2pa
 
     std::vector<unsigned char> Builder::sign(const string &format, istream &source, ostream &dest, Signer &signer)
     {
-        CppIStream c_source = CppIStream(source);
-        CppOStream c_dest = CppOStream(dest);
+        CppIStream c_source(source);
+        CppOStream c_dest(dest);
+        const unsigned char *c2pa_manifest_bytes = NULL;
+        auto result = c2pa_builder_sign(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, signer.c2pa_signer(), &c2pa_manifest_bytes);
+        if (result < 0 || c2pa_manifest_bytes == NULL)
+        {
+          throw C2paException();
+        }
+
+        auto manifest_bytes = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
+        c2pa_manifest_bytes_free(c2pa_manifest_bytes);
+        return manifest_bytes;
+    }
+
+    std::vector<unsigned char> Builder::sign(const string &format, istream &source, iostream &dest, Signer &signer)
+    {
+        CppIStream c_source(source);
+        CppIOStream c_dest(dest);
         const unsigned char *c2pa_manifest_bytes = NULL;
         auto result = c2pa_builder_sign(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, signer.c2pa_signer(), &c2pa_manifest_bytes);
         if (result < 0 || c2pa_manifest_bytes == NULL)
@@ -755,7 +771,11 @@ namespace c2pa
         {
             std::filesystem::create_directories(dest_dir);
         }
-        std::ofstream dest(dest_path, std::ios_base::binary);
+
+        std::fstream dest(dest_path,
+                          std::ios_base::binary | std::ios_base::trunc |
+                              std::ios_base::in | std::ios_base::out);
+
         if (!dest.is_open())
         {
             throw std::runtime_error("Failed to open destination file: " + dest_path.string());
