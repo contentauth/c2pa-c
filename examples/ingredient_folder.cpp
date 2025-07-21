@@ -80,9 +80,9 @@ int main()
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path = current_dir / "../build/example/training.jpg";
-    fs::path thumbnail_path = current_dir / "../build/example/thumbnail.jpg";
-
-    fs::path ingredient_path = current_dir / "../tests/fixtures/ingredient_c";
+    fs::path archive_path = current_dir / "../build/example/builder.archive";
+    fs::path ingredient_folder_path = current_dir / "../tests/fixtures/ingredient_c";
+    
     std::stringstream empty_stream; 
     try
     {
@@ -90,7 +90,7 @@ int main()
         json manifest_json = json::parse(read_text_file(manifest_path).data());
         string certs = read_text_file(certs_path).data();
         string p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key").data();
-        string ingredient_json = read_text_file(ingredient_path / "ingredient.json");
+        string ingredient_json = read_text_file(ingredient_folder_path / "ingredient.json");
         manifest_json["ingredients"].push_back(json::parse(ingredient_json));
         // create a signer
         Signer signer = Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -99,23 +99,14 @@ int main()
                 
         json ing_json = json::parse(ingredient_json);
 
-        //TODO: This can be replaced with just setting the base_path
-        if (ing_json.contains("manifest_data")) {
-            string identifier = ing_json["manifest_data"]["identifier"];
-            ifstream manifest(ingredient_path / identifier);
-            builder.add_resource(identifier, manifest);
-        }
+        // Set base path to ingredient folder
+        builder.set_base_path(ingredient_folder_path);
 
-        if (ing_json.contains("thumbnail")) {
-            string identifier = ing_json["thumbnail"]["identifier"];
-            identifier = uri_to_path(identifier, "unknown");
-            ifstream thumbnail(ingredient_path / identifier);
-            builder.add_resource(identifier, thumbnail);
-        }
+        // Archive builder
+        builder.to_archive(archive_path);
 
-        builder.to_archive(ingredient_path / "test.archive");
-
-        auto builder_from = builder.from_archive(ingredient_path / "test.archive");
+        // Restore builder from archive
+        auto builder_from = builder.from_archive(archive_path);
 
         auto manifest_data = builder_from.sign(image_path, output_path, signer);
         // read the new manifest and display the JSON
@@ -123,20 +114,6 @@ int main()
 
         auto manifest_store_json = reader.json();
         cout << "The new manifest is " << manifest_store_json << endl;
-
-        // get the active manifest
-        json manifest_store = json::parse(manifest_store_json);
-        if (manifest_store.contains("active_manifest"))
-        {
-            string active_manifest = manifest_store["active_manifest"];
-            json &manifest = manifest_store["manifests"][active_manifest];
-
-            string identifer = manifest["ingredients"][0]["thumbnail"]["identifier"];
-
-            reader.get_resource(identifer, thumbnail_path);
-
-            cout << "thumbnail written to" << thumbnail_path << endl;
-        }
     }
     catch (c2pa::C2paException const &e)
     {

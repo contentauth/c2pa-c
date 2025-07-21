@@ -647,6 +647,14 @@ namespace c2pa
         }
     }
 
+    void Builder::set_base_path(const string &base_path)
+    {
+        int result = c2pa_builder_set_base_path(builder, base_path.c_str());
+        if (result < 0) {
+            throw C2paException();
+        }
+    }
+
     void Builder::add_resource(const string &uri, istream &source)
     {
         CppIStream c_source = CppIStream(source);
