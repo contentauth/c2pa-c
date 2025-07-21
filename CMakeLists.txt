@@ -14,7 +14,7 @@
 cmake_minimum_required(VERSION 3.27)
 
 # This is the version of this C++ project
-project(c2pa-c VERSION 0.7.0)
+project(c2pa-c VERSION 0.8.0)
 
 # Set the version of the c2pa_rs library used here
 set(C2PA_VERSION "0.58.0")
@@ -24,9 +24,25 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "13.3")
 
-add_compile_options(-Wall -Wextra -Werror)
+# Set RPATH settings for shared library discovery
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+# Disable automatic RPATH from link paths since we copy libraries to executable directories
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
 
-enable_testing() 
+# Note: We don't set CMAKE_BUILD_RPATH to the prebuilt directory
+# because we copy libraries to each executable's directory instead
+
+# Set compiler-specific warning flags
+if(MSVC)
+    # MSVC warning flags
+    add_compile_options(/W4 /WX)
+else()
+    # GCC/Clang warning flags
+    add_compile_options(-Wall -Wextra -Werror)
+endif()
+
+enable_testing()
 
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(tests)

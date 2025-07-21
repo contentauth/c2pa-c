@@ -1,0 +1,51 @@
+# Lightweight multi-stage Dockerfile for testing C2PA-C on Linux
+FROM alpine:3.19 AS builder
+
+# Install build dependencies including newer CMake
+RUN apk add --no-cache \
+    build-base \
+    cmake \
+    ninja \
+    git \
+    curl \
+    pkgconfig \
+    wget \
+    ca-certificates \
+    && rm -rf /var/cache/apk/*
+
+# Verify CMake version
+RUN cmake --version
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy source code
+COPY . .
+
+# Build and test
+RUN make clean && make test && make test-release && make examples
+
+# Runtime stage for testing
+FROM alpine:3.19 AS runtime
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    libc6-compat \
+    libgcc \
+    libstdc++ \
+    && rm -rf /var/cache/apk/*
+
+WORKDIR /workspace
+
+# Copy built artifacts
+COPY --from=builder /workspace/build /workspace/build
+COPY --from=builder /workspace/tests /workspace/tests
+COPY --from=builder /workspace/examples /workspace/examples
+
+# Test that executables can run
+RUN echo "Testing executables can run..." && \
+    /workspace/build/debug/tests/ctest && \
+    /workspace/build/release/tests/ctest && \
+    echo "All tests completed successfully!"
+
+CMD ["/bin/bash"]

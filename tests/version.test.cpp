@@ -15,5 +15,8 @@
 
 TEST(Version, VersionReturnsInCorrectFormat) {
   auto version = c2pa::version();
-  ASSERT_TRUE(version.find("c_api/0.") != std::string::npos);
+  // Check that the version string is not empty and follows the expected format
+  // print the version for debugging purposes
+  ASSERT_FALSE(version.empty());
+  ASSERT_TRUE(version.find("c2pa-c-ffi/0.") != std::string::npos);
 }

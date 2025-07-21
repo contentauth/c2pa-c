@@ -7,6 +7,16 @@
     }
   ],
   "assertions": [
+    { "label": "c2pa.actions",
+      "data": {
+        "actions": [
+          {
+            "action": "c2pa.created",
+            "digitalSourceType": "http://c2pa.org/digitalsourcetype/empty"
+          }
+        ]
+      }
+    },
     {
       "label": "cawg.training-mining",
       "data": {
