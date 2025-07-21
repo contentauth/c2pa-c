@@ -577,6 +577,20 @@ namespace c2pa
         return str;
     }
 
+    [[nodiscard]] std::optional<std::string> Reader::remote_url() const {
+        auto url = c2pa_reader_remote_url(c2pa_reader);
+        if (url == nullptr) { return nullopt; }
+        std::string url_str(url);
+        // The C2PA library returns a `const char*` that needs to be released.
+        // The underlying `char*` is mutable; however, to indicate the value
+        // shouldn't be modified, it's returned as a const char*.
+        //
+        // TODO: Revisit after determining how we want c2pa-rs to handle
+        //       strings that shouldn't be modified by our bindings.
+        c2pa_release_string(const_cast<char *>(url));
+        return url_str;
+    }
+
     int64_t Reader::get_resource(const string &uri, const std::filesystem::path &path)
     {
         std::ofstream file_stream(path, std::ios_base::binary);

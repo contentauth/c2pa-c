@@ -184,6 +184,17 @@ namespace c2pa
         Reader(const std::filesystem::path &source_path);
         ~Reader();
 
+        /// @brief Returns if the reader was created from an embedded manifest.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        [[nodiscard]] inline bool is_embedded() const {
+            return c2pa_reader_is_embedded(c2pa_reader);
+        }
+
+        /// @brief Returns the remote url of the manifest if this `Reader`
+        ///        obtained the manifest remotely.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        [[nodiscard]] std::optional<std::string> remote_url() const;
+
         /// @brief Get the manifest as a json string.
         /// @return The manifest as a json string.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
