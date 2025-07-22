@@ -55,6 +55,34 @@ TEST(Reader, FileNoManifest)
     EXPECT_THROW({ auto reader = c2pa::Reader(test_file); }, c2pa::C2paException);
 };
 
+class RemoteUrlTests
+    : public ::testing::TestWithParam<std::tuple<std::string, bool>> {
+public:
+  static c2pa::Reader reader_from_fixture(const std::string &file_name) {
+      auto current_dir = fs::path(__FILE__).parent_path();
+      auto fixture = current_dir / "../tests/fixtures" / file_name;
+      return {fixture};
+  }
+};
+
+INSTANTIATE_TEST_SUITE_P(ReaderRemoteUrlTests, RemoteUrlTests,
+                         ::testing::Values(
+                             // (fixture filename, is_remote_manifest)
+                             std::make_tuple("cloud.jpg", true),
+                             std::make_tuple("C_with_CAWG_data.jpg", false)));
+
+TEST_P(RemoteUrlTests, RemoteUrl) {
+    auto reader = reader_from_fixture(std::get<0>(GetParam()));
+    auto expected_is_remote = std::get<1>(GetParam());
+    EXPECT_EQ(reader.remote_url().has_value(), expected_is_remote);
+}
+
+TEST_P(RemoteUrlTests, IsEmbeddedTest) {
+    auto reader = reader_from_fixture(std::get<0>(GetParam()));
+    auto expected_is_remote = std::get<1>(GetParam());
+    EXPECT_EQ(reader.is_embedded(), !expected_is_remote);
+}
+
 /* remove this until we resolve CAWG Identity testing
 TEST(Reader, FileWithCawgIdentityManifest)
 {
