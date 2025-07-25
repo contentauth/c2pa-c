@@ -51,3 +51,7 @@ setup_c2pa_runtime_deps(training)
 add_executable(demo demo.cpp)
 target_link_libraries(demo PRIVATE nlohmann_json::nlohmann_json c2pa_cpp)
 setup_c2pa_runtime_deps(demo)
+
+add_executable(ingredient_folder ingredient_folder.cpp)
+target_link_libraries(ingredient_folder PRIVATE nlohmann_json::nlohmann_json c2pa_cpp)
+setup_c2pa_runtime_deps(ingredient_folder)
