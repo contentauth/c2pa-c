@@ -112,12 +112,12 @@ namespace c2pa
     }
 
     /// Loads C2PA settings from a string in a given format.
-    /// @param format the mime format of the string.
     /// @param data the string to load.
+    /// @param format the mime format of the string.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    void load_settings(const string &format, const string &data)
+    void load_settings(const string &data, const string &format)
     {
-        auto result = c2pa_load_settings(format.c_str(), data.c_str());
+        auto result = c2pa_load_settings(data.c_str(), format.c_str());
         if (result != 0)
         {
             throw c2pa::C2paException();
@@ -538,7 +538,7 @@ namespace c2pa
         if (!file_stream.is_open())
         {
             // Use std::system_error for cross-platform error handling
-            throw C2paException("Failed to open file: " + source_path.string() + " - " + 
+            throw C2paException("Failed to open file: " + source_path.string() + " - " +
                                std::system_error(errno, std::system_category()).what());
         }
         string extension = source_path.extension().string();

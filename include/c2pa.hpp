@@ -70,10 +70,10 @@ namespace c2pa
     string C2PA_CPP_API version();
 
     /// Loads C2PA settings from a string in a given format.
-    /// @param format the mime format of the string.
     /// @param data the string to load.
+    /// @param format the mime format of the string.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    void C2PA_CPP_API load_settings(const string& format, const string& data);
+    void C2PA_CPP_API load_settings(const string& data, const string& format);
 
     /// Reads a file and returns the manifest json as a C2pa::String.
     /// @param source_path the path to the file to read.
