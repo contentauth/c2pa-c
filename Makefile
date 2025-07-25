@@ -22,18 +22,26 @@ release:
 cmake: release
 
 # Test targets
+
 test: debug
 	cd $(DEBUG_BUILD_DIR) && ctest --output-on-failure
 
 test-release: release
 	cd $(RELEASE_BUILD_DIR) && ctest --output-on-failure
 
-# Demo targets
-demo: release
+demo: debug
+	cmake --build $(DEBUG_BUILD_DIR) --target demo
+	$(DEBUG_BUILD_DIR)/examples/demo
+
+demo-release: release
 	cmake --build $(RELEASE_BUILD_DIR) --target demo
 	$(RELEASE_BUILD_DIR)/examples/demo
 
-training: release
+training: debug
+	cmake --build $(DEBUG_BUILD_DIR) --target training
+	$(DEBUG_BUILD_DIR)/examples/training
+
+training-release: release
 	cmake --build $(RELEASE_BUILD_DIR) --target training
 	$(RELEASE_BUILD_DIR)/examples/training
 
@@ -42,5 +50,10 @@ examples: training demo
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all debug release cmake test test-release demo training examples clean
+clean-debug:
+	rm -rf $(DEBUG_BUILD_DIR)
 
+clean-release:
+	rm -rf $(RELEASE_BUILD_DIR)
+
+.PHONY: all debug release cmake test test-release demo training examples clean
