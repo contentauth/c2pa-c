@@ -37,6 +37,10 @@ training: release
 	cmake --build $(RELEASE_BUILD_DIR) --target training
 	$(RELEASE_BUILD_DIR)/examples/training
 
+ingredient_folder: cmake
+	cmake --build $(BUILD_DIR) --target ingredient_folder
+	$(BUILD_DIR)/examples/ingredient_folder
+
 examples: training demo
 
 clean:
