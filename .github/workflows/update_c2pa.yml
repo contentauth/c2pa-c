@@ -18,6 +18,22 @@ jobs:
       run: |
         version="${{ github.event.inputs.c2pa_version }}"
         sed -i "s/set(C2PA_VERSION \".*\")/set(C2PA_VERSION \"${version}\")/" CMakeLists.txt
+        echo "Updated C2PA_VERSION to $version"
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build
+
+    - name: Test with new c2pa-rs version
+      run: |
+        echo "Testing with c2pa-rs version ${{ github.event.inputs.c2pa_version }}..."
+        
+        # Test using our Makefile targets
+        make test          # Debug build and test
+        make test-release  # Release build and test
+        
+        echo "✅ All tests passed with c2pa-rs ${{ github.event.inputs.c2pa_version }}"
 
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v6
@@ -27,3 +43,7 @@ jobs:
         title: "Bump C2PA_VERSION to ${{ github.event.inputs.c2pa_version }}"
         body: |
           This PR updates C2PA_VERSION in CMakeLists.txt to ${{ github.event.inputs.c2pa_version }}.
+          
+          ✅ **Tests Status**: All tests (debug and release builds) have passed with the new c2pa-rs version.
+          
+          The new version should be compatible and ready for integration.

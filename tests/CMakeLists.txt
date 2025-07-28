@@ -19,22 +19,6 @@ function(setup_c2pa_runtime_deps target_name)
             COMMAND ${CMAKE_COMMAND} -E echo "Copied ${C2PA_C_LIB} to $<TARGET_FILE_DIR:${target_name}>"
             COMMENT "Copying c2pa_c library to ${target_name} directory"
         )
-        
-        # On Windows, copy all DLLs from the prebuilt lib directory
-        if(WIN32)
-            add_custom_command(TARGET ${target_name} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E echo "=== Windows DLL Debug Info for ${target_name} ==="
-                COMMAND ${CMAKE_COMMAND} -E echo "Listing prebuilt lib directory contents:"
-                COMMAND ${CMAKE_COMMAND} -E echo "Skipping directory listing due to Windows path issues"
-                COMMAND ${CMAKE_COMMAND} -E echo "Target directory contents:"
-                COMMAND cmd /c "dir \"$<TARGET_FILE_DIR:${target_name}>\"" || echo "Failed to list target directory"
-                COMMENT "Windows DLL debugging for ${target_name}"
-            )
-        else()
-            add_custom_command(TARGET ${target_name} POST_BUILD
-                COMMAND ls -la $<TARGET_FILE_DIR:${target_name}> || echo "Failed to list directory"
-            )
-        endif()
     endif()
     
     # On Linux, set RPATH to look in the executable's directory
@@ -74,17 +58,7 @@ setup_c2pa_runtime_deps(c2pa_c_tests)
 
 include(GoogleTest)
 
-# Add debug commands to check what's happening on Linux
-if(UNIX AND NOT APPLE)
-    add_test(NAME debug_rpath_info 
-        COMMAND bash -c "echo '=== RPATH Debug Info ===' && echo 'Working dir:' && pwd && echo 'Library files in tests dir:' && ls -la ${CMAKE_BINARY_DIR}/tests/ && echo 'RPATH of c2pa_c_tests:' && readelf -d ${CMAKE_BINARY_DIR}/tests/c2pa_c_tests | grep -E '(RPATH|RUNPATH)' && echo 'RPATH of ctest:' && readelf -d ${CMAKE_BINARY_DIR}/tests/ctest | grep -E '(RPATH|RUNPATH)' && echo 'ldd output for c2pa_c_tests:' && ldd ${CMAKE_BINARY_DIR}/tests/c2pa_c_tests"
-    )
-    
-    add_test(NAME debug_library_location
-        COMMAND bash -c "echo '=== Library Location Debug ===' && echo 'Current dir:' && pwd && echo 'Contents of build/debug:' && ls -la ${CMAKE_BINARY_DIR}/ && echo 'Contents of _deps:' && ls -la ${CMAKE_BINARY_DIR}/_deps/ && echo 'Contents of prebuilt lib:' && ls -la ${CMAKE_BINARY_DIR}/_deps/c2pa_prebuilt-src/lib/ && echo 'Does the relative path exist from tests dir?' && ls -la ${CMAKE_BINARY_DIR}/tests/../_deps/c2pa_prebuilt-src/lib/"
-    )
-endif()
-
+# C++ test registration
 # For better reliability, especially on Linux, manually add tests instead of auto-discovery
 # This avoids the working directory and library path issues during discovery
 if(WIN32)

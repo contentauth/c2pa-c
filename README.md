@@ -61,18 +61,21 @@ make release
 ```
 
 The Makefile has a number of other targets; for example:
-- `unit-tests` to run C++ unit tests
-- `examples` to build and run the C++ examples.
-- `all` to run everything.
+- `debug` to build in debug mode
+- `release` to build in optimized release mode
+- `test` to run all tests (debug build)
+- `test-release` to run all tests (release build)
+- `examples` to build and run the C++ examples
+- `all` to run tests and examples
 
-Results are saved in the `build` directory.
+Results are saved in the `build/debug` and `build/release` directories.
 
 ### Testing
 
 Build the [unit tests](https://github.com/contentauth/c2pa-c/tree/main/tests) by entering this `make` command:
 
 ```
-make unit-test
+make test
 ```
 
 ## License
