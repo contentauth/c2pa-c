@@ -21,10 +21,19 @@ namespace fs = std::filesystem;
 TEST(Reader, StreamWithManifest)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+    std::cout << "Current directory: " << current_dir << std::endl;
+//    fs::path test_file = current_dir / "../tests/fixtures/CÖÄ_.jpg";
+    fs::path test_file = current_dir.parent_path().append("tests").append("fixtures").append("CÖÄ_.jpg");
+
+    std::cout << "Test file path: " << test_file << std::endl;
+
+    for (const auto& entry : fs::directory_iterator(test_file.parent_path() )) {
+      std::cout << entry.path() << std::endl;
+    }
+
     
     // read the new manifest and display the JSON
-    std::ifstream file_stream(test_file, std::ios::binary);
+    std::ifstream file_stream(test_file.wstring(), std::ios::binary);
     ASSERT_TRUE(file_stream.is_open()) << "Failed to open file: " << test_file;
     
     auto reader = c2pa::Reader("image/jpeg", file_stream);
@@ -69,7 +78,7 @@ INSTANTIATE_TEST_SUITE_P(ReaderRemoteUrlTests, RemoteUrlTests,
                          ::testing::Values(
                              // (fixture filename, is_remote_manifest)
                              std::make_tuple("cloud.jpg", true),
-                             std::make_tuple("C_with_CAWG_data.jpg", false)));
+                             std::make_tuple("CÖÄ_.jpg", false)));
 
 TEST_P(RemoteUrlTests, RemoteUrl) {
     auto reader = reader_from_fixture(std::get<0>(GetParam()));
