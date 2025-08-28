@@ -24,6 +24,10 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "13.3")
 
+if(MSVC)
+add_compile_options(/utf-8)
+endif()
+
 # Set RPATH settings for shared library discovery
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)

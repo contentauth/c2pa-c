@@ -14,20 +14,18 @@
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 #include <filesystem>
+#include <fstream>
 
 using nlohmann::json;
 namespace fs = std::filesystem;
 
-TEST(Reader, StreamWithManifest)
-{
+TEST(Reader, StreamWithManifest) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path test_file = current_dir.parent_path()
-                             .append("tests")
-                             .append("fixtures")
-                             .append("CÖÄ_.jpg");
+    fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / L"CÖÄ_.jpg";
+    ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
 
     // read the new manifest and display the JSON
-    std::ifstream file_stream(test_file.native(), std::ios::binary);
+    std::ifstream file_stream(test_file, std::ios::binary);
     ASSERT_TRUE(file_stream.is_open()) << "Failed to open file: " << test_file;
     
     auto reader = c2pa::Reader("image/jpeg", file_stream);
@@ -62,10 +60,10 @@ class RemoteUrlTests
     : public ::testing::TestWithParam<std::tuple<std::string, bool>> {
 public:
   static c2pa::Reader reader_from_fixture(const std::string &file_name) {
-      auto current_dir = fs::path(__FILE__).parent_path();
-      auto fixture = current_dir / "../tests/fixtures" / file_name;
-      auto stream = std::ifstream(fixture.native(), std::ios::binary);
-      return { "image/jpeg", stream  };
+    auto current_dir = fs::path(__FILE__).parent_path();
+    auto fixture = current_dir / "../tests/fixtures" / file_name;
+    std::ifstream stream(fixture, std::ios::binary);
+    return { "image/jpeg", stream  };
   }
 };
 
@@ -73,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(ReaderRemoteUrlTests, RemoteUrlTests,
                          ::testing::Values(
                              // (fixture filename, is_remote_manifest)
                              std::make_tuple("cloud.jpg", true),
-                             std::make_tuple("CÖÄ_.jpg", false)));
+                             std::make_tuple("C.jpg", false)));
 
 TEST_P(RemoteUrlTests, RemoteUrl) {
     auto reader = reader_from_fixture(std::get<0>(GetParam()));
@@ -85,6 +83,18 @@ TEST_P(RemoteUrlTests, IsEmbeddedTest) {
     auto reader = reader_from_fixture(std::get<0>(GetParam()));
     auto expected_is_remote = std::get<1>(GetParam());
     EXPECT_EQ(reader.is_embedded(), !expected_is_remote);
+}
+
+TEST(Reader, HasManifestUtf8Path) {
+    auto current_dir = fs::path(__FILE__).parent_path();
+    auto test_file = current_dir / "../tests/fixtures/CÖÄ_.jpg";
+    ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
+
+    std::ifstream stream(test_file, std::ios::binary);
+    auto reader = c2pa::Reader("image/jpeg", stream);
+
+    EXPECT_FALSE(reader.remote_url());
+    EXPECT_TRUE(reader.is_embedded());
 }
 
 /* remove this until we resolve CAWG Identity testing
