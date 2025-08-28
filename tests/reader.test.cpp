@@ -21,15 +21,10 @@ namespace fs = std::filesystem;
 TEST(Reader, StreamWithManifest)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
-    std::cout << "Current directory: " << current_dir << std::endl;
-//    fs::path test_file = current_dir / "../tests/fixtures/CÖÄ_.jpg";
-    fs::path test_file = current_dir.parent_path().append("tests").append("fixtures").append("CÖÄ_.jpg");
-
-    std::cout << "Test file path: " << test_file << std::endl;
-
-    for (const auto& entry : fs::directory_iterator(test_file.parent_path() )) {
-      std::cout << entry.path().native() << std::endl;
-    }
+    fs::path test_file = current_dir.parent_path()
+                             .append("tests")
+                             .append("fixtures")
+                             .append("CÖÄ_.jpg");
 
     // read the new manifest and display the JSON
     std::ifstream file_stream(test_file.native(), std::ios::binary);
@@ -69,7 +64,8 @@ public:
   static c2pa::Reader reader_from_fixture(const std::string &file_name) {
       auto current_dir = fs::path(__FILE__).parent_path();
       auto fixture = current_dir / "../tests/fixtures" / file_name;
-      return {fixture};
+      auto stream = std::ifstream(fixture.native(), std::ios::binary);
+      return { "image/jpeg", stream  };
   }
 };
 
