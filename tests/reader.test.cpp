@@ -28,12 +28,11 @@ TEST(Reader, StreamWithManifest)
     std::cout << "Test file path: " << test_file << std::endl;
 
     for (const auto& entry : fs::directory_iterator(test_file.parent_path() )) {
-      std::cout << entry.path() << std::endl;
+      std::cout << entry.path().native() << std::endl;
     }
 
-    
     // read the new manifest and display the JSON
-    std::ifstream file_stream(test_file.wstring(), std::ios::binary);
+    std::ifstream file_stream(test_file.native(), std::ios::binary);
     ASSERT_TRUE(file_stream.is_open()) << "Failed to open file: " << test_file;
     
     auto reader = c2pa::Reader("image/jpeg", file_stream);
