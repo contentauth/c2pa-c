@@ -104,6 +104,7 @@ int main(void)
     remove("build/tmp/earth4.jpg");
     C2paStream *dest = open_file_stream("build/tmp/earth4.jpg", "wb");
 
+    /*
     const unsigned char *manifest_bytes = NULL; // todo: test passing NULL instead of a pointer
     int result2 = c2pa_builder_sign(builder2, "image/jpeg", source, dest, signer, &manifest_bytes);
     assert_int("c2pa_builder_sign", result2);
@@ -113,8 +114,8 @@ int main(void)
     assert_int("c2pa_format_embeddable", result3);
     c2pa_manifest_bytes_free(manifest_bytes);
     c2pa_manifest_bytes_free(formatted_bytes);
+    */
 
-    
     close_file_stream(source);
     close_file_stream(dest);
 

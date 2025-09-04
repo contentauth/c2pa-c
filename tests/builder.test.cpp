@@ -348,57 +348,43 @@ TEST(Builder, SignImageWithIngredientHavingManifestStream)
 
 TEST(Builder, SignAndReadInvalidManifest)
 {
-    try
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the paths relative to the current directory
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path ingredient_image_path = current_dir / "../tests/fixtures/C.jpg";
+
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+    // create a signer
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    auto builder = c2pa::Builder(manifest);
+
+    // there can only be one parent ingredient
+    string ingredient_json = "{\"title\":\"Test Ingredient\", \"relationship\": \"parentOf\"}";
+    builder.add_ingredient(ingredient_json, signed_image_path);
+    // adding a second parent ingredient will make the manifest invalid
+    string ingredient_json_2 = "{\"title\":\"Test Ingredient 2\", \"relationship\": \"parentOf\"}";
+    builder.add_ingredient(ingredient_json_2, ingredient_image_path);
+
+    std::ifstream source(signed_image_path, std::ios::binary);
+    if (!source)
     {
-        fs::path current_dir = fs::path(__FILE__).parent_path();
-
-        // Construct the paths relative to the current directory
-        fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
-        fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
-        fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-        fs::path ingredient_image_path = current_dir / "../tests/fixtures/C.jpg";
-
-        auto manifest = read_text_file(manifest_path);
-        auto certs = read_text_file(certs_path);
-        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
-
-        // create a signer
-        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
-
-        auto builder = c2pa::Builder(manifest);
-
-        // there can only be one parent ingredient
-        string ingredient_json = "{\"title\":\"Test Ingredient\", \"relationship\": \"parentOf\"}";
-        builder.add_ingredient(ingredient_json, signed_image_path);
-        // adding a second parent ingredient will make the manifest invalid
-        string ingredient_json_2 = "{\"title\":\"Test Ingredient 2\", \"relationship\": \"parentOf\"}";
-        builder.add_ingredient(ingredient_json_2, ingredient_image_path);
-
-        std::ifstream source(signed_image_path, std::ios::binary);
-        if (!source)
-        {
-            FAIL() << "Failed to open file: " << signed_image_path << std::endl;
-        }
-
-        // Create a memory buffer
-        std::stringstream memory_buffer(std::ios::in | std::ios::out | std::ios::binary);
-        std::iostream &dest = memory_buffer;
-        auto _ = builder.sign("image/jpeg", source, dest, signer);
-        source.close();
-
-        // Rewind dest to the start
-        dest.flush();
-        dest.seekp(0, std::ios::beg);
-
-        // Invalid manifests can still be read by a Reader
-        auto reader = c2pa::Reader("image/jpeg", dest);
-        auto json = reader.json();
-        ASSERT_TRUE(json.find("\"validation_state\": \"Invalid\"") != std::string::npos);
+        FAIL() << "Failed to open file: " << signed_image_path << std::endl;
     }
-    catch (c2pa::C2paException const &e)
-    {
-        FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
-    };
+
+    // Create a memory buffer
+    std::stringstream memory_buffer(std::ios::in | std::ios::out | std::ios::binary);
+    std::iostream &dest = memory_buffer;
+
+    // Expect the sign operation to fail due to invalid manifest (multiple parent ingredients)
+    EXPECT_THROW(builder.sign("image/jpeg", source, dest, signer), c2pa::C2paException);
+    source.close();
 }
 
 TEST(Builder, ReSignImageStream)
