@@ -329,7 +329,6 @@ TEST(Builder, SignVideoFileWithMultipleIngredientsAndResourcesInterleaved)
 
     // create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
-
     std::filesystem::remove(output_path.c_str()); // remove the file if it exists
 
     // create the builder
