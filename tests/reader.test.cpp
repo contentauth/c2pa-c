@@ -206,3 +206,55 @@ TEST(Reader, FileNotFound)
         FAIL() << "Expected c2pa::C2paException Failed to open file";
     }
 };
+
+TEST(Reader, StreamClosed)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+    ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
+
+    // Create a stream and close it before creating the reader
+    std::ifstream file_stream(test_file, std::ios::binary);
+    ASSERT_TRUE(file_stream.is_open()) << "Failed to open file: " << test_file;
+    file_stream.close(); // Close the stream before creating reader
+
+    // Attempt to create reader with closed stream should throw exception
+    EXPECT_THROW({
+        auto reader = c2pa::Reader("image/jpeg", file_stream);
+    }, c2pa::C2paException);
+};
+
+TEST(Reader, MultipleReadersSameFile)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+    ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
+
+    // Create multiple readers from the same file
+    auto reader1 = c2pa::Reader(test_file);
+    auto reader2 = c2pa::Reader(test_file);
+    auto reader3 = c2pa::Reader(test_file);
+
+    // All readers should be able to read the manifest independently
+    auto manifest1 = reader1.json();
+    auto manifest2 = reader2.json();
+    auto manifest3 = reader3.json();
+
+    // All manifests should be identical
+    EXPECT_EQ(manifest1, manifest2);
+    EXPECT_EQ(manifest2, manifest3);
+    EXPECT_EQ(manifest1, manifest3);
+
+    // All readers should report the same embedded status
+    EXPECT_EQ(reader1.is_embedded(), reader2.is_embedded());
+    EXPECT_EQ(reader2.is_embedded(), reader3.is_embedded());
+
+    // All readers should report the same remote URL status
+    EXPECT_EQ(reader1.remote_url().has_value(), reader2.remote_url().has_value());
+    EXPECT_EQ(reader2.remote_url().has_value(), reader3.remote_url().has_value());
+
+    // Verify the manifest contains expected content
+    EXPECT_TRUE(manifest1.find("C.jpg") != std::string::npos);
+    EXPECT_TRUE(manifest2.find("C.jpg") != std::string::npos);
+    EXPECT_TRUE(manifest3.find("C.jpg") != std::string::npos);
+};
