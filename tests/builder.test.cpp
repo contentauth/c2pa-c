@@ -314,8 +314,12 @@ TEST(Builder, SignImageWithIngredientHavingManifestStream)
 
         auto builder = c2pa::Builder(manifest);
 
-        string ingredient_json = "{\"title\":\"Test Ingredient\"}";
+        // there can only be one parent ingredient
+        string ingredient_json = "{\"title\":\"Test Ingredient\", \"relationship\": \"parentOf\"}";
         builder.add_ingredient(ingredient_json, signed_image_path);
+        // other ingredients can be components
+        string ingredient_json_2 = "{\"title\":\"Test Ingredient 2\", \"relationship\": \"componentOf\"}";
+        builder.add_ingredient(ingredient_json_2, ingredient_image_path);
 
         std::ifstream source(signed_image_path, std::ios::binary);
         if (!source)
