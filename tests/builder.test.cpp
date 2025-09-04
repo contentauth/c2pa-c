@@ -39,7 +39,7 @@ TEST(Builder, supported_mime_types_returns_types) {
   EXPECT_TRUE(std::find(begin, end, "application/c2pa") != end);
 }
 
-TEST(Builder, SignFileOnly)
+TEST(Builder, SignImageFileOnly)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
@@ -48,7 +48,7 @@ TEST(Builder, SignFileOnly)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/training.jpg";
+    fs::path output_path = current_dir / "../build/example/training_image_only.jpg";
 
     try
     {
@@ -76,7 +76,7 @@ TEST(Builder, SignFileOnly)
     };
 };
 
-TEST(Builder, SignFileWithResource)
+TEST(Builder, SignImageFileWithResource)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
@@ -85,7 +85,7 @@ TEST(Builder, SignFileWithResource)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/training.jpg";
+    fs::path output_path = current_dir / "../build/example/training_resource_only.jpg";
 
     try
     {
@@ -116,7 +116,7 @@ TEST(Builder, SignFileWithResource)
     };
 };
 
-TEST(Builder, SignFileWithIngredient)
+TEST(Builder, SignImageFileWithIngredient)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
@@ -125,7 +125,7 @@ TEST(Builder, SignFileWithIngredient)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/training.jpg";
+    fs::path output_path = current_dir / "../build/example/training_ingredient_only.jpg";
 
     try
     {
@@ -158,7 +158,7 @@ TEST(Builder, SignFileWithIngredient)
     };
 };
 
-TEST(Builder, SignFileWithResourceAndIngredient)
+TEST(Builder, SignImageFileWithResourceAndIngredient)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
@@ -248,7 +248,7 @@ TEST_P(SimplePathSignTest, SignsFileTypes) {
   ASSERT_NO_THROW(reader.json());
 }
 
-TEST(Builder, SignStream)
+TEST(Builder, SignImageStream)
 {
     try
     {
