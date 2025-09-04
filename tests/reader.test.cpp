@@ -19,6 +19,12 @@
 using nlohmann::json;
 namespace fs = std::filesystem;
 
+TEST(Reader, SupportedTypes) {
+  auto supported_types = c2pa::Reader::supported_mime_types();
+  EXPECT_TRUE(std::find(supported_types.begin(), supported_types.end(), "image/jpeg") != supported_types.end());
+  EXPECT_TRUE(std::find(supported_types.begin(), supported_types.end(), "image/png") != supported_types.end());
+};
+
 TEST(Reader, StreamWithManifest) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / L"CÖÄ_.jpg";
@@ -33,11 +39,48 @@ TEST(Reader, StreamWithManifest) {
     EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
 };
 
-TEST(Reader, SupportedTypes) {
-    auto supported_types = c2pa::Reader::supported_mime_types();
-    EXPECT_TRUE(std::find(supported_types.begin(), supported_types.end(), "image/jpeg") != supported_types.end());
-    EXPECT_TRUE(std::find(supported_types.begin(), supported_types.end(), "image/png") != supported_types.end());
-}
+TEST(Reader, VideoStreamWithManifest) {
+  fs::path current_dir = fs::path(__FILE__).parent_path();
+  fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / "video1.mp4";
+  ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
+
+  // read the new manifest and display the JSON
+  std::ifstream file_stream(test_file, std::ios::binary);
+  ASSERT_TRUE(file_stream.is_open()) << "Failed to open video file: " << test_file;
+
+  auto reader = c2pa::Reader("video/mp4", file_stream);
+  auto manifest_store_json = reader.json();
+  EXPECT_TRUE(manifest_store_json.find("My Title") != std::string::npos);
+};
+
+TEST(Reader, VideoStreamWithManifestUsingExtension) {
+  fs::path current_dir = fs::path(__FILE__).parent_path();
+  fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / "video1.mp4";
+  ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
+
+  // read the new manifest and display the JSON
+  std::ifstream file_stream(test_file, std::ios::binary);
+  ASSERT_TRUE(file_stream.is_open()) << "Failed to open video file: " << test_file;
+
+  auto reader = c2pa::Reader("mp4", file_stream);
+  auto manifest_store_json = reader.json();
+  EXPECT_TRUE(manifest_store_json.find("My Title") != std::string::npos);
+};
+
+TEST(Reader, DngStreamWithManifest) {
+  fs::path current_dir = fs::path(__FILE__).parent_path();
+  fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / "C.dng";
+  ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
+
+  // read the new manifest and display the JSON
+  std::ifstream file_stream(test_file, std::ios::binary);
+  ASSERT_TRUE(file_stream.is_open()) << "Failed to open video file: " << test_file;
+
+  auto reader = c2pa::Reader("DNG", file_stream);
+  auto manifest_store_json = reader.json();
+  // C.jpg because the DNG file was created from the C.jpg file
+  EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
+};
 
 TEST(Reader, FileWithManifest)
 {
@@ -120,6 +163,7 @@ TEST(Reader, FileWithCawgIdentityManifest)
     EXPECT_EQ(manifest_store_json["validation_results"]["activeManifest"]["success"][8]["code"], "cawg.ica.credential_valid");
 };
 */
+
 TEST(Reader, FileNotFound)
 {
     try
