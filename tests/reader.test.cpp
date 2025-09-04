@@ -25,33 +25,37 @@ TEST(Reader, SupportedTypes) {
   EXPECT_TRUE(std::find(supported_types.begin(), supported_types.end(), "image/png") != supported_types.end());
 };
 
-TEST(Reader, ImageStreamWithManifest) {
+class StreamWithManifestTests
+    : public ::testing::TestWithParam<std::tuple<std::string, std::string, std::string>> {
+public:
+  static void test_stream_with_manifest(const std::string& filename, const std::string& mime_type, const std::string& expected_content) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / L"CÖÄ_.jpg";
+    fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / filename;
     ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
 
     // read the new manifest and display the JSON
     std::ifstream file_stream(test_file, std::ios::binary);
     ASSERT_TRUE(file_stream.is_open()) << "Failed to open file: " << test_file;
 
-    auto reader = c2pa::Reader("image/jpeg", file_stream);
+    auto reader = c2pa::Reader(mime_type, file_stream);
     auto manifest_store_json = reader.json();
-    EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
+    EXPECT_TRUE(manifest_store_json.find(expected_content) != std::string::npos);
+  }
 };
 
-TEST(Reader, VideoStreamWithManifest) {
-  fs::path current_dir = fs::path(__FILE__).parent_path();
-  fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / "video1.mp4";
-  ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
+INSTANTIATE_TEST_SUITE_P(ReaderStreamWithManifestTests, StreamWithManifestTests,
+                         ::testing::Values(
+                             // (filename, mime_type, expected_content = Title from the manifest)
+                             std::make_tuple("CÖÄ_.jpg", "image/jpeg", "C.jpg"),
+                             std::make_tuple("video1.mp4", "video/mp4", "My Title"),
+                             std::make_tuple("C.dng", "DNG", "C.jpg")));
 
-  // read the new manifest and display the JSON
-  std::ifstream file_stream(test_file, std::ios::binary);
-  ASSERT_TRUE(file_stream.is_open()) << "Failed to open video file: " << test_file;
-
-  auto reader = c2pa::Reader("video/mp4", file_stream);
-  auto manifest_store_json = reader.json();
-  EXPECT_TRUE(manifest_store_json.find("My Title") != std::string::npos);
-};
+TEST_P(StreamWithManifestTests, StreamWithManifest) {
+    auto filename = std::get<0>(GetParam());
+    auto mime_type = std::get<1>(GetParam());
+    auto expected_content = std::get<2>(GetParam());
+    test_stream_with_manifest(filename, mime_type, expected_content);
+}
 
 TEST(Reader, VideoStreamWithManifestUsingExtension) {
   fs::path current_dir = fs::path(__FILE__).parent_path();
@@ -67,53 +71,34 @@ TEST(Reader, VideoStreamWithManifestUsingExtension) {
   EXPECT_TRUE(manifest_store_json.find("My Title") != std::string::npos);
 };
 
-TEST(Reader, DngStreamWithManifest) {
-  fs::path current_dir = fs::path(__FILE__).parent_path();
-  fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / "C.dng";
-  ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
-
-  // read the new manifest and display the JSON
-  std::ifstream file_stream(test_file, std::ios::binary);
-  ASSERT_TRUE(file_stream.is_open()) << "Failed to open video file: " << test_file;
-
-  auto reader = c2pa::Reader("DNG", file_stream);
-  auto manifest_store_json = reader.json();
-  // C.jpg because the DNG file was created from the C.jpg file
-  EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
-};
-
-TEST(Reader, ImageFileWithManifest)
-{
+class FileWithManifestTests
+    : public ::testing::TestWithParam<std::tuple<std::string, std::string>> {
+public:
+  static void test_file_with_manifest(const std::string& filename, const std::string& expected_content) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+    fs::path test_file = current_dir / "../tests/fixtures" / filename;
 
-    // read the new manifest and display the JSON
+    // Read the manifest from the file
     auto reader = c2pa::Reader(test_file);
     auto manifest_store_json = reader.json();
-    EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
+
+    // Simple content checks
+    EXPECT_TRUE(manifest_store_json.find(expected_content) != std::string::npos);
+  }
 };
 
-TEST(Reader, VideoFileWithManifest)
-{
-    fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path test_file = current_dir / "../tests/fixtures/video1.mp4";
+INSTANTIATE_TEST_SUITE_P(ReaderFileWithManifestTests, FileWithManifestTests,
+                         ::testing::Values(
+                             // (filename, expected_content = Title from the manifest)
+                             std::make_tuple("C.jpg", "C.jpg"),
+                             std::make_tuple("video1.mp4", "My Title"),
+                             std::make_tuple("C.dng", "C.jpg")));
 
-    // read the new manifest and display the JSON
-    auto reader = c2pa::Reader(test_file);
-    auto manifest_store_json = reader.json();
-    EXPECT_TRUE(manifest_store_json.find("My Title") != std::string::npos);
-};
-
-TEST(Reader, DngFileWithManifest)
-{
-    fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path test_file = current_dir / "../tests/fixtures/C.dng";
-
-    // read the new manifest and display the JSON
-    auto reader = c2pa::Reader(test_file);
-    auto manifest_store_json = reader.json();
-    EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
-};
+TEST_P(FileWithManifestTests, FileWithManifest) {
+    auto filename = std::get<0>(GetParam());
+    auto expected_content = std::get<1>(GetParam());
+    test_file_with_manifest(filename, expected_content);
+}
 
 TEST(Reader, ImageFileWithManifestMultipleCalls)
 {
