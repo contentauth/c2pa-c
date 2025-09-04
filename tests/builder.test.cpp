@@ -39,9 +39,8 @@ TEST(Builder, supported_mime_types_returns_types) {
   EXPECT_TRUE(std::find(begin, end, "application/c2pa") != end);
 }
 
-TEST(Builder, SignFile)
+TEST(Builder, SignFileOnly)
 {
-
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
     // Construct the paths relative to the current directory
@@ -63,11 +62,136 @@ TEST(Builder, SignFile)
         std::filesystem::remove(output_path.c_str()); // remove the file if it exists
 
         auto builder = c2pa::Builder(manifest);
+        // the Builder returns manifest bytes
+        auto manifest_data = builder.sign(signed_image_path, output_path, signer);
+
+        // read to verify
+        auto reader = c2pa::Reader(output_path);
+        auto json = reader.json();
+        ASSERT_TRUE(std::filesystem::exists(output_path));
+    }
+    catch (c2pa::C2paException const &e)
+    {
+        FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
+    };
+};
+
+TEST(Builder, SignFileWithResource)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the paths relative to the current directory
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path = current_dir / "../build/example/training.jpg";
+
+    try
+    {
+        auto manifest = read_text_file(manifest_path);
+        auto certs = read_text_file(certs_path);
+        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+        // create a signer
+        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+        std::filesystem::remove(output_path.c_str()); // remove the file if it exists
+
+        auto builder = c2pa::Builder(manifest);
+        // add a resource: a thumbnail
         builder.add_resource("thumbnail", image_path);
 
+        // sign
+        auto manifest_data = builder.sign(signed_image_path, output_path, signer);
+
+        // read to verify signature
+        auto reader = c2pa::Reader(output_path);
+        auto json = reader.json();
+        ASSERT_TRUE(std::filesystem::exists(output_path));
+    }
+    catch (c2pa::C2paException const &e)
+    {
+        FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
+    };
+};
+
+TEST(Builder, SignFileWithIngredient)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the paths relative to the current directory
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path = current_dir / "../build/example/training.jpg";
+
+    try
+    {
+        auto manifest = read_text_file(manifest_path);
+        auto certs = read_text_file(certs_path);
+        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+        // create a signer
+        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+        std::filesystem::remove(output_path.c_str()); // remove the file if it exists
+
+        auto builder = c2pa::Builder(manifest);
+
+        // add an ingredient
         string ingredient_json = "{\"title\":\"Test Ingredient\"}";
         builder.add_ingredient(ingredient_json, signed_image_path);
+
+        // sign
         auto manifest_data = builder.sign(signed_image_path, output_path, signer);
+
+        // read to verify signature
+        auto reader = c2pa::Reader(output_path);
+        auto json = reader.json();
+        ASSERT_TRUE(std::filesystem::exists(output_path));
+    }
+    catch (c2pa::C2paException const &e)
+    {
+        FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
+    };
+};
+
+TEST(Builder, SignFileWithResourceAndIngredient)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the paths relative to the current directory
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path = current_dir / "../build/example/training.jpg";
+
+    try
+    {
+        auto manifest = read_text_file(manifest_path);
+        auto certs = read_text_file(certs_path);
+        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+        // create a signer
+        c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+        std::filesystem::remove(output_path.c_str()); // remove the file if it exists
+
+        auto builder = c2pa::Builder(manifest);
+        // add a resource: a thumbnail
+        builder.add_resource("thumbnail", image_path);
+
+        // add an ingredient
+        string ingredient_json = "{\"title\":\"Test Ingredient\"}";
+        builder.add_ingredient(ingredient_json, signed_image_path);
+
+        // sign
+        auto manifest_data = builder.sign(signed_image_path, output_path, signer);
+
+        // read to verify signature
         auto reader = c2pa::Reader(output_path);
         auto json = reader.json();
         ASSERT_TRUE(std::filesystem::exists(output_path));
