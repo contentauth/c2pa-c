@@ -108,7 +108,7 @@ TEST(Builder, SignWithMultipleResources)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
-    // Construct the paths relative to the current directory
+    // construct the paths relative to the current directory
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
@@ -126,7 +126,7 @@ TEST(Builder, SignWithMultipleResources)
 
     auto builder = c2pa::Builder(manifest);
 
-    // Add multiple resources
+    // add multiple resources
     builder.add_resource("thumbnail1", image_path);
     builder.add_resource("thumbnail2", current_dir / "../tests/fixtures/C.jpg");
     builder.add_resource("thumbnail3", current_dir / "../tests/fixtures/sample1.gif");
@@ -579,7 +579,7 @@ TEST(Builder, SignWithInvalidStream)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
-    // Construct the paths relative to the current directory
+    // construct the paths relative to the current directory
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
 
@@ -592,11 +592,11 @@ TEST(Builder, SignWithInvalidStream)
 
     auto builder = c2pa::Builder(manifest);
 
-    // Create an empty/invalid stream
+    // create an empty/invalid stream
     std::stringstream empty_stream;
 
     std::stringstream dest;
 
-    // Expect the sign operation to fail due to invalid/empty stream
+    // expect the sign operation to fail due to invalid/empty stream
     EXPECT_THROW(builder.sign("image/jpeg", empty_stream, dest, signer), c2pa::C2paException);
 }
