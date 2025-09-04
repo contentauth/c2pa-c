@@ -31,6 +31,14 @@ string read_text_file(const fs::path &path)
     return contents.data();
 }
 
+TEST(Builder, supported_mime_types_returns_types) {
+  auto supported_types = c2pa::Builder::supported_mime_types();
+  auto begin = supported_types.begin();
+  auto end = supported_types.end();
+  EXPECT_TRUE(std::find(begin, end, "image/jpeg") != end);
+  EXPECT_TRUE(std::find(begin, end, "application/c2pa") != end);
+}
+
 TEST(Builder, SignFile)
 {
 
@@ -70,7 +78,6 @@ TEST(Builder, SignFile)
     };
 };
 
-
 class SimplePathSignTest : public ::testing::TestWithParam<std::string> {};
 INSTANTIATE_TEST_SUITE_P(
     BuilderSignCallToVerifyMiscFileTypes,
@@ -87,6 +94,7 @@ INSTANTIATE_TEST_SUITE_P(
         "video1.mp4"
         )
 );
+
 TEST_P(SimplePathSignTest, SignsFileTypes) {
   fs::path current_dir = fs::path(__FILE__).parent_path();
 
@@ -258,14 +266,6 @@ TEST(Builder, SignDataHashedEmbedded)
     {
         FAIL() << "Failed: C2pa::Builder: " << e.what() << endl;
     };
-}
-
-TEST(Builder, supported_mime_types_returns_types) {
-  auto supported_types = c2pa::Builder::supported_mime_types();
-  auto begin = supported_types.begin();
-  auto end = supported_types.end();
-  EXPECT_TRUE(std::find(begin, end, "image/jpeg") != end);
-  EXPECT_TRUE(std::find(begin, end, "application/c2pa") != end);
 }
 
 TEST(Builder, SignDataHashedEmbeddedWithAsset)
