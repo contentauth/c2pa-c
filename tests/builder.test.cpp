@@ -185,6 +185,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         "A.jpg",
         "C.jpg",
+        "C.dng",
         "C_with_CAWG_data.jpg",
         "sample1.gif",
         "sample1.mp3",
@@ -312,7 +313,7 @@ TEST(Builder, SignImageWithIngredientHavingManifestStream)
     ASSERT_TRUE(json.find("cawg.training-mining") != std::string::npos);
 }
 
-TEST(Builder, SignAndReadInvalidManifest)
+TEST(Builder, NoSignOnInvalidDoubleParentsManifest)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
@@ -351,86 +352,6 @@ TEST(Builder, SignAndReadInvalidManifest)
     // Expect the sign operation to fail due to invalid manifest (multiple parent ingredients)
     EXPECT_THROW(builder.sign("image/jpeg", source, dest, signer), c2pa::C2paException);
     source.close();
-}
-
-TEST(Builder, ReSignImageStream)
-{
-    fs::path current_dir = fs::path(__FILE__).parent_path();
-
-    // Construct the paths relative to the current directory
-    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
-    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
-    fs::path signed_image_path = current_dir / "../tests/fixtures/C.jpg";
-
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
-
-    // create a signer
-    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
-
-    auto builder = c2pa::Builder(manifest);
-
-    std::ifstream source(signed_image_path, std::ios::binary);
-    if (!source)
-    {
-        FAIL() << "Failed to open file: " << signed_image_path << std::endl;
-    }
-
-    // Create a memory buffer
-    std::stringstream memory_buffer(std::ios::in | std::ios::out | std::ios::binary);
-    std::iostream &dest = memory_buffer;
-    std::vector<unsigned char> manifest_data;
-    ASSERT_NO_THROW(manifest_data = builder.sign("image/jpeg", source, dest, signer));
-    source.close();
-
-    // Rewind dest to the start
-    dest.flush();
-    dest.seekp(0, std::ios::beg);
-    auto reader = c2pa::Reader("image/jpeg", dest);
-    std::string json;
-    ASSERT_NO_THROW(json = reader.json());
-    ASSERT_TRUE(json.find("cawg.training-mining") != std::string::npos);
-}
-
-TEST(Builder, SignDngStream)
-{
-    fs::path current_dir = fs::path(__FILE__).parent_path();
-
-    // Construct the paths relative to the current directory
-    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
-    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
-    fs::path signed_image_path = current_dir / "../tests/fixtures/C.dng";
-
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
-
-    // create a signer
-    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
-
-    auto builder = c2pa::Builder(manifest);
-
-    std::ifstream source(signed_image_path, std::ios::binary);
-    if (!source)
-    {
-        FAIL() << "Failed to open file: " << signed_image_path << std::endl;
-    }
-
-    // Create a memory buffer
-    std::stringstream memory_buffer(std::ios::in | std::ios::out | std::ios::binary);
-    std::iostream &dest = memory_buffer;
-    std::vector<unsigned char> manifest_data;
-    ASSERT_NO_THROW(manifest_data = builder.sign("dng", source, dest, signer));
-    source.close();
-
-    // Rewind dest to the start
-    dest.flush();
-    dest.seekp(0, std::ios::beg);
-    auto reader = c2pa::Reader("dng", dest);
-    std::string json;
-    ASSERT_NO_THROW(json = reader.json());
-    ASSERT_TRUE(json.find("cawg.training-mining") != std::string::npos);
 }
 
 TEST(Builder, SignStreamCloudUrl)
