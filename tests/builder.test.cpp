@@ -128,6 +128,7 @@ TEST(Builder, SignImageFileWithIngredient)
 
     // add an ingredient
     string ingredient_json = "{\"title\":\"Test Ingredient\"}";
+    // the signed image can be used as an ingredient too
     builder.add_ingredient(ingredient_json, signed_image_path);
 
     // sign
@@ -157,7 +158,6 @@ TEST(Builder, SignImageFileWithResourceAndIngredient)
 
     // create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
-
     std::filesystem::remove(output_path.c_str()); // remove the file if it exists
 
     auto builder = c2pa::Builder(manifest);
@@ -166,6 +166,7 @@ TEST(Builder, SignImageFileWithResourceAndIngredient)
 
     // add an ingredient
     string ingredient_json = "{\"title\":\"Test Ingredient\"}";
+    // the signed image can be used as an ingredient too
     builder.add_ingredient(ingredient_json, signed_image_path);
 
     // sign
