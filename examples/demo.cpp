@@ -89,7 +89,7 @@ int main()
 
             reader.get_resource(identifer, thumbnail_path);
 
-            cout << "thumbnail written to" << thumbnail_path << endl;
+            cout << "thumbnail written to " << thumbnail_path << endl;
         }
     }
     catch (c2pa::C2paException const &e)
