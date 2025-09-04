@@ -104,6 +104,43 @@ TEST(Builder, SignImageFileWithResource)
     ASSERT_TRUE(std::filesystem::exists(output_path));
 };
 
+TEST(Builder, SignWithMultipleResources)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the paths relative to the current directory
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path = current_dir / "../build/example/multiple_resources.jpg";
+
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+    // create a signer
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    std::filesystem::remove(output_path.c_str()); // remove the file if it exists
+
+    auto builder = c2pa::Builder(manifest);
+
+    // Add multiple resources
+    builder.add_resource("thumbnail1", image_path);
+    builder.add_resource("thumbnail2", current_dir / "../tests/fixtures/C.jpg");
+    builder.add_resource("thumbnail3", current_dir / "../tests/fixtures/sample1.gif");
+
+    // sign
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
+
+    // read to verify signature
+    auto reader = c2pa::Reader(output_path);
+    ASSERT_NO_THROW(reader.json());
+    ASSERT_TRUE(std::filesystem::exists(output_path));
+}
+
 TEST(Builder, SignImageFileWithIngredient)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
@@ -536,4 +573,30 @@ TEST(Builder, SignDataHashedEmbeddedWithAsset)
     auto embeddable_data = c2pa::Builder::format_embeddable("image/jpeg", manifest_data);
 
     ASSERT_TRUE(embeddable_data.size() > manifest_data.size());
+}
+
+TEST(Builder, SignWithInvalidStream)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the paths relative to the current directory
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+    // create a signer
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    auto builder = c2pa::Builder(manifest);
+
+    // Create an empty/invalid stream
+    std::stringstream empty_stream;
+
+    std::stringstream dest;
+
+    // Expect the sign operation to fail due to invalid/empty stream
+    EXPECT_THROW(builder.sign("image/jpeg", empty_stream, dest, signer), c2pa::C2paException);
 }
