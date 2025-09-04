@@ -127,7 +127,10 @@ namespace c2pa
     /// converts a filesystem::path to a string in utf-8 format
     inline std::string path_to_string(const filesystem::path &source_path)
     {
-        return source_path.u8string();
+		// Use u8string to ensure UTF-8 encoding across platforms. We have to convert
+		// to std::string manually because std::string doesn't have a constructor accepting u8String until C++20.
+		auto u8_str = source_path.u8string();
+        return std::string(u8_str.begin(), u8_str.end());
     }
 
     /// Reads a file and returns the manifest json as a C2pa::String.
