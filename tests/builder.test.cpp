@@ -199,9 +199,10 @@ TEST(Builder, SignVideoFileWithAudioIngredient)
 
     std::filesystem::remove(output_path.c_str()); // remove the file if it exists
 
+    // create the builder
     auto builder = c2pa::Builder(manifest);
 
-    // add an ingredient
+    // add the ingredients for the video
     string ingredient_video_json = "{\"title\":\"Test Video Ingredient\", \"relationship\": \"parentOf\"}";
     builder.add_ingredient(ingredient_video_json, signed_video_path);
 
