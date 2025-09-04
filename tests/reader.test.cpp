@@ -25,7 +25,7 @@ TEST(Reader, SupportedTypes) {
   EXPECT_TRUE(std::find(supported_types.begin(), supported_types.end(), "image/png") != supported_types.end());
 };
 
-TEST(Reader, StreamWithManifest) {
+TEST(Reader, ImageStreamWithManifest) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / L"CÖÄ_.jpg";
     ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
@@ -82,7 +82,7 @@ TEST(Reader, DngStreamWithManifest) {
   EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
 };
 
-TEST(Reader, FileWithManifest)
+TEST(Reader, ImageFileWithManifest)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
@@ -91,6 +91,45 @@ TEST(Reader, FileWithManifest)
     auto reader = c2pa::Reader(test_file);
     auto manifest_store_json = reader.json();
     EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
+};
+
+TEST(Reader, VideoFileWithManifest)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/video1.mp4";
+
+    // read the new manifest and display the JSON
+    auto reader = c2pa::Reader(test_file);
+    auto manifest_store_json = reader.json();
+    EXPECT_TRUE(manifest_store_json.find("My Title") != std::string::npos);
+};
+
+TEST(Reader, DngFileWithManifest)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C.dng";
+
+    // read the new manifest and display the JSON
+    auto reader = c2pa::Reader(test_file);
+    auto manifest_store_json = reader.json();
+    EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
+};
+
+TEST(Reader, ImageFileWithManifestMultipleCalls)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+
+    // read the new manifest and display the JSON
+    auto reader = c2pa::Reader(test_file);
+    auto manifest_store_json = reader.json();
+    EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
+
+    auto manifest_store_json_2 = reader.json();
+    EXPECT_TRUE(manifest_store_json_2.find("C.jpg") != std::string::npos);
+
+    auto manifest_store_json_3 = reader.json();
+    EXPECT_TRUE(manifest_store_json_3.find("C.jpg") != std::string::npos);
 };
 
 TEST(Reader, FileNoManifest)
