@@ -27,7 +27,7 @@ TEST(Reader, StreamWithManifest) {
     // read the new manifest and display the JSON
     std::ifstream file_stream(test_file, std::ios::binary);
     ASSERT_TRUE(file_stream.is_open()) << "Failed to open file: " << test_file;
-    
+
     auto reader = c2pa::Reader("image/jpeg", file_stream);
     auto manifest_store_json = reader.json();
     EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
@@ -36,13 +36,14 @@ TEST(Reader, StreamWithManifest) {
 TEST(Reader, SupportedTypes) {
     auto supported_types = c2pa::Reader::supported_mime_types();
     EXPECT_TRUE(std::find(supported_types.begin(), supported_types.end(), "image/jpeg") != supported_types.end());
+    EXPECT_TRUE(std::find(supported_types.begin(), supported_types.end(), "image/png") != supported_types.end());
 }
 
 TEST(Reader, FileWithManifest)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
-    
+
     // read the new manifest and display the JSON
     auto reader = c2pa::Reader(test_file);
     auto manifest_store_json = reader.json();
@@ -102,7 +103,7 @@ TEST(Reader, FileWithCawgIdentityManifest)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C_with_CAWG_data.jpg";
-    
+
     // read the new manifest and display the JSON
     auto reader = c2pa::Reader(test_file);
     auto manifest_store_string = reader.json();
