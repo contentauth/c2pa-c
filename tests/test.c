@@ -102,6 +102,7 @@ int main(void)
 
     C2paStream *source = open_file_stream("tests/fixtures/C.jpg", "rb");
     remove("build/tmp/earth4.jpg");
+    // stream needs to be w+b because we'll write, rewind, read
     C2paStream *dest = open_file_stream("build/tmp/earth4.jpg", "w+b");
 
     const unsigned char *manifest_bytes = NULL; // todo: test passing NULL instead of a pointer
