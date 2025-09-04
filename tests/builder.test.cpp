@@ -112,6 +112,8 @@ TEST(Builder, SignWithMultipleResources)
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path image_resource = current_dir / "../tests/fixtures/C.jpg";
+    fs::path image_resource_other = current_dir / "../tests/fixtures/sample1.gif";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path = current_dir / "../build/example/multiple_resources.jpg";
 
@@ -128,8 +130,8 @@ TEST(Builder, SignWithMultipleResources)
 
     // add multiple resources
     builder.add_resource("thumbnail1", image_path);
-    builder.add_resource("thumbnail2", current_dir / "../tests/fixtures/C.jpg");
-    builder.add_resource("thumbnail3", current_dir / "../tests/fixtures/sample1.gif");
+    builder.add_resource("thumbnail2", image_resource);
+    builder.add_resource("thumbnail3", image_resource_other);
 
     // sign
     std::vector<unsigned char> manifest_data;
@@ -216,7 +218,7 @@ TEST(Builder, SignImageFileWithResourceAndIngredient)
     ASSERT_TRUE(std::filesystem::exists(output_path));
 };
 
-TEST(Builder, SignVideoFileWithAudioIngredient)
+TEST(Builder, SignVideoFileWithMultipleIngredients)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
@@ -243,10 +245,104 @@ TEST(Builder, SignVideoFileWithAudioIngredient)
     // add the ingredients for the video
     string ingredient_video_json = "{\"title\":\"Test Video Ingredient\", \"relationship\": \"parentOf\"}";
     builder.add_ingredient(ingredient_video_json, signed_video_path);
-
     string ingredient_audio_json = "{\"title\":\"Test Audio Ingredient\", \"relationship\": \"componentOf\"}";
     builder.add_ingredient(ingredient_audio_json, audio_ingredient);
+    string ingredient_image_json = "{\"title\":\"Test Image Ingredient\", \"relationship\": \"componentOf\"}";
+    builder.add_ingredient(ingredient_image_json, image_ingredient);
 
+    // sign
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(signed_video_path, output_path, signer));
+
+    // read to verify signature
+    auto reader = c2pa::Reader(output_path);
+    ASSERT_NO_THROW(reader.json());
+    ASSERT_TRUE(std::filesystem::exists(output_path));
+};
+
+TEST(Builder, SignVideoFileWithMultipleIngredientsAndResources)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the paths relative to the current directory
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path signed_video_path = current_dir / "../tests/fixtures/video1.mp4";
+    fs::path audio_ingredient = current_dir / "../tests/fixtures/sample1_signed.wav";
+    fs::path image_ingredient = current_dir / "../tests/fixtures/A.jpg";
+    fs::path image_resource = current_dir / "../tests/fixtures/C.jpg";
+    fs::path image_resource_other = current_dir / "../tests/fixtures/sample1.gif";
+    fs::path output_path = current_dir / "../build/example/video1_signed.mp4";
+
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+    // create a signer
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    std::filesystem::remove(output_path.c_str()); // remove the file if it exists
+
+    // create the builder
+    auto builder = c2pa::Builder(manifest);
+
+    // add the ingredients for the video
+    string ingredient_video_json = "{\"title\":\"Test Video Ingredient\", \"relationship\": \"parentOf\"}";
+    builder.add_ingredient(ingredient_video_json, signed_video_path);
+    string ingredient_audio_json = "{\"title\":\"Test Audio Ingredient\", \"relationship\": \"componentOf\"}";
+    builder.add_ingredient(ingredient_audio_json, audio_ingredient);
+    string ingredient_image_json = "{\"title\":\"Test Image Ingredient\", \"relationship\": \"componentOf\"}";
+    builder.add_ingredient(ingredient_image_json, image_ingredient);
+
+    // add multiple resources
+    builder.add_resource("thumbnail1", image_ingredient);
+    builder.add_resource("thumbnail2", image_resource);
+    builder.add_resource("thumbnail3", image_resource_other);
+
+    // sign
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(signed_video_path, output_path, signer));
+
+    // read to verify signature
+    auto reader = c2pa::Reader(output_path);
+    ASSERT_NO_THROW(reader.json());
+    ASSERT_TRUE(std::filesystem::exists(output_path));
+};
+
+TEST(Builder, SignVideoFileWithMultipleIngredientsAndResourcesInterleaved)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the paths relative to the current directory
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path signed_video_path = current_dir / "../tests/fixtures/video1.mp4";
+    fs::path audio_ingredient = current_dir / "../tests/fixtures/sample1_signed.wav";
+    fs::path image_ingredient = current_dir / "../tests/fixtures/A.jpg";
+    fs::path image_resource = current_dir / "../tests/fixtures/C.jpg";
+    fs::path image_resource_other = current_dir / "../tests/fixtures/sample1.gif";
+    fs::path output_path = current_dir / "../build/example/video1_signed.mp4";
+
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+    // create a signer
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    std::filesystem::remove(output_path.c_str()); // remove the file if it exists
+
+    // create the builder
+    auto builder = c2pa::Builder(manifest);
+
+    // add ingredients and resources
+    string ingredient_video_json = "{\"title\":\"Test Video Ingredient\", \"relationship\": \"parentOf\"}";
+    builder.add_ingredient(ingredient_video_json, signed_video_path);
+    builder.add_resource("thumbnail1", image_ingredient);
+    string ingredient_audio_json = "{\"title\":\"Test Audio Ingredient\", \"relationship\": \"componentOf\"}";
+    builder.add_ingredient(ingredient_audio_json, audio_ingredient);
+    builder.add_resource("thumbnail2", image_resource);
+    builder.add_resource("thumbnail3", image_resource_other);
     string ingredient_image_json = "{\"title\":\"Test Image Ingredient\", \"relationship\": \"componentOf\"}";
     builder.add_ingredient(ingredient_image_json, image_ingredient);
 
