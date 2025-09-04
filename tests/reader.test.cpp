@@ -48,6 +48,7 @@ INSTANTIATE_TEST_SUITE_P(ReaderStreamWithManifestTests, StreamWithManifestTests,
                              // (filename, type or mimetype, expected_content = Title from the manifest)
                              std::make_tuple("CÖÄ_.jpg", "image/jpeg", "C.jpg"),
                              std::make_tuple("video1.mp4", "video/mp4", "My Title"),
+                             std::make_tuple("sample1_signed.wav", "wav", "sample1_signed.wav"),
                              std::make_tuple("C.dng", "DNG", "C.jpg")));
 
 TEST_P(StreamWithManifestTests, StreamWithManifest) {
@@ -92,6 +93,7 @@ INSTANTIATE_TEST_SUITE_P(ReaderFileWithManifestTests, FileWithManifestTests,
                              // (filename, expected_content = Title from the manifest)
                              std::make_tuple("C.jpg", "C.jpg"),
                              std::make_tuple("video1.mp4", "My Title"),
+                             std::make_tuple("sample1_signed.wav", "sample1_signed.wav"),
                              std::make_tuple("C.dng", "C.jpg")));
 
 TEST_P(FileWithManifestTests, FileWithManifest) {
