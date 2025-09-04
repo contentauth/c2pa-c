@@ -25,19 +25,36 @@ TEST(ReadFile, ReadFileWithNoManifestReturnsEmptyOptional) {
   ASSERT_FALSE(result.has_value());
 };
 
-TEST(ReadFile, ReadFileWithManifestReturnsSomeValue) {
-  fs::path current_dir = fs::path(__FILE__).parent_path();
-  fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
-  auto result = c2pa::read_file(test_file);
-  ASSERT_TRUE(result.has_value());
+class ReadFileWithManifestTests
+    : public ::testing::TestWithParam<std::string> {
+public:
+  static void test_read_file_with_manifest(const std::string& filename) {
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures" / filename;
+    auto result = c2pa::read_file(test_file);
+    ASSERT_TRUE(result.has_value());
 
-  // parse result with json
-  auto json = json::parse(result.value());
-  EXPECT_TRUE(json.contains("manifests"));
-  EXPECT_TRUE(json.contains("active_manifest"));
+    // parse result with json
+    auto json = json::parse(result.value());
+    EXPECT_TRUE(json.contains("manifests"));
+    EXPECT_TRUE(json.contains("active_manifest"));
+  }
 };
 
-TEST(ReadFile, ReadFileWithDataDirReturnsSomeValue) 
+INSTANTIATE_TEST_SUITE_P(ReadFileWithManifestTests, ReadFileWithManifestTests,
+                         ::testing::Values(
+                             // Files with manifests
+                             "C.jpg",
+                             "video1.mp4",
+                             "C.dng",
+                             "CÖÄ_.jpg"));
+
+TEST_P(ReadFileWithManifestTests, ReadFileWithManifestReturnsSomeValue) {
+    auto filename = GetParam();
+    test_read_file_with_manifest(filename);
+}
+
+TEST(ReadFile, ReadFileWithDataDirReturnsSomeValue)
 {
   fs::path current_dir = fs::path(__FILE__).parent_path();
   fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
@@ -52,6 +69,7 @@ TEST(ReadFile, ReadFileWithDataDirReturnsSomeValue)
   EXPECT_TRUE(fs::exists(current_dir / "../build/read_file"));
   EXPECT_TRUE(fs::exists(current_dir / "../build/read_file/manifest.json"));
 };
+
 /* remove this until we resolve CAWG Identity testing
 TEST(ReadFile, ReadFileWithCawgIdentityReturnsSomeValue) {
   fs::path current_dir = fs::path(__FILE__).parent_path();
