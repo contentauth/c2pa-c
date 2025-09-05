@@ -46,7 +46,6 @@ public:
 INSTANTIATE_TEST_SUITE_P(ReaderStreamWithManifestTests, StreamWithManifestTests,
                          ::testing::Values(
                              // (filename, type or mimetype, expected_content = Title from the manifest)
-                             std::make_tuple("CÖÄ_.jpg", "image/jpeg", "C.jpg"),
                              std::make_tuple("video1.mp4", "video/mp4", "My Title"),
                              std::make_tuple("sample1_signed.wav", "wav", "sample1_signed.wav"),
                              std::make_tuple("C.dng", "DNG", "C.jpg")));

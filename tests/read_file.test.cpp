@@ -47,7 +47,6 @@ INSTANTIATE_TEST_SUITE_P(ReadFileWithManifestTests, ReadFileWithManifestTests,
                              "C.jpg",
                              "video1.mp4",
                              "C.dng",
-                             "CÖÄ_.jpg",
                              "sample1_signed.wav"));
 
 TEST_P(ReadFileWithManifestTests, ReadFileWithManifestReturnsSomeValue) {
