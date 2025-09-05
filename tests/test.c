@@ -102,7 +102,8 @@ int main(void)
 
     C2paStream *source = open_file_stream("tests/fixtures/C.jpg", "rb");
     remove("build/tmp/earth4.jpg");
-    C2paStream *dest = open_file_stream("build/tmp/earth4.jpg", "wb");
+    // stream needs to be w+b because we'll write, rewind, read
+    C2paStream *dest = open_file_stream("build/tmp/earth4.jpg", "w+b");
 
     const unsigned char *manifest_bytes = NULL; // todo: test passing NULL instead of a pointer
     int result2 = c2pa_builder_sign(builder2, "image/jpeg", source, dest, signer, &manifest_bytes);
@@ -114,7 +115,6 @@ int main(void)
     c2pa_manifest_bytes_free(manifest_bytes);
     c2pa_manifest_bytes_free(formatted_bytes);
 
-    
     close_file_stream(source);
     close_file_stream(dest);
 
