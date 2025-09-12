@@ -70,7 +70,7 @@ TEST(Builder, SignImageFileOnly)
     ASSERT_TRUE(std::filesystem::exists(output_path));
 };
 
-TEST(Builder, SignImageFileWithoutThumbnailAutoGeneration)
+TEST(Builder, SignImageFileWithoutThumbnailAutoGenerationThroughSettings)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
