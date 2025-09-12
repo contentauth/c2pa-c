@@ -719,8 +719,8 @@ TEST(Builder, ReadIngredientFile)
     //   "title": "A.jpg",
     //   "format": "image/jpeg",
     //   "thumbnail": {
-    //     "format": "image/jpeg",
-    //     ... more goes here ... but we don't check these in this test
+    //     ... more goes here (identifier and hash)
+    //     ... but we don't check these in this test
     //   },
     //   "relationship": "componentOf"
     // }
@@ -735,4 +735,62 @@ TEST(Builder, ReadIngredientFile)
 
     ASSERT_TRUE(result.find("\"relationship\"") != std::string::npos) << "JSON should contain 'relationship' field";
     ASSERT_TRUE(result.find("\"componentOf\"") != std::string::npos) << "JSON should contain 'componentOf' as relationship";
+}
+
+TEST(Builder, ReadIngredientFileWhoHasAManifestStore)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the path to the test fixture
+    // C has a manifest store attached
+    fs::path source_path = current_dir / "../tests/fixtures/C.jpg";
+
+    // Use target/tmp like other tests
+    fs::path temp_dir = "target/tmp";
+
+    // Test that the function can read ingredient file successfully
+    std::string result;
+    ASSERT_NO_THROW(result = c2pa::read_ingredient_file(source_path, temp_dir));
+
+    // The expected JSON structure for an ingredient with a manifest
+    // is extended, as there are additional fields.
+    // So, the result should contain at least the following structure:
+    // {
+    //   "title": "C.jpg",
+    //   "format": "image/jpeg",
+    //   "thumbnail": {
+    //     "format": "image/jpeg",
+    //     ... more goes here (identifier and hash)
+    //     ... but we don't check these in this test
+    //   },
+    //   "relationship": "componentOf",
+    //   "active_manifest": "contentauth:urn:uuid:c85a2b90-f1a0-4aa4-b17f-f938b475804e",
+    //   "validation_results": { ... more goes here ... }
+    //   "manifest_data": {
+    //     "format": "application/c2pa",
+    //     "identifier": not checked in the test, value changes after multiple
+    //                  runs during debugs to be unique because we reuse the
+    //                  same dir holding resources
+    //   }
+    // }
+
+    ASSERT_TRUE(result.find("\"title\"") != std::string::npos) << "JSON should contain 'title' field";
+    ASSERT_TRUE(result.find("\"C.jpg\"") != std::string::npos) << "JSON should contain 'C.jpg' as title";
+
+    ASSERT_TRUE(result.find("\"format\"") != std::string::npos) << "JSON should contain 'format' field";
+    ASSERT_TRUE(result.find("\"image/jpeg\"") != std::string::npos) << "JSON should contain 'image/jpeg' as format";
+
+    ASSERT_TRUE(result.find("\"thumbnail\"") != std::string::npos) << "JSON should contain 'thumbnail' field";
+
+    ASSERT_TRUE(result.find("\"relationship\"") != std::string::npos) << "JSON should contain 'relationship' field";
+    ASSERT_TRUE(result.find("\"componentOf\"") != std::string::npos) << "JSON should contain 'componentOf' as relationship";
+
+    // Additional fields because the ingredient has a manifest store attached
+    ASSERT_TRUE(result.find("\"active_manifest\"") != std::string::npos) << "JSON should contain 'active_manifest' field";
+    ASSERT_TRUE(result.find("\"contentauth:urn:uuid:c85a2b90-f1a0-4aa4-b17f-f938b475804e\"") != std::string::npos) << "JSON should contain the active manifest value of the ingredient";
+
+    ASSERT_TRUE(result.find("\"validation_results\"") != std::string::npos) << "JSON should contain 'validation_results' field";
+
+    ASSERT_TRUE(result.find("\"manifest_data\"") != std::string::npos) << "JSON should contain 'manifest_data' field";
+    ASSERT_TRUE(result.find("\"application/c2pa\"") != std::string::npos) << "JSON should contain 'application/c2pa' as format";
 }
