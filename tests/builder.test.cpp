@@ -725,16 +725,16 @@ TEST(Builder, ReadIngredientFile)
     //   "relationship": "componentOf"
     // }
 
-    ASSERT_TRUE(result.find("\"title\"") != std::string::npos) << "JSON should contain 'title' field";
-    ASSERT_TRUE(result.find("\"A.jpg\"") != std::string::npos) << "JSON should contain 'A.jpg' as title";
+    ASSERT_TRUE(result.find("\"title\"") != std::string::npos);
+    ASSERT_TRUE(result.find("\"A.jpg\"") != std::string::npos);
 
-    ASSERT_TRUE(result.find("\"format\"") != std::string::npos) << "JSON should contain 'format' field";
-    ASSERT_TRUE(result.find("\"image/jpeg\"") != std::string::npos) << "JSON should contain 'image/jpeg' as format";
+    ASSERT_TRUE(result.find("\"format\"") != std::string::npos);
+    ASSERT_TRUE(result.find("\"image/jpeg\"") != std::string::npos);
 
-    ASSERT_TRUE(result.find("\"thumbnail\"") != std::string::npos) << "JSON should contain 'thumbnail' field";
+    ASSERT_TRUE(result.find("\"thumbnail\"") != std::string::npos);
 
-    ASSERT_TRUE(result.find("\"relationship\"") != std::string::npos) << "JSON should contain 'relationship' field";
-    ASSERT_TRUE(result.find("\"componentOf\"") != std::string::npos) << "JSON should contain 'componentOf' as relationship";
+    ASSERT_TRUE(result.find("\"relationship\"") != std::string::npos);
+    ASSERT_TRUE(result.find("\"componentOf\"") != std::string::npos);
 }
 
 TEST(Builder, ReadIngredientFileWhoHasAManifestStore)
@@ -774,23 +774,23 @@ TEST(Builder, ReadIngredientFileWhoHasAManifestStore)
     //   }
     // }
 
-    ASSERT_TRUE(result.find("\"title\"") != std::string::npos) << "JSON should contain 'title' field";
-    ASSERT_TRUE(result.find("\"C.jpg\"") != std::string::npos) << "JSON should contain 'C.jpg' as title";
+    ASSERT_TRUE(result.find("\"title\"") != std::string::npos);
+    ASSERT_TRUE(result.find("\"C.jpg\"") != std::string::npos);
 
-    ASSERT_TRUE(result.find("\"format\"") != std::string::npos) << "JSON should contain 'format' field";
-    ASSERT_TRUE(result.find("\"image/jpeg\"") != std::string::npos) << "JSON should contain 'image/jpeg' as format";
+    ASSERT_TRUE(result.find("\"format\"") != std::string::npos);
+    ASSERT_TRUE(result.find("\"image/jpeg\"") != std::string::npos);
 
-    ASSERT_TRUE(result.find("\"thumbnail\"") != std::string::npos) << "JSON should contain 'thumbnail' field";
+    ASSERT_TRUE(result.find("\"thumbnail\"") != std::string::npos);
 
-    ASSERT_TRUE(result.find("\"relationship\"") != std::string::npos) << "JSON should contain 'relationship' field";
-    ASSERT_TRUE(result.find("\"componentOf\"") != std::string::npos) << "JSON should contain 'componentOf' as relationship";
+    ASSERT_TRUE(result.find("\"relationship\"") != std::string::npos);
+    ASSERT_TRUE(result.find("\"componentOf\"") != std::string::npos);
 
     // Additional fields because the ingredient has a manifest store attached
-    ASSERT_TRUE(result.find("\"active_manifest\"") != std::string::npos) << "JSON should contain 'active_manifest' field";
-    ASSERT_TRUE(result.find("\"contentauth:urn:uuid:c85a2b90-f1a0-4aa4-b17f-f938b475804e\"") != std::string::npos) << "JSON should contain the active manifest value of the ingredient";
+    ASSERT_TRUE(result.find("\"active_manifest\"") != std::string::npos);
+    ASSERT_TRUE(result.find("\"contentauth:urn:uuid:c85a2b90-f1a0-4aa4-b17f-f938b475804e\"") != std::string::npos);
 
-    ASSERT_TRUE(result.find("\"validation_results\"") != std::string::npos) << "JSON should contain 'validation_results' field";
+    ASSERT_TRUE(result.find("\"validation_results\"") != std::string::npos);
 
-    ASSERT_TRUE(result.find("\"manifest_data\"") != std::string::npos) << "JSON should contain 'manifest_data' field";
-    ASSERT_TRUE(result.find("\"application/c2pa\"") != std::string::npos) << "JSON should contain 'application/c2pa' as format";
+    ASSERT_TRUE(result.find("\"manifest_data\"") != std::string::npos);
+    ASSERT_TRUE(result.find("\"application/c2pa\"") != std::string::npos);
 }
