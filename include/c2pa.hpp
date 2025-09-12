@@ -283,8 +283,10 @@ namespace c2pa
         void set_remote_url(const string &remote_url);
 
         /// @brief Set the base path for loading resources.
-        /// @param base_path  The base path to set.
+        /// @param base_path The base path to set.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        /// @deprecated This method is planned to be deprecated in a future release.
+        ///             Usage should be limited and temporary. Use `add_resource` instead.
         void set_base_path(const string &base_path);
 
         /// @brief Add a resource to the builder.
