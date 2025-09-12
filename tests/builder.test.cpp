@@ -854,13 +854,8 @@ TEST(Builder, AddIngredientAsResourceToBuilder)
     fs::path signed_image_path = current_dir / "../tests/fixtures/C.jpg";
     fs::path output_path = current_dir / "../build/example/signed_with_ingredient_and_resource.jpg";
 
-    manifest_data = builder.sign(signed_image_path, output_path, signer);
+    ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
 
     auto reader = c2pa::Reader(output_path);
-    auto manifest_store_json = reader.json();
-
-    cout << "manifest_store_json: " << manifest_store_json << endl;
-    cout.flush();
-
-    ASSERT_TRUE(false);
+    ASSERT_NO_THROW(reader.json());
 }
