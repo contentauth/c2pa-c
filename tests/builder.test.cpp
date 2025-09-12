@@ -695,3 +695,51 @@ TEST(Builder, SignWithInvalidStream)
     // expect the sign operation to fail due to invalid/empty stream
     EXPECT_THROW(builder.sign("image/jpeg", empty_stream, dest, signer), c2pa::C2paException);
 }
+
+TEST(Builder, ReadIngredientFile)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the path to the test fixture
+    fs::path source_path = current_dir / "../tests/fixtures/A.jpg";
+
+    // Use target/tmp like other tests
+    fs::path temp_dir = "target/tmp";
+
+    // Test that the function can read ingredient file successfully
+    std::string result;
+    ASSERT_NO_THROW(result = c2pa::read_ingredient_file(source_path, temp_dir));
+
+    // Verify that the result is not empty
+    ASSERT_FALSE(result.empty());
+
+    // Parse the JSON and verify the structure
+    // The result should contain at least the following structure:
+    // {
+    //   "title": "A.jpg",
+    //   "format": "image/jpeg",
+    //   "thumbnail": {
+    //     "format": "image/jpeg",
+    //     "identifier": "xmp.iid-813ee422-9736-4cdc-9be6-4e35ed8e41cb-3.jpg"
+    //   },
+    //   "relationship": "componentOf"
+    // }
+
+    // Check for required top-level fields
+    ASSERT_TRUE(result.find("\"title\"") != std::string::npos) << "JSON should contain 'title' field";
+    ASSERT_TRUE(result.find("\"format\"") != std::string::npos) << "JSON should contain 'format' field";
+    ASSERT_TRUE(result.find("\"thumbnail\"") != std::string::npos) << "JSON should contain 'thumbnail' field";
+    ASSERT_TRUE(result.find("\"relationship\"") != std::string::npos) << "JSON should contain 'relationship' field";
+
+    // Check for thumbnail sub-fields
+    ASSERT_TRUE(result.find("\"identifier\"") != std::string::npos) << "JSON should contain 'identifier' field within thumbnail";
+
+    // Verify the title matches the expected filename
+    ASSERT_TRUE(result.find("\"A.jpg\"") != std::string::npos) << "JSON should contain 'A.jpg' as title";
+
+    // Verify the format is image/jpeg
+    ASSERT_TRUE(result.find("\"image/jpeg\"") != std::string::npos) << "JSON should contain 'image/jpeg' as format";
+
+    // Verify the relationship is componentOf
+    ASSERT_TRUE(result.find("\"componentOf\"") != std::string::npos) << "JSON should contain 'componentOf' as relationship";
+}
