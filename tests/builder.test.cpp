@@ -70,6 +70,43 @@ TEST(Builder, SignImageFileOnly)
     ASSERT_TRUE(std::filesystem::exists(output_path));
 };
 
+TEST(Builder, SignImageFileWithoutThumbnailAutoGeneration)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the paths relative to the current directory
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path = current_dir / "../build/example/training_image_only.jpg";
+
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+    // set settings to not generate thumbnails
+    c2pa::load_settings("{\"builder\": { \"thumbnail\": {\"enabled\": false}}}", "json");
+
+    // create a signer
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    std::filesystem::remove(output_path.c_str()); // remove the file if it exists
+
+    auto builder = c2pa::Builder(manifest);
+    // the Builder returns manifest bytes
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
+
+    // read to verify
+    auto reader = c2pa::Reader(output_path);
+    ASSERT_NO_THROW(reader.json());
+    ASSERT_TRUE(std::filesystem::exists(output_path));
+
+    // reset settings to defaults
+    c2pa::load_settings("{\"builder\": { \"thumbnail\": {\"enabled\": true}}}", "json");
+};
+
 TEST(Builder, SignImageFileWithResource)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
