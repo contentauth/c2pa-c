@@ -99,9 +99,9 @@ TEST(Builder, SignImageFileWithoutThumbnailAutoGenerationThroughSettings)
     ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
 
     // read to verify
+    ASSERT_TRUE(std::filesystem::exists(output_path));
     auto reader = c2pa::Reader(output_path);
     ASSERT_NO_THROW(reader.json());
-    ASSERT_TRUE(std::filesystem::exists(output_path));
 
     // reset settings to defaults, because settings are currently global
     c2pa::load_settings("{\"builder\": { \"thumbnail\": {\"enabled\": true}}}", "json");
