@@ -282,6 +282,11 @@ namespace c2pa
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         void set_remote_url(const string &remote_url);
 
+        /// @brief Set the base path for loading resources.
+        /// @param base_path  The base path to set.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        void set_base_path(const string &base_path);
+
         /// @brief Add a resource to the builder.
         /// @param uri The uri of the resource.
         /// @param source The input stream to read the resource from.
