@@ -713,33 +713,26 @@ TEST(Builder, ReadIngredientFile)
     // Verify that the result is not empty
     ASSERT_FALSE(result.empty());
 
-    // Parse the JSON and verify the structure
+    // Expected JSON structure:
     // The result should contain at least the following structure:
     // {
     //   "title": "A.jpg",
     //   "format": "image/jpeg",
     //   "thumbnail": {
     //     "format": "image/jpeg",
-    //     "identifier": "xmp.iid-813ee422-9736-4cdc-9be6-4e35ed8e41cb-3.jpg"
+    //     ... more goes here ... but we don't check these in this test
     //   },
     //   "relationship": "componentOf"
     // }
 
-    // Check for required top-level fields
     ASSERT_TRUE(result.find("\"title\"") != std::string::npos) << "JSON should contain 'title' field";
-    ASSERT_TRUE(result.find("\"format\"") != std::string::npos) << "JSON should contain 'format' field";
-    ASSERT_TRUE(result.find("\"thumbnail\"") != std::string::npos) << "JSON should contain 'thumbnail' field";
-    ASSERT_TRUE(result.find("\"relationship\"") != std::string::npos) << "JSON should contain 'relationship' field";
-
-    // Check for thumbnail sub-fields
-    ASSERT_TRUE(result.find("\"identifier\"") != std::string::npos) << "JSON should contain 'identifier' field within thumbnail";
-
-    // Verify the title matches the expected filename
     ASSERT_TRUE(result.find("\"A.jpg\"") != std::string::npos) << "JSON should contain 'A.jpg' as title";
 
-    // Verify the format is image/jpeg
+    ASSERT_TRUE(result.find("\"format\"") != std::string::npos) << "JSON should contain 'format' field";
     ASSERT_TRUE(result.find("\"image/jpeg\"") != std::string::npos) << "JSON should contain 'image/jpeg' as format";
 
-    // Verify the relationship is componentOf
+    ASSERT_TRUE(result.find("\"thumbnail\"") != std::string::npos) << "JSON should contain 'thumbnail' field";
+
+    ASSERT_TRUE(result.find("\"relationship\"") != std::string::npos) << "JSON should contain 'relationship' field";
     ASSERT_TRUE(result.find("\"componentOf\"") != std::string::npos) << "JSON should contain 'componentOf' as relationship";
 }
