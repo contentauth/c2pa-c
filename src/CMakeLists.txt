@@ -28,7 +28,7 @@ elseif(WIN32)
     set(C2PA_PREBUILT_ARCH "${C2PA_PROCESSOR}-pc-windows-msvc")
     set(C2PA_LIB_NAME "c2pa_c.dll")
     set(C2PA_IMPLIB_NAME "c2pa_c.dll.lib")
-    
+
     # Warn about potential ABI issues with MinGW
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         message(WARNING "Using MinGW with MSVC-compiled DLL may cause ABI compatibility issues. Consider using MSVC compiler on Windows.")
