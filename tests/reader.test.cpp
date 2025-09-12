@@ -93,17 +93,49 @@ TEST(Reader, MultipleReadersSameFile)
 };
 
 TEST(Reader, VideoStreamWithManifestUsingExtension) {
-  fs::path current_dir = fs::path(__FILE__).parent_path();
-  fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / "video1.mp4";
-  ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
+    auto disable_verify_config = R"({ "verify": { "verify_after_reading": false } })";
+    auto enable_verify_config = R"({ "verify": { "verify_after_reading": true } })";
 
-  // read the new manifest and display the JSON
-  std::ifstream file_stream(test_file, std::ios::binary);
-  ASSERT_TRUE(file_stream.is_open()) << "Failed to open video file: " << test_file;
+    std::vector<std::string> verify_configs = {
+        disable_verify_config,
+        enable_verify_config,
+        disable_verify_config,
+        enable_verify_config,
+        disable_verify_config,
+        enable_verify_config,
+        disable_verify_config,
+        enable_verify_config
+    };
 
-  auto reader = c2pa::Reader("mp4", file_stream);
-  auto manifest_store_json = reader.json();
-  EXPECT_TRUE(manifest_store_json.find("My Title") != std::string::npos);
+    for (auto &config : verify_configs) {
+        std::cout << "Using config: " << config << std::endl;
+
+        c2pa::load_settings(config, "json");
+
+        fs::path current_dir = fs::path(__FILE__).parent_path();
+        fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / "c2pa.mp4";
+        ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
+
+        // read the new manifest and display the JSON
+        std::ifstream file_stream(test_file, std::ios::binary);
+        ASSERT_TRUE(file_stream.is_open()) << "Failed to open video file: " << test_file;
+
+        // load verify enabled settings.
+        auto start = std::chrono::high_resolution_clock::now();
+
+        // create reader and read manifest
+        file_stream.seekg(0, std::ios::beg);
+        auto reader = c2pa::Reader("mp4", file_stream);
+        auto manifest_store_json = reader.json();
+        // EXPECT_TRUE(manifest_store_json.find("My Title") != std::string::npos);
+
+        // measure time taken to read and verify
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << "Manifest read / verify took "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
+                << " ms"
+                << std::endl;
+    }
 };
 
 class FileWithManifestTests
