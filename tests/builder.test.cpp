@@ -272,7 +272,7 @@ TEST(Builder, SignVideoFileWithMultipleIngredientsAndResources)
     fs::path image_ingredient = current_dir / "../tests/fixtures/A.jpg";
     fs::path image_resource = current_dir / "../tests/fixtures/C.jpg";
     fs::path image_resource_other = current_dir / "../tests/fixtures/sample1.gif";
-    fs::path output_path = current_dir / "../build/example/video1_signed.mp4";
+    fs::path output_path = current_dir / "../build/example/video1_signed_with_ingredients_and_resources.mp4";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -793,4 +793,74 @@ TEST(Builder, ReadIngredientFileWhoHasAManifestStore)
 
     ASSERT_TRUE(result.find("\"manifest_data\"") != std::string::npos);
     ASSERT_TRUE(result.find("\"application/c2pa\"") != std::string::npos);
+}
+
+TEST(Builder, AddIngredientAsResourceToBuilder)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+
+    // Construct the path to the test fixture
+    fs::path ingredient_source_path = current_dir / "../tests/fixtures/A.jpg";
+    std::string ingredient_source_path_str = ingredient_source_path.string();
+
+    // Use target/tmp like other tests
+    fs::path temp_dir = "target/tmp";
+
+    // Get the needed JSON for the ingredient
+    std::string result;
+    result = c2pa::read_ingredient_file(ingredient_source_path, temp_dir);
+
+    // Extract the identifier from the ingredient JSON
+    // (the identifier may change in between runs because we reuse the tmp folder)
+    std::string identifier;
+    size_t identifier_start = result.find("\"identifier\":");
+    if (identifier_start != std::string::npos) {
+        identifier_start = result.find("\"", identifier_start + 13); // Skip "identifier":
+        if (identifier_start != std::string::npos) {
+            identifier_start++; // Skip the opening quote
+            size_t identifier_end = result.find("\"", identifier_start);
+            if (identifier_end != std::string::npos) {
+                identifier = result.substr(identifier_start, identifier_end - identifier_start);
+            }
+        }
+    }
+
+    // create the builder
+    auto manifest = read_text_file(manifest_path);
+
+    // Add ingredients array to the manifest JSON
+    // Parse the JSON and add ingredients array
+    std::string modified_manifest = manifest;
+    // Find the last closing brace and insert ingredients array before it
+    size_t last_brace = modified_manifest.find_last_of('}');
+    if (last_brace != std::string::npos) {
+        std::string ingredients_array = ",\n  \"ingredients\": [\n    " + result + "\n  ]";
+        modified_manifest.insert(last_brace, ingredients_array);
+    }
+
+    auto builder = c2pa::Builder(modified_manifest);
+
+    // add a resource: a thumbnail for the ingredient
+    builder.add_resource(identifier, ingredient_source_path);
+
+    // create a signer
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    std::vector<unsigned char> manifest_data;
+    fs::path signed_image_path = current_dir / "../tests/fixtures/C.jpg";
+    fs::path output_path = current_dir / "../build/example/signed_with_ingredient_and_resource.jpg";
+
+    manifest_data = builder.sign(signed_image_path, output_path, signer);
+
+    auto reader = c2pa::Reader(output_path);
+    auto manifest_store_json = reader.json();
+
+    cout << "manifest_store_json: " << manifest_store_json << endl;
+    cout.flush();
+
+    ASSERT_TRUE(false);
 }
