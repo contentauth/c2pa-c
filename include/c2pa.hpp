@@ -277,27 +277,27 @@ namespace c2pa
         /// @brief  Set the no embed flag.
         void set_no_embed();
 
-        /// @brief  Set the remote URL.
+        /// @brief Set the remote URL.
         /// @param remote_url  The remote URL to set.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         void set_remote_url(const string &remote_url);
 
-        /// @brief  Add a resource to the builder.
-        /// @param uri  The uri of the resource.
-        /// @param source  The input stream to read the resource from.
+        /// @brief Add a resource to the builder.
+        /// @param uri The uri of the resource.
+        /// @param source The input stream to read the resource from.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         void add_resource(const string &uri, istream &source);
 
-        /// @brief  Add a resource to the builder.
-        /// @param uri  The uri of the resource.
+        /// @brief Add a resource to the builder.
+        /// @param uri The uri of the resource.
         /// @param source_path  The path to the resource file.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         void add_resource(const string &uri, const std::filesystem::path &source_path);
 
         /// @brief Add an ingredient to the builder.
         /// @param ingredient_json  Any fields of the ingredient you want to define.
-        /// @param format  The format of the ingredient file.
-        /// @param source  The input stream to read the ingredient from.
+        /// @param format The format of the ingredient file.
+        /// @param source The input stream to read the ingredient from.
         /// @throws C2pa::C2paException for errors encountered by the C2pa library.
         void add_ingredient(const string &ingredient_json, const string &format, istream &source);
 
