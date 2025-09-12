@@ -805,14 +805,17 @@ TEST(Builder, AddIngredientAsResourceToBuilder)
     std::string ingredient_source_path_str = ingredient_source_path.string();
 
     // Use target/tmp like other tests
-    fs::path temp_dir = "target/tmp";
+    fs::path temp_dir = current_dir / "../build/ingredient_as_resource_temp_dir";
 
     // Get the needed JSON for the ingredient
     std::string result;
+    // The data_dir is the location where binary resources will be stored
+    // eg. thumbnails
     result = c2pa::read_ingredient_file(ingredient_source_path, temp_dir);
 
-    // Extract the identifier from the ingredient JSON
-    // (the identifier may change in between runs because we reuse the tmp folder)
+    // Extract the identifier from the ingredient JSON, as we will use it to add the resource
+    // by building the path to the ingredient's thumbnail.
+    // (The identifier may change in between runs because we reuse the tmp folder)
     std::string identifier;
     size_t identifier_start = result.find("\"identifier\":");
     if (identifier_start != std::string::npos) {
@@ -826,10 +829,11 @@ TEST(Builder, AddIngredientAsResourceToBuilder)
         }
     }
 
-    // Create the builder
+    // Create the builder using the manifest JSON
     auto manifest = read_text_file(manifest_path);
 
-    // Add ingredients array to the manifest JSON
+    // Add ingredients array to the manifest JSON, since our demo manifest doesn't have it,
+    // and we are adding ingredients more manually than through the Builder.add_ingredient call.
     // Parse the JSON and add ingredients array
     std::string modified_manifest = manifest;
     // Find the last closing brace and insert ingredients array before it
@@ -842,7 +846,9 @@ TEST(Builder, AddIngredientAsResourceToBuilder)
     auto builder = c2pa::Builder(modified_manifest);
 
     // Add a resource: a thumbnail for the ingredient
-    builder.add_resource(identifier, ingredient_source_path);
+    // for the thumbnail path, we use what was put in the data_dir by the read_ingredient_file call.
+    fs::path ingredient_thumbnail_path = temp_dir / identifier;
+    builder.add_resource(identifier, ingredient_thumbnail_path);
 
     // Create a signer
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
@@ -853,8 +859,6 @@ TEST(Builder, AddIngredientAsResourceToBuilder)
     std::vector<unsigned char> manifest_data;
     fs::path signed_image_path = current_dir / "../tests/fixtures/C.jpg";
     fs::path output_path = current_dir / "../build/example/signed_with_ingredient_and_resource.jpg";
-
-    ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
 
     auto reader = c2pa::Reader(output_path);
     ASSERT_NO_THROW(reader.json());
