@@ -826,7 +826,7 @@ TEST(Builder, AddIngredientAsResourceToBuilder)
         }
     }
 
-    // create the builder
+    // Create the builder
     auto manifest = read_text_file(manifest_path);
 
     // Add ingredients array to the manifest JSON
@@ -841,10 +841,10 @@ TEST(Builder, AddIngredientAsResourceToBuilder)
 
     auto builder = c2pa::Builder(modified_manifest);
 
-    // add a resource: a thumbnail for the ingredient
+    // Add a resource: a thumbnail for the ingredient
     builder.add_resource(identifier, ingredient_source_path);
 
-    // create a signer
+    // Create a signer
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     auto certs = read_text_file(certs_path);
     auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
