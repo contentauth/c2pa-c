@@ -743,6 +743,13 @@ TEST(Builder, ReadIngredientFile)
     // Use target/tmp like other tests
     fs::path temp_dir = "target/tmp";
 
+    // Remove and recreate the target/tmp folder before using it
+    // This is technically a clean-up in-between tests
+    if (fs::exists(temp_dir)) {
+        fs::remove_all(temp_dir);
+    }
+    fs::create_directories(temp_dir);
+
     // Test that the function can read ingredient file successfully
     std::string result;
     ASSERT_NO_THROW(result = c2pa::read_ingredient_file(source_path, temp_dir));
@@ -784,6 +791,13 @@ TEST(Builder, ReadIngredientFileWhoHasAManifestStore)
 
     // Use target/tmp like other tests
     fs::path temp_dir = "target/tmp";
+
+    // Remove and recreate the target/tmp folder before using it
+    // This is technically a clean-up in-between tests
+    if (fs::exists(temp_dir)) {
+        fs::remove_all(temp_dir);
+    }
+    fs::create_directories(temp_dir);
 
     // Test that the function can read ingredient file successfully
     std::string result;
@@ -841,8 +855,14 @@ TEST(Builder, AddIngredientAsResourceToBuilder)
     fs::path ingredient_source_path = current_dir / "../tests/fixtures/A.jpg";
     std::string ingredient_source_path_str = ingredient_source_path.string();
 
-    // Use target/tmp like other tests
     fs::path temp_dir = current_dir / "../build/ingredient_as_resource_temp_dir";
+
+    // Remove and recreate the build/ingredient_as_resource_temp_dir folder before using it
+    // This is technically a clean-up in-between tests
+    if (fs::exists(temp_dir)) {
+        fs::remove_all(temp_dir);
+    }
+    fs::create_directories(temp_dir);
 
     // Get the needed JSON for the ingredient from the ingredient file using `read_ingredient_file`
     std::string result;
@@ -914,6 +934,13 @@ TEST(Builder, AddIngredientToBuilderUsingBasePath)
     // Use target/tmp like other tests
     fs::path temp_dir = current_dir / "../build/ingredient_as_resource_temp_dir";
 
+    // Remove and recreate the build/ingredient_as_resource_temp_dir folder before using it
+    // This is technically a clean-up in-between tests
+    if (fs::exists(temp_dir)) {
+        fs::remove_all(temp_dir);
+    }
+    fs::create_directories(temp_dir);
+
     // Get the needed JSON for the ingredient
     std::string result;
     // The data_dir is the location where binary resources will be stored
@@ -969,6 +996,13 @@ TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)
 
     // Use target/tmp like other tests
     fs::path temp_dir = current_dir / "../build/ingredient_as_resource_temp_dir";
+
+    // Remove and recreate the build/ingredient_as_resource_temp_dir folder before using it
+    // This is technically a clean-up in-between tests
+    if (fs::exists(temp_dir)) {
+        fs::remove_all(temp_dir);
+    }
+    fs::create_directories(temp_dir);
 
     // Get the needed JSON for the ingredient
     std::string result;
