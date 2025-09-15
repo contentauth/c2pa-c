@@ -103,7 +103,7 @@ TEST(Builder, SignImageFileWithoutThumbnailAutoGenerationThroughSettings)
     auto reader = c2pa::Reader(output_path);
     ASSERT_NO_THROW(reader.json());
 
-    // reset settings to defaults, because settings are currently global
+    // reset settings to defaults, because settings are thread-local
     c2pa::load_settings("{\"builder\": { \"thumbnail\": {\"enabled\": true}}}", "json");
 };
 
@@ -844,7 +844,7 @@ TEST(Builder, AddIngredientAsResourceToBuilder)
     // Use target/tmp like other tests
     fs::path temp_dir = current_dir / "../build/ingredient_as_resource_temp_dir";
 
-    // Get the needed JSON for the ingredient
+    // Get the needed JSON for the ingredient from the ingredient file using `read_ingredient_file`
     std::string result;
     // The data_dir is the location where binary resources will be stored
     // eg. thumbnails
@@ -973,7 +973,7 @@ TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)
     // Get the needed JSON for the ingredient
     std::string result;
     // The data_dir is the location where binary resources will be stored
-    // eg. thumbnails
+    // eg. thumbnails, but also additional c2pa data
     result = c2pa::read_ingredient_file(ingredient_source_path, temp_dir);
 
     // Create the builder using a manifest JSON
@@ -995,7 +995,7 @@ TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)
 
     // a Builder can load resources from a base path
     // eg. ingredients from a data directory.
-    // Here, we can reuse the data directory from the read_ingredient_file call,
+    // Here, we reuse the data directory from the read_ingredient_file call,
     // so the builder properly loads the ingredient data using that directory.
     builder.set_base_path(temp_dir.string());
 
