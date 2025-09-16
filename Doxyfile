@@ -1,0 +1,39 @@
+PROJECT_NAME           = "c2pa-c"
+PROJECT_BRIEF          = "C API for the C2PA library"
+OUTPUT_DIRECTORY       = docs/_build
+CREATE_SUBDIRS         = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_MAN           = NO
+GENERATE_XML           = YES
+ALWAYS_DETAILED_SEC    = YES
+INLINE_SOURCES         = YES
+STRIP_CODE_COMMENTS    = NO
+
+INPUT                  = include src README.md
+FILE_PATTERNS          = *.h *.hpp *.c
+RECURSIVE              = YES
+EXCLUDE_SYMLINKS       = YES
+
+MARKDOWN_SUPPORT       = YES
+USE_MDFILE_AS_MAINPAGE = README.md
+
+HTML_OUTPUT            = html
+HTML_COLORSTYLE_HUE    = 209
+GENERATE_TREEVIEW      = YES
+HTML_EXTRA_STYLESHEET  = docs/doxygen-extra.css
+
+QUIET                  = NO
+WARN_IF_UNDOCUMENTED   = NO
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_METHODS  = YES
+
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = NO
+PREDEFINED             = DOXYGEN=1
+
+STRIP_FROM_PATH        = include src
+

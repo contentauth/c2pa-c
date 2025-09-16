@@ -6,12 +6,14 @@ The [c2pa-c repository](https://github.com/contentauth/c2pa-c) implements C++ AP
 
 Although this library works for plain C applications, the documentation assumes you're using C++, since that's most common for modern applications.
 
+<div class="hide-doxygen" >
 <div style={{display: 'none'}}>
 
 For the best experience, read the docs on the [CAI Open Source SDK documentation website](https://opensource.contentauthenticity.org/docs/c2pa-c).  If you want to view the documentation in GitHub, see:
 - [Using the C++ library](docs/usage.md)
 - [Supported formats](https://github.com/contentauth/c2pa-rs/blob/crandmck/reorg-docs/docs/supported-formats.md)
 
+</div>
 </div>
 
 ## Using c2pa_cpp in Your Application
@@ -74,6 +76,30 @@ Build the [unit tests](https://github.com/contentauth/c2pa-c/tree/main/tests) by
 ```
 make unit-test
 ```
+
+## API documentation
+
+Generate API docs using Doxygen.
+
+- Configuration file: `c2pa-c/Doxyfile` 
+- Script: `c2pa-c/scripts/generate_api_docs.sh`
+- Output directory: `docs/_build/html`
+
+Install Doxygen if needed:
+
+```
+macOS: brew install doxygen
+Ubuntu/Debian: sudo apt-get install doxygen
+```
+
+Generate docs:
+```
+make -C docs
+```
+
+Open `build/html/index.html`
+
+
 
 ## License
 

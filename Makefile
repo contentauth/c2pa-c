@@ -44,3 +44,7 @@ clean:
 
 .PHONY: all debug release cmake test test-release demo training examples clean
 
+# Build C API docs with Doxygen
+docs:
+	./scripts/generate_api_docs.sh
+
