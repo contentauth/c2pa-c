@@ -16,7 +16,7 @@ For the best experience, read the docs on the [CAI Open Source SDK documentation
 </div>
 </div>
 
-## Using c2pa_cpp in Your Application
+## Using c2pa_cpp 
 
 The recommended way to use this library in your own CMake project is with [FetchContent](https://cmake.org/cmake/help/latest/module/FetchContent.html):
 
@@ -39,11 +39,9 @@ This will automatically fetch, build, and link the `c2pa_cpp` library and its de
 > **Note:**  
 > This project uses pre-built dynamic libraries from the [c2pa-rs](https://github.com/contentauth/c2pa-rs) repository. It should select the correct library for your platform. If your platform is not supported, you can build your own library using the c2pa_rs repo.
 
-### Example Usage
+### Example usage
 
 See the [`examples/`](examples/) directory for sample applications that demonstrate how to use the library in practice.  
-
----
 
 ## Development
 
@@ -98,8 +96,6 @@ make -C docs
 ```
 
 Open `build/html/index.html`
-
-
 
 ## License
 
