@@ -9,8 +9,8 @@ if ! command -v doxygen >/dev/null 2>&1; then
   exit 1
 fi
 
-OUT_DIR="docs/_build/html"
-rm -rf "docs/_build" || true
+OUT_DIR="api-docs/_build/html"
+rm -rf "api-docs/_build" || true
 
 doxygen Doxyfile | cat
 

@@ -78,7 +78,7 @@ make unit-test
 ## API documentation
 
 Generate API docs using Doxygen.
-
+git 
 - Configuration file: `c2pa-c/Doxyfile` 
 - Script: `c2pa-c/scripts/generate_api_docs.sh`
 - Output directory: `docs/_build/html`
