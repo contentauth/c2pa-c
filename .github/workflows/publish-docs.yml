@@ -3,7 +3,6 @@ name: Build and publish docs
 on:
   push:
     branches: ['main']
-    tags: '*'
 
   workflow_dispatch:
 
