@@ -1,6 +1,13 @@
 name: Build and publish docs
 
 on:
+  pull_request:
+      types:
+        - opened
+        - reopened
+        - synchronize
+        - labeled
+
   push:
     branches: ['main']
 
@@ -12,7 +19,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: 'pages'
+  group: 'github-pages'
   cancel-in-progress: false
 
 jobs:
