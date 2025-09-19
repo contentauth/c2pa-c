@@ -30,13 +30,11 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - uses: ./.github/actions/install-dependencies
-        name: Install dependencies
-
-      - run: pnpm exec nx run-many -t build --projects=tag:lib
+      - name: Install Doxygen
+        run: sudo apt-get install doxygen
 
       - name: Build docs
-        run: pnpm ci:docs
+        run: sh ./scripts/generate_api_docs.sh
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

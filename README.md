@@ -90,12 +90,15 @@ macOS: brew install doxygen
 Ubuntu/Debian: sudo apt-get install doxygen
 ```
 
-Generate docs:
+To generate docs, enter the command:
+
 ```
-make -C docs
+./scripts/generate_api_docs.sh
 ```
 
-Open `build/html/index.html`
+Or run `make -C docs`.
+
+Open `build/html/index.html` to see the results.
 
 ## License
 
