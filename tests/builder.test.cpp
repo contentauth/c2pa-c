@@ -1028,7 +1028,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
 
     // Initialize the manifest JSON directly
     std::string manifest = R"({
-        "vendor": "adobe",
+        "vendor": "a-vendor",
         "claim_generator_info": [
             {
                 "name": "c2pa-c test",
