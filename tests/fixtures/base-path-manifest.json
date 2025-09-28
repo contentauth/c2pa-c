@@ -1,0 +1,39 @@
+{
+  "vendor": "adobe",
+  "claim_generator_info": [
+    {
+      "name": "Adobe Photoshop",
+      "version": "27.0.0",
+      "com.adobe.build": "20250925.67785.18 fa92201 mac"
+    }
+  ],
+  "assertions": [
+    {
+      "label": "c2pa.actions",
+      "data": {
+        "actions": [
+          {
+            "action": "c2pa.created",
+            "description": "Created a new file or content",
+            "parameters": {
+              "com.adobe.icon": "https://cai-assertions.adobe.com/icons/new-item-dark.svg",
+              "com.adobe.tool": "new"
+            },
+            "digitalSourceType": "http://c2pa.org/digitalsourcetype/empty"
+          },
+          {
+            "action": "c2pa.placed.v2",
+            "description": "Added pre-existing content to this file",
+            "parameters": {
+              "com.adobe.icon": "https://cai-assertions.adobe.com/icons/save-to-light-dark.svg",
+              "com.adobe.tool": "place_embedded_smart_object"
+            }
+          }
+        ],
+        "metadata": {
+          "dateTime": "2025-09-25T20:59:48.262Z"
+        }
+      }
+    }
+  ]
+}

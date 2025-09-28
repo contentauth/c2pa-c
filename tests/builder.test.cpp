@@ -14,6 +14,7 @@
 #include <gtest/gtest.h>
 #include <string>
 #include <filesystem>
+#include <algorithm>
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -215,6 +216,13 @@ TEST(Builder, SignImageFileWithIngredient)
     auto reader = c2pa::Reader(output_path);
     ASSERT_NO_THROW(reader.json());
     ASSERT_TRUE(std::filesystem::exists(output_path));
+
+    /*
+    std::cout << "manifest_data: " << reader.json() << std::endl;
+    std::cout.flush();
+
+    ASSERT_TRUE(false);
+    */
 };
 
 TEST(Builder, SignImageFileWithResourceAndIngredient)
@@ -984,6 +992,119 @@ TEST(Builder, AddIngredientToBuilderUsingBasePath)
     auto reader = c2pa::Reader(output_path);
     ASSERT_NO_THROW(reader.json());
 }
+
+//*
+TEST(Builder, AddIngredientToBuilderUsingBasePathPlaced)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path manifest_path = current_dir / "../tests/fixtures/base-path-manifest.json";
+
+    // Construct the path to the test fixture
+    fs::path ingredient_source_path = current_dir / "../tests/fixtures/A.jpg";
+    std::string ingredient_source_path_str = ingredient_source_path.string();
+
+    // Use target/tmp like other tests
+    fs::path temp_dir = current_dir / "../build/ingredient_as_resource_temp_dir";
+
+    // set settings to not generate thumbnails
+    c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": false}}}}", "json");
+
+    // Remove and recreate the build/ingredient_as_resource_temp_dir folder before using it
+    // This is technically a clean-up in-between tests
+    if (fs::exists(temp_dir)) {
+        fs::remove_all(temp_dir);
+    }
+    fs::create_directories(temp_dir);
+
+    // Get the needed JSON for the ingredient
+    std::string result;
+    // The data_dir is the location where binary resources will be stored
+    // eg. thumbnails
+    result = c2pa::read_ingredient_file(ingredient_source_path, temp_dir);
+
+    // Extract the instance_id from the ingredient JSON
+    std::string instance_id;
+    size_t instance_id_start = result.find("\"instance_id\":");
+    if (instance_id_start != std::string::npos) {
+        instance_id_start = result.find("\"", instance_id_start + 14); // Skip "instance_id":
+        if (instance_id_start != std::string::npos) {
+            instance_id_start++; // Skip the opening quote
+            size_t instance_id_end = result.find("\"", instance_id_start);
+            if (instance_id_end != std::string::npos) {
+                instance_id = result.substr(instance_id_start, instance_id_end - instance_id_start);
+            }
+        }
+    }
+    
+    // Extract the instance_id from the ingredient JSON for use in the c2pa.placed action
+
+    // Create the builder using a manifest JSON
+    auto manifest = read_text_file(manifest_path);
+
+    // Add ingredients array to the manifest JSON, since our demo manifest doesn't have it,
+    // and we are adding ingredients more manually than through the Builder.add_ingredient call.
+
+    // Parse the JSON and add ingredients array
+    std::string modified_manifest = manifest;
+    // Find the last closing brace and insert ingredients array before it
+    size_t last_brace = modified_manifest.find_last_of('}');
+    if (last_brace != std::string::npos) {
+        std::string ingredients_array = ",\n  \"ingredients\": [\n    " + result + "\n  ]";
+        modified_manifest.insert(last_brace, ingredients_array);
+    }
+
+    // Add instanceId parameter to the c2pa.placed action
+    if (!instance_id.empty()) {
+        // Find the c2pa.placed action and add instanceId to its parameters
+        size_t placed_action_start = modified_manifest.find("\"action\": \"c2pa.placed\"");
+        if (placed_action_start != std::string::npos) {
+            // Find the parameters section of this action
+            size_t parameters_start = modified_manifest.find("\"parameters\": {", placed_action_start);
+            if (parameters_start != std::string::npos) {
+                // Find the end of the parameters object
+                size_t parameters_end = modified_manifest.find("}", parameters_start);
+                if (parameters_end != std::string::npos) {
+                    // Insert instanceId before the closing brace of parameters
+                    std::string instance_id_param = ",\n              \"instanceId\": \"" + instance_id + "\"";
+                    modified_manifest.insert(parameters_end, instance_id_param);
+                    // Successfully added instanceId parameter to c2pa.placed action
+                }
+            }
+        }
+    }
+
+    std::cout << "modified_manifest: " << modified_manifest << std::endl;
+    std::cout.flush();
+
+    auto builder = c2pa::Builder(modified_manifest);
+
+    // a Builder can load resources from a base path
+    // eg. ingredients from a data directory.
+    // Here, we can reuse the data directory from the read_ingredient_file call,
+    // so the builder properly loads the ingredient data using that directory.
+    builder.set_base_path(temp_dir.string());
+
+    // Create a signer
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    std::vector<unsigned char> manifest_data;
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path = current_dir / "../build/example/signed_with_ingredient_and_resource.jpg";
+    ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
+
+    auto reader = c2pa::Reader(output_path);
+    ASSERT_NO_THROW(reader.json());
+
+    std::cout << "manifest_data: " << reader.json() << std::endl;
+    std::cout.flush();
+
+    // set settings to not generate thumbnails
+    c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": true}}}}", "json");
+}
+//*/
 
 TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)
 {
