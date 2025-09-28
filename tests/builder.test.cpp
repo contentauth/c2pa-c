@@ -1083,9 +1083,6 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
     auto reader = c2pa::Reader(output_path);
     ASSERT_NO_THROW(reader.json());
 
-    std::cout << "manifest_data: " << reader.json() << std::endl;
-    std::cout.flush();
-
     // set settings to not generate thumbnails
     c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": true}}}}", "json");
 }
