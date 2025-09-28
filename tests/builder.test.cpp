@@ -568,9 +568,22 @@ TEST(Builder, NoSignOnInvalidDoubleParentsManifest)
     std::vector<unsigned char> manifest_data;
 
     // v0.66.0 update: Shouldn't this throw due to 2 parents?
-    EXPECT_THROW(builder.sign("image/jpeg", source, dest, signer), c2pa::C2paException);
+    // EXPECT_THROW(builder.sign("image/jpeg", source, dest, signer), c2pa::C2paException);
+
+    manifest_data = builder.sign("image/jpeg", source, dest, signer);
+    source.close();
+
+    // Rewind dest to the start
+    dest.flush();
+    dest.seekp(0, std::ios::beg);
+    auto reader = c2pa::Reader("image/jpeg", dest);
+
+    std::cout << "json: " << reader.json() << std::endl;
+    std::cout.flush();
 
     source.close();
+
+    ASSERT_TRUE(false);
 }
 
 TEST(Builder, SignStreamCloudUrl)
