@@ -8,7 +8,7 @@
   ],
   "assertions": [
     {
-      "label": "c2pa.actions",
+      "label": "c2pa.actions.v2",
       "data": {
         "actions": [
           {
@@ -20,7 +20,7 @@
             "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation"
           },
           {
-            "action": "c2pa.placed.v2",
+            "action": "c2pa.placed",
             "description": "Added pre-existing content to this file",
             "parameters": {
               "com.vendor.tool": "place_embedded_smart_object"
