@@ -988,7 +988,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePath)
 TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAction)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path manifest_path = current_dir / "../tests/fixtures/base-path-manifest.json";
+    fs::path manifest_path = current_dir / "../tests/fixtures/base-path-test-manifest-with-placeholder.json";
 
     // Construct the path to the test fixture
     fs::path ingredient_source_path = current_dir / "../tests/fixtures/A.jpg";
@@ -997,7 +997,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
     // Use target/tmp like other tests
     fs::path temp_dir = current_dir / "../build/ingredient_as_resource_temp_dir";
 
-    // set settings to not generate thumbnails
+    // set settings to not auto-add a placed action
     c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": false}}}}", "json");
 
     // Remove and recreate the build/ingredient_as_resource_temp_dir folder before using it
@@ -1026,14 +1026,49 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
         }
     }
 
-    // Read the placeholder manifest that we'll extend
-    auto manifest = read_text_file(manifest_path);
+    // Initialize the manifest JSON directly
+    std::string manifest = R"({
+        "vendor": "adobe",
+        "claim_generator_info": [
+            {
+                "name": "c2pa-c test",
+                "version": "1.0.0"
+            }
+        ],
+        "assertions": [
+            {
+                "label": "c2pa.actions",
+                "data": {
+                    "actions": [
+                        {
+                            "action": "c2pa.created",
+                            "description": "Created a new file or content",
+                            "parameters": {
+                                "com.vendor.tool": "new"
+                            },
+                            "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation"
+                        },
+                        {
+                            "action": "c2pa.placed",
+                            "description": "Added pre-existing content to this file",
+                            "parameters": {
+                                "com.vendor.tool": "place_embedded_smart_object",
+                                "ingredientIds": ["placeholder_ingredient_id"]
+                            }
+                        }
+                    ],
+                    "metadata": {
+                        "dateTime": "2025-09-25T20:59:48.262Z"
+                    }
+                }
+            }
+        ]
+    })";
 
     // Add ingredients array to the manifest JSON, since we manually handle the manifest changes...
     // And we are adding ingredients more manually than through the Builder.add_ingredient call.
 
     // Note: Fragile JSON parsing, but OK for testing purposes.
-    // Parse the JSON and add ingredients array
     std::string modified_manifest = manifest;
     // Find the last closing brace and insert ingredients array before it
     size_t last_brace = modified_manifest.find_last_of('}');
@@ -1041,21 +1076,27 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
         std::string ingredients_array = ",\n  \"ingredients\": [\n    " + result + "\n  ]";
         modified_manifest.insert(last_brace, ingredients_array);
     }
-    // Add instanceId parameter to the c2pa.placed action
+    // Update the ingredientIds parameter in the c2pa.placed action to reference the actual ingredient
     if (!instance_id.empty()) {
-        // Find the c2pa.placed action and add instanceId to its parameters
+        // Find the c2pa.placed action and update its ingredientIds parameter
         size_t placed_action_start = modified_manifest.find("\"action\": \"c2pa.placed\"");
         if (placed_action_start != std::string::npos) {
             // Find the parameters section of this action
             size_t parameters_start = modified_manifest.find("\"parameters\": {", placed_action_start);
             if (parameters_start != std::string::npos) {
-                // Find the end of the parameters object
-                size_t parameters_end = modified_manifest.find("}", parameters_start);
-                if (parameters_end != std::string::npos) {
-                    // Insert instanceId before the closing brace of parameters
-                    std::string instance_id_param = ",\n              \"instanceId\": \"" + instance_id + "\"";
-                    modified_manifest.insert(parameters_end, instance_id_param);
-                    // Successfully added instanceId parameter to c2pa.placed action
+                // Find the ingredientIds parameter and replace its value
+                size_t ingredient_ids_start = modified_manifest.find("\"ingredientIds\":", parameters_start);
+                if (ingredient_ids_start != std::string::npos) {
+                    // Find the array value of the ingredientIds parameter
+                    size_t array_start = modified_manifest.find("[", ingredient_ids_start);
+                    if (array_start != std::string::npos) {
+                        size_t array_end = modified_manifest.find("]", array_start);
+                        if (array_end != std::string::npos) {
+                            // Replace the placeholder with the actual instance_id
+                            std::string ingredient_ids_array = "[\"" + instance_id + "\"]";
+                            modified_manifest.replace(array_start, array_end - array_start + 1, ingredient_ids_array);
+                        }
+                    }
                 }
             }
         }
@@ -1083,10 +1124,10 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
     auto reader = c2pa::Reader(output_path);
     ASSERT_NO_THROW(reader.json());
 
-    // set settings to not generate thumbnails
+    // set settings to not auto-add a placed action
     c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": true}}}}", "json");
 }
-//*/
+
 
 TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)
 {
