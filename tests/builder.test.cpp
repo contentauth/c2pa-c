@@ -14,7 +14,6 @@
 #include <gtest/gtest.h>
 #include <string>
 #include <filesystem>
-#include <algorithm>
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -216,13 +215,6 @@ TEST(Builder, SignImageFileWithIngredient)
     auto reader = c2pa::Reader(output_path);
     ASSERT_NO_THROW(reader.json());
     ASSERT_TRUE(std::filesystem::exists(output_path));
-
-    /*
-    std::cout << "manifest_data: " << reader.json() << std::endl;
-    std::cout.flush();
-
-    ASSERT_TRUE(false);
-    */
 };
 
 TEST(Builder, SignImageFileWithResourceAndIngredient)
@@ -993,8 +985,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePath)
     ASSERT_NO_THROW(reader.json());
 }
 
-//*
-TEST(Builder, AddIngredientToBuilderUsingBasePathPlaced)
+TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAction)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path manifest_path = current_dir / "../tests/fixtures/base-path-manifest.json";
@@ -1019,10 +1010,9 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathPlaced)
     // Get the needed JSON for the ingredient
     std::string result;
     // The data_dir is the location where binary resources will be stored
-    // eg. thumbnails
     result = c2pa::read_ingredient_file(ingredient_source_path, temp_dir);
 
-    // Extract the instance_id from the ingredient JSON
+    // Extract the instance_id from the ingredient JSON, we need it to link the ingredient
     std::string instance_id;
     size_t instance_id_start = result.find("\"instance_id\":");
     if (instance_id_start != std::string::npos) {
@@ -1035,15 +1025,14 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathPlaced)
             }
         }
     }
-    
-    // Extract the instance_id from the ingredient JSON for use in the c2pa.placed action
 
-    // Create the builder using a manifest JSON
+    // Read the placeholder manifest that we'll extend
     auto manifest = read_text_file(manifest_path);
 
-    // Add ingredients array to the manifest JSON, since our demo manifest doesn't have it,
-    // and we are adding ingredients more manually than through the Builder.add_ingredient call.
+    // Add ingredients array to the manifest JSON, since we manually handle the manifest changes...
+    // And we are adding ingredients more manually than through the Builder.add_ingredient call.
 
+    // Note: Fragile JSON parsing, but OK for testing purposes.
     // Parse the JSON and add ingredients array
     std::string modified_manifest = manifest;
     // Find the last closing brace and insert ingredients array before it
@@ -1052,7 +1041,6 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathPlaced)
         std::string ingredients_array = ",\n  \"ingredients\": [\n    " + result + "\n  ]";
         modified_manifest.insert(last_brace, ingredients_array);
     }
-
     // Add instanceId parameter to the c2pa.placed action
     if (!instance_id.empty()) {
         // Find the c2pa.placed action and add instanceId to its parameters
@@ -1072,9 +1060,6 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathPlaced)
             }
         }
     }
-
-    std::cout << "modified_manifest: " << modified_manifest << std::endl;
-    std::cout.flush();
 
     auto builder = c2pa::Builder(modified_manifest);
 
