@@ -1052,7 +1052,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
                             "action": "c2pa.placed",
                             "description": "Added pre-existing content to this file",
                             "parameters": {
-                                "com.vendor.tool": "place_embedded_smart_object",
+                                "com.vendor.tool": "place_embedded_object",
                                 "ingredientIds": ["placeholder_ingredient_id"]
                             }
                         }
