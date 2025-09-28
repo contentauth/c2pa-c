@@ -563,8 +563,13 @@ TEST(Builder, NoSignOnInvalidDoubleParentsManifest)
     std::stringstream memory_buffer(std::ios::in | std::ios::out | std::ios::binary);
     std::iostream &dest = memory_buffer;
 
-    // Expect the sign operation to fail due to invalid manifest (multiple parent ingredients)
+    // The validation logic has changed in the new version - multiple parent ingredients
+    // are now handled gracefully rather than causing a failure
+    std::vector<unsigned char> manifest_data;
+
+    // v0.66.0 update: Shouldn't this throw due to 2 parents?
     EXPECT_THROW(builder.sign("image/jpeg", source, dest, signer), c2pa::C2paException);
+
     source.close();
 }
 
@@ -998,7 +1003,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
     fs::path temp_dir = current_dir / "../build/ingredient_as_resource_temp_dir";
 
     // set settings to not generate thumbnails
-    c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": false}}}}", "json");
+    //c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": false}}}}", "json");
 
     // Remove and recreate the build/ingredient_as_resource_temp_dir folder before using it
     // This is technically a clean-up in-between tests
@@ -1083,10 +1088,14 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
     auto reader = c2pa::Reader(output_path);
     ASSERT_NO_THROW(reader.json());
 
+    std::cout << "manifest_data: " << reader.json() << std::endl;
+    std::cout.flush();
+
     // set settings to not generate thumbnails
-    c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": true}}}}", "json");
+    //c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": true}}}}", "json");
+
+    ASSERT_TRUE(false);
 }
-//*/
 
 TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)
 {
