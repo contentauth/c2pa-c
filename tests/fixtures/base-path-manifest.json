@@ -15,17 +15,15 @@
             "action": "c2pa.created",
             "description": "Created a new file or content",
             "parameters": {
-              "com.adobe.icon": "https://cai-assertions.adobe.com/icons/new-item-dark.svg",
-              "com.adobe.tool": "new"
+              "com.vendor.tool": "new"
             },
-            "digitalSourceType": "http://c2pa.org/digitalsourcetype/empty"
+            "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation"
           },
           {
             "action": "c2pa.placed.v2",
             "description": "Added pre-existing content to this file",
             "parameters": {
-              "com.adobe.icon": "https://cai-assertions.adobe.com/icons/save-to-light-dark.svg",
-              "com.adobe.tool": "place_embedded_smart_object"
+              "com.vendor.tool": "place_embedded_smart_object"
             }
           }
         ],
