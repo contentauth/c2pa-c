@@ -567,9 +567,8 @@ TEST(Builder, NoSignOnInvalidDoubleParentsManifest)
     // are now handled gracefully rather than causing a failure
     std::vector<unsigned char> manifest_data;
 
-    // v0.66.0 update: Shouldn't this throw due to 2 parents?
+    // v0.66.0 update: Shouldn't this throw due to 2 parents? Because that lets you sign invalid manifests now.
     // EXPECT_THROW(builder.sign("image/jpeg", source, dest, signer), c2pa::C2paException);
-
     manifest_data = builder.sign("image/jpeg", source, dest, signer);
     source.close();
 
