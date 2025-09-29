@@ -932,9 +932,9 @@ TEST(Builder, AddIngredientToBuilderUsingBasePath)
     std::string ingredient_source_path_str = ingredient_source_path.string();
 
     // Use temp dir for ingredient data (data dir)
-    fs::path temp_dir = current_dir / "../build/ingredient_as_resource_temp_dir";
+    fs::path temp_dir = current_dir / "../build/base_ingredient_as_resource_temp_dir";
 
-    // Remove and recreate the build/ingredient_as_resource_temp_dir folder before using it
+    // Remove and recreate the temp data dir folder before using it
     // This is technically a clean-up in-between tests
     if (fs::exists(temp_dir)) {
         fs::remove_all(temp_dir);
@@ -999,7 +999,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
     // set settings to not auto-add a placed action
     c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": false}}}}", "json");
 
-    // Remove and recreate the build/ingredient_as_resource_temp_dir folder before using it
+    // Remove and recreate the temp data dir folder before using it
     // This is technically a clean-up in-between tests
     if (fs::exists(temp_dir)) {
         fs::remove_all(temp_dir);
@@ -1135,10 +1135,10 @@ TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)
     fs::path ingredient_source_path = current_dir / "../tests/fixtures/C.jpg";
     std::string ingredient_source_path_str = ingredient_source_path.string();
 
-    // Use target/tmp like other tests
-    fs::path temp_dir = current_dir / "../build/ingredient_as_resource_temp_dir";
+    // Use temp data dir
+    fs::path temp_dir = current_dir / "../build/ingredient_with_prevenance_as_resource_temp_dir";
 
-    // Remove and recreate the build/ingredient_as_resource_temp_dir folder before using it
+    // Remove and recreate the temp data dir folder before using it
     // This is technically a clean-up in-between tests
     if (fs::exists(temp_dir)) {
         fs::remove_all(temp_dir);
