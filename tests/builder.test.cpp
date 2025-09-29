@@ -931,7 +931,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePath)
     fs::path ingredient_source_path = current_dir / "../tests/fixtures/A.jpg";
     std::string ingredient_source_path_str = ingredient_source_path.string();
 
-    // Use target/tmp like other tests
+    // Use temp dir for ingredient data (data dir)
     fs::path temp_dir = current_dir / "../build/ingredient_as_resource_temp_dir";
 
     // Remove and recreate the build/ingredient_as_resource_temp_dir folder before using it
@@ -988,14 +988,13 @@ TEST(Builder, AddIngredientToBuilderUsingBasePath)
 TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAction)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path manifest_path = current_dir / "../tests/fixtures/base-path-test-manifest-with-placeholder.json";
 
     // Construct the path to the test fixture
     fs::path ingredient_source_path = current_dir / "../tests/fixtures/A.jpg";
     std::string ingredient_source_path_str = ingredient_source_path.string();
 
-    // Use target/tmp like other tests
-    fs::path temp_dir = current_dir / "../build/ingredient_as_resource_temp_dir";
+    // Use temp dir for ingredient data
+    fs::path temp_dir = current_dir / "../build/ingredient_placed_as_resource_temp_dir";
 
     // set settings to not auto-add a placed action
     c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": false}}}}", "json");
@@ -1009,7 +1008,6 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
 
     // Get the needed JSON for the ingredient
     std::string result;
-    // The data_dir is the location where binary resources will be stored
     result = c2pa::read_ingredient_file(ingredient_source_path, temp_dir);
 
     // Extract the instance_id from the ingredient JSON, we need it to link the ingredient
@@ -1026,7 +1024,9 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
         }
     }
 
-    // Initialize the manifest JSON directly
+    // Initialize the near-complete manifest JSON (contains ingredient JSON and placed action)
+    // We are going to replace the placeholder value in the "ingredientIds" array with 
+    // the ingredientId we got by reading the ingredient from file.
     std::string manifest = R"({
         "vendor": "a-vendor",
         "claim_generator_info": [
@@ -1065,9 +1065,6 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
         ]
     })";
 
-    // Add ingredients array to the manifest JSON, since we manually handle the manifest changes...
-    // And we are adding ingredients more manually than through the Builder.add_ingredient call.
-
     // Note: Fragile JSON parsing, but OK for testing purposes.
     std::string modified_manifest = manifest;
     // Find the last closing brace and insert ingredients array before it
@@ -1104,9 +1101,8 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
 
     auto builder = c2pa::Builder(modified_manifest);
 
-    // a Builder can load resources from a base path
-    // eg. ingredients from a data directory.
-    // Here, we can reuse the data directory from the read_ingredient_file call,
+    // A Builder can load resources from a base path eg. ingredients from a data directory.
+    // Here, we reuse the data directory from the read_ingredient_file call,
     // so the builder properly loads the ingredient data using that directory.
     builder.set_base_path(temp_dir.string());
 
@@ -1124,7 +1120,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
     auto reader = c2pa::Reader(output_path);
     ASSERT_NO_THROW(reader.json());
 
-    // set settings to not auto-add a placed action
+    // reset settings to auto-add a placed action
     c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": true}}}}", "json");
 }
 
