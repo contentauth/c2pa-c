@@ -1089,7 +1089,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
                     if (array_start != std::string::npos) {
                         size_t array_end = modified_manifest.find("]", array_start);
                         if (array_end != std::string::npos) {
-                            // Replace the placeholder with the actual instance_id
+                            // Replace the placeholder ingredientId value with the actual retrieved instance_id
                             std::string ingredient_ids_array = "[\"" + instance_id + "\"]";
                             modified_manifest.replace(array_start, array_end - array_start + 1, ingredient_ids_array);
                         }
@@ -1099,6 +1099,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
         }
     }
 
+    // Now we can create a Builder with the manually adjusted manifest
     auto builder = c2pa::Builder(modified_manifest);
 
     // A Builder can load resources from a base path eg. ingredients from a data directory.
