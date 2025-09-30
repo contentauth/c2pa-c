@@ -215,8 +215,8 @@ TEST(Builder, AddMultipleActionsAndSign)
 
     // Verify both actions we added are in the actions array
     json actions_array = actions_assertion["data"]["actions"];
-    ASSERT_FALSE(actions_array.empty()) << "Actions array should not be empty";
-    ASSERT_GE(actions_array.size(), 2) << "Should have at least 2 actions";
+    ASSERT_FALSE(actions_array.empty());
+    ASSERT_GE(actions_array.size(), 2);
 
     // Find our added actions...
     json color_adjustments_action;
