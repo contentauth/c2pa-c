@@ -1110,10 +1110,10 @@ TEST(Builder, AddIngredientToBuilderUsingBasePath)
     fs::path ingredient_source_path = current_dir / "../tests/fixtures/A.jpg";
     std::string ingredient_source_path_str = ingredient_source_path.string();
 
-    // Use target/tmp like other tests
-    fs::path temp_dir = current_dir / "../build/ingredient_as_resource_temp_dir";
+    // Use temp dir for ingredient data (data dir)
+    fs::path temp_dir = current_dir / "../build/base_ingredient_as_resource_temp_dir";
 
-    // Remove and recreate the build/ingredient_as_resource_temp_dir folder before using it
+    // Remove and recreate the temp data dir folder before using it
     // This is technically a clean-up in-between tests
     if (fs::exists(temp_dir)) {
         fs::remove_all(temp_dir);
@@ -1164,6 +1164,147 @@ TEST(Builder, AddIngredientToBuilderUsingBasePath)
     ASSERT_NO_THROW(reader.json());
 }
 
+TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAction)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the path to the test fixture
+    fs::path ingredient_source_path = current_dir / "../tests/fixtures/A.jpg";
+    std::string ingredient_source_path_str = ingredient_source_path.string();
+
+    // Use temp dir for ingredient data
+    fs::path temp_dir = current_dir / "../build/ingredient_placed_as_resource_temp_dir";
+
+    // set settings to not auto-add a placed action
+    c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": false}}}}", "json");
+
+    // Remove and recreate the temp data dir folder before using it
+    // This is technically a clean-up in-between tests
+    if (fs::exists(temp_dir)) {
+        fs::remove_all(temp_dir);
+    }
+    fs::create_directories(temp_dir);
+
+    // Get the needed JSON for the ingredient
+    std::string result;
+    result = c2pa::read_ingredient_file(ingredient_source_path, temp_dir);
+
+    // Extract the instance_id from the ingredient JSON, we need it to link the ingredient
+    std::string instance_id;
+    size_t instance_id_start = result.find("\"instance_id\":");
+    if (instance_id_start != std::string::npos) {
+        instance_id_start = result.find("\"", instance_id_start + 14); // Skip "instance_id":
+        if (instance_id_start != std::string::npos) {
+            instance_id_start++; // Skip the opening quote
+            size_t instance_id_end = result.find("\"", instance_id_start);
+            if (instance_id_end != std::string::npos) {
+                instance_id = result.substr(instance_id_start, instance_id_end - instance_id_start);
+            }
+        }
+    }
+
+    // Initialize the near-complete manifest JSON (contains ingredient JSON and placed action)
+    // We are going to replace the placeholder value in the "ingredientIds" array with 
+    // the ingredientId we got by reading the ingredient from file.
+    std::string manifest = R"({
+        "vendor": "a-vendor",
+        "claim_generator_info": [
+            {
+                "name": "c2pa-c test",
+                "version": "1.0.0"
+            }
+        ],
+        "assertions": [
+            {
+                "label": "c2pa.actions",
+                "data": {
+                    "actions": [
+                        {
+                            "action": "c2pa.created",
+                            "description": "Created a new file or content",
+                            "parameters": {
+                                "com.vendor.tool": "new"
+                            },
+                            "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation"
+                        },
+                        {
+                            "action": "c2pa.placed",
+                            "description": "Added pre-existing content to this file",
+                            "parameters": {
+                                "com.vendor.tool": "place_embedded_object",
+                                "ingredientIds": ["placeholder_ingredient_id"]
+                            }
+                        }
+                    ],
+                    "metadata": {
+                        "dateTime": "2025-09-25T20:59:48.262Z"
+                    }
+                }
+            }
+        ]
+    })";
+
+    // Note: Fragile JSON parsing, but OK for testing purposes.
+    std::string modified_manifest = manifest;
+    // Find the last closing brace and insert ingredients array before it
+    size_t last_brace = modified_manifest.find_last_of('}');
+    if (last_brace != std::string::npos) {
+        std::string ingredients_array = ",\n  \"ingredients\": [\n    " + result + "\n  ]";
+        modified_manifest.insert(last_brace, ingredients_array);
+    }
+    // Update the ingredientIds parameter in the c2pa.placed action to reference the actual ingredient
+    if (!instance_id.empty()) {
+        // Find the c2pa.placed action and update its ingredientIds parameter
+        size_t placed_action_start = modified_manifest.find("\"action\": \"c2pa.placed\"");
+        if (placed_action_start != std::string::npos) {
+            // Find the parameters section of this action
+            size_t parameters_start = modified_manifest.find("\"parameters\": {", placed_action_start);
+            if (parameters_start != std::string::npos) {
+                // Find the ingredientIds parameter and replace its value
+                size_t ingredient_ids_start = modified_manifest.find("\"ingredientIds\":", parameters_start);
+                if (ingredient_ids_start != std::string::npos) {
+                    // Find the array value of the ingredientIds parameter
+                    size_t array_start = modified_manifest.find("[", ingredient_ids_start);
+                    if (array_start != std::string::npos) {
+                        size_t array_end = modified_manifest.find("]", array_start);
+                        if (array_end != std::string::npos) {
+                            // Replace the placeholder ingredientId value with the actual retrieved instance_id
+                            std::string ingredient_ids_array = "[\"" + instance_id + "\"]";
+                            modified_manifest.replace(array_start, array_end - array_start + 1, ingredient_ids_array);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Now we can create a Builder with the manually adjusted manifest
+    auto builder = c2pa::Builder(modified_manifest);
+
+    // A Builder can load resources from a base path eg. ingredients from a data directory.
+    // Here, we reuse the data directory from the read_ingredient_file call,
+    // so the builder properly loads the ingredient data using that directory.
+    builder.set_base_path(temp_dir.string());
+
+    // Create a signer
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    std::vector<unsigned char> manifest_data;
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path = current_dir / "../build/example/signed_with_ingredient_and_resource.jpg";
+    ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
+
+    auto reader = c2pa::Reader(output_path);
+    ASSERT_NO_THROW(reader.json());
+
+    // reset settings to auto-add a placed action
+    c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": true}}}}", "json");
+}
+
+
 TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
@@ -1173,10 +1314,10 @@ TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)
     fs::path ingredient_source_path = current_dir / "../tests/fixtures/C.jpg";
     std::string ingredient_source_path_str = ingredient_source_path.string();
 
-    // Use target/tmp like other tests
-    fs::path temp_dir = current_dir / "../build/ingredient_as_resource_temp_dir";
+    // Use temp data dir
+    fs::path temp_dir = current_dir / "../build/ingredient_with_prevenance_as_resource_temp_dir";
 
-    // Remove and recreate the build/ingredient_as_resource_temp_dir folder before using it
+    // Remove and recreate the temp data dir folder before using it
     // This is technically a clean-up in-between tests
     if (fs::exists(temp_dir)) {
         fs::remove_all(temp_dir);
