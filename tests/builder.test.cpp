@@ -12,11 +12,13 @@
 
 #include <c2pa.hpp>
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <filesystem>
 
 using namespace std;
 namespace fs = std::filesystem;
+using nlohmann::json;
 
 /// @brief Read a text file into a string
 string read_text_file(const fs::path &path)
@@ -70,7 +72,7 @@ TEST(Builder, AddAnActionAndSign)
     })";
     builder.add_action(action_json);
 
-    // The Builder returns manifest bytes
+    // Sign with the added actions. The Builder returns manifest bytes
     std::vector<unsigned char> manifest_data;
     ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
 
@@ -80,29 +82,56 @@ TEST(Builder, AddAnActionAndSign)
     ASSERT_NO_THROW(json_result = reader.json());
     ASSERT_TRUE(std::filesystem::exists(output_path));
 
-    // Verify the action appears in the JSON with correct nesting structure
-    // The action should be nested in assertions array under "c2pa.actions.v2" label
-    ASSERT_TRUE(json_result.find("\"label\": \"c2pa.actions.v2\"") != std::string::npos);
+    // Parse the JSON result for structured validation
+    json manifest_json;
+    ASSERT_NO_THROW(manifest_json = json::parse(json_result));
 
-    // Find the position of the actions assertion to verify nesting
-    size_t actions_label_pos = json_result.find("\"label\": \"c2pa.actions.v2\"");
-    ASSERT_NE(actions_label_pos, std::string::npos);
+    // Get the active manifest
+    ASSERT_TRUE(manifest_json.contains("manifests"));
+    ASSERT_TRUE(manifest_json.contains("active_manifest"));
+    string active_manifest_label = manifest_json["active_manifest"];
+    ASSERT_TRUE(manifest_json["manifests"].contains(active_manifest_label));
+    json active_manifest = manifest_json["manifests"][active_manifest_label];
+    ASSERT_TRUE(active_manifest.contains("assertions"));
+    ASSERT_TRUE(active_manifest["assertions"].is_array());
 
-    // Find the actions array within the c2pa.actions.v2 assertion
-    size_t actions_array_pos = json_result.find("\"actions\": [", actions_label_pos);
-    ASSERT_NE(actions_array_pos, std::string::npos);
+    // Find the c2pa.actions assertion
+    json actions_assertion;
+    bool found_actions_assertion = false;
+    for (const auto& assertion : active_manifest["assertions"]) {
+        if (assertion.contains("label") && assertion["label"] == "c2pa.actions.v2") {
+            actions_assertion = assertion;
+            found_actions_assertion = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(found_actions_assertion) << "c2pa.actions.v2 assertion not found";
 
-    // Verify our specific action is within the actions array
-    size_t actions_pos = json_result.find("\"action\": \"c2pa.color_adjustments\"", actions_array_pos);
-    ASSERT_NE(actions_pos, std::string::npos);
+    // Verify the actions assertion has the expected structure
+    ASSERT_TRUE(actions_assertion.contains("data"));
+    ASSERT_TRUE(actions_assertion["data"].contains("actions"));
+    ASSERT_TRUE(actions_assertion["data"]["actions"].is_array());
+    json actions_array = actions_assertion["data"]["actions"];
+    ASSERT_FALSE(actions_array.empty());
 
-    // Verify the parameters are within our action
-    size_t parameters_pos = json_result.find("\"parameters\": {", actions_pos);
-    ASSERT_NE(parameters_pos, std::string::npos);
+    // Verify the action we added is here...
+    json our_action;
+    bool found_our_action = false;
+    for (const auto& action : actions_array) {
+        if (action.contains("action") && action["action"] == "c2pa.color_adjustments") {
+            our_action = action;
+            found_our_action = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(found_our_action);
 
-    // Verify the name parameter is within the parameters object
-    size_t name_pos = json_result.find("\"name\": \"brightnesscontrast\"", parameters_pos);
-    ASSERT_NE(name_pos, std::string::npos);
+    // Verify the action structure
+    ASSERT_TRUE(our_action.contains("action"));
+    ASSERT_EQ(our_action["action"], "c2pa.color_adjustments");
+    ASSERT_TRUE(our_action.contains("parameters"));
+    ASSERT_TRUE(our_action["parameters"].contains("name"));
+    ASSERT_EQ(our_action["parameters"]["name"], "brightnesscontrast");
 };
 
 TEST(Builder, AddMultipleActionsAndSign)
@@ -137,15 +166,14 @@ TEST(Builder, AddMultipleActionsAndSign)
     builder.add_action(action_json_1);
     string action_json_2 = R"({
         "action": "c2pa.filtered",
-        "software_agent": "c2pa-c test",
         "parameters": {
-            "name": "gaussian blur"
+            "name": "A filter"
         },
-        "description": "Background blur applied"
+        "description": "Filtering applied"
     })";
     builder.add_action(action_json_2);
 
-    // The Builder returns manifest bytes
+    // Sign with the added actions
     std::vector<unsigned char> manifest_data;
     ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
 
@@ -155,9 +183,80 @@ TEST(Builder, AddMultipleActionsAndSign)
     ASSERT_NO_THROW(json_result = reader.json());
     ASSERT_TRUE(std::filesystem::exists(output_path));
 
-    // Verify both action labels are present in the JSON
-    ASSERT_TRUE(json_result.find("\"action\": \"c2pa.color_adjustments\"") != std::string::npos);
-    ASSERT_TRUE(json_result.find("\"action\": \"c2pa.filtered\"") != std::string::npos);
+    // Parse the JSON result for structured validation
+    json manifest_json;
+    ASSERT_NO_THROW(manifest_json = json::parse(json_result));
+
+    // Get the active manifest
+    ASSERT_TRUE(manifest_json.contains("manifests"));
+    ASSERT_TRUE(manifest_json.contains("active_manifest"));
+    string active_manifest_label = manifest_json["active_manifest"];
+    ASSERT_TRUE(manifest_json["manifests"].contains(active_manifest_label));
+    json active_manifest = manifest_json["manifests"][active_manifest_label];
+    ASSERT_TRUE(active_manifest.contains("assertions"));
+    ASSERT_TRUE(active_manifest["assertions"].is_array());
+
+    // Find the c2pa.actions assertion
+    json actions_assertion;
+    bool found_actions_assertion = false;
+    for (const auto& assertion : active_manifest["assertions"]) {
+        if (assertion.contains("label") && assertion["label"] == "c2pa.actions.v2") {
+            actions_assertion = assertion;
+            found_actions_assertion = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(found_actions_assertion) << "c2pa.actions.v2 assertion not found";
+
+    // Verify the actions assertion structure
+    ASSERT_TRUE(actions_assertion.contains("data"));
+    ASSERT_TRUE(actions_assertion["data"].contains("actions"));
+    ASSERT_TRUE(actions_assertion["data"]["actions"].is_array());
+
+    // Verify both actions we added are in the actions array
+    json actions_array = actions_assertion["data"]["actions"];
+    ASSERT_FALSE(actions_array.empty()) << "Actions array should not be empty";
+    ASSERT_GE(actions_array.size(), 2) << "Should have at least 2 actions";
+
+    // Find our added actions...
+    json color_adjustments_action;
+    json filtered_action;
+    bool found_color_adjustments = false;
+    bool found_filtered = false;
+
+    for (const auto& action : actions_array) {
+        if (action.contains("action")) {
+            if (action["action"] == "c2pa.color_adjustments") {
+                color_adjustments_action = action;
+                found_color_adjustments = true;
+            } else if (action["action"] == "c2pa.filtered") {
+                filtered_action = action;
+                found_filtered = true;
+            }
+        }
+    }
+
+    ASSERT_TRUE(found_color_adjustments);
+    ASSERT_TRUE(found_filtered);
+
+    // Verify the color_adjustments action structure
+    ASSERT_TRUE(color_adjustments_action.contains("action"));
+    ASSERT_EQ(color_adjustments_action["action"], "c2pa.color_adjustments");
+    ASSERT_TRUE(color_adjustments_action.contains("parameters"));
+    ASSERT_TRUE(color_adjustments_action["parameters"].contains("name"));
+    ASSERT_EQ(color_adjustments_action["parameters"]["name"], "brightnesscontrast");
+
+    // Verify the filtered action structure
+    ASSERT_TRUE(filtered_action.contains("action"));
+    ASSERT_EQ(filtered_action["action"], "c2pa.filtered");
+    ASSERT_TRUE(filtered_action.contains("parameters"));
+    ASSERT_TRUE(filtered_action["parameters"].contains("name"));
+    ASSERT_EQ(filtered_action["parameters"]["name"], "A filter");
+    ASSERT_TRUE(filtered_action.contains("description"));
+    ASSERT_EQ(filtered_action["description"], "Filtering applied");
+
+    // Note: software_agent field may not be preserved in the final manifest structure
+    // depending on how the C2PA library processes the action data
 };
 
 TEST(Builder, SignImageFileOnly)
