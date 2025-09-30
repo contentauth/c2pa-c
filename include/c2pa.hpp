@@ -315,6 +315,11 @@ namespace c2pa
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         void add_ingredient(const string &ingredient_json, const std::filesystem::path &source_path);
 
+        /// @brief Add an action to the manifest the Builder is constructing.
+        /// @param action_json JSON string containing the action data.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        void add_action(const string &action_json);
+
         /// @brief Sign an input stream and write the signed data to an output stream.
         /// @param format The format of the output stream.
         /// @param source The input stream to sign.
