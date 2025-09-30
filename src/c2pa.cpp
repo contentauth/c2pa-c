@@ -746,6 +746,15 @@ namespace c2pa
         add_ingredient(ingredient_json, format.c_str(), stream);
     }
 
+    void Builder::add_action(const string &action_json)
+    {
+        int result = c2pa_builder_add_action(builder, action_json.c_str());
+        if (result < 0)
+        {
+            throw C2paException();
+        }
+    }
+
     std::vector<unsigned char> Builder::sign(const string &format, istream &source, ostream &dest, Signer &signer)
     {
         CppIStream c_source(source);

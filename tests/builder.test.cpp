@@ -12,11 +12,13 @@
 
 #include <c2pa.hpp>
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <filesystem>
 
 using namespace std;
 namespace fs = std::filesystem;
+using nlohmann::json;
 
 /// @brief Read a text file into a string
 string read_text_file(const fs::path &path)
@@ -38,6 +40,221 @@ TEST(Builder, supported_mime_types_returns_types) {
   EXPECT_TRUE(std::find(begin, end, "image/jpeg") != end);
   EXPECT_TRUE(std::find(begin, end, "application/c2pa") != end);
 }
+
+TEST(Builder, AddAnActionAndSign)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the paths relative to the current directory
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path = current_dir / "../build/example/image_with_one_action.jpg";
+
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+    // Create a signer
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    std::filesystem::remove(output_path.c_str()); // remove the file if it exists
+
+    auto builder = c2pa::Builder(manifest);
+
+    // Add an action to the builder
+    string action_json = R"({
+        "action": "c2pa.color_adjustments",
+        "parameters": {
+            "name": "brightnesscontrast"
+        }
+    })";
+    builder.add_action(action_json);
+
+    // Sign with the added actions. The Builder returns manifest bytes
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
+
+    // Read to verify
+    auto reader = c2pa::Reader(output_path);
+    string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+    ASSERT_TRUE(std::filesystem::exists(output_path));
+
+    // Parse the JSON result for structured validation
+    json manifest_json;
+    ASSERT_NO_THROW(manifest_json = json::parse(json_result));
+
+    // Get the active manifest
+    ASSERT_TRUE(manifest_json.contains("manifests"));
+    ASSERT_TRUE(manifest_json.contains("active_manifest"));
+    string active_manifest_label = manifest_json["active_manifest"];
+    ASSERT_TRUE(manifest_json["manifests"].contains(active_manifest_label));
+    json active_manifest = manifest_json["manifests"][active_manifest_label];
+    ASSERT_TRUE(active_manifest.contains("assertions"));
+    ASSERT_TRUE(active_manifest["assertions"].is_array());
+
+    // Find the c2pa.actions assertion
+    json actions_assertion;
+    bool found_actions_assertion = false;
+    for (const auto& assertion : active_manifest["assertions"]) {
+        if (assertion.contains("label") && assertion["label"] == "c2pa.actions.v2") {
+            actions_assertion = assertion;
+            found_actions_assertion = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(found_actions_assertion);
+
+    // Verify the actions assertion has the expected structure
+    ASSERT_TRUE(actions_assertion.contains("data"));
+    ASSERT_TRUE(actions_assertion["data"].contains("actions"));
+    ASSERT_TRUE(actions_assertion["data"]["actions"].is_array());
+    json actions_array = actions_assertion["data"]["actions"];
+    ASSERT_FALSE(actions_array.empty());
+
+    // Verify the action we added is here...
+    json our_action;
+    bool found_our_action = false;
+    for (const auto& action : actions_array) {
+        if (action.contains("action") && action["action"] == "c2pa.color_adjustments") {
+            our_action = action;
+            found_our_action = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(found_our_action);
+
+    // Verify the action structure
+    ASSERT_TRUE(our_action.contains("action"));
+    ASSERT_EQ(our_action["action"], "c2pa.color_adjustments");
+    ASSERT_TRUE(our_action.contains("parameters"));
+    ASSERT_TRUE(our_action["parameters"].contains("name"));
+    ASSERT_EQ(our_action["parameters"]["name"], "brightnesscontrast");
+};
+
+TEST(Builder, AddMultipleActionsAndSign)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the paths relative to the current directory
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path = current_dir / "../build/example/image_with_multiple_actions.jpg";
+
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+    // Create a signer
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    std::filesystem::remove(output_path.c_str()); // remove the file if it exists
+
+    auto builder = c2pa::Builder(manifest);
+
+    // Add multiple actions to the builder
+    string action_json_1 = R"({
+        "action": "c2pa.color_adjustments",
+        "parameters": {
+            "name": "brightnesscontrast"
+        }
+    })";
+    builder.add_action(action_json_1);
+    string action_json_2 = R"({
+        "action": "c2pa.filtered",
+        "parameters": {
+            "name": "A filter"
+        },
+        "description": "Filtering applied"
+    })";
+    builder.add_action(action_json_2);
+
+    // Sign with the added actions
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
+
+    // Read to verify
+    auto reader = c2pa::Reader(output_path);
+    string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+    ASSERT_TRUE(std::filesystem::exists(output_path));
+
+    // Parse the JSON result for structured validation
+    json manifest_json;
+    ASSERT_NO_THROW(manifest_json = json::parse(json_result));
+
+    // Get the active manifest
+    ASSERT_TRUE(manifest_json.contains("manifests"));
+    ASSERT_TRUE(manifest_json.contains("active_manifest"));
+    string active_manifest_label = manifest_json["active_manifest"];
+    ASSERT_TRUE(manifest_json["manifests"].contains(active_manifest_label));
+    json active_manifest = manifest_json["manifests"][active_manifest_label];
+    ASSERT_TRUE(active_manifest.contains("assertions"));
+    ASSERT_TRUE(active_manifest["assertions"].is_array());
+
+    // Find the c2pa.actions assertion
+    json actions_assertion;
+    bool found_actions_assertion = false;
+    for (const auto& assertion : active_manifest["assertions"]) {
+        if (assertion.contains("label") && assertion["label"] == "c2pa.actions.v2") {
+            actions_assertion = assertion;
+            found_actions_assertion = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(found_actions_assertion);
+
+    // Verify the actions assertion structure
+    ASSERT_TRUE(actions_assertion.contains("data"));
+    ASSERT_TRUE(actions_assertion["data"].contains("actions"));
+    ASSERT_TRUE(actions_assertion["data"]["actions"].is_array());
+
+    // Verify both actions we added are in the actions array
+    json actions_array = actions_assertion["data"]["actions"];
+    ASSERT_FALSE(actions_array.empty());
+    ASSERT_GE(actions_array.size(), 2);
+
+    // Find our added actions...
+    json color_adjustments_action;
+    json filtered_action;
+    bool found_color_adjustments = false;
+    bool found_filtered = false;
+
+    for (const auto& action : actions_array) {
+        if (action.contains("action")) {
+            if (action["action"] == "c2pa.color_adjustments") {
+                color_adjustments_action = action;
+                found_color_adjustments = true;
+            } else if (action["action"] == "c2pa.filtered") {
+                filtered_action = action;
+                found_filtered = true;
+            }
+        }
+    }
+
+    ASSERT_TRUE(found_color_adjustments);
+    ASSERT_TRUE(found_filtered);
+
+    // Verify the color_adjustments action structure
+    ASSERT_TRUE(color_adjustments_action.contains("action"));
+    ASSERT_EQ(color_adjustments_action["action"], "c2pa.color_adjustments");
+    ASSERT_TRUE(color_adjustments_action.contains("parameters"));
+    ASSERT_TRUE(color_adjustments_action["parameters"].contains("name"));
+    ASSERT_EQ(color_adjustments_action["parameters"]["name"], "brightnesscontrast");
+
+    // Verify the filtered action structure
+    ASSERT_TRUE(filtered_action.contains("action"));
+    ASSERT_EQ(filtered_action["action"], "c2pa.filtered");
+    ASSERT_TRUE(filtered_action.contains("parameters"));
+    ASSERT_TRUE(filtered_action["parameters"].contains("name"));
+    ASSERT_EQ(filtered_action["parameters"]["name"], "A filter");
+    ASSERT_TRUE(filtered_action.contains("description"));
+    ASSERT_EQ(filtered_action["description"], "Filtering applied");
+};
 
 TEST(Builder, SignImageFileOnly)
 {
