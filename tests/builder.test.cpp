@@ -105,7 +105,7 @@ TEST(Builder, AddAnActionAndSign)
             break;
         }
     }
-    ASSERT_TRUE(found_actions_assertion) << "c2pa.actions.v2 assertion not found";
+    ASSERT_TRUE(found_actions_assertion);
 
     // Verify the actions assertion has the expected structure
     ASSERT_TRUE(actions_assertion.contains("data"));
@@ -206,7 +206,7 @@ TEST(Builder, AddMultipleActionsAndSign)
             break;
         }
     }
-    ASSERT_TRUE(found_actions_assertion) << "c2pa.actions.v2 assertion not found";
+    ASSERT_TRUE(found_actions_assertion);
 
     // Verify the actions assertion structure
     ASSERT_TRUE(actions_assertion.contains("data"));
