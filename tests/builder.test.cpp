@@ -254,9 +254,6 @@ TEST(Builder, AddMultipleActionsAndSign)
     ASSERT_EQ(filtered_action["parameters"]["name"], "A filter");
     ASSERT_TRUE(filtered_action.contains("description"));
     ASSERT_EQ(filtered_action["description"], "Filtering applied");
-
-    // Note: software_agent field may not be preserved in the final manifest structure
-    // depending on how the C2PA library processes the action data
 };
 
 TEST(Builder, SignImageFileOnly)
