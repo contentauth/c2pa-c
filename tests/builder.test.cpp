@@ -80,11 +80,29 @@ TEST(Builder, AddAnActionAndSign)
     ASSERT_NO_THROW(json_result = reader.json());
     ASSERT_TRUE(std::filesystem::exists(output_path));
 
-    // Verify the action appears in the JSON
+    // Verify the action appears in the JSON with correct nesting structure
     // The action should be nested in assertions array under "c2pa.actions.v2" label
-    ASSERT_TRUE(json_result.find("\"action\": \"c2pa.color_adjustments\"") != std::string::npos);
-    ASSERT_TRUE(json_result.find("\"name\": \"brightnesscontrast\"") != std::string::npos);
     ASSERT_TRUE(json_result.find("\"label\": \"c2pa.actions.v2\"") != std::string::npos);
+
+    // Find the position of the actions assertion to verify nesting
+    size_t actions_label_pos = json_result.find("\"label\": \"c2pa.actions.v2\"");
+    ASSERT_NE(actions_label_pos, std::string::npos);
+
+    // Find the actions array within the c2pa.actions.v2 assertion
+    size_t actions_array_pos = json_result.find("\"actions\": [", actions_label_pos);
+    ASSERT_NE(actions_array_pos, std::string::npos);
+
+    // Verify our specific action is within the actions array
+    size_t actions_pos = json_result.find("\"action\": \"c2pa.color_adjustments\"", actions_array_pos);
+    ASSERT_NE(actions_pos, std::string::npos);
+
+    // Verify the parameters are within our action
+    size_t parameters_pos = json_result.find("\"parameters\": {", actions_pos);
+    ASSERT_NE(parameters_pos, std::string::npos);
+
+    // Verify the name parameter is within the parameters object
+    size_t name_pos = json_result.find("\"name\": \"brightnesscontrast\"", parameters_pos);
+    ASSERT_NE(name_pos, std::string::npos);
 };
 
 TEST(Builder, AddMultipleActionsAndSign)
