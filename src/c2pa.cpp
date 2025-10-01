@@ -206,17 +206,6 @@ namespace c2pa
     }
 
     /// IStream Class wrapper for C2paStream.
-    /*
-    template <typename IStream>
-    CppIStream::CppIStream(IStream &istream) : C2paStream()
-    {
-        static_assert(std::is_base_of<std::istream, IStream>::value,
-                      "Stream must be derived from std::istream");
-
-        c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&istream), reader, seeker, writer, flusher);
-    }
-    */
-
     CppIStream::~CppIStream()
     {
         c2pa_release_stream(c_stream);
@@ -310,12 +299,6 @@ namespace c2pa
     }
 
     /// Ostream Class wrapper for C2paStream implementation.
-    template <typename OStream>
-    CppOStream::CppOStream(OStream &ostream) : C2paStream()
-    {
-        static_assert(std::is_base_of<std::ostream, OStream>::value, "Stream must be derived from std::ostream");
-        c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&ostream), reader, seeker, writer, flusher);
-    }
 
     CppOStream::~CppOStream()
     {
@@ -403,12 +386,6 @@ namespace c2pa
     }
 
     /// IOStream Class wrapper for C2paStream implementation.
-    template <typename IOStream>
-    CppIOStream::CppIOStream(IOStream &iostream)
-    {
-        static_assert(std::is_base_of<std::iostream, IOStream>::value, "Stream must be derived from std::iostream");
-        c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&iostream), reader, seeker, writer, flusher);
-    }
     CppIOStream::~CppIOStream()
     {
         c2pa_release_stream(c_stream);

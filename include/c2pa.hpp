@@ -138,7 +138,10 @@ namespace c2pa
     public:
         C2paStream *c_stream;
         template <typename OStream>
-        explicit CppOStream(OStream &ostream);
+        explicit CppOStream(OStream &ostream) {
+            static_assert(std::is_base_of<std::ostream, OStream>::value, "Stream must be derived from std::ostream");
+            c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&ostream), reader, seeker, writer, flusher);
+        }
 
         ~CppOStream();
 
@@ -156,7 +159,10 @@ namespace c2pa
     public:
         C2paStream *c_stream;
         template <typename IOStream>
-        CppIOStream(IOStream &iostream);
+        CppIOStream(IOStream &iostream) {
+            static_assert(std::is_base_of<std::iostream, IOStream>::value, "Stream must be derived from std::iostream");
+            c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&iostream), reader, seeker, writer, flusher);
+        }
         ~CppIOStream();
 
     private:
