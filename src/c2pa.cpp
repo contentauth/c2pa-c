@@ -206,6 +206,7 @@ namespace c2pa
     }
 
     /// IStream Class wrapper for C2paStream.
+    /*
     template <typename IStream>
     CppIStream::CppIStream(IStream &istream) : C2paStream()
     {
@@ -214,6 +215,7 @@ namespace c2pa
 
         c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&istream), reader, seeker, writer, flusher);
     }
+    */
 
     CppIStream::~CppIStream()
     {

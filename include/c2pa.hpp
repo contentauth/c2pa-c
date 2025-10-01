@@ -109,7 +109,11 @@ namespace c2pa
     public:
         C2paStream *c_stream;
         template <typename IStream>
-        explicit CppIStream(IStream &istream);
+        explicit CppIStream(IStream &istream) {
+            static_assert(std::is_base_of<std::istream, IStream>::value,
+                      "Stream must be derived from std::istream");
+            c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&istream), reader, seeker, writer, flusher);	 	 
+        }
 
         CppIStream(const CppIStream &) = delete;
         CppIStream &operator=(const CppIStream &) = delete;
