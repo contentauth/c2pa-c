@@ -1121,7 +1121,8 @@ TEST(Builder, LinkIngredientsAndSign)
     auto builder = c2pa::Builder(manifest_json.dump());
 
     // add an ingredient
-    // instance_id, if found in an action's ingredientIds array, will be used to link the ingredient to the action
+    // instance_id, if found in an action's ingredientIds array,
+    // will be used to link the ingredient to the action
     json ingredient_obj = {
         {"title", "Test Ingredient"},
         {"relationship", "parentOf"},
