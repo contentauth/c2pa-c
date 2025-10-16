@@ -1122,7 +1122,12 @@ TEST(Builder, LinkIngredientsAndSign)
 
     // add an ingredient
     // instance_id, if found in an action's ingredientIds array, will be used to link the ingredient to the action
-    string ingredient_json = "{\"title\":\"Test Ingredient\", \"relationship\": \"parentOf\", \"instance_id\": \"test:iid:939a4c48-0dff-44ec-8f95-61f52b11618f\"}";
+    json ingredient_obj = {
+        {"title", "Test Ingredient"},
+        {"relationship", "parentOf"},
+        {"instance_id", "test:iid:939a4c48-0dff-44ec-8f95-61f52b11618f"}
+    };
+    string ingredient_json = ingredient_obj.dump();
     builder.add_ingredient(ingredient_json, ingredient_source_path);
 
     // Create a signer
@@ -1138,7 +1143,65 @@ TEST(Builder, LinkIngredientsAndSign)
     manifest_data = builder.sign(signed_image_path, output_path, signer);
 
     auto reader = c2pa::Reader(output_path);
-    ASSERT_NO_THROW(reader.json());
+    string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+
+    // Parse the JSON result for validation
+    json result_json = json::parse(json_result);
+
+    // Get the active manifest
+    ASSERT_TRUE(result_json.contains("active_manifest"));
+    ASSERT_TRUE(result_json.contains("manifests"));
+    string active_manifest_label = result_json["active_manifest"];
+    ASSERT_TRUE(result_json["manifests"].contains(active_manifest_label));
+    json active_manifest = result_json["manifests"][active_manifest_label];
+
+    // Verify ingredients array has exactly one ingredient with label "c2pa.ingredient.v3"
+    ASSERT_TRUE(active_manifest.contains("ingredients"));
+    ASSERT_TRUE(active_manifest["ingredients"].is_array());
+    ASSERT_EQ(active_manifest["ingredients"].size(), 1);
+    ASSERT_TRUE(active_manifest["ingredients"][0].contains("label"));
+    ASSERT_EQ(active_manifest["ingredients"][0]["label"], "c2pa.ingredient.v3");
+
+    // Find the c2pa.actions assertion
+    ASSERT_TRUE(active_manifest.contains("assertions"));
+    ASSERT_TRUE(active_manifest["assertions"].is_array());
+
+    json actions_assertion;
+    bool found_actions = false;
+    for (const auto& assertion : active_manifest["assertions"]) {
+        if (assertion.contains("label") && assertion["label"] == "c2pa.actions.v2") {
+            actions_assertion = assertion;
+            found_actions = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(found_actions);
+
+    // Find the c2pa.created action
+    ASSERT_TRUE(actions_assertion.contains("data"));
+    ASSERT_TRUE(actions_assertion["data"].contains("actions"));
+    ASSERT_TRUE(actions_assertion["data"]["actions"].is_array());
+
+    json created_action;
+    bool found_created = false;
+    for (const auto& action : actions_assertion["data"]["actions"]) {
+        if (action.contains("action") && action["action"] == "c2pa.created") {
+            created_action = action;
+            found_created = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(found_created);
+
+    // Verify the c2pa.created action has an ingredients array with exactly one object
+    // that has url: "self#jumbf=c2pa.assertions/c2pa.ingredient.v3"
+    ASSERT_TRUE(created_action.contains("parameters"));
+    ASSERT_TRUE(created_action["parameters"].contains("ingredients"));
+    ASSERT_TRUE(created_action["parameters"]["ingredients"].is_array());
+    ASSERT_EQ(created_action["parameters"]["ingredients"].size(), 1);
+    ASSERT_TRUE(created_action["parameters"]["ingredients"][0].contains("url"));
+    ASSERT_EQ(created_action["parameters"]["ingredients"][0]["url"], "self#jumbf=c2pa.assertions/c2pa.ingredient.v3");
 }
 
 TEST(Builder, AddIngredientToBuilderUsingBasePath)
