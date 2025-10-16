@@ -10,6 +10,9 @@ CMakeOutput.log
 CMakeError.log
 CMakeLists.txt.user
 
+# Doxygen docs
+/api-docs/_build
+
 .vscode
 # Mac OS X files
 .DS_Store
