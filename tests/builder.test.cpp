@@ -1046,37 +1046,18 @@ TEST(Builder, AddIngredientAsResourceToBuilder)
     // eg. thumbnails
     result = c2pa::read_ingredient_file(ingredient_source_path, temp_dir);
 
-    // Extract the identifier from the ingredient JSON, as we will use it to add the resource
-    // by building the path to the ingredient's thumbnail.
-    // (The identifier may change in between runs because we reuse the tmp folder)
-    std::string identifier;
-    size_t identifier_start = result.find("\"identifier\":");
-    if (identifier_start != std::string::npos) {
-        identifier_start = result.find("\"", identifier_start + 13); // Skip "identifier":
-        if (identifier_start != std::string::npos) {
-            identifier_start++; // Skip the opening quote
-            size_t identifier_end = result.find("\"", identifier_start);
-            if (identifier_end != std::string::npos) {
-                identifier = result.substr(identifier_start, identifier_end - identifier_start);
-            }
-        }
-    }
+    // Parse ingredient JSON and extract the identifier
+    json ingredient_json = json::parse(result);
+    std::string identifier = ingredient_json["thumbnail"]["identifier"];
 
     // Create the builder using a manifest JSON
     auto manifest = read_text_file(manifest_path);
 
-    // Add ingredients array to the manifest JSON, since our demo manifest doesn't have it,
-    // and we are adding ingredients more manually than through the Builder.add_ingredient call.
-    // Parse the JSON and add ingredients array
-    std::string modified_manifest = manifest;
-    // Find the last closing brace and insert ingredients array before it
-    size_t last_brace = modified_manifest.find_last_of('}');
-    if (last_brace != std::string::npos) {
-        std::string ingredients_array = ",\n  \"ingredients\": [\n    " + result + "\n  ]";
-        modified_manifest.insert(last_brace, ingredients_array);
-    }
+    // Parse the manifest and add ingredients array
+    json manifest_json = json::parse(manifest);
+    manifest_json["ingredients"] = json::array({ingredient_json});
 
-    auto builder = c2pa::Builder(modified_manifest);
+    auto builder = c2pa::Builder(manifest_json.dump());
 
     // Add a resource: a thumbnail for the ingredient
     // for the thumbnail path, we use what was put in the data_dir by the read_ingredient_file call.
@@ -1186,97 +1167,52 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
     std::string result;
     result = c2pa::read_ingredient_file(ingredient_source_path, temp_dir);
 
-    // Extract the instance_id from the ingredient JSON, we need it to link the ingredient
-    std::string instance_id;
-    size_t instance_id_start = result.find("\"instance_id\":");
-    if (instance_id_start != std::string::npos) {
-        instance_id_start = result.find("\"", instance_id_start + 14); // Skip "instance_id":
-        if (instance_id_start != std::string::npos) {
-            instance_id_start++; // Skip the opening quote
-            size_t instance_id_end = result.find("\"", instance_id_start);
-            if (instance_id_end != std::string::npos) {
-                instance_id = result.substr(instance_id_start, instance_id_end - instance_id_start);
-            }
-        }
-    }
+    // Parse ingredient JSON and extract the instance_id
+    json ingredient_json = json::parse(result);
+    std::string instance_id = ingredient_json["instance_id"];
 
-    // Initialize the near-complete manifest JSON (contains ingredient JSON and placed action)
-    // We are going to replace the placeholder value in the "ingredientIds" array with 
-    // the ingredientId we got by reading the ingredient from file.
-    std::string manifest = R"({
-        "vendor": "a-vendor",
-        "claim_generator_info": [
+    // Create the manifest JSON structure with the placed action
+    json manifest_json = {
+        {"vendor", "a-vendor"},
+        {"claim_generator_info", json::array({
             {
-                "name": "c2pa-c test",
-                "version": "1.0.0"
+                {"name", "c2pa-c test"},
+                {"version", "1.0.0"}
             }
-        ],
-        "assertions": [
+        })},
+        {"assertions", json::array({
             {
-                "label": "c2pa.actions",
-                "data": {
-                    "actions": [
+                {"label", "c2pa.actions"},
+                {"data", {
+                    {"actions", json::array({
                         {
-                            "action": "c2pa.created",
-                            "description": "Created a new file or content",
-                            "parameters": {
-                                "com.vendor.tool": "new"
-                            },
-                            "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation"
+                            {"action", "c2pa.created"},
+                            {"description", "Created a new file or content"},
+                            {"parameters", {
+                                {"com.vendor.tool", "new"}
+                            }},
+                            {"digitalSourceType", "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation"}
                         },
                         {
-                            "action": "c2pa.placed",
-                            "description": "Added pre-existing content to this file",
-                            "parameters": {
-                                "com.vendor.tool": "place_embedded_object",
-                                "ingredientIds": ["placeholder_ingredient_id"]
-                            }
+                            {"action", "c2pa.placed"},
+                            {"description", "Added pre-existing content to this file"},
+                            {"parameters", {
+                                {"com.vendor.tool", "place_embedded_object"},
+                                {"ingredientIds", json::array({instance_id})}
+                            }}
                         }
-                    ],
-                    "metadata": {
-                        "dateTime": "2025-09-25T20:59:48.262Z"
-                    }
-                }
+                    })},
+                    {"metadata", {
+                        {"dateTime", "2025-09-25T20:59:48.262Z"}
+                    }}
+                }}
             }
-        ]
-    })";
+        })},
+        {"ingredients", json::array({ingredient_json})}
+    };
 
-    // Note: Fragile JSON parsing, but OK for testing purposes.
-    std::string modified_manifest = manifest;
-    // Find the last closing brace and insert ingredients array before it
-    size_t last_brace = modified_manifest.find_last_of('}');
-    if (last_brace != std::string::npos) {
-        std::string ingredients_array = ",\n  \"ingredients\": [\n    " + result + "\n  ]";
-        modified_manifest.insert(last_brace, ingredients_array);
-    }
-    // Update the ingredientIds parameter in the c2pa.placed action to reference the actual ingredient
-    if (!instance_id.empty()) {
-        // Find the c2pa.placed action and update its ingredientIds parameter
-        size_t placed_action_start = modified_manifest.find("\"action\": \"c2pa.placed\"");
-        if (placed_action_start != std::string::npos) {
-            // Find the parameters section of this action
-            size_t parameters_start = modified_manifest.find("\"parameters\": {", placed_action_start);
-            if (parameters_start != std::string::npos) {
-                // Find the ingredientIds parameter and replace its value
-                size_t ingredient_ids_start = modified_manifest.find("\"ingredientIds\":", parameters_start);
-                if (ingredient_ids_start != std::string::npos) {
-                    // Find the array value of the ingredientIds parameter
-                    size_t array_start = modified_manifest.find("[", ingredient_ids_start);
-                    if (array_start != std::string::npos) {
-                        size_t array_end = modified_manifest.find("]", array_start);
-                        if (array_end != std::string::npos) {
-                            // Replace the placeholder ingredientId value with the actual retrieved instance_id
-                            std::string ingredient_ids_array = "[\"" + instance_id + "\"]";
-                            modified_manifest.replace(array_start, array_end - array_start + 1, ingredient_ids_array);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Now we can create a Builder with the manually adjusted manifest
-    auto builder = c2pa::Builder(modified_manifest);
+    // Now we can create a Builder with the manifest
+    auto builder = c2pa::Builder(manifest_json.dump());
 
     // A Builder can load resources from a base path eg. ingredients from a data directory.
     // Here, we reuse the data directory from the read_ingredient_file call,
@@ -1300,7 +1236,6 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
     // reset settings to auto-add a placed action
     c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": true}}}}", "json");
 }
-
 
 TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)
 {
