@@ -1079,6 +1079,68 @@ TEST(Builder, AddIngredientAsResourceToBuilder)
     ASSERT_NO_THROW(reader.json());
 }
 
+TEST(Builder, LinkIngredientsAndSign)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+
+    // Construct the path to the test fixture
+    fs::path ingredient_source_path = current_dir / "../tests/fixtures/A.jpg";
+    std::string ingredient_source_path_str = ingredient_source_path.string();
+
+    fs::path temp_dir = current_dir / "../build/ingredient_linked_resource_temp_dir";
+
+    // Remove and recreate the build/ingredient_as_resource_temp_dir folder before using it
+    // This is technically a clean-up in-between tests
+    if (fs::exists(temp_dir)) {
+        fs::remove_all(temp_dir);
+    }
+    fs::create_directories(temp_dir);
+
+    // Create the builder using a manifest JSON
+    auto manifest = read_text_file(manifest_path);
+
+    // Parse the manifest and modify it
+    json manifest_json = json::parse(manifest);
+
+    // Find the c2pa.actions assertion and add ingredientIds to c2pa.created action
+    // The values in ingredientIds are going to be used to link ingredients to actions
+    // Those values should be valid UUIDs
+    for (auto& assertion : manifest_json["assertions"]) {
+        if (assertion["label"] == "c2pa.actions") {
+            for (auto& action : assertion["data"]["actions"]) {
+                if (action["action"] == "c2pa.created") {
+                    action["parameters"]["ingredientIds"] = json::array({"test:iid:939a4c48-0dff-44ec-8f95-61f52b11618f"});
+                    break;
+                }
+            }
+            break;
+        }
+    }
+
+    auto builder = c2pa::Builder(manifest_json.dump());
+
+    // add an ingredient
+    // instance_id, if found in an action's ingredientIds array, will be used to link the ingredient to the action
+    string ingredient_json = "{\"title\":\"Test Ingredient\", \"relationship\": \"parentOf\", \"instance_id\": \"test:iid:939a4c48-0dff-44ec-8f95-61f52b11618f\"}";
+    builder.add_ingredient(ingredient_json, ingredient_source_path);
+
+    // Create a signer
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path = current_dir / "../build/example/signed_with_ingredient_and_resource.jpg";
+
+    std::vector<unsigned char> manifest_data;
+    manifest_data = builder.sign(signed_image_path, output_path, signer);
+
+    auto reader = c2pa::Reader(output_path);
+    ASSERT_NO_THROW(reader.json());
+}
+
 TEST(Builder, AddIngredientToBuilderUsingBasePath)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
