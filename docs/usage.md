@@ -121,7 +121,7 @@ For example:
 
 ## CAWG identity
 
-The C++ library can validate [CAWG identity assertions](https://cawg.io/identity/1.1-draft).
+The C++ library can validate [CAWG identity assertions](https://cawg.io/identity/).
 
 ## More examples
 
