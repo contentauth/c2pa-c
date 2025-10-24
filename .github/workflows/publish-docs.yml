@@ -41,7 +41,7 @@ jobs:
         run: sudo apt-get install doxygen
 
       - name: Build docs
-        run: sh ./scripts/generate_api_docs.sh
+        run: bash ./scripts/generate_api_docs.sh
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
