@@ -119,6 +119,10 @@ For example:
   auto manifest_data = builder.sign("source_asset.jpg", "output_asset.jpg", signer);
 ```
 
+## CAWG identity
+
+The C++ library can validate [CAWG identity assertions](https://cawg.io/identity/).
+
 ## More examples
 
 The simple C++ example in [`examples/training.cpp`](https://github.com/contentauth/c2pa-c/blob/main/examples/training.cpp) uses the [JSON for Modern C++](https://json.nlohmann.me/) library class.
