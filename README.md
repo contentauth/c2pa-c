@@ -1,4 +1,4 @@
-# C2PA C++ library
+# CAI SDK C++ library
 
 The [c2pa-c repository](https://github.com/contentauth/c2pa-c) implements C++ APIs that:
 - Read and validate C2PA data from media files in supported formats.
@@ -100,7 +100,7 @@ To generate docs, enter the command:
 
 Or run `make -C docs`.
 
-Open `build/html/index.html` to see the results.
+Open `_build/html/index.html` to see the results.
 
 ## License
 
