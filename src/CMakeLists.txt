@@ -103,7 +103,7 @@ endif()
 # Expose public headers and prebuilt C API headers to clients
 target_include_directories(c2pa_cpp
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${c2pa-c_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${c2pa_prebuilt_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
@@ -128,7 +128,7 @@ install(TARGETS c2pa_cpp
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
 )
-install(FILES ${CMAKE_SOURCE_DIR}/include/c2pa.hpp DESTINATION include)
+install(FILES ${c2pa-c_SOURCE_DIR}/include/c2pa.hpp DESTINATION include)
 
 # Install the export set (for build-tree and install-tree usage) - added from main
 install(EXPORT c2pa_cppTargets
