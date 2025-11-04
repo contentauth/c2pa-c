@@ -78,11 +78,11 @@ include(GoogleTest)
 # Add debug commands to check what's happening on Linux
 if(UNIX AND NOT APPLE)
     add_test(NAME debug_rpath_info
-        COMMAND bash -c "echo '=== RPATH Debug Info ===' && echo 'Working dir:' && pwd && echo 'Library files in tests dir:' && ls -la ${CMAKE_BINARY_DIR}/tests/ && echo 'RPATH of c2pa_c_tests:' && readelf -d ${CMAKE_BINARY_DIR}/tests/c2pa_c_tests | grep -E '(RPATH|RUNPATH)' && echo 'RPATH of ctest:' && readelf -d ${CMAKE_BINARY_DIR}/tests/ctest | grep -E '(RPATH|RUNPATH)' && echo 'ldd output for c2pa_c_tests:' && ldd ${CMAKE_BINARY_DIR}/tests/c2pa_c_tests"
+        COMMAND bash -c "echo '=== RPATH Debug Info ===' && echo 'Working dir:' && pwd && echo 'Library files in tests dir:' && ls -la ${c2pa-c_BINARY_DIR}/tests/ && echo 'RPATH of c2pa_c_tests:' && readelf -d ${c2pa-c_BINARY_DIR}/tests/c2pa_c_tests | grep -E '(RPATH|RUNPATH)' && echo 'RPATH of ctest:' && readelf -d ${c2pa-c_BINARY_DIR}/tests/ctest | grep -E '(RPATH|RUNPATH)' && echo 'ldd output for c2pa_c_tests:' && ldd ${c2pa-c_BINARY_DIR}/tests/c2pa_c_tests"
     )
 
     add_test(NAME debug_library_location
-        COMMAND bash -c "echo '=== Library Location Debug ===' && echo 'Current dir:' && pwd && echo 'Contents of build/debug:' && ls -la ${CMAKE_BINARY_DIR}/ && echo 'Contents of _deps:' && ls -la ${CMAKE_BINARY_DIR}/_deps/ && echo 'Contents of prebuilt lib:' && ls -la ${CMAKE_BINARY_DIR}/_deps/c2pa_prebuilt-src/lib/ && echo 'Does the relative path exist from tests dir?' && ls -la ${CMAKE_BINARY_DIR}/tests/../_deps/c2pa_prebuilt-src/lib/"
+        COMMAND bash -c "echo '=== Library Location Debug ===' && echo 'Current dir:' && pwd && echo 'Contents of build/debug:' && ls -la ${CMAKE_BINARY_DIR}/ && echo 'Contents of _deps:' && ls -la ${CMAKE_BINARY_DIR}/_deps/ && echo 'Contents of prebuilt lib:' && ls -la ${CMAKE_BINARY_DIR}/_deps/c2pa_prebuilt-src/lib/"
     )
 endif()
 
@@ -96,13 +96,13 @@ else()
 endif()
 
 set_tests_properties(cpp_tests PROPERTIES
-    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+    WORKING_DIRECTORY "${c2pa-c_BINARY_DIR}/tests"
 )
 
 # Set platform-specific environment
 if(UNIX AND NOT WIN32)
     set_tests_properties(cpp_tests PROPERTIES
-        ENVIRONMENT "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH}"
+        ENVIRONMENT "LD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH}"
     )
 endif()
 
@@ -137,7 +137,7 @@ setup_c2pa_runtime_deps(ctest)
 # Register tests with CTest
 add_test(NAME c_test COMMAND ctest)
 set_tests_properties(c_test PROPERTIES
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    ENVIRONMENT "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH}"
+    WORKING_DIRECTORY "${c2pa-c_SOURCE_DIR}"
+    ENVIRONMENT "LD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH}"
 )
 
