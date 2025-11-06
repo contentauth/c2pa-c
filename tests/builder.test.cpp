@@ -909,6 +909,60 @@ TEST(Builder, SignWithInvalidStream)
     EXPECT_THROW(builder.sign("image/jpeg", empty_stream, dest, signer), c2pa::C2paException);
 }
 
+TEST(Builder, SignWithoutTimestamping)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the paths relative to the current directory
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+    // Create a signer without tsa uri
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key);
+
+    auto builder = c2pa::Builder(manifest);
+
+    std::ifstream source(signed_image_path, std::ios::binary);
+    if (!source)
+    {
+        FAIL() << "Failed to open file: " << signed_image_path << std::endl;
+    }
+
+    // Create a memory buffer
+    std::stringstream memory_buffer(std::ios::in | std::ios::out | std::ios::binary);
+    std::iostream &dest = memory_buffer;
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign("image/jpeg", source, dest, signer));
+    source.close();
+
+    // Rewind dest to the start
+    dest.flush();
+    dest.seekp(0, std::ios::beg);
+    auto reader = c2pa::Reader("image/jpeg", dest);
+    string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+
+    // Parse the JSON result for validation
+    json result_json = json::parse(json_result);
+
+    // Get the active manifest signature info
+    ASSERT_TRUE(result_json.contains("active_manifest"));
+    ASSERT_TRUE(result_json.contains("manifests"));
+    string active_manifest_label = result_json["active_manifest"];
+    ASSERT_TRUE(result_json["manifests"].contains(active_manifest_label));
+    json active_manifest = result_json["manifests"][active_manifest_label];
+    ASSERT_TRUE(active_manifest.contains("signature_info"));
+    ASSERT_TRUE(active_manifest["signature_info"].is_object());
+
+    // Expect no signature timestamp when tsa uri is not provided
+    ASSERT_FALSE(active_manifest["signature_info"].contains("time"));
+}
+
 TEST(Builder, ReadIngredientFile)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();

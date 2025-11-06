@@ -257,7 +257,7 @@ namespace c2pa
 
         Signer(C2paSigner *signer) : signer(signer) {}
 
-        Signer(const string &alg, const string &sign_cert, const string&private_key, const string &tsa_uri = {});
+        Signer(const string &alg, const string &sign_cert, const string &private_key, const optional<string> &tsa_uri = nullopt);
 
         ~Signer();
 
