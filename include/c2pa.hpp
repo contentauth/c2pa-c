@@ -178,7 +178,7 @@ namespace c2pa
     {
     private:
         C2paReader *c2pa_reader;
-        CppIStream *cpp_stream = NULL;
+        CppIStream *cpp_stream = nullptr;
 
     public:
         /// @brief Create a Reader from a stream.
@@ -257,7 +257,7 @@ namespace c2pa
 
         Signer(C2paSigner *signer) : signer(signer) {}
 
-        Signer(const string &alg, const string &sign_cert, const string&private_key, const string &tsa_uri = NULL);
+        Signer(const string &alg, const string &sign_cert, const string &private_key, const optional<string> &tsa_uri = nullopt);
 
         ~Signer();
 

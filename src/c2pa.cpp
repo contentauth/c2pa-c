@@ -606,9 +606,9 @@ namespace c2pa
         signer = c2pa_signer_create((const void *)callback, &signer_passthrough, alg, sign_cert.c_str(), tsa_uri.c_str());
     }
 
-    Signer::Signer(const string &alg, const string &sign_cert, const string &private_key, const string &tsa_uri)
+    Signer::Signer(const string &alg, const string &sign_cert, const string &private_key, const optional<string> &tsa_uri)
     {
-        auto info = C2paSignerInfo { alg.c_str(), sign_cert.c_str(), private_key.c_str(), tsa_uri.c_str()};
+        auto info = C2paSignerInfo { alg.c_str(), sign_cert.c_str(), private_key.c_str(), tsa_uri ? tsa_uri->c_str() : nullptr };
         signer = c2pa_signer_from_info(&info);
     }
 
