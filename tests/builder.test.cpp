@@ -41,6 +41,14 @@ TEST(Builder, supported_mime_types_returns_types) {
   EXPECT_TRUE(std::find(begin, end, "application/c2pa") != end);
 }
 
+TEST(Builder, exposes_raw_pointer) {
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    auto manifest = read_text_file(manifest_path);
+    c2pa::Builder builder(manifest);
+    ASSERT_NE(builder.c2pa_builder(), nullptr);
+}
+
 TEST(Builder, AddAnActionAndSign)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
