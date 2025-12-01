@@ -138,7 +138,7 @@ namespace c2pa
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a string containing the manifest json if a manifest was found.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    optional<string> read_file(const filesystem::path &source_path, const optional<path> data_dir)
+    optional<string> read_file(const path &source_path, const optional<path> data_dir)
     {
         const char* dir_ptr = nullptr;
         std::string dir_str;
