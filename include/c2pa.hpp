@@ -284,6 +284,10 @@ namespace c2pa
 
         ~Builder();
 
+        /// @brief  Get the underlying C2paBuilder pointer.
+        /// @return Pointer managed by this wrapper.
+        C2paBuilder *c2pa_builder();
+
         /// @brief  Set the no embed flag.
         void set_no_embed();
 

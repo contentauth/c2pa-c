@@ -657,6 +657,11 @@ namespace c2pa
         c2pa_builder_free(builder);
     }
 
+    C2paBuilder *Builder::c2pa_builder()
+    {
+        return builder;
+    }
+
     void Builder::set_no_embed()
     {
         c2pa_builder_set_no_embed(builder);
