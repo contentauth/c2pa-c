@@ -25,8 +25,6 @@
 
 #include "c2pa.hpp"
 
-using path = std::filesystem::path;
-
 using namespace std;
 using namespace c2pa;
 
@@ -125,7 +123,7 @@ namespace c2pa
     }
 
     /// converts a path to a string in utf-8 format
-    inline std::string path_to_string(const path &source_path)
+    inline std::string path_to_string(const std::filesystem::path &source_path)
     {
 		// Use u8string to ensure UTF-8 encoding across platforms. We have to convert
 		// to std::string manually because std::string doesn't have a constructor accepting u8String until C++20.
@@ -138,7 +136,7 @@ namespace c2pa
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a string containing the manifest json if a manifest was found.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    optional<string> read_file(const path &source_path, const optional<path> data_dir)
+    optional<string> read_file(const std::filesystem::path &source_path, const optional<std::filesystem::path> data_dir)
     {
         const char* dir_ptr = nullptr;
         std::string dir_str;
@@ -168,7 +166,7 @@ namespace c2pa
     /// @param data_dir the directory to store binary resources.
     /// @return a string containing the ingredient json.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    string read_ingredient_file(const path &source_path, const path &data_dir)
+    string read_ingredient_file(const std::filesystem::path &source_path, const std::filesystem::path &data_dir)
     {
         char *result = c2pa_read_ingredient_file(path_to_string(source_path).c_str(), path_to_string(data_dir).c_str());
         if (result == NULL)
@@ -187,11 +185,11 @@ namespace c2pa
     // signer_info: the signer info to use for signing
     // data_dir: the directory to store binary resources (optional)
     // Throws a C2pa::C2paException for errors encountered by the C2PA library
-    void sign_file(const path &source_path,
-                   const path &dest_path,
+    void sign_file(const std::filesystem::path &source_path,
+                   const std::filesystem::path &dest_path,
                    const char *manifest,
                    c2pa::SignerInfo *signer_info,
-                   const std::optional<path> data_dir)
+                   const std::optional<std::filesystem::path> data_dir)
     {
         auto dir = data_dir.has_value() ? path_to_string(data_dir.value()) : string();
 
@@ -514,7 +512,7 @@ namespace c2pa
         }
     }
 
-    Reader::Reader(const path &source_path)
+    Reader::Reader(const std::filesystem::path &source_path)
     {
         std::ifstream file_stream(source_path, std::ios_base::binary);
         if (!file_stream.is_open())
@@ -573,7 +571,7 @@ namespace c2pa
         return url_str;
     }
 
-    int64_t Reader::get_resource(const string &uri, const path &path)
+    int64_t Reader::get_resource(const string &uri, const std::filesystem::path &path)
     {
         std::ofstream file_stream(path, std::ios_base::binary);
         if (!file_stream.is_open())
@@ -695,7 +693,7 @@ namespace c2pa
         }
     }
 
-    void Builder::add_resource(const string &uri, const path &source_path)
+    void Builder::add_resource(const string &uri, const std::filesystem::path &source_path)
     {
         ifstream stream = ifstream(source_path, std::ios_base::binary);
         if (!stream.is_open())
@@ -715,7 +713,7 @@ namespace c2pa
         }
     }
 
-    void Builder::add_ingredient(const string &ingredient_json, const path &source_path)
+    void Builder::add_ingredient(const string &ingredient_json, const std::filesystem::path &source_path)
     {
         ifstream stream = ifstream(source_path, std::ios_base::binary);
         if (!stream.is_open())
@@ -777,7 +775,7 @@ namespace c2pa
     /// @param signer A signer object to use when signing.
     /// @return A vector containing the signed manifest bytes.
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-    std::vector<unsigned char> Builder::sign(const path &source_path, const path &dest_path, Signer &signer)
+    std::vector<unsigned char> Builder::sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path, Signer &signer)
     {
         std::ifstream source(source_path, std::ios_base::binary);
         if (!source.is_open())
@@ -785,7 +783,7 @@ namespace c2pa
             throw std::runtime_error("Failed to open source file: " + source_path.string());
         }
         // Ensure the destination directory exists
-        path dest_dir = dest_path.parent_path();
+        auto dest_dir = dest_path.parent_path();
         if (!std::filesystem::exists(dest_dir))
         {
             std::filesystem::create_directories(dest_dir);
@@ -819,7 +817,7 @@ namespace c2pa
     /// @brief Create a Builder from an archive file.
     /// @param archive The input path to read the archive from.
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-    Builder Builder::from_archive(const path &archive_path)
+    Builder Builder::from_archive(const std::filesystem::path &archive_path)
     {
         std::ifstream path(archive_path, std::ios_base::binary);
         if (!path.is_open())
@@ -845,7 +843,7 @@ namespace c2pa
     /// @brief Write the builder to an archive file.
     /// @param dest_path The path to write the archive file to.
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-    void Builder::to_archive(const path &dest_path)
+    void Builder::to_archive(const std::filesystem::path &dest_path)
     {
         std::ofstream dest(dest_path, std::ios_base::binary);
         if (!dest.is_open())
