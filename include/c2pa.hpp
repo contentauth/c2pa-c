@@ -80,7 +80,7 @@ namespace c2pa
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a string containing the manifest json if a manifest was found.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    optional<string> C2PA_CPP_API read_file(const filesystem::path &source_path, const optional<path> data_dir = nullopt);
+    optional<string> C2PA_CPP_API read_file(const path &source_path, const optional<path> data_dir = nullopt);
 
     /// Reads a file and returns an ingredient JSON as a C2pa::String.
     /// @param source_path the path to the file to read.
@@ -191,7 +191,7 @@ namespace c2pa
         /// @brief Create a Reader from a file path.
         /// @param source_path  the path to the file to read.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        Reader(const std::filesystem::path &source_path);
+        Reader(const path &source_path);
         ~Reader();
 
         /// @brief Returns if the reader was created from an embedded manifest.
@@ -215,7 +215,7 @@ namespace c2pa
         /// @param path The path to write the resource to.
         /// @return The number of bytes written.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        int64_t get_resource(const string &uri, const std::filesystem::path &path);
+        int64_t get_resource(const string &uri, const path &path);
 
         /// @brief  Get a resource from the reader  and write it to an output stream.
         /// @param uri The uri of the resource.
@@ -314,7 +314,7 @@ namespace c2pa
         /// @param uri The uri of the resource.
         /// @param source_path  The path to the resource file.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        void add_resource(const string &uri, const std::filesystem::path &source_path);
+        void add_resource(const string &uri, const path &source_path);
 
         /// @brief Add an ingredient to the builder.
         /// @param ingredient_json  Any fields of the ingredient you want to define.
@@ -327,7 +327,7 @@ namespace c2pa
         /// @param ingredient_json  Any fields of the ingredient you want to define.
         /// @param source_path  The path to the ingredient file.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        void add_ingredient(const string &ingredient_json, const std::filesystem::path &source_path);
+        void add_ingredient(const string &ingredient_json, const path &source_path);
 
         /// @brief Add an action to the manifest the Builder is constructing.
         /// @param action_json JSON string containing the action data.
@@ -369,7 +369,7 @@ namespace c2pa
         /// @brief Create a Builder from an archive
         /// @param archive_path  the path to the archive file
         /// @throws C2pa::C2paException for errors encountered by the C2PA library
-        static Builder from_archive(const std::filesystem::path &archive_path);
+        static Builder from_archive(const path &archive_path);
 
         /// @brief Write the builder to an archive stream.
         /// @param dest The output stream to write the archive to.

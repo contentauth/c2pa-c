@@ -124,8 +124,8 @@ namespace c2pa
         }
     }
 
-    /// converts a filesystem::path to a string in utf-8 format
-    inline std::string path_to_string(const filesystem::path &source_path)
+    /// converts a path to a string in utf-8 format
+    inline std::string path_to_string(const path &source_path)
     {
 		// Use u8string to ensure UTF-8 encoding across platforms. We have to convert
 		// to std::string manually because std::string doesn't have a constructor accepting u8String until C++20.
@@ -138,7 +138,7 @@ namespace c2pa
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a string containing the manifest json if a manifest was found.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    optional<string> read_file(const filesystem::path &source_path, const optional<path> data_dir)
+    optional<string> read_file(const path &source_path, const optional<path> data_dir)
     {
         const char* dir_ptr = nullptr;
         std::string dir_str;
@@ -514,7 +514,7 @@ namespace c2pa
         }
     }
 
-    Reader::Reader(const std::filesystem::path &source_path)
+    Reader::Reader(const path &source_path)
     {
         std::ifstream file_stream(source_path, std::ios_base::binary);
         if (!file_stream.is_open())
@@ -573,7 +573,7 @@ namespace c2pa
         return url_str;
     }
 
-    int64_t Reader::get_resource(const string &uri, const std::filesystem::path &path)
+    int64_t Reader::get_resource(const string &uri, const path &path)
     {
         std::ofstream file_stream(path, std::ios_base::binary);
         if (!file_stream.is_open())
@@ -695,7 +695,7 @@ namespace c2pa
         }
     }
 
-    void Builder::add_resource(const string &uri, const std::filesystem::path &source_path)
+    void Builder::add_resource(const string &uri, const path &source_path)
     {
         ifstream stream = ifstream(source_path, std::ios_base::binary);
         if (!stream.is_open())
@@ -715,7 +715,7 @@ namespace c2pa
         }
     }
 
-    void Builder::add_ingredient(const string &ingredient_json, const std::filesystem::path &source_path)
+    void Builder::add_ingredient(const string &ingredient_json, const path &source_path)
     {
         ifstream stream = ifstream(source_path, std::ios_base::binary);
         if (!stream.is_open())
@@ -785,7 +785,7 @@ namespace c2pa
             throw std::runtime_error("Failed to open source file: " + source_path.string());
         }
         // Ensure the destination directory exists
-        std::filesystem::path dest_dir = dest_path.parent_path();
+        path dest_dir = dest_path.parent_path();
         if (!std::filesystem::exists(dest_dir))
         {
             std::filesystem::create_directories(dest_dir);
