@@ -783,7 +783,7 @@ namespace c2pa
             throw std::runtime_error("Failed to open source file: " + source_path.string());
         }
         // Ensure the destination directory exists
-        std::filesystem::path dest_dir = dest_path.parent_path();
+        auto dest_dir = dest_path.parent_path();
         if (!std::filesystem::exists(dest_dir))
         {
             std::filesystem::create_directories(dest_dir);
