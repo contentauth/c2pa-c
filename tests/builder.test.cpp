@@ -15,6 +15,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 #include <filesystem>
+#include <nlohmann/json.hpp>
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -642,6 +643,7 @@ TEST_P(SimplePathSignTest, SignsFileTypes) {
   fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
   fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
   fs::path asset_path = current_dir / "../tests/fixtures" / SimplePathSignTest::GetParam();
+  fs::path ingredient_path = current_dir / "../tests/fixtures/A.jpg";
 
   fs::path output_path = current_dir / "../build/example" / SimplePathSignTest::GetParam();
   std::filesystem::remove(output_path.c_str()); // remove the file if it exists
@@ -653,6 +655,14 @@ TEST_P(SimplePathSignTest, SignsFileTypes) {
   // create a signer
   auto signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
   auto builder = c2pa::Builder(manifest);
+
+  // Add an ingredient example.
+  string ingredient_json = c2pa::read_ingredient_file(ingredient_path, output_path.parent_path());
+  auto ingredient_json_obj = nlohmann::json::parse(ingredient_json);
+  std::string resource_id = ingredient_json_obj["thumbnail"]["identifier"];
+
+  builder.add_resource(resource_id, ingredient_path);
+  builder.add_ingredient(ingredient_json, ingredient_path);
 
   std::vector<unsigned char> manifest_data;
   ASSERT_NO_THROW(manifest_data = builder.sign(asset_path, output_path, signer));
