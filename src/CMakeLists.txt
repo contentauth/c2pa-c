@@ -28,7 +28,7 @@ elseif(WIN32)
     set(C2PA_PREBUILT_ARCH "${C2PA_PROCESSOR}-pc-windows-msvc")
     set(C2PA_LIB_NAME "c2pa_c.dll")
     set(C2PA_IMPLIB_NAME "c2pa_c.dll.lib")
-    
+
     # Warn about potential ABI issues with MinGW
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         message(WARNING "Using MinGW with MSVC-compiled DLL may cause ABI compatibility issues. Consider using MSVC compiler on Windows.")
@@ -103,7 +103,7 @@ endif()
 # Expose public headers and prebuilt C API headers to clients
 target_include_directories(c2pa_cpp
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${c2pa-c_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${c2pa_prebuilt_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
@@ -128,7 +128,7 @@ install(TARGETS c2pa_cpp
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
 )
-install(FILES ${CMAKE_SOURCE_DIR}/include/c2pa.hpp DESTINATION include)
+install(FILES ${c2pa-c_SOURCE_DIR}/include/c2pa.hpp DESTINATION include)
 
 # Install the export set (for build-tree and install-tree usage) - added from main
 install(EXPORT c2pa_cppTargets

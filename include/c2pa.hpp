@@ -40,8 +40,6 @@
 
 #include <c2pa.h>
 
-using path = std::filesystem::path;
-
 // NOOP for now, can use later to define static library
 #define C2PA_CPP_API
 
@@ -80,14 +78,14 @@ namespace c2pa
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a string containing the manifest json if a manifest was found.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    optional<string> C2PA_CPP_API read_file(const filesystem::path &source_path, const optional<path> data_dir = nullopt);
+    optional<string> C2PA_CPP_API read_file(const std::filesystem::path &source_path, const optional<std::filesystem::path> data_dir = nullopt);
 
     /// Reads a file and returns an ingredient JSON as a C2pa::String.
     /// @param source_path the path to the file to read.
     /// @param data_dir the directory to store binary resources.
     /// @return a string containing the ingredient json.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    std::string C2PA_CPP_API read_ingredient_file(const path &source_path, const path &data_dir);
+    std::string C2PA_CPP_API read_ingredient_file(const std::filesystem::path &source_path, const std::filesystem::path &data_dir);
 
     /// Adds the manifest and signs a file.
     /// @param source_path the path to the asset to be signed.
@@ -96,11 +94,11 @@ namespace c2pa
     /// @param signer_info the signer info to use for signing.
     /// @param data_dir the directory to store binary resources (optional).
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    void C2PA_CPP_API sign_file(const path &source_path,
-                            const path &dest_path,
+    void C2PA_CPP_API sign_file(const std::filesystem::path &source_path,
+                            const std::filesystem::path &dest_path,
                             const char *manifest,
                             SignerInfo *signer_info,
-                            const std::optional<path> data_dir = std::nullopt);
+                            const std::optional<std::filesystem::path> data_dir = std::nullopt);
 
     /// @brief Istream Class wrapper for C2paStream.
     /// @details This class is used to wrap an input stream for use with the C2PA library.
@@ -109,7 +107,11 @@ namespace c2pa
     public:
         C2paStream *c_stream;
         template <typename IStream>
-        explicit CppIStream(IStream &istream);
+        explicit CppIStream(IStream &istream) {
+            static_assert(std::is_base_of<std::istream, IStream>::value,
+                      "Stream must be derived from std::istream");
+            c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&istream), reader, seeker, writer, flusher);	 	 
+        }
 
         CppIStream(const CppIStream &) = delete;
         CppIStream &operator=(const CppIStream &) = delete;
@@ -134,7 +136,10 @@ namespace c2pa
     public:
         C2paStream *c_stream;
         template <typename OStream>
-        explicit CppOStream(OStream &ostream);
+        explicit CppOStream(OStream &ostream) {
+            static_assert(std::is_base_of<std::ostream, OStream>::value, "Stream must be derived from std::ostream");
+            c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&ostream), reader, seeker, writer, flusher);
+        }
 
         ~CppOStream();
 
@@ -152,7 +157,10 @@ namespace c2pa
     public:
         C2paStream *c_stream;
         template <typename IOStream>
-        CppIOStream(IOStream &iostream);
+        CppIOStream(IOStream &iostream) {
+            static_assert(std::is_base_of<std::iostream, IOStream>::value, "Stream must be derived from std::iostream");
+            c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&iostream), reader, seeker, writer, flusher);
+        }
         ~CppIOStream();
 
     private:
@@ -168,7 +176,7 @@ namespace c2pa
     {
     private:
         C2paReader *c2pa_reader;
-        CppIStream *cpp_stream = NULL;
+        CppIStream *cpp_stream = nullptr;
 
     public:
         /// @brief Create a Reader from a stream.
@@ -247,7 +255,7 @@ namespace c2pa
 
         Signer(C2paSigner *signer) : signer(signer) {}
 
-        Signer(const string &alg, const string &sign_cert, const string&private_key, const string &tsa_uri = NULL);
+        Signer(const string &alg, const string &sign_cert, const string &private_key, const optional<string> &tsa_uri = nullopt);
 
         ~Signer();
 
@@ -274,30 +282,42 @@ namespace c2pa
 
         ~Builder();
 
+        /// @brief  Get the underlying C2paBuilder pointer.
+        /// @return Pointer managed by this wrapper.
+        C2paBuilder *c2pa_builder();
+
         /// @brief  Set the no embed flag.
         void set_no_embed();
 
-        /// @brief  Set the remote URL.
+        /// @brief Set the remote URL.
         /// @param remote_url  The remote URL to set.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         void set_remote_url(const string &remote_url);
 
-        /// @brief  Add a resource to the builder.
-        /// @param uri  The uri of the resource.
-        /// @param source  The input stream to read the resource from.
+        /// @brief Set the base path for loading resources from files.
+        ///        Loads from memory if this is not set.
+        /// @param base_path The base path to set.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        /// @deprecated This method is planned to be deprecated in a future release.
+        ///             Usage should be limited and temporary. Use `add_resource` instead.
+        void set_base_path(const string &base_path);
+
+        /// @brief Add a resource to the builder.
+        /// @param uri The uri of the resource.
+        /// @param source The input stream to read the resource from.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         void add_resource(const string &uri, istream &source);
 
-        /// @brief  Add a resource to the builder.
-        /// @param uri  The uri of the resource.
+        /// @brief Add a resource to the builder.
+        /// @param uri The uri of the resource.
         /// @param source_path  The path to the resource file.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         void add_resource(const string &uri, const std::filesystem::path &source_path);
 
         /// @brief Add an ingredient to the builder.
         /// @param ingredient_json  Any fields of the ingredient you want to define.
-        /// @param format  The format of the ingredient file.
-        /// @param source  The input stream to read the ingredient from.
+        /// @param format The format of the ingredient file.
+        /// @param source The input stream to read the ingredient from.
         /// @throws C2pa::C2paException for errors encountered by the C2pa library.
         void add_ingredient(const string &ingredient_json, const string &format, istream &source);
 
@@ -306,6 +326,11 @@ namespace c2pa
         /// @param source_path  The path to the ingredient file.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         void add_ingredient(const string &ingredient_json, const std::filesystem::path &source_path);
+
+        /// @brief Add an action to the manifest the Builder is constructing.
+        /// @param action_json JSON string containing the action data.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        void add_action(const string &action_json);
 
         /// @brief Sign an input stream and write the signed data to an output stream.
         /// @param format The format of the output stream.
@@ -332,7 +357,7 @@ namespace c2pa
         /// @param signer A signer object to use when signing.
         /// @return A vector containing the signed manifest bytes.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        std::vector<unsigned char> sign(const path &source_path, const path &dest_path, Signer &signer);
+        std::vector<unsigned char> sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path, Signer &signer);
 
         /// @brief Create a Builder from an archive.
         /// @param archive  The input stream to read the archive from.
@@ -352,7 +377,7 @@ namespace c2pa
         /// @brief Write the builder to an archive file.
         /// @param dest_path The path to write the archive file to.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        void to_archive(const path &dest_path);
+        void to_archive(const std::filesystem::path &dest_path);
 
         /// @brief Create a hashed placeholder from the builder.
         /// @param reserved_size  The size required for a signature from the intended signer.

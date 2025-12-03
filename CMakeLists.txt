@@ -14,15 +14,19 @@
 cmake_minimum_required(VERSION 3.27)
 
 # This is the version of this C++ project
-project(c2pa-c VERSION 0.8.0)
+project(c2pa-c VERSION 0.12.0)
 
 # Set the version of the c2pa_rs library used here
-set(C2PA_VERSION "0.58.0")
+set(C2PA_VERSION "0.66.0")
 
 set(CMAKE_POLICY_DEFAULT_CMP0135 NEW)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "13.3")
+
+if(MSVC)
+add_compile_options(/utf-8)
+endif()
 
 # Set RPATH settings for shared library discovery
 set(CMAKE_SKIP_BUILD_RPATH FALSE)

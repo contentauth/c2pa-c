@@ -114,7 +114,7 @@ int main()
     }
     catch (runtime_error const &e)
     {
-        cout << "setup error" << e.what() << endl;
+        cout << "setup error: " << e.what() << endl;
     }
     catch (json::parse_error const &e)
     {
