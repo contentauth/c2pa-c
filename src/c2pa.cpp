@@ -262,14 +262,15 @@ namespace c2pa
             errno = EIO;
             return -1;
         }
-        long pos = (long)istream->tellg();
+        // Use int64_t instead of long to avoid 2GB limit on systems where long is 32-bit
+        int64_t pos = static_cast<int64_t>(istream->tellg());
         if (pos < 0)
         {
             errno = EIO;
             return -1;
         }
-        // printf("seeker offset= %ld pos = %d whence = %d\n", offset, pos, dir);
-        return pos;
+        // printf("seeker offset= %ld pos = %lld whence = %d\n", offset, (long long)pos, dir);
+        return static_cast<intptr_t>(pos);
     }
 
     intptr_t CppIStream::writer(StreamContext *context, const uint8_t *buffer, intptr_t size)
@@ -349,13 +350,14 @@ namespace c2pa
             errno = EIO; // Input/output error
             return -1;
         }
-        long pos = (long)ostream->tellp();
+        // Use int64_t instead of long to avoid 2GB limit on systems where long is 32-bit
+        int64_t pos = static_cast<int64_t>(ostream->tellp());
         if (pos < 0)
         {
             errno = EIO; // Input/output error
             return -1;
         }
-        return pos;
+        return static_cast<intptr_t>(pos);
     }
 
     intptr_t CppOStream::writer(StreamContext *context, const uint8_t *buffer, intptr_t size)
@@ -449,7 +451,8 @@ namespace c2pa
             errno = EIO; // Input/output error
             return -1;
         }
-        long pos = (long)iostream->tellg();
+        // Use int64_t instead of long to avoid 2GB limit on systems where long is 32-bit
+        int64_t pos = static_cast<int64_t>(iostream->tellg());
         if (pos < 0)
         {
             errno = EIO; // Input/output error
@@ -467,13 +470,13 @@ namespace c2pa
             errno = EIO; // Input/output error
             return -1;
         }
-        pos = (long)iostream->tellp();
+        pos = static_cast<int64_t>(iostream->tellp());
         if (pos < 0)
         {
             errno = EIO; // Input/output error
             return -1;
         }
-        return pos;
+        return static_cast<intptr_t>(pos);
     }
 
     intptr_t CppIOStream::writer(StreamContext *context, const uint8_t *buffer, intptr_t size)

@@ -22,7 +22,7 @@ namespace fs = std::filesystem;
 using nlohmann::json;
 
 /// @brief Read a text file into a string
-string read_text_file(const fs::path &path)
+static string read_text_file(const fs::path &path)
 {
     ifstream file(path);
     if (!file.is_open())
