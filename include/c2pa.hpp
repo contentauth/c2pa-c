@@ -261,7 +261,7 @@ namespace c2pa
         Signer(const Signer&) = delete;
         Signer& operator=(const Signer&) = delete;
 
-        // Move semantics (safe ownership transfer)
+        // Move semantics (for ownership transfer)
         Signer(Signer&& other) noexcept : signer(other.signer) {
             other.signer = nullptr;
         }
