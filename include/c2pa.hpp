@@ -257,6 +257,23 @@ namespace c2pa
 
         Signer(const string &alg, const string &sign_cert, const string &private_key, const optional<string> &tsa_uri = nullopt);
 
+        // Non-copyable
+        Signer(const Signer&) = delete;
+        Signer& operator=(const Signer&) = delete;
+
+        // Move semantics (safe ownership transfer)
+        Signer(Signer&& other) noexcept : signer(other.signer) {
+            other.signer = nullptr;
+        }
+        Signer& operator=(Signer&& other) noexcept {
+            if (this != &other) {
+                c2pa_signer_free(signer);
+                signer = other.signer;
+                other.signer = nullptr;
+            }
+            return *this;
+        }
+
         ~Signer();
 
         /// @brief  Get the size to reserve for a signature for this signer.
@@ -279,6 +296,23 @@ namespace c2pa
         /// @param manifest_json  The manifest JSON string.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         Builder(const std::string &manifest_json);
+
+        // Non-copyable
+        Builder(const Builder&) = delete;
+        Builder& operator=(const Builder&) = delete;
+
+        // Move semantics
+        Builder(Builder&& other) noexcept : builder(other.builder) {
+            other.builder = nullptr;
+        }
+        Builder& operator=(Builder&& other) noexcept {
+            if (this != &other) {
+                c2pa_builder_free(builder);
+                builder = other.builder;
+                other.builder = nullptr;
+            }
+            return *this;
+        }
 
         ~Builder();
 

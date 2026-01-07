@@ -615,7 +615,9 @@ namespace c2pa
 
     Signer::~Signer()
     {
-        c2pa_signer_free(signer);
+        if (signer) {
+            c2pa_signer_free(signer);
+        }
     }
 
     /// @brief  Get the C2paSigner
@@ -655,7 +657,9 @@ namespace c2pa
 
     Builder::~Builder()
     {
-        c2pa_builder_free(builder);
+        if (builder) {
+            c2pa_builder_free(builder);
+        }
     }
 
     C2paBuilder *Builder::c2pa_builder()
