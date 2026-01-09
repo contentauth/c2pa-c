@@ -63,11 +63,13 @@ TEST(ReadFile, ReadFileWithDataDirReturnsSomeValue)
 
   // parse result with json
   auto json = json::parse(result.value());
+
   EXPECT_TRUE(json.contains("manifests"));
   EXPECT_TRUE(json.contains("active_manifest"));
   // build/read_file should exist and contain a manifest.json file
+
   EXPECT_TRUE(fs::exists(current_dir / "../build/read_file"));
-  EXPECT_TRUE(fs::exists(current_dir / "../build/read_file/manifest.json"));
+  EXPECT_TRUE(fs::exists(current_dir / "../build/read_file/manifest_store.json"));
 };
 
 /* remove this until we resolve CAWG Identity testing
