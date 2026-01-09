@@ -66,8 +66,8 @@ TEST(ReadFile, ReadFileWithDataDirReturnsSomeValue)
 
   EXPECT_TRUE(json.contains("manifests"));
   EXPECT_TRUE(json.contains("active_manifest"));
-  // build/read_file should exist and contain a manifest.json file
 
+  // build/read_file should exist and contain a manifest.json file
   EXPECT_TRUE(fs::exists(current_dir / "../build/read_file"));
   EXPECT_TRUE(fs::exists(current_dir / "../build/read_file/manifest_store.json"));
 };
