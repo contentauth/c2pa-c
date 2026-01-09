@@ -141,6 +141,11 @@ namespace c2pa
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&ostream), reader, seeker, writer, flusher);
         }
 
+        CppOStream(const CppOStream &) = delete;
+        CppOStream &operator=(const CppOStream &) = delete;
+        CppOStream(CppOStream &&) = delete;
+        CppOStream &operator=(CppOStream &&) = delete;
+
         ~CppOStream();
 
     private:
@@ -161,6 +166,12 @@ namespace c2pa
             static_assert(std::is_base_of<std::iostream, IOStream>::value, "Stream must be derived from std::iostream");
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&iostream), reader, seeker, writer, flusher);
         }
+
+        CppIOStream(const CppIOStream &) = delete;
+        CppIOStream &operator=(const CppIOStream &) = delete;
+        CppIOStream(CppIOStream &&) = delete;
+        CppIOStream &operator=(CppIOStream &&) = delete;
+
         ~CppIOStream();
 
     private:
@@ -190,6 +201,29 @@ namespace c2pa
         /// @param source_path  the path to the file to read.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         Reader(const std::filesystem::path &source_path);
+
+        // Non-copyable
+        Reader(const Reader&) = delete;
+        Reader& operator=(const Reader&) = delete;
+
+        // Move semantics
+        Reader(Reader&& other) noexcept
+            : c2pa_reader(other.c2pa_reader), cpp_stream(other.cpp_stream) {
+            other.c2pa_reader = nullptr;
+            other.cpp_stream = nullptr;
+        }
+        Reader& operator=(Reader&& other) noexcept {
+            if (this != &other) {
+                c2pa_reader_free(c2pa_reader);
+                delete cpp_stream;
+                c2pa_reader = other.c2pa_reader;
+                cpp_stream = other.cpp_stream;
+                other.c2pa_reader = nullptr;
+                other.cpp_stream = nullptr;
+            }
+            return *this;
+        }
+
         ~Reader();
 
         /// @brief Returns if the reader was created from an embedded manifest.
