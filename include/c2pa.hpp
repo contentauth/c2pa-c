@@ -380,17 +380,17 @@ namespace c2pa
         void to_archive(const std::filesystem::path &dest_path);
 
         /// @brief Create a hashed placeholder from the builder.
-        /// @param reserved_size  The size required for a signature from the intended signer.
-        /// @param format  The format of the mime type or extension of the asset.
+        /// @param reserved_size The size required for a signature from the intended signer.
+        /// @param format The format of the mime type or extension of the asset.
         /// @return A vector containing the hashed placeholder.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         std::vector<unsigned char> data_hashed_placeholder(uintptr_t reserved_size, const string &format);
 
         /// @brief Sign a Builder using the specified signer and data hash.
-        /// @param signer  The signer to use for signing.
-        /// @param data_hash  The data hash ranges to sign. This must contain hashes unless and asset is provided.
-        /// @param format  The mime format for embedding into.  Use "c2pa" for an unformatted result.
-        /// @param asset  An optional asset to hash according to the data_hash information.
+        /// @param signer The signer to use for signing.
+        /// @param data_hash The data hash ranges to sign. This must contain hashes unless an asset is provided.
+        /// @param format The mime format for embedding into.  Use "c2pa" for an unformatted result.
+        /// @param asset An optional asset to hash according to the data_hash information.
         /// @return A vector containing the signed data.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         std::vector<unsigned char> sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format, istream *asset = nullptr);
