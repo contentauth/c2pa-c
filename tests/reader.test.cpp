@@ -192,7 +192,11 @@ TEST_P(RemoteUrlTests, IsEmbeddedTest) {
 TEST(Reader, HasManifestUtf8Path) {
     namespace fs = std::filesystem;
     auto current_dir = fs::path(__FILE__).parent_path();
-    auto test_file = current_dir.parent_path() / "tests" / "fixtures" / "CÖÄ_.jpg";
+    #ifdef _WIN32
+      auto test_file = current_dir.parent_path() / "tests" / "fixtures" / L"CÖÄ_.jpg";
+    #else
+      auto test_file = current_dir.parent_path() / "tests" / "fixtures" / "CÖÄ_.jpg";
+    #endif
     ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
 
     std::ifstream stream(test_file, std::ios::binary);
