@@ -190,7 +190,6 @@ TEST_P(RemoteUrlTests, IsEmbeddedTest) {
 }
 
 TEST(Reader, HasManifestUtf8Path) {
-    namespace fs = std::filesystem;
     auto current_dir = fs::path(__FILE__).parent_path();
     #ifdef _WIN32
       auto test_file = current_dir.parent_path() / "tests" / "fixtures" / L"CÖÄ_.jpg";
