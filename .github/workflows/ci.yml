@@ -29,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, macos-15-intel, ubuntu-latest, ubuntu-22.04, ubuntu-22.04-arm, ubuntu-24.04-arm]
+        os: [windows-latest, windows-2022, macos-latest, macos-15-intel, ubuntu-latest, ubuntu-22.04, ubuntu-22.04-arm, ubuntu-24.04-arm]
 
     steps:
       - name: Checkout repository
