@@ -4,7 +4,7 @@ project(c2pa_cpp)
 include(FetchContent)
 
 # Download json library (used in tests), use 3.11.3 which works with C++17 (3.12+ requires C++20/char8_t)
-# This ensures compatibility with older compilers like GCC 8-9 on Debian 10
+# This ensures compatibility with older platforms too
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
 FetchContent_MakeAvailable(json)
 
