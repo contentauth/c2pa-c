@@ -108,7 +108,7 @@ namespace c2pa
     string version()
     {
         auto result = c2pa_version();
-        string str = string(result);
+        std::string str(result);
         c2pa_release_string(result);
         return str;
     }
@@ -160,7 +160,7 @@ namespace c2pa
             }
             throw c2pa::C2paException();
         }
-        string str = string(result);
+        std::string str(result);
         c2pa_release_string(result);
         return str;
     }
@@ -177,7 +177,7 @@ namespace c2pa
         {
             throw c2pa::C2paException();
         }
-        string str = string(result);
+        std::string str(result);
         c2pa_release_string(result);
         return str;
     }
@@ -278,14 +278,14 @@ namespace c2pa
 
     intptr_t CppIStream::writer(StreamContext *context, const uint8_t *buffer, intptr_t size)
     {
-        std::iostream *iostream = (std::iostream *)context;
-        iostream->write((const char *)buffer, size);
-        if (iostream->fail())
+        std::iostream *stream = (std::iostream *)context;
+        stream->write((const char *)buffer, size);
+        if (stream->fail())
         {
             errno = EINVAL; // Invalid argument
             return -1;
         }
-        else if (iostream->bad())
+        else if (stream->bad())
         {
             errno = EIO; // I/O error
             return -1;
@@ -295,9 +295,9 @@ namespace c2pa
 
     intptr_t CppIStream::flusher(StreamContext *context)
     {
-        std::iostream *iostream = (std::iostream *)context;
-        iostream->flush();
-		if (iostream->fail() || iostream->bad())
+        std::iostream *stream = (std::iostream *)context;
+        stream->flush();
+		if (stream->fail() || stream->bad())
 	    {
 	        errno = EIO;
 	        return -1;
@@ -573,7 +573,7 @@ namespace c2pa
         {
             throw C2paException();
         }
-        string str = string(result);
+        std::string str(result);
         c2pa_release_string(result);
         return str;
     }
@@ -834,7 +834,7 @@ namespace c2pa
     /// @brief Create a Builder from an archive stream.
     /// @param archive The input stream to read the archive from.
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-    Builder Builder::from_archive(istream &archive) const
+    Builder Builder::from_archive(istream &archive)
     {
         return Builder(archive);
     }
