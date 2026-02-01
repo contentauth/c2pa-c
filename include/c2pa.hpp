@@ -240,7 +240,7 @@ namespace c2pa
         /// @brief Get the manifest as a json string.
         /// @return The manifest as a json string.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        string json();
+        string json() const;
 
         /// @brief  Get a resource from the reader and write it to a file.
         /// @param uri The uri of the resource.
@@ -322,7 +322,7 @@ namespace c2pa
         uintptr_t reserve_size();
 
         /// @brief  Get the C2paSigner
-        C2paSigner *c2pa_signer();
+        C2paSigner *c2pa_signer() const noexcept;
     };
 
     /// @brief Builder class for creating a manifest.
@@ -359,7 +359,7 @@ namespace c2pa
 
         /// @brief  Get the underlying C2paBuilder pointer.
         /// @return Pointer managed by this wrapper.
-        C2paBuilder *c2pa_builder();
+        C2paBuilder *c2pa_builder() const noexcept;
 
         /// @brief  Set the no embed flag.
         void set_no_embed();
