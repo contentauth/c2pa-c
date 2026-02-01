@@ -523,13 +523,13 @@ namespace c2pa
     /// Reader class for reading a manifest implementation.
     Reader::Reader(const string &format, std::istream &stream)
     {
-		std::unique_ptr<CppIStream> temp_stream(new CppIStream(stream));
-        c2pa_reader = c2pa_reader_from_stream(format.c_str(), temp_stream->c_stream);
-		if (c2pa_reader == nullptr)
-		{
-		    throw C2paException();
-		}
-		cpp_stream = temp_stream.release();
+		cpp_stream = new CppIStream(stream); // keep this allocated for life of Reader
+        c2pa_reader = c2pa_reader_from_stream(format.c_str(), cpp_stream->c_stream);
+        if (c2pa_reader == NULL)
+        {
+            delete cpp_stream;
+            throw C2paException();
+        }
     }
 
     Reader::Reader(const std::filesystem::path &source_path)
