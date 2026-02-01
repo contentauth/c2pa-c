@@ -159,7 +159,19 @@ add_library(c2pa_cpp STATIC c2pa.cpp)
 
 # Set compiler-specific flags for the C++ library
 if(MSVC)
-    target_compile_options(c2pa_cpp PRIVATE /WX)
+    target_compile_options(c2pa_cpp PRIVATE
+        /WX
+        /sdl
+        /guard:cf
+        /GS
+        /DYNAMICBASE
+        /NXCOMPAT)
+
+    target_link_options(c2pa_cpp PRIVATE
+        /DYNAMICBASE
+        /NXCOMPAT
+        /GUARD:CF
+    )
 else()
     target_compile_options(c2pa_cpp PRIVATE -Werror)
 
