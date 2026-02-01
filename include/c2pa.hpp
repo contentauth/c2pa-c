@@ -263,7 +263,7 @@ namespace c2pa
 
         /// @brief Returns a vector of mime types that the SDK is able to
         /// read manifests from.
-        static std::vector<std::string> supported_mime_types() const;
+        static std::vector<std::string> supported_mime_types();
     };
 
     /// @brief  Signer Callback function type.
@@ -322,7 +322,7 @@ namespace c2pa
         uintptr_t reserve_size();
 
         /// @brief  Get the C2paSigner
-        C2paSigner *c2pa_signer const noexcept();
+        C2paSigner *c2pa_signer() const noexcept;
     };
 
     /// @brief Builder class for creating a manifest.
@@ -477,7 +477,7 @@ namespace c2pa
         static std::vector<unsigned char> format_embeddable(const string &format, std::vector<unsigned char> &data);
 
         /// @brief Returns a vector of mime types that the SDK is able to sign.
-        static std::vector<std::string> supported_mime_types() const;
+        static std::vector<std::string> supported_mime_types();
 
     private:
         // Private constructor for Builder from an archive (todo: find a better way to handle this)
