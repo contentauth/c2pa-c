@@ -50,6 +50,10 @@ std::vector<std::string> c_mime_types_to_vector(const char* const* mime_types, u
 
 intptr_t signer_passthrough(const void *context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len)
 {
+  if (data == nullptr || signature == nullptr)
+  {
+    return -1;
+  }
   try
   {
     // the context is a pointer to the C++ callback function
@@ -91,7 +95,7 @@ namespace c2pa
         c2pa_release_string(result);
     }
 
-    C2paException::C2paException(string what) : message(what)
+    C2paException::C2paException(string what) : message(std::move(what))
     {
     }
 
@@ -200,7 +204,6 @@ namespace c2pa
             throw c2pa::C2paException();
         }
         c2pa_release_string(result);
-        return;
     }
 
     /// IStream Class wrapper for C2paStream.
@@ -294,6 +297,11 @@ namespace c2pa
     {
         std::iostream *iostream = (std::iostream *)context;
         iostream->flush();
+		if (iostream->fail() || iostream->bad())
+	    {
+	        errno = EIO;
+	        return -1;
+	    }
         return 0;
     }
 
@@ -382,6 +390,10 @@ namespace c2pa
     {
         std::ofstream *ofstream = (std::ofstream *)context;
         ofstream->flush();
+		if (ofstream->fail() || ofstream->bad()) {
+		    errno = EIO;
+		    return -1;
+		}
         return 0;
     }
 
@@ -500,19 +512,24 @@ namespace c2pa
     {
         std::iostream *iostream = (std::iostream *)context;
         iostream->flush();
+		if (iostream->fail() || iostream->bad())
+	    {
+	        errno = EIO;
+	        return -1;
+	    }
         return 0;
     }
 
     /// Reader class for reading a manifest implementation.
     Reader::Reader(const string &format, std::istream &stream)
     {
-        cpp_stream = new CppIStream(stream); // keep this allocated for life of Reader
-        c2pa_reader = c2pa_reader_from_stream(format.c_str(), cpp_stream->c_stream);
-        if (c2pa_reader == NULL)
-        {
-            delete cpp_stream;
-            throw C2paException();
-        }
+		std::unique_ptr<CppIStream> temp_stream(new CppIStream(stream));
+        c2pa_reader = c2pa_reader_from_stream(format.c_str(), temp_stream->c_stream);
+		if (c2pa_reader == nullptr)
+		{
+		    throw C2paException();
+		}
+		cpp_stream = temp_stream.release();
     }
 
     Reader::Reader(const std::filesystem::path &source_path)
@@ -533,7 +550,7 @@ namespace c2pa
 
         cpp_stream = new CppIStream(file_stream); // keep this allocated for life of Reader
         c2pa_reader = c2pa_reader_from_stream(extension.c_str(), cpp_stream->c_stream);
-        if (c2pa_reader == NULL)
+        if (c2pa_reader == nullptr)
         {
             delete cpp_stream;
             throw C2paException();
@@ -549,10 +566,10 @@ namespace c2pa
         }
     }
 
-    string Reader::json()
+    string Reader::json() const
     {
         char *result = c2pa_reader_json(c2pa_reader);
-        if (result == NULL)
+        if (result == nullptr)
         {
             throw C2paException();
         }
@@ -597,7 +614,7 @@ namespace c2pa
         return result;
     }
 
-    std::vector<std::string> Reader::supported_mime_types() {
+    std::vector<std::string> Reader::supported_mime_types() const {
       uintptr_t count = 0;
       auto ptr = c2pa_reader_supported_mime_types(&count);
       return c_mime_types_to_vector(ptr, count);
@@ -621,13 +638,13 @@ namespace c2pa
     }
 
     /// @brief  Get the C2paSigner
-    C2paSigner *Signer::c2pa_signer()
+    C2paSigner *Signer::c2pa_signer() const noexcept
     {
         return signer;
     }
 
     /// @brief  Get the size to reserve for a signature for this signer.
-    uintptr_t Signer::reserve_size()
+    uintptr_t Signer::reserve_size() const
     {
         return c2pa_signer_reserve_size(signer);
     }
@@ -636,7 +653,7 @@ namespace c2pa
     Builder::Builder(const string &manifest_json)
     {
         builder = c2pa_builder_from_json(manifest_json.c_str());
-        if (builder == NULL)
+        if (builder == nullptr)
         {
             throw C2paException();
         }
@@ -649,7 +666,7 @@ namespace c2pa
     {
         CppIStream c_archive = CppIStream(archive);
         builder = c2pa_builder_from_archive(c_archive.c_stream);
-        if (builder == NULL)
+        if (builder == nullptr)
         {
             throw C2paException();
         }
@@ -660,7 +677,7 @@ namespace c2pa
         c2pa_builder_free(builder);
     }
 
-    C2paBuilder *Builder::c2pa_builder()
+    C2paBuilder *Builder::c2pa_builder() const noexcept
     {
         return builder;
     }
@@ -748,9 +765,9 @@ namespace c2pa
     {
         CppIStream c_source(source);
         CppOStream c_dest(dest);
-        const unsigned char *c2pa_manifest_bytes = NULL;
+        const unsigned char *c2pa_manifest_bytes = nullptr;
         auto result = c2pa_builder_sign(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, signer.c2pa_signer(), &c2pa_manifest_bytes);
-        if (result < 0 || c2pa_manifest_bytes == NULL)
+        if (result < 0 || c2pa_manifest_bytes == nullptr)
         {
           throw C2paException();
         }
@@ -764,9 +781,9 @@ namespace c2pa
     {
         CppIStream c_source(source);
         CppIOStream c_dest(dest);
-        const unsigned char *c2pa_manifest_bytes = NULL;
+        const unsigned char *c2pa_manifest_bytes = nullptr;
         auto result = c2pa_builder_sign(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, signer.c2pa_signer(), &c2pa_manifest_bytes);
-        if (result < 0 || c2pa_manifest_bytes == NULL)
+        if (result < 0 || c2pa_manifest_bytes == nullptr)
         {
             throw C2paException();
         }
@@ -817,7 +834,7 @@ namespace c2pa
     /// @brief Create a Builder from an archive stream.
     /// @param archive The input stream to read the archive from.
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-    Builder Builder::from_archive(istream &archive)
+    Builder Builder::from_archive(istream &archive) const
     {
         return Builder(archive);
     }
@@ -865,9 +882,9 @@ namespace c2pa
 
     std::vector<unsigned char> Builder::data_hashed_placeholder(uintptr_t reserve_size, const string &format)
     {
-        const unsigned char *c2pa_manifest_bytes = NULL;
+        const unsigned char *c2pa_manifest_bytes = nullptr;
         auto result = c2pa_builder_data_hashed_placeholder(builder, reserve_size, format.c_str(), &c2pa_manifest_bytes);
-        if (result < 0 || c2pa_manifest_bytes == NULL)
+        if (result < 0 || c2pa_manifest_bytes == nullptr)
         {
             throw(C2paException());
         }
@@ -880,7 +897,7 @@ namespace c2pa
     std::vector<unsigned char> Builder::sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format, istream *asset)
     {
         int64_t result;
-        const unsigned char *c2pa_manifest_bytes = NULL;
+        const unsigned char *c2pa_manifest_bytes = nullptr;
         if (asset)
         {
             CppIStream c_asset(*asset);
@@ -890,7 +907,7 @@ namespace c2pa
         {
             result = c2pa_builder_sign_data_hashed_embeddable(builder, signer.c2pa_signer(), data_hash.c_str(), format.c_str(), nullptr, &c2pa_manifest_bytes);
         }
-        if (result < 0 || c2pa_manifest_bytes == NULL)
+        if (result < 0 || c2pa_manifest_bytes == nullptr)
         {
             throw(C2paException());
         }
@@ -902,9 +919,9 @@ namespace c2pa
 
     std::vector<unsigned char> Builder::format_embeddable(const string &format, std::vector<unsigned char> &data)
     {
-        const unsigned char *c2pa_manifest_bytes = NULL;
+        const unsigned char *c2pa_manifest_bytes = nullptr;
         auto result = c2pa_format_embeddable(format.c_str(), data.data(), data.size(), &c2pa_manifest_bytes);
-        if (result < 0 || c2pa_manifest_bytes == NULL)
+        if (result < 0 || c2pa_manifest_bytes == nullptr)
         {
             throw(C2paException());
         }
@@ -914,7 +931,7 @@ namespace c2pa
         return formatted_data;
     }
 
-    std::vector<std::string> Builder::supported_mime_types() {
+    std::vector<std::string> Builder::supported_mime_types() const {
       uintptr_t count = 0;
       auto ptr = c2pa_builder_supported_mime_types(&count);
       return c_mime_types_to_vector(ptr, count);
