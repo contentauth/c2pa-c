@@ -287,8 +287,15 @@ namespace c2pa
         /// @param tsa_uri  The TSA URI to use for time-stamping.
         Signer(SignerFunc *callback, C2paSigningAlg alg, const string &sign_cert, const string &tsa_uri);
 
-        Signer(C2paSigner *signer) : signer(signer) {}
+        /// @brief Create a signer from a signer pointer and takes ownership of that pointer
+        /// @param c_signer The signer pointer to use here (should be non null)
+        Signer(C2paSigner *c_signer) : signer(c_signer) {}
 
+        /// @brief Crates a signer from signer information
+        /// @param alg Signer algorithm
+        /// @param sign_cert Signing certificate
+        /// @param private_key Private key
+        /// @param tsa_uri URL for timestamping authority
         Signer(const string &alg, const string &sign_cert, const string &private_key, const optional<string> &tsa_uri = nullopt);
 
         // Non-copyable
