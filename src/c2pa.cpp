@@ -388,7 +388,7 @@ namespace c2pa
 
     intptr_t CppOStream::flusher(StreamContext *context)
     {
-        std::ofstream *ofstream = (std::ofstream *)context;
+        std::ostream *ofstream = (std::ostream *)context;
         ofstream->flush();
 		if (ofstream->fail() || ofstream->bad()) {
 		    errno = EIO;
