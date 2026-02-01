@@ -614,7 +614,7 @@ namespace c2pa
         return result;
     }
 
-    std::vector<std::string> Reader::supported_mime_types() const {
+    std::vector<std::string> Reader::supported_mime_types() {
       uintptr_t count = 0;
       auto ptr = c2pa_reader_supported_mime_types(&count);
       return c_mime_types_to_vector(ptr, count);
@@ -931,7 +931,7 @@ namespace c2pa
         return formatted_data;
     }
 
-    std::vector<std::string> Builder::supported_mime_types() const {
+    std::vector<std::string> Builder::supported_mime_types() {
       uintptr_t count = 0;
       auto ptr = c2pa_builder_supported_mime_types(&count);
       return c_mime_types_to_vector(ptr, count);
