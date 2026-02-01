@@ -319,7 +319,7 @@ namespace c2pa
 
         /// @brief  Get the size to reserve for a signature for this signer.
         /// @return Reserved size for the signature.
-        uintptr_t reserve_size const();
+        uintptr_t reserve_size();
 
         /// @brief  Get the C2paSigner
         C2paSigner *c2pa_signer const noexcept();
