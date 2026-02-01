@@ -173,7 +173,25 @@ if(MSVC)
         /GUARD:CF
     )
 else()
-    target_compile_options(c2pa_cpp PRIVATE -Werror)
+    target_compile_options(c2pa_cpp PRIVATE
+        -Werror
+        -Wformat=2
+        -Wformat-security
+        -Wnull-dereference
+        -Wstack-protector
+        -Wl,-z,relro
+        -Wl,-z,now
+        -fstack-protector-strong
+        -fstack-clash-protection
+        -fPIE
+        -D_FORTIFY_SOURCE=2
+    )
+
+    target_link_options(c2pa_cpp PRIVATE
+        -Wl,-z,relro
+        -Wl,-z,now
+        -pie
+    )
 
     # Some compiler versions require explicit linking with stdc++fs for std::filesystem...
     # This ensures compatibility if built with older compiler versions
