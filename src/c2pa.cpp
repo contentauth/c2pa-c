@@ -644,7 +644,7 @@ namespace c2pa
     }
 
     /// @brief  Get the size to reserve for a signature for this signer.
-    uintptr_t Signer::reserve_size() const
+    uintptr_t Signer::reserve_size()
     {
         return c2pa_signer_reserve_size(signer);
     }
