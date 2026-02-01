@@ -179,8 +179,6 @@ else()
         -Wformat-security
         -Wnull-dereference
         -Wstack-protector
-        -Wl,-z,relro
-        -Wl,-z,now
         -fstack-protector-strong
         -fstack-clash-protection
         -fPIE
