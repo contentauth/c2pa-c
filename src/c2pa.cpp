@@ -154,7 +154,7 @@ namespace c2pa
         if (result == nullptr)
         {
             auto C2paException = c2pa::C2paException();
-            if (strstr(C2paException.what(), "ManifestNotFound") != NULL)
+            if (strstr(C2paException.what(), "ManifestNotFound") != nullptr)
             {
                 return std::nullopt;
             }
@@ -173,7 +173,7 @@ namespace c2pa
     string read_ingredient_file(const std::filesystem::path &source_path, const std::filesystem::path &data_dir)
     {
         char *result = c2pa_read_ingredient_file(path_to_string(source_path).c_str(), path_to_string(data_dir).c_str());
-        if (result == NULL)
+        if (result == nullptr)
         {
             throw c2pa::C2paException();
         }
@@ -198,7 +198,7 @@ namespace c2pa
         auto dir = data_dir.has_value() ? path_to_string(data_dir.value()) : string();
 
         char *result = c2pa_sign_file(path_to_string(source_path).c_str(), path_to_string(dest_path).c_str(), manifest, signer_info, dir.c_str());
-        if (result == NULL)
+        if (result == nullptr)
         {
 
             throw c2pa::C2paException();
@@ -525,7 +525,7 @@ namespace c2pa
     {
 		cpp_stream = new CppIStream(stream); // keep this allocated for life of Reader
         c2pa_reader = c2pa_reader_from_stream(format.c_str(), cpp_stream->c_stream);
-        if (c2pa_reader == NULL)
+        if (c2pa_reader == nullptr)
         {
             delete cpp_stream;
             throw C2paException();
@@ -560,7 +560,7 @@ namespace c2pa
     Reader::~Reader()
     {
         c2pa_reader_free(c2pa_reader);
-        if (cpp_stream != NULL)
+        if (cpp_stream != nullptr)
         {
             delete cpp_stream;
         }
