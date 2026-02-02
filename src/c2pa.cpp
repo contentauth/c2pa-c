@@ -52,6 +52,7 @@ intptr_t signer_passthrough(const void *context, const unsigned char *data, uint
 {
   if (data == nullptr || signature == nullptr)
   {
+    errno = EINVAL;
     return -1;
   }
   try
@@ -297,11 +298,11 @@ namespace c2pa
     {
         std::iostream *stream = (std::iostream *)context;
         stream->flush();
-		if (stream->fail() || stream->bad())
-	    {
-	        errno = EIO;
-	        return -1;
-	    }
+        if (stream->fail() || stream->bad())
+          {
+              errno = EIO;
+              return -1;
+          }
         return 0;
     }
 
