@@ -163,9 +163,45 @@ add_library(c2pa_cpp STATIC c2pa.cpp)
 
 # Set compiler-specific flags for the C++ library
 if(MSVC)
-    target_compile_options(c2pa_cpp PRIVATE /WX)
+    target_compile_options(c2pa_cpp PRIVATE
+        /WX
+        /sdl
+        /guard:cf
+        /GS
+        /DYNAMICBASE
+        /NXCOMPAT)
+
+    target_link_options(c2pa_cpp PRIVATE
+        /DYNAMICBASE
+        /NXCOMPAT
+        /GUARD:CF
+    )
 else()
-    target_compile_options(c2pa_cpp PRIVATE -Werror)
+    target_compile_options(c2pa_cpp PRIVATE
+        -Werror
+        -Wformat=2
+        -Wformat-security
+        -Wnull-dereference
+        -Wstack-protector
+        -fstack-protector-strong
+        -fPIE
+        -D_FORTIFY_SOURCE=2
+    )
+
+    target_link_options(c2pa_cpp PRIVATE
+        -pie
+    )
+
+    if(APPLE)
+        target_link_options(c2pa_cpp PRIVATE
+            -Wl,-bind_at_load
+        )
+    else()
+        target_link_options(c2pa_cpp PRIVATE
+            -Wl,-z,relro
+            -Wl,-z,now
+        )
+    endif()
 
     # Some compiler versions require explicit linking with stdc++fs for std::filesystem...
     # This ensures compatibility if built with older compiler versions
