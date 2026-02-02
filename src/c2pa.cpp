@@ -63,6 +63,7 @@ intptr_t signer_passthrough(const void *context, const unsigned char *data, uint
     std::vector<uint8_t> signature_vec = (callback)(data_vec);
     if (signature_vec.size() > sig_max_len)
     {
+      errno = ENOBUFS;
       return -1;
     }
     std::copy(signature_vec.begin(), signature_vec.end(), signature);
@@ -391,10 +392,10 @@ namespace c2pa
     {
         std::ostream *ofstream = (std::ostream *)context;
         ofstream->flush();
-		if (ofstream->fail() || ofstream->bad()) {
-		    errno = EIO;
-		    return -1;
-		}
+        if (ofstream->fail() || ofstream->bad()) {
+            errno = EIO;
+            return -1;
+        }
         return 0;
     }
 
@@ -411,8 +412,8 @@ namespace c2pa
         if (iostream->fail())
         {
             if (!iostream->eof())
-            {                   // do not report eof as an error
-                errno = EINVAL; // Invalid argument
+            {                   // do not report eof as an error, but as
+                errno = EINVAL; // invalid argument instead
                 // std::perror("Error: Invalid argument");
                 return -1;
             }
@@ -513,11 +514,11 @@ namespace c2pa
     {
         std::iostream *iostream = (std::iostream *)context;
         iostream->flush();
-		if (iostream->fail() || iostream->bad())
-	    {
-	        errno = EIO;
-	        return -1;
-	    }
+        if (iostream->fail() || iostream->bad())
+          {
+              errno = EIO;
+              return -1;
+          }
         return 0;
     }
 
