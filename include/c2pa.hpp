@@ -240,7 +240,7 @@ namespace c2pa
         /// @brief Get the manifest as a json string.
         /// @return The manifest as a json string.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        string json();
+        string json() const;
 
         /// @brief  Get a resource from the reader and write it to a file.
         /// @param uri The uri of the resource.
@@ -287,8 +287,15 @@ namespace c2pa
         /// @param tsa_uri  The TSA URI to use for time-stamping.
         Signer(SignerFunc *callback, C2paSigningAlg alg, const string &sign_cert, const string &tsa_uri);
 
-        Signer(C2paSigner *signer) : signer(signer) {}
+        /// @brief Create a signer from a signer pointer and takes ownership of that pointer
+        /// @param c_signer The signer pointer to use here (should be non null)
+        Signer(C2paSigner *c_signer) : signer(c_signer) {}
 
+        /// @brief Crates a signer from signer information
+        /// @param alg Signer algorithm
+        /// @param sign_cert Signing certificate
+        /// @param private_key Private key
+        /// @param tsa_uri URL for timestamping authority
         Signer(const string &alg, const string &sign_cert, const string &private_key, const optional<string> &tsa_uri = nullopt);
 
         // Non-copyable
@@ -315,7 +322,7 @@ namespace c2pa
         uintptr_t reserve_size();
 
         /// @brief  Get the C2paSigner
-        C2paSigner *c2pa_signer();
+        C2paSigner *c2pa_signer() const noexcept;
     };
 
     /// @brief Builder class for creating a manifest.
@@ -352,7 +359,7 @@ namespace c2pa
 
         /// @brief  Get the underlying C2paBuilder pointer.
         /// @return Pointer managed by this wrapper.
-        C2paBuilder *c2pa_builder();
+        C2paBuilder *c2pa_builder() const noexcept;
 
         /// @brief  Set the no embed flag.
         void set_no_embed();
