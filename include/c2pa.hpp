@@ -31,6 +31,7 @@
 #pragma warning(disable : 4505)
 #endif
 
+// TODO-TMN: Look if the filesystem layer can be split out in own file and helper functions
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -246,6 +247,7 @@ namespace c2pa
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a string containing the manifest json if a manifest was found.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
+    [[deprecated("Use Reader object instead")]]
     optional<string> C2PA_CPP_API read_file(const std::filesystem::path &source_path, const optional<std::filesystem::path> data_dir = nullopt);
 
     /// Reads a file and returns an ingredient JSON as a C2pa::String.
@@ -253,6 +255,7 @@ namespace c2pa
     /// @param data_dir the directory to store binary resources.
     /// @return a string containing the ingredient json.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
+    [[deprecated("Use Reader and Builder.add_ingredient")]]
     std::string C2PA_CPP_API read_ingredient_file(const std::filesystem::path &source_path, const std::filesystem::path &data_dir);
 
     /// Adds the manifest and signs a file.
@@ -262,6 +265,7 @@ namespace c2pa
     /// @param signer_info the signer info to use for signing.
     /// @param data_dir the directory to store binary resources (optional).
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
+    [[deprecated("Use Builder.sign instead")]]
     void C2PA_CPP_API sign_file(const std::filesystem::path &source_path,
                             const std::filesystem::path &dest_path,
                             const char *manifest,
@@ -370,6 +374,7 @@ namespace c2pa
         /// @param context Context provider to use for this reader.
         /// @param source_path The path to the file to read.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        /// @note Prefer using the streaming APIs if possible
         Reader(ContextProviderPtr context, const std::filesystem::path &source_path);
 
         /// @brief Create a Reader from a stream (uses global settings).
@@ -385,6 +390,7 @@ namespace c2pa
         /// @param source_path The path to the file to read.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         /// @deprecated Use Reader(ContextProviderPtr, source_path) instead.
+        /// @note Prefer using the streaming APIs if possible
         [[deprecated("Use Reader(ContextProviderPtr, source_path) instead")]]
         Reader(const std::filesystem::path &source_path);
 
@@ -440,6 +446,7 @@ namespace c2pa
         /// @param path The path to write the resource to.
         /// @return The number of bytes written.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        /// @note Prefer using the streaming APIs if possible
         int64_t get_resource(const string &uri, const std::filesystem::path &path);
 
         /// @brief  Get a resource from the reader  and write it to an output stream.
@@ -607,6 +614,7 @@ namespace c2pa
         /// @param uri The uri of the resource.
         /// @param source_path  The path to the resource file.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        /// @note Prefer using the streaming APIs if possible
         void add_resource(const string &uri, const std::filesystem::path &source_path);
 
         /// @brief Add an ingredient to the builder.
@@ -620,6 +628,7 @@ namespace c2pa
         /// @param ingredient_json  Any fields of the ingredient you want to define.
         /// @param source_path  The path to the ingredient file.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        /// @note Prefer using the streaming APIs if possible
         void add_ingredient(const string &ingredient_json, const std::filesystem::path &source_path);
 
         /// @brief Add an action to the manifest the Builder is constructing.
@@ -652,6 +661,7 @@ namespace c2pa
         /// @param signer A signer object to use when signing.
         /// @return A vector containing the signed manifest bytes.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        /// @note Prefer using the streaming APIs if possible
         std::vector<unsigned char> sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path, Signer &signer);
 
         /// @brief Create a Builder from an archive.
@@ -662,6 +672,7 @@ namespace c2pa
         /// @brief Create a Builder from an archive
         /// @param archive_path  the path to the archive file
         /// @throws C2pa::C2paException for errors encountered by the C2PA library
+        /// @note Prefer using the streaming APIs if possible
         static Builder from_archive(const std::filesystem::path &archive_path);
 
         /// @brief Write the builder to an archive stream.
@@ -672,6 +683,7 @@ namespace c2pa
         /// @brief Write the builder to an archive file.
         /// @param dest_path The path to write the archive file to.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        /// @note Prefer using the streaming APIs if possible
         void to_archive(const std::filesystem::path &dest_path);
 
         /// @brief Create a hashed placeholder from the builder.
