@@ -95,7 +95,7 @@ namespace c2pa
     {
         auto result = c2pa_error();
         message = string(result);
-        c2pa_string_free(result);
+        c2pa_free(result);
     }
 
     C2paException::C2paException(string what) : message(std::move(what))
@@ -265,7 +265,7 @@ namespace c2pa
     {
         auto result = c2pa_version();
         std::string str(result);
-        c2pa_string_free(result);
+        c2pa_free(result);
         return str;
     }
 
@@ -317,7 +317,7 @@ namespace c2pa
             throw c2pa::C2paException();
         }
         std::string str(result);
-        c2pa_string_free(result);
+        c2pa_free(result);
         return str;
     }
 
@@ -334,7 +334,7 @@ namespace c2pa
             throw c2pa::C2paException();
         }
         std::string str(result);
-        c2pa_string_free(result);
+        c2pa_free(result);
         return str;
     }
 
@@ -360,7 +360,7 @@ namespace c2pa
             throw c2pa::C2paException();
         }
         // Result contains JSON manifest on success
-        c2pa_string_free(result);
+        c2pa_free(result);
     }
 
     /// IStream Class wrapper for C2paStream.
@@ -697,7 +697,7 @@ namespace c2pa
         C2paReader* updated = c2pa_reader_with_stream(c2pa_reader, format.c_str(), cpp_stream->c_stream);
         if (updated == nullptr) {
             delete cpp_stream;
-            c2pa_reader_free(c2pa_reader);
+            c2pa_free(c2pa_reader);
             throw C2paException("Failed to configure reader with stream");
         }
         c2pa_reader = updated;
@@ -717,7 +717,7 @@ namespace c2pa
 
         std::ifstream file_stream(source_path, std::ios::binary);
         if (!file_stream.is_open()) {
-            c2pa_reader_free(c2pa_reader);
+            c2pa_free(c2pa_reader);
             throw std::system_error(errno, std::system_category(), "Failed to open file: " + source_path.string());
         }
 
@@ -730,7 +730,7 @@ namespace c2pa
         C2paReader* updated = c2pa_reader_with_stream(c2pa_reader, extension.c_str(), cpp_stream->c_stream);
         if (updated == nullptr) {
             delete cpp_stream;
-            c2pa_reader_free(c2pa_reader);
+            c2pa_free(c2pa_reader);
             throw C2paException("Failed to configure reader with stream");
         }
         c2pa_reader = updated;
@@ -778,7 +778,7 @@ namespace c2pa
 
     Reader::~Reader()
     {
-        c2pa_reader_free(c2pa_reader);
+        c2pa_free(c2pa_reader);
         if (cpp_stream != nullptr)
         {
             delete cpp_stream;
@@ -793,7 +793,7 @@ namespace c2pa
             throw C2paException();
         }
         std::string str(result);
-        c2pa_string_free(result);
+        c2pa_free(result);
         return str;
     }
 
@@ -807,7 +807,7 @@ namespace c2pa
         //
         // TODO: Revisit after determining how we want c2pa-rs to handle
         //       strings that shouldn't be modified by our bindings.
-        c2pa_string_free(const_cast<char *>(url));
+        c2pa_free(const_cast<char *>(url));
         return url_str;
     }
 
@@ -853,7 +853,7 @@ namespace c2pa
 
     Signer::~Signer()
     {
-        c2pa_signer_free(signer);
+        c2pa_free(signer);
     }
 
     /// @brief  Get the C2paSigner
@@ -898,7 +898,7 @@ namespace c2pa
         // Apply the manifest definition
         C2paBuilder* updated = c2pa_builder_with_definition(builder, manifest_json.c_str());
         if (updated == nullptr) {
-            c2pa_builder_free(builder);
+            c2pa_free(builder);
             throw C2paException("Failed to set builder definition");
         }
         builder = updated;
@@ -932,7 +932,7 @@ namespace c2pa
 
     Builder::~Builder()
     {
-        c2pa_builder_free(builder);
+        c2pa_free(builder);
     }
 
     C2paBuilder *Builder::c2pa_builder() const noexcept
@@ -1041,7 +1041,7 @@ namespace c2pa
         }
 
         auto manifest_bytes = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
-        c2pa_manifest_bytes_free(c2pa_manifest_bytes);
+        c2pa_free(c2pa_manifest_bytes);
         return manifest_bytes;
     }
 
@@ -1057,7 +1057,7 @@ namespace c2pa
         }
 
         auto manifest_bytes = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
-        c2pa_manifest_bytes_free(c2pa_manifest_bytes);
+        c2pa_free(c2pa_manifest_bytes);
         return manifest_bytes;
     }
 
@@ -1158,7 +1158,7 @@ namespace c2pa
         }
 
         auto data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
-        c2pa_manifest_bytes_free(c2pa_manifest_bytes);
+        c2pa_free(c2pa_manifest_bytes);
         return data;
     }
 
@@ -1181,7 +1181,7 @@ namespace c2pa
         }
 
         auto data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
-        c2pa_manifest_bytes_free(c2pa_manifest_bytes);
+        c2pa_free(c2pa_manifest_bytes);
         return data;
     }
 
@@ -1195,7 +1195,7 @@ namespace c2pa
         }
 
         auto formatted_data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
-        c2pa_manifest_bytes_free(c2pa_manifest_bytes);
+        c2pa_free(c2pa_manifest_bytes);
         return formatted_data;
     }
 
