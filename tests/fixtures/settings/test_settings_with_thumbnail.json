@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "builder": {
+    "thumbnail": {
+      "enabled": true,
+      "ignore_errors": true,
+      "long_edge": 512,
+      "prefer_smallest_format": true,
+      "quality": "medium"
+    }
+  }
+}

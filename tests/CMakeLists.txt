@@ -8,6 +8,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
+# FetchContent_Declare(
+#     tomlplusplus
+#     GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
+#     GIT_TAG        v3.4.0
+# )
+# FetchContent_MakeAvailable(tomlplusplus)
+
 # Function to setup runtime dependencies for any target
 function(setup_c2pa_runtime_deps target_name)
     # Copy shared library to executable directory on all platforms
@@ -69,6 +76,7 @@ endfunction()
 # C++ tests
 file(GLOB CPP_TESTS "*.test.cpp")
 add_executable(c2pa_c_tests ${CPP_TESTS})
+#target_link_libraries(c2pa_c_tests PRIVATE c2pa_cpp gtest_main tomlplusplus::tomlplusplus)
 target_link_libraries(c2pa_c_tests PRIVATE c2pa_cpp gtest_main)
 target_include_directories(c2pa_c_tests PRIVATE ${nlohmann_json_SOURCE_DIR}/include)
 if(NOT MSVC)

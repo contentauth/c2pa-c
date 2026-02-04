@@ -285,7 +285,7 @@ namespace c2pa
     class C2PA_CPP_API CppIStream : public C2paStream
     {
     public:
-        C2paStream *c_stream; //TODO-TMN: Review this to encapsulate + grant specific access on need basis + look into smart pointer instead
+        C2paStream *c_stream;
         template <typename IStream>
         explicit CppIStream(IStream &istream) {
             static_assert(std::is_base_of<std::istream, IStream>::value,
@@ -314,7 +314,7 @@ namespace c2pa
     class C2PA_CPP_API CppOStream : public C2paStream
     {
     public:
-        C2paStream *c_stream; //TODO-TMN: Review this to encapsulate + grant specific access on need basis + look into smart pointer instead
+        C2paStream *c_stream;
         template <typename OStream>
         explicit CppOStream(OStream &ostream) {
             static_assert(std::is_base_of<std::ostream, OStream>::value, "Stream must be derived from std::ostream");
@@ -340,7 +340,7 @@ namespace c2pa
     class C2PA_CPP_API CppIOStream : public C2paStream
     {
     public:
-        C2paStream *c_stream; //TODO-TMN: Review this to encapsulate + grant specific access on need basis + look into smart pointer instead
+        C2paStream *c_stream;
         template <typename IOStream>
         CppIOStream(IOStream &iostream) {
             static_assert(std::is_base_of<std::iostream, IOStream>::value, "Stream must be derived from std::iostream");

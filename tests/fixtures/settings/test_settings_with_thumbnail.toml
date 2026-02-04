@@ -1,0 +1,30 @@
+# C2PA SDK example configuration file to
+# enable automatic thumbnail generation
+
+# Version information.
+version = 1
+
+# Settings for automatic thumbnail generation.
+[builder.thumbnail]
+# Whether to enable automatic thumbnail generation.
+enabled = true
+
+# Once thumbnails are enabled, all the other settings gain semantic meaning too
+# Whether to ignore errors when generating a thumbnail and continue signing.
+ignore_errors = true
+# The size of the longest edge of the thumbnail.
+long_edge = 512
+# The output format of the thumbnail.
+#
+# If this field isn't specified, the thumbnail format will correspond to the
+# input format.
+#format = "png"
+# Whether or not to prefer a smaller sized media format for the thumbnail.
+#
+# The "format" option takes precedence over this field.
+#
+# For instance, if the source input type is a PNG, but it doesn't have an alpha channel,
+# the image will be converted to a JPEG of smaller size.
+prefer_smallest_format = true
+# The output quality of the thumbnail (low, medium, high).
+quality = "medium"
