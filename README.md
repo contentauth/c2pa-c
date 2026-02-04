@@ -16,7 +16,7 @@ For the best experience, read the docs on the [CAI Open Source SDK documentation
 </div>
 </div>
 
-## Using c2pa_cpp 
+## Using c2pa_cpp
 
 The recommended way to use this library in your own CMake project is with [FetchContent](https://cmake.org/cmake/help/latest/module/FetchContent.html):
 
@@ -112,4 +112,5 @@ Note that some components and dependent crates are licensed under different term
 
 We welcome contributions to this project.  For information on contributing, providing feedback, and about ongoing work, see [Contributing](https://github.com/contentauth/c2pa-c/blob/main/CONTRIBUTING.md).
 
-
+// TODO-TMN: Add links to settings reference!
+// TODO-TMN: Add example settings in tests + how to load trust

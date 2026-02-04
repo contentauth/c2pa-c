@@ -14,13 +14,14 @@
 /// @brief  C++ wrapper for the C2PA C library.
 /// @details This is used for creating and verifying C2PA manifests.
 ///          Thread safety is not guaranteed due to the use of errno and etc.
+///          C++ standard: C++17
 
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string.h>
-#include <optional>   // C++17
-#include <filesystem> // C++17
+#include <optional>
+#include <filesystem>
 #include <system_error> // For std::system_error
 
 #include "c2pa.hpp"
@@ -107,13 +108,13 @@ namespace c2pa
     }
 
     // ===== Settings Implementation =====
-    
+
     Settings::Settings() : settings_(c2pa_settings_new()) {
         if (!settings_) {
             throw C2paException("Failed to create settings");
         }
     }
-    
+
     Settings::Settings(const string& data, const string& format) : settings_(c2pa_settings_new()) {
         if (!settings_) {
             throw C2paException("Failed to create settings");
@@ -123,11 +124,11 @@ namespace c2pa
             throw C2paException();
         }
     }
-    
+
     Settings::Settings(Settings&& other) noexcept : settings_(other.settings_) {
         other.settings_ = nullptr;
     }
-    
+
     Settings& Settings::operator=(Settings&& other) noexcept {
         if (this != &other) {
             if (settings_) {
@@ -138,53 +139,53 @@ namespace c2pa
         }
         return *this;
     }
-    
+
     Settings::~Settings() {
         if (settings_) {
             c2pa_free(settings_);
         }
     }
-    
+
     Settings& Settings::set(const string& path, const string& json_value) {
         if (c2pa_settings_set_value(settings_, path.c_str(), json_value.c_str()) != 0) {
             throw C2paException();
         }
         return *this;
     }
-    
+
     Settings& Settings::update(const string& data, const string& format) {
         if (c2pa_settings_update_from_string(settings_, data.c_str(), format.c_str()) != 0) {
             throw C2paException();
         }
         return *this;
     }
-    
+
     C2paSettings* Settings::c_settings() const noexcept {
         return settings_;
     }
-    
+
     // ===== Context Implementation =====
-    
+
     Context::Context(C2paContext* ctx) : context_(ctx) {
         if (!context_) {
             throw C2paException("Invalid context pointer");
         }
     }
-    
+
     Context::~Context() {
         if (context_) {
             c2pa_free(context_);
         }
     }
-    
+
     C2paContext* Context::c_context() const {
         return context_;
     }
-    
+
     bool Context::has_context() const noexcept {
         return context_ != nullptr;
     }
-    
+
     ContextProviderPtr Context::create() {
         C2paContext* ctx = c2pa_context_new();
         if (!ctx) {
@@ -192,67 +193,67 @@ namespace c2pa
         }
         return std::make_shared<Context>(ctx);
     }
-    
+
     ContextProviderPtr Context::from_json(const string& json) {
-        return Builder().with_json(json).build();
+        return ContextBuilder().with_json(json).create_context();
     }
-    
+
     ContextProviderPtr Context::from_toml(const string& toml) {
-        return Builder().with_toml(toml).build();
+        return ContextBuilder().with_toml(toml).create_context();
     }
-    
+
     // ===== Context::Builder Implementation =====
-    
-    Context::Builder::Builder() : builder_(c2pa_context_builder_new()) {
-        if (!builder_) {
+
+    Context::ContextBuilder::ContextBuilder() : context_builder_(c2pa_context_builder_new()) {
+        if (!context_builder_) {
             throw C2paException("Failed to create context builder");
         }
     }
-    
-    Context::Builder::Builder(Builder&& other) noexcept : builder_(other.builder_) {
-        other.builder_ = nullptr;
+
+    Context::ContextBuilder::ContextBuilder(ContextBuilder&& other) noexcept : context_builder_(other.context_builder_) {
+        other.context_builder_ = nullptr;
     }
-    
-    Context::Builder& Context::Builder::operator=(Builder&& other) noexcept {
+
+    Context::ContextBuilder& Context::ContextBuilder::operator=(ContextBuilder&& other) noexcept {
         if (this != &other) {
-            if (builder_) {
-                c2pa_free(builder_);
+            if (context_builder_) {
+                c2pa_free(context_builder_);
             }
-            builder_ = other.builder_;
-            other.builder_ = nullptr;
+            context_builder_ = other.context_builder_;
+            other.context_builder_ = nullptr;
         }
         return *this;
     }
-    
-    Context::Builder::~Builder() {
-        if (builder_) {
-            c2pa_free(builder_);
+
+    Context::ContextBuilder::~ContextBuilder() {
+        if (context_builder_) {
+            c2pa_free(context_builder_);
         }
     }
-    
-    Context::Builder& Context::Builder::with_settings(const Settings& settings) {
-        if (c2pa_context_builder_set_settings(builder_, settings.c_settings()) != 0) {
+
+    Context::ContextBuilder& Context::ContextBuilder::with_settings(const Settings& settings) {
+        if (c2pa_context_builder_set_settings(context_builder_, settings.c_settings()) != 0) {
             throw C2paException();
         }
         return *this;
     }
-    
-    Context::Builder& Context::Builder::with_json(const string& json) {
+
+    Context::ContextBuilder& Context::ContextBuilder::with_json(const string& json) {
         Settings settings(json, "json");
         return with_settings(settings);
     }
-    
-    Context::Builder& Context::Builder::with_toml(const string& toml) {
+
+    Context::ContextBuilder& Context::ContextBuilder::with_toml(const string& toml) {
         Settings settings(toml, "toml");
         return with_settings(settings);
     }
-    
-    ContextProviderPtr Context::Builder::build() {
-        if (!builder_) {
+
+    ContextProviderPtr Context::ContextBuilder::create_context() {
+        if (!context_builder_) {
             throw C2paException("Builder already consumed");
         }
-        C2paContext* ctx = c2pa_context_builder_build(builder_);
-        builder_ = nullptr;  // Builder is consumed
+        C2paContext* ctx = c2pa_context_builder_build(context_builder_);
+        context_builder_ = nullptr;  // Builder is consumed
         if (!ctx) {
             throw C2paException("Failed to build context");
         }
@@ -678,19 +679,19 @@ namespace c2pa
 
     /// Reader class for reading a manifest implementation.
     // ===== Context-based Reader constructors =====
-    
+
     Reader::Reader(ContextProviderPtr context, const string &format, std::istream &stream)
         : context_(std::move(context))
     {
         if (!context_ || !context_->has_context()) {
             throw C2paException("Invalid context provider");
         }
-        
+
         c2pa_reader = c2pa_reader_from_context(context_->c_context());
         if (c2pa_reader == nullptr) {
             throw C2paException("Failed to create reader from context");
         }
-        
+
         cpp_stream = new CppIStream(stream);
         // Update reader with stream
         C2paReader* updated = c2pa_reader_with_stream(c2pa_reader, format.c_str(), cpp_stream->c_stream);
@@ -701,30 +702,30 @@ namespace c2pa
         }
         c2pa_reader = updated;
     }
-    
+
     Reader::Reader(ContextProviderPtr context, const std::filesystem::path &source_path)
         : context_(std::move(context))
     {
         if (!context_ || !context_->has_context()) {
             throw C2paException("Invalid context provider");
         }
-        
+
         c2pa_reader = c2pa_reader_from_context(context_->c_context());
         if (c2pa_reader == nullptr) {
             throw C2paException("Failed to create reader from context");
         }
-        
+
         std::ifstream file_stream(source_path, std::ios::binary);
         if (!file_stream.is_open()) {
             c2pa_reader_free(c2pa_reader);
             throw std::system_error(errno, std::system_category(), "Failed to open file: " + source_path.string());
         }
-        
+
         string extension = source_path.extension().string();
         if (!extension.empty()) {
             extension = extension.substr(1); // Skip the dot
         }
-        
+
         cpp_stream = new CppIStream(file_stream);
         C2paReader* updated = c2pa_reader_with_stream(c2pa_reader, extension.c_str(), cpp_stream->c_stream);
         if (updated == nullptr) {
@@ -734,9 +735,9 @@ namespace c2pa
         }
         c2pa_reader = updated;
     }
-    
+
     // ===== Legacy Reader constructors (deprecated) =====
-    
+
     Reader::Reader(const string &format, std::istream &stream)
         : context_(nullptr)
     {
@@ -868,32 +869,32 @@ namespace c2pa
     }
 
     // ===== Context-based Builder constructors =====
-    
+
     Builder::Builder(ContextProviderPtr context)
         : builder(nullptr), context_(std::move(context))
     {
         if (!context_ || !context_->has_context()) {
             throw C2paException("Invalid context provider");
         }
-        
+
         builder = c2pa_builder_from_context(context_->c_context());
         if (builder == nullptr) {
             throw C2paException("Failed to create builder from context");
         }
     }
-    
+
     Builder::Builder(ContextProviderPtr context, const string &manifest_json)
         : builder(nullptr), context_(std::move(context))
     {
         if (!context_ || !context_->has_context()) {
             throw C2paException("Invalid context provider");
         }
-        
+
         builder = c2pa_builder_from_context(context_->c_context());
         if (builder == nullptr) {
             throw C2paException("Failed to create builder from context");
         }
-        
+
         // Apply the manifest definition
         C2paBuilder* updated = c2pa_builder_with_definition(builder, manifest_json.c_str());
         if (updated == nullptr) {
@@ -902,9 +903,9 @@ namespace c2pa
         }
         builder = updated;
     }
-    
+
     // ===== Legacy Builder constructors (deprecated) =====
-    
+
     Builder::Builder(const string &manifest_json)
         : builder(nullptr), context_(nullptr)
     {
@@ -952,7 +953,7 @@ namespace c2pa
             throw C2paException();
         }
     }
-    
+
     Builder& Builder::with_definition(const string &manifest_json)
     {
         C2paBuilder* updated = c2pa_builder_with_definition(builder, manifest_json.c_str());

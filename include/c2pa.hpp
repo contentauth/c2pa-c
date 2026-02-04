@@ -38,7 +38,6 @@
 #include <vector>
 #include <optional>
 #include <memory>
-#include <mutex>
 
 #include <c2pa.h>
 
@@ -75,9 +74,7 @@ namespace c2pa
     };
 
     /// @brief Interface for types that can provide C2PA context functionality.
-    /// @details Implement this interface to make your type usable with Reader and Builder.
-    ///          This enables polymorphic usage where both c2pa::Context and other context
-    ///          types (like Adobe's CaiAdobeContext) can be used interchangeably.
+    /// @details Implement this interface to make your own context
     class C2PA_CPP_API IContextProvider {
     public:
         virtual ~IContextProvider() = default;
@@ -152,45 +149,45 @@ namespace c2pa
     ///          factory methods or the Builder pattern.
     class C2PA_CPP_API Context : public IContextProvider {
     public:
-        /// @brief Builder for creating customized Context instances.
-        class C2PA_CPP_API Builder {
+        /// @brief ContextBuilder for creating customized Context instances.
+        class C2PA_CPP_API ContextBuilder {
         public:
-            Builder();
-            ~Builder();
+            ContextBuilder();
+            ~ContextBuilder();
             
             // Move semantics
-            Builder(Builder&&) noexcept;
-            Builder& operator=(Builder&&) noexcept;
+            ContextBuilder(ContextBuilder&&) noexcept;
+            ContextBuilder& operator=(ContextBuilder&&) noexcept;
             
             // Non-copyable
-            Builder(const Builder&) = delete;
-            Builder& operator=(const Builder&) = delete;
+            ContextBuilder(const ContextBuilder&) = delete;
+            ContextBuilder& operator=(const ContextBuilder&) = delete;
             
             /// @brief Configure with Settings object.
             /// @param settings Settings to use (will be copied).
-            /// @return Reference to this Builder for method chaining.
-            Builder& with_settings(const Settings& settings);
+            /// @return Reference to this ContextBuilder for method chaining.
+            ContextBuilder& with_settings(const Settings& settings);
             
             /// @brief Configure with JSON string.
             /// @param json JSON configuration string.
-            /// @return Reference to this Builder for method chaining.
+            /// @return Reference to this ContextBuilder for method chaining.
             /// @throws C2paException if JSON is invalid.
-            Builder& with_json(const string& json);
+            ContextBuilder& with_json(const string& json);
             
             /// @brief Configure with TOML string.
             /// @param toml TOML configuration string.
-            /// @return Reference to this Builder for method chaining.
+            /// @return Reference to this ContextBuilder for method chaining.
             /// @throws C2paException if TOML is invalid.
-            Builder& with_toml(const string& toml);
+            ContextBuilder& with_toml(const string& toml);
             
             /// @brief Build the immutable Context.
             /// @return Shared pointer to the new Context.
             /// @throws C2paException if context creation fails.
-            /// @note This consumes the builder. After calling build(), the builder is in a moved-from state.
-            [[nodiscard]] ContextProviderPtr build();
+            /// @note This consumes the builder. After calling create_context(), the builder is in a moved-from state.
+            [[nodiscard]] ContextProviderPtr create_context();
             
         private:
-            C2paContextBuilder* builder_;
+            C2paContextBuilder* context_builder_;
         };
 
         /// @brief Create a Context with default settings.
@@ -361,7 +358,7 @@ namespace c2pa
         ContextProviderPtr context_;  // Keeps context alive
 
     public:
-        // ===== Context-based constructors (NEW, RECOMMENDED) =====
+        // ===== Context-based constructors =====
         
         /// @brief Create a Reader from a context and stream.
         /// @param context Context provider to use for this reader.
@@ -533,21 +530,21 @@ namespace c2pa
         ContextProviderPtr context_;  // Keeps context alive
 
     public:
-        // ===== Context-based constructors (NEW, RECOMMENDED) =====
-        
+        // ===== Context-based constructors =====
+
         /// @brief Create a Builder from a context with an empty manifest.
         /// @param context Context provider to use for this builder.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         explicit Builder(ContextProviderPtr context);
-        
+
         /// @brief Create a Builder from a context and manifest JSON string.
         /// @param context Context provider to use for this builder.
         /// @param manifest_json The manifest JSON string.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         Builder(ContextProviderPtr context, const std::string &manifest_json);
-        
+
         // ===== Legacy constructor (DEPRECATED) =====
-        
+
         /// @brief Create a Builder from a manifest JSON string (uses global settings).
         /// @param manifest_json The manifest JSON string.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
@@ -574,7 +571,7 @@ namespace c2pa
         }
 
         ~Builder();
-        
+
         /// @brief Get the context associated with this Builder.
         /// @return Shared pointer to the context, or nullptr if using legacy API.
         [[nodiscard]] inline ContextProviderPtr context() const noexcept {
@@ -584,7 +581,7 @@ namespace c2pa
         /// @brief  Get the underlying C2paBuilder pointer.
         /// @return Pointer managed by this wrapper.
         C2paBuilder *c2pa_builder() const noexcept;
-        
+
         /// @brief Set or update the manifest definition.
         /// @param manifest_json The manifest JSON string.
         /// @return Reference to this Builder for method chaining.
