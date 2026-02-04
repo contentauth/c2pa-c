@@ -24,7 +24,6 @@ using nlohmann::json;
 
 // TODO-TMN
 // Other settings to try out from https://github.com/contentauth/c2pa-rs/blob/main/sdk/tests/fixtures/test_settings.toml:
-// - Signer in settings
 // - tsa_url
 // - claim generator
 // - all_actions_included
@@ -1027,11 +1026,6 @@ TEST(Builder, SignImageStreamBuilderReaderDifferentContext)
     // Verify the manifest contains expected data
     ASSERT_TRUE(json.find("cawg.training-mining") != std::string::npos);
     ASSERT_FALSE(manifest_data.empty());
-}
-
-TEST(Builder, SignImageStreamWithTrustSettings)
-{
-  // TODO-TMN
 }
 
 TEST(Builder, SignImageWithIngredientHavingManifestStream)
@@ -2119,7 +2113,6 @@ TEST(Builder, TrustHandling)
     std::string read_json_manifest2;
     ASSERT_NO_THROW(read_json_manifest2 = reader2.json());
     ASSERT_FALSE(read_json_manifest2.empty());
-
 
     // Both builders should successfully create valid manifests,
     // but one should have thumbnails whereas the other shouldn't,
