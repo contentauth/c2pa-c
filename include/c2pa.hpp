@@ -97,9 +97,9 @@ namespace c2pa
         IContextProvider& operator=(IContextProvider&&) = default;
     };
 
-    /// @brief Mutable settings configuration object for building contexts.
+    /// @brief Mutable settings configuration object for creating contexts.
     /// @details Settings can be configured via JSON/TOML strings or programmatically
-    ///          via set() and update() methods. Once passed to Context::Builder,
+    ///          via set() and update() methods. Once passed to Context::ContextBuilder,
     ///          the settings are copied and the Settings object can be reused or discarded.
     class C2PA_CPP_API Settings {
     public:
@@ -129,7 +129,7 @@ namespace c2pa
         /// @throws C2paException if the path or value is invalid.
         Settings& set(const string& path, const string& json_value);
 
-        /// @brief Merge configuration from a string.
+        /// @brief Merge configuration from a string (latest configuration wins).
         /// @param data Configuration data in JSON or TOML format.
         /// @param format Format of the data ("json" or "toml").
         /// @return Reference to this Settings for method chaining.
@@ -145,9 +145,9 @@ namespace c2pa
     };
 
     /// @brief Immutable C2PA context implementing IContextProvider.
-    /// @details Context objects are immutable after construction and can be safely
-    ///          shared across threads via shared_ptr. Create contexts using static
-    ///          factory methods or the Builder pattern.
+    /// @details Context objects are immutable after construction.
+    ///          Create contexts using static factory methods or the
+    ///          builder pattern using the ContextBuilder object.
     class C2PA_CPP_API Context : public IContextProvider {
     public:
         /// @brief ContextBuilder for creating customized Context instances.
@@ -165,26 +165,27 @@ namespace c2pa
             ContextBuilder& operator=(const ContextBuilder&) = delete;
 
             /// @brief Configure with Settings object.
-            /// @param settings Settings to use (will be copied).
+            /// @param settings Settings to use (will be copied into the context).
             /// @return Reference to this ContextBuilder for method chaining.
             ContextBuilder& with_settings(const Settings& settings);
 
-            /// @brief Configure with JSON string.
+            /// @brief Configure settings with JSON string.
             /// @param json JSON configuration string.
             /// @return Reference to this ContextBuilder for method chaining.
             /// @throws C2paException if JSON is invalid.
             ContextBuilder& with_json(const string& json);
 
-            /// @brief Configure with TOML string.
+            /// @brief Configure settings with TOML string.
             /// @param toml TOML configuration string.
             /// @return Reference to this ContextBuilder for method chaining.
             /// @throws C2paException if TOML is invalid.
             ContextBuilder& with_toml(const string& toml);
 
-            /// @brief Build the immutable Context.
+            /// @brief Create the immutable Context (build() from builder pattern).
             /// @return Shared pointer to the new Context.
             /// @throws C2paException if context creation fails.
-            /// @note This consumes the builder. After calling create_context(), the builder is in a moved-from state.
+            /// @note This consumes the ContextBuilder. After calling create_context(),
+            ///       the ContextBuilder is in a moved-from state.
             [[nodiscard]] ContextProviderPtr create_context(); // TODO-TMN: Make consuming?
 
         private:
@@ -196,13 +197,13 @@ namespace c2pa
         /// @throws C2paException if context creation fails.
         [[nodiscard]] static ContextProviderPtr create();
 
-        /// @brief Create a Context from JSON configuration.
+        /// @brief Create a Context from JSON configuration (settings).
         /// @param json JSON configuration string.
         /// @return Shared pointer to the new Context.
         /// @throws C2paException if JSON is invalid or context creation fails.
         [[nodiscard]] static ContextProviderPtr from_json(const string& json);
 
-        /// @brief Create a Context from TOML configuration.
+        /// @brief Create a Context from TOML configuration (settings).
         /// @param toml TOML configuration string.
         /// @return Shared pointer to the new Context.
         /// @throws C2paException if TOML is invalid or context creation fails.
@@ -237,7 +238,7 @@ namespace c2pa
     /// @param format the mime format of the string.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     /// @deprecated Use Context::from_json() or Context::from_toml() instead for better thread safety.
-    [[deprecated("Use Context::from_json() or Context::from_toml() instead")]]
+    [[deprecated("Use Context pattern instead, Context::from_json() or Context::from_toml() instead")]]
     void C2PA_CPP_API load_settings(const string& data, const string& format);
 
     /// Reads a file and returns the manifest json as a C2pa::String.
