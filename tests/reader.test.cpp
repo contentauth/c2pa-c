@@ -205,29 +205,6 @@ TEST(Reader, HasManifestUtf8Path) {
     EXPECT_TRUE(reader.is_embedded());
 }
 
-/* remove this until we resolve CAWG Identity testing
-TEST(Reader, FileWithCawgIdentityManifest)
-{
-    fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path test_file = current_dir / "../tests/fixtures/C_with_CAWG_data.jpg";
-
-    // read the new manifest and display the JSON
-    auto reader = c2pa::Reader(test_file);
-    auto manifest_store_string = reader.json();
-    //printf("Manifest Store JSON: %s\n", manifest_store_string.c_str());
-    auto manifest_store_json = json::parse(manifest_store_string);
-    auto active_manifest_label = manifest_store_json["active_manifest"];
-    auto active_manifest = manifest_store_json["manifests"][active_manifest_label];
-    EXPECT_EQ(active_manifest["assertions"][1]["label"], "cawg.identity");
-    // verify that the CAWG assertion was decoded into json correctly
-    EXPECT_EQ(active_manifest["assertions"][1]["data"]["verifiedIdentities"][0]["type"], "cawg.social_media");
-
-    EXPECT_EQ(manifest_store_json["validation_state"], "Valid");
-    // verify that we successfully validated the CAWG assertion
-    EXPECT_EQ(manifest_store_json["validation_results"]["activeManifest"]["success"][8]["code"], "cawg.ica.credential_valid");
-};
-*/
-
 TEST(Reader, FileNotFound)
 {
     try
