@@ -31,9 +31,9 @@ int main() {
         })");
         std::cout << "   JSON context created successfully!" << std::endl << std::endl;
 
-        // 3. Using a context builder to create the context
-        std::cout << "Creating context using Builder..." << std::endl;
-        auto dynamic_context = c2pa::Context::Builder()
+        // 3. Using a context creator (context builder) to create the context
+        std::cout << "Creating context using ContextCreator..." << std::endl;
+        auto dynamic_context = c2pa::Context::ContextCreator()
             .with_json(R"({"verify": {"verify_after_sign": false}})")
             .build();
         std::cout << "   Dynamic context created successfully!" << std::endl << std::endl;
@@ -68,7 +68,7 @@ int main() {
                 .update(R"({"verify": {"verify_after_reading": false}})", "json");
         std::cout << "   Settings configured successfully!" << std::endl;
 
-        auto settings_context = c2pa::Context::Builder()
+        auto settings_context = c2pa::Context::ContextCreator()
             .with_settings(settings)
             .build();
         std::cout << "   Context created from settings (settings will propagate throught the context, not globally)" << std::endl;

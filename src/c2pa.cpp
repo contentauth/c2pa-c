@@ -195,26 +195,26 @@ namespace c2pa
     }
     
     ContextProviderPtr Context::from_json(const string& json) {
-        return Builder().with_json(json).build();
+        return ContextCreator().with_json(json).build();
     }
     
     ContextProviderPtr Context::from_toml(const string& toml) {
-        return Builder().with_toml(toml).build();
+        return ContextCreator().with_toml(toml).build();
     }
     
     // ===== Context::Builder Implementation =====
     
-    Context::Builder::Builder() : builder_(c2pa_context_builder_new()) {
+    Context::ContextCreator::ContextCreator() : builder_(c2pa_context_builder_new()) {
         if (!builder_) {
             throw C2paException("Failed to create context builder");
         }
     }
     
-    Context::Builder::Builder(Builder&& other) noexcept : builder_(other.builder_) {
+    Context::ContextCreator::ContextCreator(ContextCreator&& other) noexcept : builder_(other.builder_) {
         other.builder_ = nullptr;
     }
     
-    Context::Builder& Context::Builder::operator=(Builder&& other) noexcept {
+    Context::ContextCreator& Context::ContextCreator::operator=(ContextCreator&& other) noexcept {
         if (this != &other) {
             if (builder_) {
                 c2pa_free(builder_);
@@ -225,30 +225,30 @@ namespace c2pa
         return *this;
     }
     
-    Context::Builder::~Builder() {
+    Context::ContextCreator::~ContextCreator() {
         if (builder_) {
             c2pa_free(builder_);
         }
     }
     
-    Context::Builder& Context::Builder::with_settings(const Settings& settings) {
+    Context::ContextCreator& Context::ContextCreator::with_settings(const Settings& settings) {
         if (c2pa_context_builder_set_settings(builder_, settings.c_settings()) != 0) {
             throw C2paException();
         }
         return *this;
     }
     
-    Context::Builder& Context::Builder::with_json(const string& json) {
+    Context::ContextCreator& Context::ContextCreator::with_json(const string& json) {
         Settings settings(json, "json");
         return with_settings(settings);
     }
     
-    Context::Builder& Context::Builder::with_toml(const string& toml) {
+    Context::ContextCreator& Context::ContextCreator::with_toml(const string& toml) {
         Settings settings(toml, "toml");
         return with_settings(settings);
     }
     
-    ContextProviderPtr Context::Builder::build() {
+    ContextProviderPtr Context::ContextCreator::build() {
         if (!builder_) {
             throw C2paException("Builder already consumed");
         }
