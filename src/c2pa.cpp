@@ -14,13 +14,14 @@
 /// @brief  C++ wrapper for the C2PA C library.
 /// @details This is used for creating and verifying C2PA manifests.
 ///          Thread safety is not guaranteed due to the use of errno and etc.
+///          C++ standard: C++17
 
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string.h>
-#include <optional>   // C++17
-#include <filesystem> // C++17
+#include <optional>
+#include <filesystem>
 #include <system_error> // For std::system_error
 
 #include "c2pa.hpp"
@@ -94,7 +95,7 @@ namespace c2pa
     {
         auto result = c2pa_error();
         message = string(result);
-        c2pa_string_free(result);
+        c2pa_free(result);
     }
 
     C2paException::C2paException(string what) : message(std::move(what))
@@ -107,13 +108,13 @@ namespace c2pa
     }
 
     // ===== Settings Implementation =====
-    
+
     Settings::Settings() : settings_(c2pa_settings_new()) {
         if (!settings_) {
             throw C2paException("Failed to create settings");
         }
     }
-    
+
     Settings::Settings(const string& data, const string& format) : settings_(c2pa_settings_new()) {
         if (!settings_) {
             throw C2paException("Failed to create settings");
@@ -123,11 +124,11 @@ namespace c2pa
             throw C2paException();
         }
     }
-    
+
     Settings::Settings(Settings&& other) noexcept : settings_(other.settings_) {
         other.settings_ = nullptr;
     }
-    
+
     Settings& Settings::operator=(Settings&& other) noexcept {
         if (this != &other) {
             if (settings_) {
@@ -138,53 +139,53 @@ namespace c2pa
         }
         return *this;
     }
-    
-    Settings::~Settings() {
+
+    Settings::~Settings() noexcept {
         if (settings_) {
             c2pa_free(settings_);
         }
     }
-    
+
     Settings& Settings::set(const string& path, const string& json_value) {
         if (c2pa_settings_set_value(settings_, path.c_str(), json_value.c_str()) != 0) {
             throw C2paException();
         }
         return *this;
     }
-    
+
     Settings& Settings::update(const string& data, const string& format) {
         if (c2pa_settings_update_from_string(settings_, data.c_str(), format.c_str()) != 0) {
             throw C2paException();
         }
         return *this;
     }
-    
+
     C2paSettings* Settings::c_settings() const noexcept {
         return settings_;
     }
-    
+
     // ===== Context Implementation =====
-    
+
     Context::Context(C2paContext* ctx) : context_(ctx) {
         if (!context_) {
             throw C2paException("Invalid context pointer");
         }
     }
-    
-    Context::~Context() {
+
+    Context::~Context() noexcept {
         if (context_) {
             c2pa_free(context_);
         }
     }
-    
+
     C2paContext* Context::c_context() const {
         return context_;
     }
-    
+
     bool Context::has_context() const noexcept {
         return context_ != nullptr;
     }
-    
+
     ContextProviderPtr Context::create() {
         C2paContext* ctx = c2pa_context_new();
         if (!ctx) {
@@ -192,70 +193,70 @@ namespace c2pa
         }
         return std::make_shared<Context>(ctx);
     }
-    
+
     ContextProviderPtr Context::from_json(const string& json) {
-        return Builder().with_json(json).build();
+        return ContextBuilder().with_json(json).create_context();
     }
-    
+
     ContextProviderPtr Context::from_toml(const string& toml) {
-        return Builder().with_toml(toml).build();
+        return ContextBuilder().with_toml(toml).create_context();
     }
-    
-    // ===== Context::Builder Implementation =====
-    
-    Context::Builder::Builder() : builder_(c2pa_context_builder_new()) {
-        if (!builder_) {
+
+    // ===== Context::ContextBuilder Implementation =====
+
+    Context::ContextBuilder::ContextBuilder() : context_builder(c2pa_context_builder_new()) {
+        if (!context_builder) {
             throw C2paException("Failed to create context builder");
         }
     }
-    
-    Context::Builder::Builder(Builder&& other) noexcept : builder_(other.builder_) {
-        other.builder_ = nullptr;
+
+    Context::ContextBuilder::ContextBuilder(ContextBuilder&& other) noexcept : context_builder(other.context_builder) {
+        other.context_builder = nullptr;
     }
-    
-    Context::Builder& Context::Builder::operator=(Builder&& other) noexcept {
+
+    Context::ContextBuilder& Context::ContextBuilder::operator=(ContextBuilder&& other) noexcept {
         if (this != &other) {
-            if (builder_) {
-                c2pa_free(builder_);
+            if (context_builder) {
+                c2pa_free(context_builder);
             }
-            builder_ = other.builder_;
-            other.builder_ = nullptr;
+            context_builder = other.context_builder;
+            other.context_builder = nullptr;
         }
         return *this;
     }
-    
-    Context::Builder::~Builder() {
-        if (builder_) {
-            c2pa_free(builder_);
+
+    Context::ContextBuilder::~ContextBuilder() noexcept {
+        if (context_builder) {
+            c2pa_free(context_builder);
         }
     }
-    
-    Context::Builder& Context::Builder::with_settings(const Settings& settings) {
-        if (c2pa_context_builder_set_settings(builder_, settings.c_settings()) != 0) {
+
+    Context::ContextBuilder& Context::ContextBuilder::with_settings(const Settings& settings) {
+        if (c2pa_context_builder_set_settings(context_builder, settings.c_settings()) != 0) {
             throw C2paException();
         }
         return *this;
     }
-    
-    Context::Builder& Context::Builder::with_json(const string& json) {
+
+    Context::ContextBuilder& Context::ContextBuilder::with_json(const string& json) {
         Settings settings(json, "json");
         return with_settings(settings);
     }
-    
-    Context::Builder& Context::Builder::with_toml(const string& toml) {
+
+    Context::ContextBuilder& Context::ContextBuilder::with_toml(const string& toml) {
         Settings settings(toml, "toml");
         return with_settings(settings);
     }
-    
-    ContextProviderPtr Context::Builder::build() {
-        if (!builder_) {
+
+    ContextProviderPtr Context::ContextBuilder::create_context() {
+        if (!context_builder) {
             throw C2paException("Builder already consumed");
         }
-        C2paContext* ctx = c2pa_context_builder_build(builder_);
-        builder_ = nullptr;  // Builder is consumed
+        C2paContext* ctx = c2pa_context_builder_build(context_builder);
         if (!ctx) {
             throw C2paException("Failed to build context");
         }
+        context_builder = nullptr; // Builder is consumed
         return std::make_shared<Context>(ctx);
     }
 
@@ -264,7 +265,7 @@ namespace c2pa
     {
         auto result = c2pa_version();
         std::string str(result);
-        c2pa_string_free(result);
+        c2pa_free(result);
         return str;
     }
 
@@ -295,6 +296,7 @@ namespace c2pa
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a string containing the manifest json if a manifest was found.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
+    [[deprecated("Use stream APIs instead: Reader to read combined with Builder to manage ingredients")]]
     optional<string> read_file(const std::filesystem::path &source_path, const optional<std::filesystem::path> data_dir)
     {
         const char* dir_ptr = nullptr;
@@ -316,7 +318,7 @@ namespace c2pa
             throw c2pa::C2paException();
         }
         std::string str(result);
-        c2pa_string_free(result);
+        c2pa_free(result);
         return str;
     }
 
@@ -325,6 +327,7 @@ namespace c2pa
     /// @param data_dir the directory to store binary resources.
     /// @return a string containing the ingredient json.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
+    [[deprecated("Use stream APIs instead: add_ingredient on the Builder")]]
     string read_ingredient_file(const std::filesystem::path &source_path, const std::filesystem::path &data_dir)
     {
         char *result = c2pa_read_ingredient_file(path_to_string(source_path).c_str(), path_to_string(data_dir).c_str());
@@ -333,7 +336,7 @@ namespace c2pa
             throw c2pa::C2paException();
         }
         std::string str(result);
-        c2pa_string_free(result);
+        c2pa_free(result);
         return str;
     }
 
@@ -344,6 +347,7 @@ namespace c2pa
     // signer_info: the signer info to use for signing
     // data_dir: the directory to store binary resources (optional)
     // Throws a C2pa::C2paException for errors encountered by the C2PA library
+    [[deprecated("Use stream APIs instead: sign on Builder")]]
     void sign_file(const std::filesystem::path &source_path,
                    const std::filesystem::path &dest_path,
                    const char *manifest,
@@ -355,11 +359,9 @@ namespace c2pa
         char *result = c2pa_sign_file(path_to_string(source_path).c_str(), path_to_string(dest_path).c_str(), manifest, signer_info, dir.c_str());
         if (result == nullptr)
         {
-            // NULL means error occurred
             throw c2pa::C2paException();
         }
-        // Result contains JSON manifest on success
-        c2pa_string_free(result);
+        c2pa_free(result);
     }
 
     /// IStream Class wrapper for C2paStream.
@@ -676,67 +678,64 @@ namespace c2pa
         return 0;
     }
 
-    /// Reader class for reading a manifest implementation.
-    // ===== Context-based Reader constructors =====
-    
+    /// Reader class for reading manifests
+
     Reader::Reader(ContextProviderPtr context, const string &format, std::istream &stream)
         : context_(std::move(context))
     {
         if (!context_ || !context_->has_context()) {
             throw C2paException("Invalid context provider");
         }
-        
+
         c2pa_reader = c2pa_reader_from_context(context_->c_context());
         if (c2pa_reader == nullptr) {
             throw C2paException("Failed to create reader from context");
         }
-        
+
         cpp_stream = new CppIStream(stream);
         // Update reader with stream
         C2paReader* updated = c2pa_reader_with_stream(c2pa_reader, format.c_str(), cpp_stream->c_stream);
         if (updated == nullptr) {
             delete cpp_stream;
-            c2pa_reader_free(c2pa_reader);
+            c2pa_free(c2pa_reader);
             throw C2paException("Failed to configure reader with stream");
         }
         c2pa_reader = updated;
     }
-    
+
     Reader::Reader(ContextProviderPtr context, const std::filesystem::path &source_path)
         : context_(std::move(context))
     {
         if (!context_ || !context_->has_context()) {
             throw C2paException("Invalid context provider");
         }
-        
+
         c2pa_reader = c2pa_reader_from_context(context_->c_context());
         if (c2pa_reader == nullptr) {
             throw C2paException("Failed to create reader from context");
         }
-        
+
         std::ifstream file_stream(source_path, std::ios::binary);
         if (!file_stream.is_open()) {
-            c2pa_reader_free(c2pa_reader);
+            c2pa_free(c2pa_reader);
             throw std::system_error(errno, std::system_category(), "Failed to open file: " + source_path.string());
         }
-        
+
         string extension = source_path.extension().string();
         if (!extension.empty()) {
             extension = extension.substr(1); // Skip the dot
         }
-        
+
         cpp_stream = new CppIStream(file_stream);
         C2paReader* updated = c2pa_reader_with_stream(c2pa_reader, extension.c_str(), cpp_stream->c_stream);
         if (updated == nullptr) {
             delete cpp_stream;
-            c2pa_reader_free(c2pa_reader);
+            c2pa_free(c2pa_reader);
             throw C2paException("Failed to configure reader with stream");
         }
         c2pa_reader = updated;
     }
-    
-    // ===== Legacy Reader constructors (deprecated) =====
-    
+
     Reader::Reader(const string &format, std::istream &stream)
         : context_(nullptr)
     {
@@ -752,8 +751,7 @@ namespace c2pa
     Reader::Reader(const std::filesystem::path &source_path)
         : context_(nullptr)
     {
-		const auto source_str = path_to_string(source_path);
-        std::ifstream file_stream(source_str, std::ios_base::binary);
+        std::ifstream file_stream(path_to_string(source_path), std::ios_base::binary);
         if (!file_stream.is_open())
         {
             // Use std::system_error for cross-platform error handling
@@ -777,7 +775,7 @@ namespace c2pa
 
     Reader::~Reader()
     {
-        c2pa_reader_free(c2pa_reader);
+        c2pa_free(c2pa_reader);
         if (cpp_stream != nullptr)
         {
             delete cpp_stream;
@@ -792,7 +790,7 @@ namespace c2pa
             throw C2paException();
         }
         std::string str(result);
-        c2pa_string_free(result);
+        c2pa_free(result);
         return str;
     }
 
@@ -806,14 +804,13 @@ namespace c2pa
         //
         // TODO: Revisit after determining how we want c2pa-rs to handle
         //       strings that shouldn't be modified by our bindings.
-        c2pa_string_free(const_cast<char *>(url));
+        c2pa_free(const_cast<char *>(url));
         return url_str;
     }
 
     int64_t Reader::get_resource(const string &uri, const std::filesystem::path &path)
     {
-		const auto path_str = path_to_string(path);
-        std::ofstream file_stream(path_str, std::ios_base::binary);
+        std::ofstream file_stream(path_to_string(path), std::ios_base::binary);
         if (!file_stream.is_open())
         {
             throw C2paException(); // Handle file open error appropriately
@@ -852,7 +849,7 @@ namespace c2pa
 
     Signer::~Signer()
     {
-        c2pa_signer_free(signer);
+        c2pa_free(signer);
     }
 
     /// @brief  Get the C2paSigner
@@ -867,44 +864,43 @@ namespace c2pa
         return c2pa_signer_reserve_size(signer);
     }
 
-    // ===== Context-based Builder constructors =====
-    
+    /// @brief  Builder class for creating a manifest implementation.
+
     Builder::Builder(ContextProviderPtr context)
         : builder(nullptr), context_(std::move(context))
     {
         if (!context_ || !context_->has_context()) {
             throw C2paException("Invalid context provider");
         }
-        
+
         builder = c2pa_builder_from_context(context_->c_context());
         if (builder == nullptr) {
             throw C2paException("Failed to create builder from context");
         }
     }
-    
+
     Builder::Builder(ContextProviderPtr context, const string &manifest_json)
         : builder(nullptr), context_(std::move(context))
     {
         if (!context_ || !context_->has_context()) {
             throw C2paException("Invalid context provider");
         }
-        
+
+        // This creates the Builder using the cotnext, eg. propagates settings
         builder = c2pa_builder_from_context(context_->c_context());
         if (builder == nullptr) {
             throw C2paException("Failed to create builder from context");
         }
-        
-        // Apply the manifest definition
+
+        // Apply the manifest definition to the Builder
         C2paBuilder* updated = c2pa_builder_with_definition(builder, manifest_json.c_str());
         if (updated == nullptr) {
-            c2pa_builder_free(builder);
+            c2pa_free(builder);
             throw C2paException("Failed to set builder definition");
         }
         builder = updated;
     }
-    
-    // ===== Legacy Builder constructors (deprecated) =====
-    
+
     Builder::Builder(const string &manifest_json)
         : builder(nullptr), context_(nullptr)
     {
@@ -931,7 +927,7 @@ namespace c2pa
 
     Builder::~Builder()
     {
-        c2pa_builder_free(builder);
+        c2pa_free(builder);
     }
 
     C2paBuilder *Builder::c2pa_builder() const noexcept
@@ -952,7 +948,7 @@ namespace c2pa
             throw C2paException();
         }
     }
-    
+
     Builder& Builder::with_definition(const string &manifest_json)
     {
         C2paBuilder* updated = c2pa_builder_with_definition(builder, manifest_json.c_str());
@@ -984,8 +980,7 @@ namespace c2pa
 
     void Builder::add_resource(const string &uri, const std::filesystem::path &source_path)
     {
-		const auto source_str = path_to_string(source_path);
-        ifstream stream = ifstream(source_str, std::ios_base::binary);
+        std::ifstream stream = ifstream(path_to_string(source_path), std::ios_base::binary);
         if (!stream.is_open())
         {
             throw std::runtime_error("Failed to open source file: " + source_path.string());
@@ -1005,8 +1000,7 @@ namespace c2pa
 
     void Builder::add_ingredient(const string &ingredient_json, const std::filesystem::path &source_path)
     {
-		const auto source_str = path_to_string(source_path);
-        ifstream stream = ifstream(source_str, std::ios_base::binary);
+        ifstream stream = ifstream(path_to_string(source_path), std::ios_base::binary);
         if (!stream.is_open())
         {
             throw std::runtime_error("Failed to open source file: " + source_path.string());
@@ -1040,7 +1034,7 @@ namespace c2pa
         }
 
         auto manifest_bytes = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
-        c2pa_manifest_bytes_free(c2pa_manifest_bytes);
+        c2pa_free(c2pa_manifest_bytes);
         return manifest_bytes;
     }
 
@@ -1056,7 +1050,7 @@ namespace c2pa
         }
 
         auto manifest_bytes = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
-        c2pa_manifest_bytes_free(c2pa_manifest_bytes);
+        c2pa_free(c2pa_manifest_bytes);
         return manifest_bytes;
     }
 
@@ -1068,8 +1062,7 @@ namespace c2pa
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     std::vector<unsigned char> Builder::sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path, Signer &signer)
     {
-		const auto source_str = path_to_string(source_path);
-        std::ifstream source(source_str, std::ios_base::binary);
+        std::ifstream source(path_to_string(source_path), std::ios_base::binary);
         if (!source.is_open())
         {
             throw std::runtime_error("Failed to open source file: " + source_path.string());
@@ -1111,8 +1104,7 @@ namespace c2pa
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     Builder Builder::from_archive(const std::filesystem::path &archive_path)
     {
-		const auto archive_str = path_to_string(archive_path);
-        std::ifstream path(archive_str, std::ios_base::binary);
+        std::ifstream path(path_to_string(archive_path), std::ios_base::binary);
         if (!path.is_open())
         {
             throw std::runtime_error("Failed to open archive file: " + archive_path.string());
@@ -1138,8 +1130,7 @@ namespace c2pa
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     void Builder::to_archive(const std::filesystem::path &dest_path)
     {
-		const auto dest_str = path_to_string(dest_path);
-        std::ofstream dest(dest_str, std::ios_base::binary);
+        std::ofstream dest(path_to_string(dest_path), std::ios_base::binary);
         if (!dest.is_open())
         {
             throw std::runtime_error("Failed to open destination file: " + dest_path.string());
@@ -1157,7 +1148,7 @@ namespace c2pa
         }
 
         auto data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
-        c2pa_manifest_bytes_free(c2pa_manifest_bytes);
+        c2pa_free(c2pa_manifest_bytes);
         return data;
     }
 
@@ -1180,7 +1171,7 @@ namespace c2pa
         }
 
         auto data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
-        c2pa_manifest_bytes_free(c2pa_manifest_bytes);
+        c2pa_free(c2pa_manifest_bytes);
         return data;
     }
 
@@ -1194,7 +1185,7 @@ namespace c2pa
         }
 
         auto formatted_data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
-        c2pa_manifest_bytes_free(c2pa_manifest_bytes);
+        c2pa_free(c2pa_manifest_bytes);
         return formatted_data;
     }
 

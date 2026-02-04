@@ -20,6 +20,14 @@ using namespace std;
 namespace fs = std::filesystem;
 using nlohmann::json;
 
+// TODO-TMN
+// Other settings to try out from https://github.com/contentauth/c2pa-rs/blob/main/sdk/tests/fixtures/test_settings.toml:
+// (Also do the JSON edition)
+// - Signer in settings
+// - tsa_url
+// - claim generator
+// - all_actions_included
+
 /// @brief Read a text file into a string
 static string read_text_file(const fs::path &path)
 {
@@ -295,7 +303,7 @@ TEST(Builder, SignImageFileOnly)
     ASSERT_TRUE(std::filesystem::exists(output_path));
 };
 
-TEST(Builder, SignImageFileWithoutThumbnailAutoGenerationThroughSettings)
+TEST(Builder, SignImageFileWithoutThumbnailAutoGenerationThroughThreadLocalSharedSettings)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
@@ -330,6 +338,12 @@ TEST(Builder, SignImageFileWithoutThumbnailAutoGenerationThroughSettings)
 
     // reset settings to defaults, because settings are thread-local
     c2pa::load_settings("{\"builder\": { \"thumbnail\": {\"enabled\": true}}}", "json");
+};
+
+TEST(Builder, SignImageFileWithoutThumbnailAutoGenerationThroughSettings)
+{
+    // TODO-TMN Write similar to SignImageFileWithoutThumbnailAutoGenerationThroughThreadLocalSharedSettings, but use the context API
+    // TODO: Make sure another builder without the context behaves diffrently, aka by default the thumbnails are on and verify settings doesn't propagate to other one
 };
 
 TEST(Builder, SignImageFileWithResource)
@@ -664,7 +678,7 @@ TEST_P(SimplePathSignTest, SignsFileTypes) {
   ASSERT_NO_THROW(reader.json());
 }
 
-TEST(Builder, SignImageStream)
+TEST(Builder, SignImageStreamWithoutContext)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
@@ -702,6 +716,16 @@ TEST(Builder, SignImageStream)
     std::string json;
     ASSERT_NO_THROW(json = reader.json());
     ASSERT_TRUE(json.find("cawg.training-mining") != std::string::npos);
+}
+
+TEST(Builder, SignImageStreamWithContext)
+{
+  // TODO-TMN
+}
+
+TEST(Builder, SignImageStreamWithTrustSettings)
+{
+  // TODO-TMN
 }
 
 TEST(Builder, SignImageWithIngredientHavingManifestStream)
@@ -1332,7 +1356,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePath)
     ASSERT_NO_THROW(reader.json());
 }
 
-TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAction)
+TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedActionThroughThreadLocalSharedSettings)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
@@ -1425,6 +1449,11 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
 
     // reset settings to auto-add a placed action
     c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": true}}}}", "json");
+}
+
+TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAction)
+{
+    // TODO-TMN: Write similar as AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedActionThroughThreadLocalSharedSettings, but with context API
 }
 
 TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)

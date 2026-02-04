@@ -172,12 +172,10 @@ if(MSVC)
         /sdl
         /guard:cf
         /GS
-        /DYNAMICBASE
-        /NXCOMPAT)
+        /DYNAMICBASE)
 
     target_link_options(c2pa_cpp PRIVATE
         /DYNAMICBASE
-        /NXCOMPAT
         /GUARD:CF
     )
 else()
