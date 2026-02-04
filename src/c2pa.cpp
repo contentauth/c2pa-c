@@ -14,13 +14,14 @@
 /// @brief  C++ wrapper for the C2PA C library.
 /// @details This is used for creating and verifying C2PA manifests.
 ///          Thread safety is not guaranteed due to the use of errno and etc.
+///          C++ standard: C++17
 
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string.h>
-#include <optional>   // C++17
-#include <filesystem> // C++17
+#include <optional>
+#include <filesystem>
 #include <system_error> // For std::system_error
 
 #include "c2pa.hpp"

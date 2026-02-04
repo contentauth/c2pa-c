@@ -295,7 +295,7 @@ TEST(Builder, SignImageFileOnly)
     ASSERT_TRUE(std::filesystem::exists(output_path));
 };
 
-TEST(Builder, SignImageFileWithoutThumbnailAutoGenerationThroughSettings)
+TEST(Builder, SignImageFileWithoutThumbnailAutoGenerationThroughThreadLocalSharedSettings)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
@@ -330,6 +330,12 @@ TEST(Builder, SignImageFileWithoutThumbnailAutoGenerationThroughSettings)
 
     // reset settings to defaults, because settings are thread-local
     c2pa::load_settings("{\"builder\": { \"thumbnail\": {\"enabled\": true}}}", "json");
+};
+
+TEST(Builder, SignImageFileWithoutThumbnailAutoGenerationThroughSettings)
+{
+    // TODO-TMN Write similar to SignImageFileWithoutThumbnailAutoGenerationThroughThreadLocalSharedSettings, but use the context API
+    // TODO: Make sure another builder without the context behaves diffrently, aka by default the thumbnails are on and verify settings doesn't propagate to other one
 };
 
 TEST(Builder, SignImageFileWithResource)
@@ -1337,7 +1343,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePath)
     ASSERT_NO_THROW(reader.json());
 }
 
-TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAction)
+TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedActionThroughThreadLocalSharedSettings)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
@@ -1430,6 +1436,11 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
 
     // reset settings to auto-add a placed action
     c2pa::load_settings("{\"builder\": { \"actions\": {\"auto_placed_action\": {\"enabled\": true}}}}", "json");
+}
+
+TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAction)
+{
+    // TODO-TMN: Write similar as AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedActionThroughThreadLocalSharedSettings, but with context API
 }
 
 TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)

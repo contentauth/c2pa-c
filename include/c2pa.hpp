@@ -38,7 +38,6 @@
 #include <vector>
 #include <optional>
 #include <memory>
-#include <mutex>
 
 #include <c2pa.h>
 
