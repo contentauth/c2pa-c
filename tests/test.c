@@ -69,7 +69,6 @@ int main(void)
     char *manifest = load_file("tests/fixtures/training.json");
 
     // create a sign_info struct (using positional initialization to avoid designated initializers)
-    // Using NULL for timestamp URL to avoid network dependency in tests
     C2paSignerInfo sign_info = {"es256", certs, private_key, "http://timestamp.digicert.com"};
 
     // TODO: Reactivate this test

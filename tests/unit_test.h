@@ -15,7 +15,7 @@
 #include <string.h>
 
 
-#include <c2pa.h>
+#include "../include/c2pa.h"
 
 // load a file into a string for testing
 char *load_file(const char *filename)
