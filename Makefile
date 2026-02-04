@@ -17,6 +17,9 @@ endif
 # Default target
 all: test examples
 
+clean:
+	rm -rf $(BUILD_DIR)
+
 # Debug build
 debug:
 	cmake -S . -B $(DEBUG_BUILD_DIR) -G "Ninja" -DCMAKE_BUILD_TYPE=Debug $(CMAKE_OPTS)
@@ -31,14 +34,14 @@ release:
 cmake: release
 
 # Test targets
-test: debug
+test: clean debug
 	cd $(DEBUG_BUILD_DIR) && ctest --output-on-failure
 
-test-release: release
+test-release: clean release
 	cd $(RELEASE_BUILD_DIR) && ctest --output-on-failure
 
 # Run only the C test (test.c)
-test-c: release
+test-c: clean release
 	@echo "Running C test only..."
 ifeq ($(OS),Darwin)
 	DYLD_LIBRARY_PATH=$(RELEASE_BUILD_DIR)/tests:$$DYLD_LIBRARY_PATH ./$(RELEASE_BUILD_DIR)/tests/ctest
@@ -47,7 +50,7 @@ else
 endif
 
 # Run only the C++ tests
-test-cpp: release
+test-cpp: clean release
 	@echo "Running C++ tests only..."
 ifeq ($(OS),Darwin)
 	DYLD_LIBRARY_PATH=$(RELEASE_BUILD_DIR)/tests:$$DYLD_LIBRARY_PATH ./$(RELEASE_BUILD_DIR)/tests/c2pa_c_tests

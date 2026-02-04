@@ -988,7 +988,6 @@ namespace c2pa
         {
             throw std::runtime_error("Failed to open source file: " + source_path.string());
         }
-        // Delegate to stream-reference version - stream stays alive during the call
         add_resource(uri, stream);
     }
 
@@ -1000,8 +999,6 @@ namespace c2pa
         {
             throw C2paException();
         }
-        // c_source destructs here, calling c2pa_release_stream()
-        // This is OK because the caller's source stream is still alive
     }
 
     void Builder::add_ingredient(const std::string &ingredient_json, const std::filesystem::path &source_path)
@@ -1016,7 +1013,6 @@ namespace c2pa
         {
             format = format.substr(1); // Skip the dot.
         }
-        // Delegate to stream-reference version - stream stays alive during the call
         add_ingredient(ingredient_json, format.c_str(), stream);
     }
 
@@ -1033,10 +1029,10 @@ namespace c2pa
     {
         // IMPORTANT: Caller's source/dest streams must outlive this call
         // Stream wrappers are stack locals that wrap the caller's streams
-        CppIStream c_source(source);  // Wraps caller's source (still alive)
-        CppOStream c_dest(dest);      // Wraps caller's dest (still alive)
+        CppIStream c_source(source);
+        CppOStream c_dest(dest);
         const unsigned char *c2pa_manifest_bytes = nullptr;
-        
+
         // c2pa_builder_sign() uses streams synchronously and completes before returning
         auto result = c2pa_builder_sign(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, signer.c2pa_signer(), &c2pa_manifest_bytes);
         if (result < 0 || c2pa_manifest_bytes == nullptr)
@@ -1054,10 +1050,10 @@ namespace c2pa
     {
         // IMPORTANT: Caller's source/dest streams must outlive this call
         // Stream wrappers are stack locals that wrap the caller's streams
-        CppIStream c_source(source);   // Wraps caller's source (still alive)
-        CppIOStream c_dest(dest);      // Wraps caller's dest (still alive)
+        CppIStream c_source(source);
+        CppIOStream c_dest(dest);
         const unsigned char *c2pa_manifest_bytes = nullptr;
-        
+
         // c2pa_builder_sign() uses streams synchronously and completes before returning
         auto result = c2pa_builder_sign(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, signer.c2pa_signer(), &c2pa_manifest_bytes);
         if (result < 0 || c2pa_manifest_bytes == nullptr)
