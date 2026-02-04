@@ -355,11 +355,9 @@ namespace c2pa
     private:
         C2paReader *c2pa_reader;
         CppIStream *cpp_stream = nullptr;
-        ContextProviderPtr context_;  // Keeps context alive
+        ContextProviderPtr context_;  // Keeps context alive - TODO-TMN: Rename
 
     public:
-        // ===== Context-based constructors =====
-
         /// @brief Create a Reader from a context and stream.
         /// @param context Context provider to use for this reader.
         /// @param format The mime format of the stream.
@@ -525,11 +523,9 @@ namespace c2pa
     {
     private:
         C2paBuilder *builder;
-        ContextProviderPtr context_;  // Keeps context alive
+        ContextProviderPtr context_;  // Keeps context alive: TODO-TMN: Rename
 
     public:
-        // ===== Context-based constructors =====
-
         /// @brief Create a Builder from a context with an empty manifest.
         /// @param context Context provider to use for this builder.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
