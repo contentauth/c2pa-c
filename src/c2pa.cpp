@@ -202,7 +202,7 @@ namespace c2pa
         return ContextBuilder().with_toml(toml).create_context();
     }
 
-    // ===== Context::Builder Implementation =====
+    // ===== Context::ContextBuilder Implementation =====
 
     Context::ContextBuilder::ContextBuilder() : context_builder(c2pa_context_builder_new()) {
         if (!context_builder) {
@@ -680,8 +680,7 @@ namespace c2pa
         return 0;
     }
 
-    /// Reader class for reading a manifest implementation.
-    // ===== Context-based Reader constructors =====
+    /// Reader class for reading manifests
 
     Reader::Reader(ContextProviderPtr context, const string &format, std::istream &stream)
         : context_(std::move(context))
@@ -869,7 +868,7 @@ namespace c2pa
         return c2pa_signer_reserve_size(signer);
     }
 
-    // ===== Context-based Builder constructors =====
+    // Builder class for creating and signing manifests
 
     Builder::Builder(ContextProviderPtr context)
         : builder(nullptr), context_(std::move(context))
