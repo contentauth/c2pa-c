@@ -74,9 +74,7 @@ namespace c2pa
     };
 
     /// @brief Interface for types that can provide C2PA context functionality.
-    /// @details Implement this interface to make your type usable with Reader and Builder.
-    ///          This enables polymorphic usage where both c2pa::Context and other context
-    ///          types (like Adobe's CaiAdobeContext) can be used interchangeably.
+    /// @details Implement this interface to make your own context
     class C2PA_CPP_API IContextProvider {
     public:
         virtual ~IContextProvider() = default;
