@@ -177,15 +177,15 @@ namespace c2pa
             c2pa_free(context_);
         }
     }
-    
+
     C2paContext* Context::c_context() const {
         return context_;
     }
-    
+
     bool Context::has_context() const noexcept {
         return context_ != nullptr;
     }
-    
+
     ContextProviderPtr Context::create() {
         C2paContext* ctx = c2pa_context_new();
         if (!ctx) {
@@ -193,28 +193,28 @@ namespace c2pa
         }
         return std::make_shared<Context>(ctx);
     }
-    
+
     ContextProviderPtr Context::from_json(const string& json) {
-        return ContextCreator().with_json(json).create_context();
+        return ContextBuilder().with_json(json).create_context();
     }
-    
+
     ContextProviderPtr Context::from_toml(const string& toml) {
-        return ContextCreator().with_toml(toml).create_context();
+        return ContextBuilder().with_toml(toml).create_context();
     }
-    
+
     // ===== Context::Builder Implementation =====
-    
-    Context::ContextCreator::ContextCreator() : context_builder_(c2pa_context_builder_new()) {
+
+    Context::ContextBuilder::ContextBuilder() : context_builder_(c2pa_context_builder_new()) {
         if (!context_builder_) {
             throw C2paException("Failed to create context builder");
         }
     }
-    
-    Context::ContextCreator::ContextCreator(ContextCreator&& other) noexcept : context_builder_(other.context_builder_) {
+
+    Context::ContextBuilder::ContextBuilder(ContextBuilder&& other) noexcept : context_builder_(other.context_builder_) {
         other.context_builder_ = nullptr;
     }
-    
-    Context::ContextCreator& Context::ContextCreator::operator=(ContextCreator&& other) noexcept {
+
+    Context::ContextBuilder& Context::ContextBuilder::operator=(ContextBuilder&& other) noexcept {
         if (this != &other) {
             if (context_builder_) {
                 c2pa_free(context_builder_);
@@ -224,31 +224,31 @@ namespace c2pa
         }
         return *this;
     }
-    
-    Context::ContextCreator::~ContextCreator() {
+
+    Context::ContextBuilder::~ContextBuilder() {
         if (context_builder_) {
             c2pa_free(context_builder_);
         }
     }
-    
-    Context::ContextCreator& Context::ContextCreator::with_settings(const Settings& settings) {
+
+    Context::ContextBuilder& Context::ContextBuilder::with_settings(const Settings& settings) {
         if (c2pa_context_builder_set_settings(context_builder_, settings.c_settings()) != 0) {
             throw C2paException();
         }
         return *this;
     }
-    
-    Context::ContextCreator& Context::ContextCreator::with_json(const string& json) {
+
+    Context::ContextBuilder& Context::ContextBuilder::with_json(const string& json) {
         Settings settings(json, "json");
         return with_settings(settings);
     }
-    
-    Context::ContextCreator& Context::ContextCreator::with_toml(const string& toml) {
+
+    Context::ContextBuilder& Context::ContextBuilder::with_toml(const string& toml) {
         Settings settings(toml, "toml");
         return with_settings(settings);
     }
-    
-    ContextProviderPtr Context::ContextCreator::create_context() {
+
+    ContextProviderPtr Context::ContextBuilder::create_context() {
         if (!context_builder_) {
             throw C2paException("Builder already consumed");
         }

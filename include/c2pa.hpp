@@ -149,36 +149,36 @@ namespace c2pa
     ///          factory methods or the Builder pattern.
     class C2PA_CPP_API Context : public IContextProvider {
     public:
-        /// @brief ContextCreator for creating customized Context instances.
-        class C2PA_CPP_API ContextCreator {
+        /// @brief ContextBuilder for creating customized Context instances.
+        class C2PA_CPP_API ContextBuilder {
         public:
-            ContextCreator();
-            ~ContextCreator();
+            ContextBuilder();
+            ~ContextBuilder();
             
             // Move semantics
-            ContextCreator(ContextCreator&&) noexcept;
-            ContextCreator& operator=(ContextCreator&&) noexcept;
+            ContextBuilder(ContextBuilder&&) noexcept;
+            ContextBuilder& operator=(ContextBuilder&&) noexcept;
             
             // Non-copyable
-            ContextCreator(const ContextCreator&) = delete;
-            ContextCreator& operator=(const ContextCreator&) = delete;
+            ContextBuilder(const ContextBuilder&) = delete;
+            ContextBuilder& operator=(const ContextBuilder&) = delete;
             
             /// @brief Configure with Settings object.
             /// @param settings Settings to use (will be copied).
-            /// @return Reference to this ContextCreator for method chaining.
-            ContextCreator& with_settings(const Settings& settings);
+            /// @return Reference to this ContextBuilder for method chaining.
+            ContextBuilder& with_settings(const Settings& settings);
             
             /// @brief Configure with JSON string.
             /// @param json JSON configuration string.
-            /// @return Reference to this ContextCreator for method chaining.
+            /// @return Reference to this ContextBuilder for method chaining.
             /// @throws C2paException if JSON is invalid.
-            ContextCreator& with_json(const string& json);
+            ContextBuilder& with_json(const string& json);
             
             /// @brief Configure with TOML string.
             /// @param toml TOML configuration string.
-            /// @return Reference to this ContextCreator for method chaining.
+            /// @return Reference to this ContextBuilder for method chaining.
             /// @throws C2paException if TOML is invalid.
-            ContextCreator& with_toml(const string& toml);
+            ContextBuilder& with_toml(const string& toml);
             
             /// @brief Build the immutable Context.
             /// @return Shared pointer to the new Context.
