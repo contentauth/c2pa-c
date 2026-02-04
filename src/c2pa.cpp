@@ -253,10 +253,10 @@ namespace c2pa
             throw C2paException("Builder already consumed");
         }
         C2paContext* ctx = c2pa_context_builder_build(context_builder);
-        context_builder = nullptr;  // Builder is consumed
         if (!ctx) {
             throw C2paException("Failed to build context");
         }
+        context_builder = nullptr; // Builder is consumed
         return std::make_shared<Context>(ctx);
     }
 
