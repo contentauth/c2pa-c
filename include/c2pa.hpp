@@ -183,11 +183,11 @@ namespace c2pa
             /// @brief Build the immutable Context.
             /// @return Shared pointer to the new Context.
             /// @throws C2paException if context creation fails.
-            /// @note This consumes the builder. After calling create(), the builder is in a moved-from state.
+            /// @note This consumes the builder. After calling create_context(), the builder is in a moved-from state.
             [[nodiscard]] ContextProviderPtr create_context();
             
         private:
-            C2paContextBuilder* builder_;
+            C2paContextBuilder* context_builder_;
         };
 
         /// @brief Create a Context with default settings.

@@ -204,35 +204,35 @@ namespace c2pa
     
     // ===== Context::Builder Implementation =====
     
-    Context::ContextCreator::ContextCreator() : builder_(c2pa_context_builder_new()) {
-        if (!builder_) {
+    Context::ContextCreator::ContextCreator() : context_builder_(c2pa_context_builder_new()) {
+        if (!context_builder_) {
             throw C2paException("Failed to create context builder");
         }
     }
     
-    Context::ContextCreator::ContextCreator(ContextCreator&& other) noexcept : builder_(other.builder_) {
-        other.builder_ = nullptr;
+    Context::ContextCreator::ContextCreator(ContextCreator&& other) noexcept : context_builder_(other.context_builder_) {
+        other.context_builder_ = nullptr;
     }
     
     Context::ContextCreator& Context::ContextCreator::operator=(ContextCreator&& other) noexcept {
         if (this != &other) {
-            if (builder_) {
-                c2pa_free(builder_);
+            if (context_builder_) {
+                c2pa_free(context_builder_);
             }
-            builder_ = other.builder_;
-            other.builder_ = nullptr;
+            context_builder_ = other.context_builder_;
+            other.context_builder_ = nullptr;
         }
         return *this;
     }
     
     Context::ContextCreator::~ContextCreator() {
-        if (builder_) {
-            c2pa_free(builder_);
+        if (context_builder_) {
+            c2pa_free(context_builder_);
         }
     }
     
     Context::ContextCreator& Context::ContextCreator::with_settings(const Settings& settings) {
-        if (c2pa_context_builder_set_settings(builder_, settings.c_settings()) != 0) {
+        if (c2pa_context_builder_set_settings(context_builder_, settings.c_settings()) != 0) {
             throw C2paException();
         }
         return *this;
@@ -249,11 +249,11 @@ namespace c2pa
     }
     
     ContextProviderPtr Context::ContextCreator::create_context() {
-        if (!builder_) {
+        if (!context_builder_) {
             throw C2paException("Builder already consumed");
         }
-        C2paContext* ctx = c2pa_context_builder_build(builder_);
-        builder_ = nullptr;  // Builder is consumed
+        C2paContext* ctx = c2pa_context_builder_build(context_builder_);
+        context_builder_ = nullptr;  // Builder is consumed
         if (!ctx) {
             throw C2paException("Failed to build context");
         }
