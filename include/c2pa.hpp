@@ -31,7 +31,6 @@
 #pragma warning(disable : 4505)
 #endif
 
-// TODO-TMN: Look if the filesystem layer can be split out in own file and helper functions
 #include <filesystem>
 #include <fstream>
 #include <iostream>
