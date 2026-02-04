@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include "../include/c2pa.h"
+#include <c2pa.h>
 
 intptr_t reader(StreamContext *context, uint8_t *data, intptr_t len)
 {

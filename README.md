@@ -34,9 +34,9 @@ add_executable(myapp main.cpp)
 target_link_libraries(myapp PRIVATE c2pa_cpp)
 ```
 
-This will automatically fetch, build, and link the `c2pa_cpp` library and its dependencies.  
+This will automatically fetch, build, and link the `c2pa_cpp` library and its dependencies.
 
-> **Note:**  
+> **Note:**
 > This project uses pre-built dynamic libraries from the [c2pa-rs](https://github.com/contentauth/c2pa-rs) repository. It should select the correct library for your platform. If your platform is not supported, you can build your own library using the c2pa_rs repo.
 
 ### Example usage

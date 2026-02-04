@@ -17,3 +17,5 @@ CMakeLists.txt.user
 # Mac OS X files
 .DS_Store
 .idea
+
+/context-api-design-notes

@@ -1,0 +1,15 @@
+# Example direnv configuration for c2pa-c development
+# Copy to .envrc and run: direnv allow
+
+# Enable local c2pa-rs build (comment out to use prebuilt)
+export C2PA_BUILD_FROM_SOURCE=ON
+export C2PA_RS_PATH=/Users/mathern/Desktop/git/@CAI/c2pa-rs
+
+# Add Rust cargo to PATH if not already there
+export PATH="$HOME/.cargo/bin:$PATH"
+
+# Set library path for running tests directly (macOS)
+export DYLD_LIBRARY_PATH="$(pwd)/build/release/tests:$DYLD_LIBRARY_PATH"
+
+# For Linux, use this instead:
+# export LD_LIBRARY_PATH="$(pwd)/build/release/tests:$LD_LIBRARY_PATH"

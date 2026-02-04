@@ -15,7 +15,7 @@
 #include <string.h>
 
 
-#include "../include/c2pa.h"
+#include <c2pa.h>
 
 // load a file into a string for testing
 char *load_file(const char *filename)
@@ -64,7 +64,7 @@ int save_file(const char* filename, const unsigned char* data, size_t len) {
 void passed(const char *what, char *c2pa_str)
 {
     printf("PASSED: %s\n", what);
-    c2pa_release_string(c2pa_str);
+    c2pa_string_free(c2pa_str);
 }
 
 // assert that c2pa_str contains substr or exit
@@ -73,11 +73,11 @@ void assert_contains(const char *what, char *c2pa_str, const char *substr)
     if (strstr(c2pa_str, substr) == NULL)
     {
         fprintf(stderr, "FAILED %s: %s not found in %s\n", what, c2pa_str, substr);
-        c2pa_release_string(c2pa_str);
+        c2pa_string_free(c2pa_str);
         exit(1);
     }
     printf("PASSED: %s\n", what);
-    c2pa_release_string(c2pa_str);
+    c2pa_string_free(c2pa_str);
 }
 
 // assert that c2pa is not NULL or exit
@@ -87,7 +87,7 @@ void assert_not_null(const char *what, void *val)
     {
         char *err = c2pa_error();
         fprintf(stderr, "FAILED %s: %s\n", what, err);
-        c2pa_release_string(err);
+        c2pa_string_free(err);
         exit(1);
     }
     printf("PASSED: %s\n", what);
@@ -97,7 +97,7 @@ void assert_not_null(const char *what, void *val)
 void assert_str_not_null(const char *what, char *c2pa_str)
 {
     assert_not_null(what, c2pa_str);
-    c2pa_release_string(c2pa_str);
+    c2pa_string_free(c2pa_str);
 }
 
 // assert that c2pa is not NULL or exit
@@ -111,7 +111,7 @@ void assert_null(const char *what, char *c2pa_str, const char *err_str)
         if (strstr(err, err_str) == NULL)
         {
             fprintf(stderr, "FAILED %s: \"%s\" not found in \"%s\"\n", what, err_str, err);
-            c2pa_release_string(err);
+            c2pa_string_free(err);
             exit(1);
         }
         printf("PASSED: %s: \n", what);
@@ -119,7 +119,7 @@ void assert_null(const char *what, char *c2pa_str, const char *err_str)
     else
     {
         fprintf(stderr, "FAILED %s: expected NULL\n", what);
-        c2pa_release_string(c2pa_str);
+        c2pa_string_free(c2pa_str);
         exit(1);
     }
 }
@@ -130,7 +130,7 @@ void assert_int(const char *what, int result)
     {
         char *err = c2pa_error();
         fprintf(stderr, "FAILED %s: %s\n", what, err);
-        c2pa_release_string(err);
+        c2pa_string_free(err);
         exit(1);
     }
     printf("PASSED: %s\n", what);
