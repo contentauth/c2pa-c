@@ -184,7 +184,7 @@ namespace c2pa
             /// @return Shared pointer to the new Context.
             /// @throws C2paException if context creation fails.
             /// @note This consumes the builder. After calling build(), the builder is in a moved-from state.
-            [[nodiscard]] ContextProviderPtr build();
+            [[nodiscard]] ContextProviderPtr create();
             
         private:
             C2paContextBuilder* builder_;

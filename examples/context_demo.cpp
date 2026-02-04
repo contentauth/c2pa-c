@@ -35,7 +35,7 @@ int main() {
         std::cout << "Creating context using ContextCreator..." << std::endl;
         auto dynamic_context = c2pa::Context::ContextCreator()
             .with_json(R"({"verify": {"verify_after_sign": false}})")
-            .build();
+            .create();
         std::cout << "   Dynamic context created successfully!" << std::endl << std::endl;
 
         // 4. Use context with the Reader API
@@ -70,7 +70,7 @@ int main() {
 
         auto settings_context = c2pa::Context::ContextCreator()
             .with_settings(settings)
-            .build();
+            .create();
         std::cout << "   Context created from settings (settings will propagate throught the context, not globally)" << std::endl;
         std::cout << std::endl;
 
