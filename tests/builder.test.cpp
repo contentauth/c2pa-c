@@ -20,6 +20,14 @@ using namespace std;
 namespace fs = std::filesystem;
 using nlohmann::json;
 
+// TODO-TMN
+// Other settings to try out from https://github.com/contentauth/c2pa-rs/blob/main/sdk/tests/fixtures/test_settings.toml:
+// (Also do the JSON edition)
+// - Signer in settings
+// - tsa_url
+// - claim generator
+// - all_actions_included
+
 /// @brief Read a text file into a string
 static string read_text_file(const fs::path &path)
 {
@@ -670,7 +678,7 @@ TEST_P(SimplePathSignTest, SignsFileTypes) {
   ASSERT_NO_THROW(reader.json());
 }
 
-TEST(Builder, SignImageStream)
+TEST(Builder, SignImageStreamWithoutContext)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
 
@@ -708,6 +716,16 @@ TEST(Builder, SignImageStream)
     std::string json;
     ASSERT_NO_THROW(json = reader.json());
     ASSERT_TRUE(json.find("cawg.training-mining") != std::string::npos);
+}
+
+TEST(Builder, SignImageStreamWithContext)
+{
+  // TODO-TMN
+}
+
+TEST(Builder, SignImageStreamWithTrustSettings)
+{
+  // TODO-TMN
 }
 
 TEST(Builder, SignImageWithIngredientHavingManifestStream)

@@ -71,7 +71,7 @@ int main() {
         auto settings_context = c2pa::Context::ContextBuilder()
             .with_settings(settings)
             .create_context();
-        std::cout << "   Context created from settings (settings will propagate throught the context, not globally)" << std::endl;
+        std::cout << "   Context created from settings (settings will propagate through the context, not globally)" << std::endl;
         std::cout << std::endl;
 
         return 0;

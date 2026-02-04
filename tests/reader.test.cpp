@@ -238,3 +238,13 @@ TEST(Reader, StreamClosed)
         auto reader = c2pa::Reader("image/jpeg", file_stream);
     }, c2pa::C2paException);
 };
+
+TEST(Reader, ReadManifestWithoutTrustConfigured)
+{
+  // TODO-TMN Ref settings: https://github.com/contentauth/c2pa-python/blob/main/tests/fixtures/settings.toml
+}
+
+TEST(Reader, ReadManifestWithTrustConfigured)
+{
+  // TODO-TMN Ref settings: https://github.com/contentauth/c2pa-python/blob/main/tests/fixtures/settings.toml
+}
