@@ -267,12 +267,6 @@ namespace c2pa
                             SignerInfo *signer_info,
                             const std::optional<std::filesystem::path> data_dir = std::nullopt);
 
-    void C2PA_CPP_API sign_file(const std::filesystem::path& source_path,
-                            const std::filesystem::path& dest_path,
-                            std::string_view manifest,
-                            SignerInfo& signer_info,
-                            std::optional<std::filesystem::path> data_dir = std::nullopt);
-
     /// @brief Istream Class wrapper for C2paStream.
     /// @details This class is used to wrap an input stream for use with the C2PA library.
     class C2PA_CPP_API CppIStream : public C2paStream

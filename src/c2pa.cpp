@@ -296,6 +296,7 @@ namespace c2pa
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a string containing the manifest json if a manifest was found.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
+    [[deprecated("Use stream APIs instead: Reader to read combined with Builder to manage ingredients")]]
     optional<string> read_file(const std::filesystem::path &source_path, const optional<std::filesystem::path> data_dir)
     {
         const char* dir_ptr = nullptr;
@@ -326,6 +327,7 @@ namespace c2pa
     /// @param data_dir the directory to store binary resources.
     /// @return a string containing the ingredient json.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
+    [[deprecated("Use stream APIs instead: add_ingredient on the Builder")]]
     string read_ingredient_file(const std::filesystem::path &source_path, const std::filesystem::path &data_dir)
     {
         char *result = c2pa_read_ingredient_file(path_to_string(source_path).c_str(), path_to_string(data_dir).c_str());
@@ -345,7 +347,7 @@ namespace c2pa
     // signer_info: the signer info to use for signing
     // data_dir: the directory to store binary resources (optional)
     // Throws a C2pa::C2paException for errors encountered by the C2PA library
-    [[deprecated("Use stream APIs instead")]]
+    [[deprecated("Use stream APIs instead: sign on Builder")]]
     void sign_file(const std::filesystem::path &source_path,
                    const std::filesystem::path &dest_path,
                    const char *manifest,
