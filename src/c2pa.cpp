@@ -345,6 +345,7 @@ namespace c2pa
     // signer_info: the signer info to use for signing
     // data_dir: the directory to store binary resources (optional)
     // Throws a C2pa::C2paException for errors encountered by the C2PA library
+    [[deprecated("Use stream APIs instead")]]
     void sign_file(const std::filesystem::path &source_path,
                    const std::filesystem::path &dest_path,
                    const char *manifest,

@@ -79,16 +79,16 @@ namespace c2pa
     class C2PA_CPP_API IContextProvider {
     public:
         virtual ~IContextProvider() noexcept = default;
-        
+
         /// @brief Get the underlying C2PA context pointer for FFI operations.
         /// @return Pointer to C2paContext, or nullptr if not available.
         /// @note Provider retains ownership; pointer valid for provider's lifetime.
         [[nodiscard]] virtual C2paContext* c_context() const = 0;
-        
+
         /// @brief Check if this provider has a valid context.
         /// @return true if context is available, false otherwise.
         [[nodiscard]] virtual bool has_context() const noexcept = 0;
-        
+
     protected:
         IContextProvider() = default;
         IContextProvider(const IContextProvider&) = default;
@@ -105,41 +105,41 @@ namespace c2pa
     public:
         /// @brief Create default settings.
         Settings();
-        
+
         /// @brief Create settings from a configuration string.
         /// @param data Configuration data in JSON or TOML format.
         /// @param format Format of the data ("json" or "toml").
         /// @throws C2paException if parsing fails.
         Settings(const string& data, const string& format);
-        
+
         // Move semantics
         Settings(Settings&&) noexcept;
         Settings& operator=(Settings&&) noexcept;
-        
+
         // Non-copyable
         Settings(const Settings&) = delete;
         Settings& operator=(const Settings&) = delete;
-        
+
         ~Settings() noexcept;
-        
+
         /// @brief Set a single configuration value by path.
         /// @param path Dot-separated path to the setting (e.g., "verify.verify_after_sign").
         /// @param json_value JSON-encoded value to set.
         /// @return Reference to this Settings for method chaining.
         /// @throws C2paException if the path or value is invalid.
         Settings& set(const string& path, const string& json_value);
-        
+
         /// @brief Merge configuration from a string.
         /// @param data Configuration data in JSON or TOML format.
         /// @param format Format of the data ("json" or "toml").
         /// @return Reference to this Settings for method chaining.
         /// @throws C2paException if parsing fails.
         Settings& update(const string& data, const string& format);
-        
+
         /// @brief Get the raw C FFI settings pointer.
         /// @return Pointer to C2paSettings, or nullptr if not initialized.
         [[nodiscard]] C2paSettings* c_settings() const noexcept;
-        
+
     private:
         C2paSettings* settings_;
     };
@@ -155,38 +155,38 @@ namespace c2pa
         public:
             ContextBuilder();
             ~ContextBuilder() noexcept;
-            
+
             // Move semantics
             ContextBuilder(ContextBuilder&&) noexcept;
             ContextBuilder& operator=(ContextBuilder&&) noexcept;
-            
+
             // Non-copyable
             ContextBuilder(const ContextBuilder&) = delete;
             ContextBuilder& operator=(const ContextBuilder&) = delete;
-            
+
             /// @brief Configure with Settings object.
             /// @param settings Settings to use (will be copied).
             /// @return Reference to this ContextBuilder for method chaining.
             ContextBuilder& with_settings(const Settings& settings);
-            
+
             /// @brief Configure with JSON string.
             /// @param json JSON configuration string.
             /// @return Reference to this ContextBuilder for method chaining.
             /// @throws C2paException if JSON is invalid.
             ContextBuilder& with_json(const string& json);
-            
+
             /// @brief Configure with TOML string.
             /// @param toml TOML configuration string.
             /// @return Reference to this ContextBuilder for method chaining.
             /// @throws C2paException if TOML is invalid.
             ContextBuilder& with_toml(const string& toml);
-            
+
             /// @brief Build the immutable Context.
             /// @return Shared pointer to the new Context.
             /// @throws C2paException if context creation fails.
             /// @note This consumes the builder. After calling create_context(), the builder is in a moved-from state.
-            [[nodiscard]] ContextProviderPtr create_context();
-            
+            [[nodiscard]] ContextProviderPtr create_context(); // TODO-TMN: Make consuming?
+
         private:
             C2paContextBuilder* context_builder;
         };
@@ -195,37 +195,37 @@ namespace c2pa
         /// @return Shared pointer to the new Context.
         /// @throws C2paException if context creation fails.
         [[nodiscard]] static ContextProviderPtr create();
-        
+
         /// @brief Create a Context from JSON configuration.
         /// @param json JSON configuration string.
         /// @return Shared pointer to the new Context.
         /// @throws C2paException if JSON is invalid or context creation fails.
         [[nodiscard]] static ContextProviderPtr from_json(const string& json);
-        
+
         /// @brief Create a Context from TOML configuration.
         /// @param toml TOML configuration string.
         /// @return Shared pointer to the new Context.
         /// @throws C2paException if TOML is invalid or context creation fails.
         [[nodiscard]] static ContextProviderPtr from_toml(const string& toml);
-        
+
         // Non-copyable, non-moveable (managed via shared_ptr)
         Context(const Context&) = delete;
         Context& operator=(const Context&) = delete;
         Context(Context&&) = delete;
         Context& operator=(Context&&) = delete;
-        
+
         ~Context() noexcept override;
-        
+
         // IContextProvider implementation
         [[nodiscard]] C2paContext* c_context() const override;
         [[nodiscard]] bool has_context() const noexcept override;
-        
+
         /// @brief Internal constructor (use static factory methods instead).
         explicit Context(C2paContext* ctx);
-        
+
     private:
         C2paContext* context_;
-        
+
         friend class Builder;
     };
 
@@ -267,12 +267,18 @@ namespace c2pa
                             SignerInfo *signer_info,
                             const std::optional<std::filesystem::path> data_dir = std::nullopt);
 
+    void C2PA_CPP_API sign_file(const std::filesystem::path& source_path,
+                            const std::filesystem::path& dest_path,
+                            std::string_view manifest,
+                            SignerInfo& signer_info,
+                            std::optional<std::filesystem::path> data_dir = std::nullopt);
+
     /// @brief Istream Class wrapper for C2paStream.
     /// @details This class is used to wrap an input stream for use with the C2PA library.
     class C2PA_CPP_API CppIStream : public C2paStream
     {
     public:
-        C2paStream *c_stream; //TODO-TMN: Review this to encapsulate + grant specific access on need basis
+        C2paStream *c_stream; //TODO-TMN: Review this to encapsulate + grant specific access on need basis + look into smart pointer instead
         template <typename IStream>
         explicit CppIStream(IStream &istream) {
             static_assert(std::is_base_of<std::istream, IStream>::value,
@@ -301,7 +307,7 @@ namespace c2pa
     class C2PA_CPP_API CppOStream : public C2paStream
     {
     public:
-        C2paStream *c_stream; //TODO-TMN: Review this to encapsulate + grant specific access on need basis
+        C2paStream *c_stream; //TODO-TMN: Review this to encapsulate + grant specific access on need basis + look into smart pointer instead
         template <typename OStream>
         explicit CppOStream(OStream &ostream) {
             static_assert(std::is_base_of<std::ostream, OStream>::value, "Stream must be derived from std::ostream");
@@ -327,7 +333,7 @@ namespace c2pa
     class C2PA_CPP_API CppIOStream : public C2paStream
     {
     public:
-        C2paStream *c_stream; //TODO-TMN: Review this to encapsulate + grant specific access on need basis
+        C2paStream *c_stream; //TODO-TMN: Review this to encapsulate + grant specific access on need basis + look into smart pointer instead
         template <typename IOStream>
         CppIOStream(IOStream &iostream) {
             static_assert(std::is_base_of<std::iostream, IOStream>::value, "Stream must be derived from std::iostream");
