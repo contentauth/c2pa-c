@@ -61,7 +61,7 @@ int main(void)
     free(uri);
     assert_int("c2pa_reader_resource", res);
 
-    c2pa_reader_free(reader);
+    c2pa_free(reader);
 
     char *certs = load_file("tests/fixtures/es256_certs.pem");
     char *private_key = load_file("tests/fixtures/es256_private.key");
@@ -117,15 +117,15 @@ int main(void)
     const unsigned char *formatted_bytes = NULL;
     int64_t result3 = c2pa_format_embeddable("image/jpeg", manifest_bytes, result2, (const unsigned char **)&formatted_bytes);
     assert_int("c2pa_format_embeddable", result3);
-    c2pa_manifest_bytes_free(manifest_bytes);
-    c2pa_manifest_bytes_free(formatted_bytes);
+    c2pa_free(manifest_bytes);
+    c2pa_free(formatted_bytes);
 
     close_file_stream(source);
     close_file_stream(dest);
 
-    c2pa_builder_free(builder2);
-    c2pa_builder_free(builder);
-    c2pa_signer_free(signer);
+    c2pa_free(builder2);
+    c2pa_free(builder);
+    c2pa_free(signer);
 
     free(certs);
     free(private_key);
