@@ -714,8 +714,9 @@ namespace c2pa
             throw C2paException("Failed to create reader from context");
         }
 
-        std::ifstream file_stream(source_path, std::ios::binary);
-        if (!file_stream.is_open()) {
+        // Create owned stream that will live as long as the Reader
+        owned_stream = std::make_unique<std::ifstream>(source_path, std::ios::binary);
+        if (!owned_stream->is_open()) {
             c2pa_free(c2pa_reader);
             throw std::system_error(errno, std::system_category(), "Failed to open file: " + source_path.string());
         }
@@ -725,7 +726,8 @@ namespace c2pa
             extension = extension.substr(1); // Skip the dot
         }
 
-        cpp_stream = new CppIStream(file_stream);
+        // CppIStream stores reference to owned_stream, which lives as long as Reader
+        cpp_stream = new CppIStream(*owned_stream);
         C2paReader* updated = c2pa_reader_with_stream(c2pa_reader, extension.c_str(), cpp_stream->c_stream);
         if (updated == nullptr) {
             delete cpp_stream;
@@ -750,8 +752,9 @@ namespace c2pa
     Reader::Reader(const std::filesystem::path &source_path)
         : reader_context(nullptr)
     {
-        std::ifstream file_stream(path_to_string(source_path), std::ios_base::binary);
-        if (!file_stream.is_open())
+        // Create owned stream that will live as long as the Reader
+        owned_stream = std::make_unique<std::ifstream>(path_to_string(source_path), std::ios_base::binary);
+        if (!owned_stream->is_open())
         {
             // Use std::system_error for cross-platform error handling
             throw C2paException("Failed to open file: " + source_path.string() + " - " +
@@ -763,7 +766,8 @@ namespace c2pa
             extension = extension.substr(1); // Skip the dot
         }
 
-        cpp_stream = new CppIStream(file_stream); // keep this allocated for life of Reader
+        // CppIStream stores reference to owned_stream, which lives as long as Reader
+        cpp_stream = new CppIStream(*owned_stream); // keep this allocated for life of Reader
         c2pa_reader = c2pa_reader_from_stream(extension.c_str(), cpp_stream->c_stream);
         if (c2pa_reader == nullptr)
         {
@@ -984,6 +988,7 @@ namespace c2pa
         {
             throw std::runtime_error("Failed to open source file: " + source_path.string());
         }
+        // Delegate to stream-reference version - stream stays alive during the call
         add_resource(uri, stream);
     }
 
@@ -995,6 +1000,8 @@ namespace c2pa
         {
             throw C2paException();
         }
+        // c_source destructs here, calling c2pa_release_stream()
+        // This is OK because the caller's source stream is still alive
     }
 
     void Builder::add_ingredient(const std::string &ingredient_json, const std::filesystem::path &source_path)
@@ -1009,6 +1016,7 @@ namespace c2pa
         {
             format = format.substr(1); // Skip the dot.
         }
+        // Delegate to stream-reference version - stream stays alive during the call
         add_ingredient(ingredient_json, format.c_str(), stream);
     }
 
@@ -1023,9 +1031,13 @@ namespace c2pa
 
     std::vector<unsigned char> Builder::sign(const std::string &format, std::istream &source, std::ostream &dest, Signer &signer)
     {
-        CppIStream c_source(source);
-        CppOStream c_dest(dest);
+        // IMPORTANT: Caller's source/dest streams must outlive this call
+        // Stream wrappers are stack locals that wrap the caller's streams
+        CppIStream c_source(source);  // Wraps caller's source (still alive)
+        CppOStream c_dest(dest);      // Wraps caller's dest (still alive)
         const unsigned char *c2pa_manifest_bytes = nullptr;
+        
+        // c2pa_builder_sign() uses streams synchronously and completes before returning
         auto result = c2pa_builder_sign(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, signer.c2pa_signer(), &c2pa_manifest_bytes);
         if (result < 0 || c2pa_manifest_bytes == nullptr)
         {
@@ -1034,14 +1046,19 @@ namespace c2pa
 
         auto manifest_bytes = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
         c2pa_free(c2pa_manifest_bytes);
+        // Wrappers destruct here but caller's streams remain valid
         return manifest_bytes;
     }
 
     std::vector<unsigned char> Builder::sign(const std::string &format, std::istream &source, std::iostream &dest, Signer &signer)
     {
-        CppIStream c_source(source);
-        CppIOStream c_dest(dest);
+        // IMPORTANT: Caller's source/dest streams must outlive this call
+        // Stream wrappers are stack locals that wrap the caller's streams
+        CppIStream c_source(source);   // Wraps caller's source (still alive)
+        CppIOStream c_dest(dest);      // Wraps caller's dest (still alive)
         const unsigned char *c2pa_manifest_bytes = nullptr;
+        
+        // c2pa_builder_sign() uses streams synchronously and completes before returning
         auto result = c2pa_builder_sign(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, signer.c2pa_signer(), &c2pa_manifest_bytes);
         if (result < 0 || c2pa_manifest_bytes == nullptr)
         {
@@ -1050,6 +1067,7 @@ namespace c2pa
 
         auto manifest_bytes = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
         c2pa_free(c2pa_manifest_bytes);
+        // Wrappers destruct here but caller's streams remain valid
         return manifest_bytes;
     }
 

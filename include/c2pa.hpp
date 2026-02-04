@@ -368,7 +368,8 @@ namespace c2pa
     private:
         C2paReader *c2pa_reader;
         CppIStream *cpp_stream = nullptr;
-        ContextProviderPtr reader_context;
+        std::unique_ptr<std::ifstream> owned_stream;  // Owns stream when created from file path
+        ContextProviderPtr reader_context;  // Keeps context alive for this reader
 
     public:
         /// @brief Create a Reader from a context and stream.
