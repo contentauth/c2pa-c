@@ -359,36 +359,34 @@ namespace c2pa
 
     public:
         // ===== Context-based constructors =====
-        
+
         /// @brief Create a Reader from a context and stream.
         /// @param context Context provider to use for this reader.
         /// @param format The mime format of the stream.
         /// @param stream The input stream to read from.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         Reader(ContextProviderPtr context, const std::string &format, std::istream &stream);
-        
+
         /// @brief Create a Reader from a context and file path.
         /// @param context Context provider to use for this reader.
         /// @param source_path The path to the file to read.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         Reader(ContextProviderPtr context, const std::filesystem::path &source_path);
-        
-        // ===== Legacy constructors (DEPRECATED) =====
-        
+
         /// @brief Create a Reader from a stream (uses global settings).
         /// @details The validation_status field in the json contains validation results.
         /// @param format The mime format of the stream.
         /// @param stream The input stream to read from.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         /// @deprecated Use Reader(ContextProviderPtr, format, stream) instead.
-        [[deprecated("Use Reader(ContextProviderPtr, format, stream) for better thread safety")]]
+        [[deprecated("Use Reader(ContextProviderPtr, format, stream) instead")]]
         Reader(const std::string &format, std::istream &stream);
 
         /// @brief Create a Reader from a file path (uses global settings).
         /// @param source_path The path to the file to read.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         /// @deprecated Use Reader(ContextProviderPtr, source_path) instead.
-        [[deprecated("Use Reader(ContextProviderPtr, source_path) for better thread safety")]]
+        [[deprecated("Use Reader(ContextProviderPtr, source_path) instead")]]
         Reader(const std::filesystem::path &source_path);
 
         // Non-copyable
@@ -415,9 +413,9 @@ namespace c2pa
         }
 
         ~Reader();
-        
+
         /// @brief Get the context associated with this Reader.
-        /// @return Shared pointer to the context, or nullptr if using legacy API.
+        /// @return Shared pointer to the context, or nullptr if using legacy/context-free API.
         [[nodiscard]] inline ContextProviderPtr context() const noexcept {
             return context_;
         }
@@ -543,13 +541,11 @@ namespace c2pa
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         Builder(ContextProviderPtr context, const std::string &manifest_json);
 
-        // ===== Legacy constructor (DEPRECATED) =====
-
         /// @brief Create a Builder from a manifest JSON string (uses global settings).
         /// @param manifest_json The manifest JSON string.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         /// @deprecated Use Builder(ContextProviderPtr, manifest_json) instead.
-        [[deprecated("Use Builder(ContextProviderPtr, manifest_json) for better thread safety")]]
+        [[deprecated("Use Builder(ContextProviderPtr, manifest_json) instead")]]
         Builder(const std::string &manifest_json);
 
         // Non-copyable
@@ -573,7 +569,7 @@ namespace c2pa
         ~Builder();
 
         /// @brief Get the context associated with this Builder.
-        /// @return Shared pointer to the context, or nullptr if using legacy API.
+        /// @return Shared pointer to the context, or nullptr if using legacy/context-free API.
         [[nodiscard]] inline ContextProviderPtr context() const noexcept {
             return context_;
         }
