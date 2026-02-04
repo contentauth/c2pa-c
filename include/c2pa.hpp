@@ -46,6 +46,7 @@
 
 namespace c2pa
 {
+    // TODO-TMN: Remove this and do full naming
     using namespace std;
 
     typedef C2paSignerInfo SignerInfo;
@@ -187,7 +188,7 @@ namespace c2pa
             [[nodiscard]] ContextProviderPtr create_context();
             
         private:
-            C2paContextBuilder* context_builder_;
+            C2paContextBuilder* context_builder;
         };
 
         /// @brief Create a Context with default settings.
