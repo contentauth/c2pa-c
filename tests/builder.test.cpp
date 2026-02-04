@@ -24,7 +24,6 @@ using nlohmann::json;
 
 // TODO-TMN
 // Other settings to try out from https://github.com/contentauth/c2pa-rs/blob/main/sdk/tests/fixtures/test_settings.toml:
-// (Also do the JSON edition)
 // - Signer in settings
 // - tsa_url
 // - claim generator
@@ -355,8 +354,8 @@ TEST(Builder, SignImageFileNoThumbnailAutoGen)
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path_with_context = current_dir / "../build/example/training_image_context_settings.jpg";
-    fs::path output_path_no_context = current_dir / "../build/example/training_image_no_context.jpg";
+    fs::path output_path_with_context = current_dir / "../build/example/settings_no_thumbnails.jpg";
+    fs::path output_path_no_context = current_dir / "../build/example/settings_with_thumbnails.jpg";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -418,8 +417,8 @@ TEST(Builder, SignImageThumbnailSettingsFileToml)
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path_with_context = current_dir / "../build/example/training_image_context_settings.jpg";
-    fs::path output_path_no_context = current_dir / "../build/example/training_image_no_context.jpg";
+    fs::path output_path_with_context = current_dir / "../build/example/image_context_settings_toml.jpg";
+    fs::path output_path_no_context = current_dir / "../build/example/image_no_context_toml.jpg";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -443,9 +442,9 @@ TEST(Builder, SignImageThumbnailSettingsFileToml)
 
     // Verify the signed file with context exists and is readable
     ASSERT_TRUE(std::filesystem::exists(output_path_with_context));
-    auto reader_with_context = c2pa::Reader(output_path_with_context);
+    auto reader_without_thumbnails = c2pa::Reader(output_path_with_context);
     std::string json_without_thumbnails;
-    ASSERT_NO_THROW(json_without_thumbnails = reader_with_context.json());
+    ASSERT_NO_THROW(json_without_thumbnails = reader_without_thumbnails.json());
     EXPECT_FALSE(json_without_thumbnails.empty());
 
     // Now, create builder with another context (settings generate a thumbnail)
@@ -459,9 +458,9 @@ TEST(Builder, SignImageThumbnailSettingsFileToml)
 
     // Verify the signed file without context exists and is readable
     ASSERT_TRUE(std::filesystem::exists(output_path_no_context));
-    auto reader_no_context = c2pa::Reader(output_path_no_context);
+    auto reader_with_thumbnails = c2pa::Reader(output_path_no_context);
     std::string json_with_thumbnails;
-    ASSERT_NO_THROW(json_with_thumbnails = reader_no_context.json());
+    ASSERT_NO_THROW(json_with_thumbnails = reader_with_thumbnails.json());
     EXPECT_FALSE(json_with_thumbnails.empty());
 
     // Both builders should successfully create valid manifests,
@@ -487,8 +486,8 @@ TEST(Builder, SignImageThumbnailSettingsFileJson)
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path_with_context = current_dir / "../build/example/training_image_context_settings.jpg";
-    fs::path output_path_no_context = current_dir / "../build/example/training_image_no_context.jpg";
+    fs::path output_path_with_context = current_dir / "../build/example/image_context_settings_json.jpg";
+    fs::path output_path_no_context = current_dir / "../build/example/image_no_context_json.jpg";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -512,9 +511,9 @@ TEST(Builder, SignImageThumbnailSettingsFileJson)
 
     // Verify the signed file with context exists and is readable
     ASSERT_TRUE(std::filesystem::exists(output_path_with_context));
-    auto reader_with_context = c2pa::Reader(output_path_with_context);
+    auto reader_without_thumbnails = c2pa::Reader(output_path_with_context);
     std::string json_without_thumbnails;
-    ASSERT_NO_THROW(json_without_thumbnails = reader_with_context.json());
+    ASSERT_NO_THROW(json_without_thumbnails = reader_without_thumbnails.json());
     EXPECT_FALSE(json_without_thumbnails.empty());
 
     // Now, create builder with another context (settings generate a thumbnail)
@@ -528,9 +527,9 @@ TEST(Builder, SignImageThumbnailSettingsFileJson)
 
     // Verify the signed file without context exists and is readable
     ASSERT_TRUE(std::filesystem::exists(output_path_no_context));
-    auto reader_no_context = c2pa::Reader(output_path_no_context);
+    auto reader_with_thumbnails = c2pa::Reader(output_path_no_context);
     std::string json_with_thumbnails;
-    ASSERT_NO_THROW(json_with_thumbnails = reader_no_context.json());
+    ASSERT_NO_THROW(json_with_thumbnails = reader_with_thumbnails.json());
     EXPECT_FALSE(json_with_thumbnails.empty());
 
     // Both builders should successfully create valid manifests,
@@ -1921,3 +1920,143 @@ TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)
     auto reader = c2pa::Reader(output_path);
     ASSERT_NO_THROW(reader.json());
 }
+
+TEST(Builder, MultipleBuildersDifferentThumbnailSettingsInterleaved)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // All the test fixtures
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path_no_thumbnail = current_dir / "../build/example/no_thumbnail_interleaved_1.jpg";
+    fs::path output_path_with_thumbnails = current_dir / "../build/example/with_thumbnails_interleaved_1.jpg";
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+    // Create a signer
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    std::filesystem::remove(output_path_no_thumbnail.c_str());
+    std::filesystem::remove(output_path_with_thumbnails.c_str());
+
+    // Create one context with specific settings via JSON, by loading the JSON file with the settings
+    fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_no_thumbnail.json";
+    auto settings_json = read_text_file(settings_path);
+    auto context_without_thumbnails = c2pa::Context::from_json(settings_json);
+
+    // Now, create anothetrcontext, that sets thumbnails to be generated
+    fs::path settings_path2 = current_dir / "../tests/fixtures/settings/test_settings_with_thumbnail.json";
+    auto settings_json2 = read_text_file(settings_path2);
+    auto context_with_thumbnails = c2pa::Context::from_json(settings_json2);
+
+    // Create builder using context containing settings that does not generate thumbnails
+    auto builder_no_thumbnail = c2pa::Builder(context_without_thumbnails, manifest);
+    std::vector<unsigned char> manifest_data_no_thumbnail;
+    ASSERT_NO_THROW(manifest_data_no_thumbnail = builder_no_thumbnail.sign(signed_image_path, output_path_no_thumbnail, signer));
+
+    // Create builder using context containing settings that does generate thumbnails
+    auto builder_with_thumbnail = c2pa::Builder(context_with_thumbnails, manifest);
+    std::vector<unsigned char> manifest_data_with_thumbnail;
+    ASSERT_NO_THROW(manifest_data_with_thumbnail = builder_with_thumbnail.sign(signed_image_path, output_path_with_thumbnails, signer));
+
+    // Verify the signed file with context exists and is readable
+    ASSERT_TRUE(std::filesystem::exists(output_path_no_thumbnail));
+    auto reader_without_thumbnails = c2pa::Reader(output_path_no_thumbnail);
+    std::string json_without_thumbnails;
+    ASSERT_NO_THROW(json_without_thumbnails = reader_without_thumbnails.json());
+    EXPECT_FALSE(json_without_thumbnails.empty());
+
+    // Verify the signed file without context exists and is readable
+    ASSERT_TRUE(std::filesystem::exists(output_path_with_thumbnails));
+    auto reader_with_thumbnails = c2pa::Reader(output_path_with_thumbnails);
+    std::string json_with_thumbnails;
+    ASSERT_NO_THROW(json_with_thumbnails = reader_with_thumbnails.json());
+    EXPECT_FALSE(json_with_thumbnails.empty());
+
+    // Both builders should successfully create valid manifests,
+    // but one should have thumbnails whereas the other shouldn't,
+    // and we can even have different settings per Builder, as they trickle down!
+    json parsed_no_thumbnail = json::parse(json_without_thumbnails);
+    json parsed_with_thumbnail = json::parse(json_with_thumbnails);
+
+    // Both should have valid structure
+    EXPECT_TRUE(parsed_no_thumbnail.contains("active_manifest"));
+    EXPECT_TRUE(parsed_with_thumbnail.contains("active_manifest"));
+
+    std::string active_manifest_value_context = parsed_no_thumbnail["active_manifest"];
+    EXPECT_FALSE(parsed_no_thumbnail["manifests"][active_manifest_value_context].contains("thumbnail"));
+    std::string active_manifest_value_no_context = parsed_with_thumbnail["active_manifest"];
+    EXPECT_TRUE(parsed_with_thumbnail["manifests"][active_manifest_value_no_context].contains("thumbnail"));
+};
+
+TEST(Builder, MultipleBuildersDifferentThumbnailSettingsInterleaved2)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // All the test fixtures
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path_no_thumbnail = current_dir / "../build/example/no_thumbnail_interleaved_2.jpg";
+    fs::path output_path_with_thumbnails = current_dir / "../build/example/with_thumbnails_interleaved_2.jpg";
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+    // Create a signer
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    std::filesystem::remove(output_path_no_thumbnail.c_str());
+    std::filesystem::remove(output_path_with_thumbnails.c_str());
+
+    // Create one context with specific settings via JSON, by loading the JSON file with the settings
+    fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_no_thumbnail.json";
+    auto settings_json = read_text_file(settings_path);
+    auto context_without_thumbnails = c2pa::Context::from_json(settings_json);
+
+    // Now, create another context, that sets thumbnails to be generated
+    fs::path settings_path2 = current_dir / "../tests/fixtures/settings/test_settings_with_thumbnail.json";
+    auto settings_json2 = read_text_file(settings_path2);
+    auto context_with_thumbnails = c2pa::Context::from_json(settings_json2);
+
+    // Create builder using context containing settings that does generate thumbnails
+    auto builder_with_thumbnail = c2pa::Builder(context_with_thumbnails, manifest);
+    std::vector<unsigned char> manifest_data_with_thumbnail;
+    ASSERT_NO_THROW(manifest_data_with_thumbnail = builder_with_thumbnail.sign(signed_image_path, output_path_with_thumbnails, signer));
+
+    // Create builder using context containing settings that does not generate thumbnails
+    auto builder_no_thumbnail = c2pa::Builder(context_without_thumbnails, manifest);
+    std::vector<unsigned char> manifest_data_no_thumbnail;
+    ASSERT_NO_THROW(manifest_data_no_thumbnail = builder_no_thumbnail.sign(signed_image_path, output_path_no_thumbnail, signer));
+
+    // Verify the signed file with context exists and is readable
+    ASSERT_TRUE(std::filesystem::exists(output_path_no_thumbnail));
+    auto reader_without_thumbnails = c2pa::Reader(output_path_no_thumbnail);
+    std::string json_without_thumbnails;
+    ASSERT_NO_THROW(json_without_thumbnails = reader_without_thumbnails.json());
+    EXPECT_FALSE(json_without_thumbnails.empty());
+
+    // Verify the signed file without context exists and is readable
+    ASSERT_TRUE(std::filesystem::exists(output_path_with_thumbnails));
+    auto reader_with_thumbnails = c2pa::Reader(output_path_with_thumbnails);
+    std::string json_with_thumbnails;
+    ASSERT_NO_THROW(json_with_thumbnails = reader_with_thumbnails.json());
+    EXPECT_FALSE(json_with_thumbnails.empty());
+
+    // Both builders should successfully create valid manifests,
+    // but one should have thumbnails whereas the other shouldn't,
+    // and we can even have different settings per Builder, as they trickle down!
+    json parsed_no_thumbnail = json::parse(json_without_thumbnails);
+    json parsed_with_thumbnail = json::parse(json_with_thumbnails);
+
+    // Both should have valid structure
+    EXPECT_TRUE(parsed_no_thumbnail.contains("active_manifest"));
+    EXPECT_TRUE(parsed_with_thumbnail.contains("active_manifest"));
+
+    std::string active_manifest_value_context = parsed_no_thumbnail["active_manifest"];
+    EXPECT_FALSE(parsed_no_thumbnail["manifests"][active_manifest_value_context].contains("thumbnail"));
+    std::string active_manifest_value_no_context = parsed_with_thumbnail["active_manifest"];
+    EXPECT_TRUE(parsed_with_thumbnail["manifests"][active_manifest_value_no_context].contains("thumbnail"));
+};

@@ -112,5 +112,5 @@ Note that some components and dependent crates are licensed under different term
 
 We welcome contributions to this project.  For information on contributing, providing feedback, and about ongoing work, see [Contributing](https://github.com/contentauth/c2pa-c/blob/main/CONTRIBUTING.md).
 
-// TODO-TMN: Add links to settings reference!
+// TODO-TMN: Add links to settings reference: https://github.com/contentauth/c2pa-rs/blob/main/docs/settings.md#property-reference
 // TODO-TMN: Add example settings in tests + how to load trust
