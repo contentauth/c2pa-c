@@ -46,9 +46,6 @@
 
 namespace c2pa
 {
-    // TODO-TMN: Remove this and do full naming
-    using namespace std;
-
     typedef C2paSignerInfo SignerInfo;
 
     // Forward declarations for context types
@@ -61,21 +58,33 @@ namespace c2pa
 
     /// C2paException class for C2pa errors.
     /// This class is used to throw exceptions for errors encountered by the C2pa library via c2pa_error().
-    class C2PA_CPP_API C2paException : public exception
+    class C2PA_CPP_API C2paException : public std::exception
     {
     private:
-        string message;
+        std::string message;
 
     public:
         C2paException();
 
-        C2paException(string what);
+        C2paException(std::string what);
 
         virtual const char *what() const noexcept;
     };
 
     /// @brief Interface for types that can provide C2PA context functionality.
-    /// @details Implement this interface to make your own context
+    /// @details This interface can be implemented by external libraries to provide
+    ///          custom context implementations.
+    ///
+    /// Example external implementation:
+    /// @code
+    /// class MyCOntext : public c2pa::IContextProvider {
+    /// public:
+    ///     C2paContext* c_context() const override { return my_context_; }
+    ///     bool has_context() const noexcept override { return my_context_ != nullptr; }
+    /// private:
+    ///     C2paContext* my_context_;
+    /// };
+    /// @endcode
     class C2PA_CPP_API IContextProvider {
     public:
         virtual ~IContextProvider() noexcept = default;
@@ -110,7 +119,7 @@ namespace c2pa
         /// @param data Configuration data in JSON or TOML format.
         /// @param format Format of the data ("json" or "toml").
         /// @throws C2paException if parsing fails.
-        Settings(const string& data, const string& format);
+        Settings(const std::string& data, const std::string& format);
 
         // Move semantics
         Settings(Settings&&) noexcept;
@@ -127,14 +136,14 @@ namespace c2pa
         /// @param json_value JSON-encoded value to set.
         /// @return Reference to this Settings for method chaining.
         /// @throws C2paException if the path or value is invalid.
-        Settings& set(const string& path, const string& json_value);
+        Settings& set(const std::string& path, const std::string& json_value);
 
-        /// @brief Merge configuration from a string (latest configuration wins).
+        /// @brief Merge configuration from a std::string (latest configuration wins).
         /// @param data Configuration data in JSON or TOML format.
         /// @param format Format of the data ("json" or "toml").
         /// @return Reference to this Settings for method chaining.
         /// @throws C2paException if parsing fails.
-        Settings& update(const string& data, const string& format);
+        Settings& update(const std::string& data, const std::string& format);
 
         /// @brief Get the raw C FFI settings pointer.
         /// @return Pointer to C2paSettings, or nullptr if not initialized.
@@ -173,13 +182,13 @@ namespace c2pa
             /// @param json JSON configuration string.
             /// @return Reference to this ContextBuilder for method chaining.
             /// @throws C2paException if JSON is invalid.
-            ContextBuilder& with_json(const string& json);
+            ContextBuilder& with_json(const std::string& json);
 
             /// @brief Configure settings with TOML string.
             /// @param toml TOML configuration string.
             /// @return Reference to this ContextBuilder for method chaining.
             /// @throws C2paException if TOML is invalid.
-            ContextBuilder& with_toml(const string& toml);
+            ContextBuilder& with_toml(const std::string& toml);
 
             /// @brief Create the immutable Context (build() from builder pattern).
             /// @return Shared pointer to the new Context.
@@ -201,13 +210,13 @@ namespace c2pa
         /// @param json JSON configuration string.
         /// @return Shared pointer to the new Context.
         /// @throws C2paException if JSON is invalid or context creation fails.
-        [[nodiscard]] static ContextProviderPtr from_json(const string& json);
+        [[nodiscard]] static ContextProviderPtr from_json(const std::string& json);
 
         /// @brief Create a Context from TOML configuration (settings).
         /// @param toml TOML configuration string.
         /// @return Shared pointer to the new Context.
         /// @throws C2paException if TOML is invalid or context creation fails.
-        [[nodiscard]] static ContextProviderPtr from_toml(const string& toml);
+        [[nodiscard]] static ContextProviderPtr from_toml(const std::string& toml);
 
         // Non-copyable, non-moveable (managed via shared_ptr)
         Context(const Context&) = delete;
@@ -231,28 +240,28 @@ namespace c2pa
     };
 
     /// Returns the version of the C2pa library.
-    string C2PA_CPP_API version();
+    std::string C2PA_CPP_API version();
 
-    /// Loads C2PA settings from a string in a given format.
-    /// @param data the string to load.
+    /// Loads C2PA settings from a std::string in a given format.
+    /// @param data the std::string to load.
     /// @param format the mime format of the string.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     /// @deprecated Use Context::from_json() or Context::from_toml() instead for better thread safety.
     [[deprecated("Use Context pattern instead, Context::from_json() or Context::from_toml() instead")]]
-    void C2PA_CPP_API load_settings(const string& data, const string& format);
+    void C2PA_CPP_API load_settings(const std::string& data, const std::string& format);
 
     /// Reads a file and returns the manifest json as a C2pa::String.
     /// @param source_path the path to the file to read.
     /// @param data_dir the directory to store binary resources (optional).
-    /// @return a string containing the manifest json if a manifest was found.
+    /// @return a std::string containing the manifest json if a manifest was found.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     [[deprecated("Use Reader object instead")]]
-    optional<string> C2PA_CPP_API read_file(const std::filesystem::path &source_path, const optional<std::filesystem::path> data_dir = nullopt);
+    std::optional<std::string> C2PA_CPP_API read_file(const std::filesystem::path &source_path, const std::optional<std::filesystem::path> data_dir = std::nullopt);
 
     /// Reads a file and returns an ingredient JSON as a C2pa::String.
     /// @param source_path the path to the file to read.
     /// @param data_dir the directory to store binary resources.
-    /// @return a string containing the ingredient json.
+    /// @return a std::string containing the ingredient json.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
     [[deprecated("Use Reader and Builder.add_ingredient")]]
     std::string C2PA_CPP_API read_ingredient_file(const std::filesystem::path &source_path, const std::filesystem::path &data_dir);
@@ -359,7 +368,7 @@ namespace c2pa
     private:
         C2paReader *c2pa_reader;
         CppIStream *cpp_stream = nullptr;
-        ContextProviderPtr context_;  // Keeps context alive: TODO-TMN: Rename
+        ContextProviderPtr reader_context;
 
     public:
         /// @brief Create a Reader from a context and stream.
@@ -399,7 +408,7 @@ namespace c2pa
 
         // Move semantics
         Reader(Reader&& other) noexcept
-            : c2pa_reader(other.c2pa_reader), cpp_stream(other.cpp_stream), context_(std::move(other.context_)) {
+            : c2pa_reader(other.c2pa_reader), cpp_stream(other.cpp_stream), reader_context(std::move(other.reader_context)) {
             other.c2pa_reader = nullptr;
             other.cpp_stream = nullptr;
         }
@@ -409,7 +418,7 @@ namespace c2pa
                 delete cpp_stream;
                 c2pa_reader = other.c2pa_reader;
                 cpp_stream = other.cpp_stream;
-                context_ = std::move(other.context_);
+                reader_context = std::move(other.reader_context);
                 other.c2pa_reader = nullptr;
                 other.cpp_stream = nullptr;
             }
@@ -421,7 +430,7 @@ namespace c2pa
         /// @brief Get the context associated with this Reader.
         /// @return Shared pointer to the context, or nullptr if using legacy/context-free API.
         [[nodiscard]] inline ContextProviderPtr context() const noexcept {
-            return context_;
+            return reader_context;
         }
 
         /// @brief Returns if the reader was created from an embedded manifest.
@@ -438,7 +447,7 @@ namespace c2pa
         /// @brief Get the manifest as a json string.
         /// @return The manifest as a json string.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        string json() const;
+        std::string json() const;
 
         /// @brief  Get a resource from the reader and write it to a file.
         /// @param uri The uri of the resource.
@@ -446,14 +455,14 @@ namespace c2pa
         /// @return The number of bytes written.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         /// @note Prefer using the streaming APIs if possible
-        int64_t get_resource(const string &uri, const std::filesystem::path &path);
+        int64_t get_resource(const std::string &uri, const std::filesystem::path &path);
 
         /// @brief  Get a resource from the reader  and write it to an output stream.
         /// @param uri The uri of the resource.
         /// @param stream The output stream to write the resource to.
         /// @return The number of bytes written.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        int64_t get_resource(const string &uri, std::ostream &stream);
+        int64_t get_resource(const std::string &uri, std::ostream &stream);
 
         /// @brief Get the raw C2paReader pointer.
         /// @return The raw C2paReader pointer.
@@ -484,7 +493,7 @@ namespace c2pa
         /// @param alg  The signing algorithm to use.
         /// @param sign_cert The certificate to use for signing.
         /// @param tsa_uri  The TSA URI to use for time-stamping.
-        Signer(SignerFunc *callback, C2paSigningAlg alg, const string &sign_cert, const string &tsa_uri);
+        Signer(SignerFunc *callback, C2paSigningAlg alg, const std::string &sign_cert, const std::string &tsa_uri);
 
         /// @brief Create a signer from a signer pointer and takes ownership of that pointer
         /// @param c_signer The signer pointer to use here (should be non null)
@@ -495,7 +504,7 @@ namespace c2pa
         /// @param sign_cert Signing certificate
         /// @param private_key Private key
         /// @param tsa_uri URL for timestamping authority
-        Signer(const string &alg, const string &sign_cert, const string &private_key, const optional<string> &tsa_uri = nullopt);
+        Signer(const std::string &alg, const std::string &sign_cert, const std::string &private_key, const std::optional<std::string> &tsa_uri = std::nullopt);
 
         // Non-copyable
         Signer(const Signer&) = delete;
@@ -525,12 +534,12 @@ namespace c2pa
     };
 
     /// @brief Builder class for creating a manifest.
-    /// @details This class is used to create a manifest from a json string and add resources and ingredients to the manifest.
+    /// @details This class is used to create a manifest from a json std::string and add resources and ingredients to the manifest.
     class C2PA_CPP_API Builder
     {
     private:
         C2paBuilder *builder;
-        ContextProviderPtr context_;  // Keeps context alive: TODO-TMN: Rename
+        ContextProviderPtr builder_context;  // Keeps context alive for this builder
 
     public:
         /// @brief Create a Builder from a context with an empty manifest.
@@ -544,7 +553,7 @@ namespace c2pa
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         Builder(ContextProviderPtr context, const std::string &manifest_json);
 
-        /// @brief Create a Builder from a manifest JSON string (uses global settings).
+        /// @brief Create a Builder from a manifest JSON std::string (uses global settings).
         /// @param manifest_json The manifest JSON string.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         /// @deprecated Use Builder(ContextProviderPtr, manifest_json) instead.
@@ -556,14 +565,14 @@ namespace c2pa
         Builder& operator=(const Builder&) = delete;
 
         // Move semantics
-        Builder(Builder&& other) noexcept : builder(other.builder), context_(std::move(other.context_)) {
+        Builder(Builder&& other) noexcept : builder(other.builder), builder_context(std::move(other.builder_context)) {
             other.builder = nullptr;
         }
         Builder& operator=(Builder&& other) noexcept {
             if (this != &other) {
                 c2pa_free(builder);
                 builder = other.builder;
-                context_ = std::move(other.context_);
+                builder_context = std::move(other.builder_context);
                 other.builder = nullptr;
             }
             return *this;
@@ -574,7 +583,7 @@ namespace c2pa
         /// @brief Get the context associated with this Builder.
         /// @return Shared pointer to the context, or nullptr if using legacy/context-free API.
         [[nodiscard]] inline ContextProviderPtr context() const noexcept {
-            return context_;
+            return builder_context;
         }
 
         /// @brief  Get the underlying C2paBuilder pointer.
@@ -593,7 +602,7 @@ namespace c2pa
         /// @brief Set the remote URL.
         /// @param remote_url  The remote URL to set.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        void set_remote_url(const string &remote_url);
+        void set_remote_url(const std::string &remote_url);
 
         /// @brief Set the base path for loading resources from files.
         ///        Loads from memory if this is not set.
@@ -601,39 +610,39 @@ namespace c2pa
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         /// @deprecated This method is planned to be deprecated in a future release.
         ///             Usage should be limited and temporary. Use `add_resource` instead.
-        void set_base_path(const string &base_path);
+        void set_base_path(const std::string &base_path);
 
         /// @brief Add a resource to the builder.
         /// @param uri The uri of the resource.
         /// @param source The input stream to read the resource from.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        void add_resource(const string &uri, istream &source);
+        void add_resource(const std::string &uri, std::istream &source);
 
         /// @brief Add a resource to the builder.
         /// @param uri The uri of the resource.
         /// @param source_path  The path to the resource file.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         /// @note Prefer using the streaming APIs if possible
-        void add_resource(const string &uri, const std::filesystem::path &source_path);
+        void add_resource(const std::string &uri, const std::filesystem::path &source_path);
 
         /// @brief Add an ingredient to the builder.
         /// @param ingredient_json  Any fields of the ingredient you want to define.
         /// @param format The format of the ingredient file.
         /// @param source The input stream to read the ingredient from.
         /// @throws C2pa::C2paException for errors encountered by the C2pa library.
-        void add_ingredient(const string &ingredient_json, const string &format, istream &source);
+        void add_ingredient(const std::string &ingredient_json, const std::string &format, std::istream &source);
 
         /// @brief Add an ingredient to the builder.
         /// @param ingredient_json  Any fields of the ingredient you want to define.
         /// @param source_path  The path to the ingredient file.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         /// @note Prefer using the streaming APIs if possible
-        void add_ingredient(const string &ingredient_json, const std::filesystem::path &source_path);
+        void add_ingredient(const std::string &ingredient_json, const std::filesystem::path &source_path);
 
         /// @brief Add an action to the manifest the Builder is constructing.
-        /// @param action_json JSON string containing the action data.
+        /// @param action_json JSON std::string containing the action data.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        void add_action(const string &action_json);
+        void add_action(const std::string &action_json);
 
         /// @brief Sign an input stream and write the signed data to an output stream.
         /// @param format The format of the output stream.
@@ -642,8 +651,8 @@ namespace c2pa
         /// @param signer
         /// @return A vector containing the signed manifest bytes.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library
-        /// @deprecated Use `sign(const string&, istream&, iostream&, Signer&)`
-        std::vector<unsigned char> sign(const string &format, istream &source, ostream &dest, Signer &signer);
+        /// @deprecated Use `sign(const string&, std::istream&, std::iostream&, Signer&)`
+        std::vector<unsigned char> sign(const std::string &format, std::istream &source, std::ostream &dest, Signer &signer);
 
         /// @brief Sign an input stream and write the signed data to an output stream.
         /// @param format The format of the output stream.
@@ -652,7 +661,7 @@ namespace c2pa
         /// @param signer
         /// @return A vector containing the signed manifest bytes.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        std::vector<unsigned char> sign(const string &format, istream &source, iostream &dest, Signer &signer);
+        std::vector<unsigned char> sign(const std::string &format, std::istream &source, std::iostream &dest, Signer &signer);
 
         /// @brief Sign a file and write the signed data to an output file.
         /// @param source_path The path to the file to sign.
@@ -666,7 +675,7 @@ namespace c2pa
         /// @brief Create a Builder from an archive.
         /// @param archive  The input stream to read the archive from.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        static Builder from_archive(istream &archive);
+        static Builder from_archive(std::istream &archive);
 
         /// @brief Create a Builder from an archive
         /// @param archive_path  the path to the archive file
@@ -677,7 +686,7 @@ namespace c2pa
         /// @brief Write the builder to an archive stream.
         /// @param dest The output stream to write the archive to.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        void to_archive(ostream &dest);
+        void to_archive(std::ostream &dest);
 
         /// @brief Write the builder to an archive file.
         /// @param dest_path The path to write the archive file to.
@@ -690,7 +699,7 @@ namespace c2pa
         /// @param format The format of the mime type or extension of the asset.
         /// @return A vector containing the hashed placeholder.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        std::vector<unsigned char> data_hashed_placeholder(uintptr_t reserved_size, const string &format);
+        std::vector<unsigned char> data_hashed_placeholder(uintptr_t reserved_size, const std::string &format);
 
         /// @brief Sign a Builder using the specified signer and data hash.
         /// @param signer The signer to use for signing.
@@ -699,20 +708,20 @@ namespace c2pa
         /// @param asset An optional asset to hash according to the data_hash information.
         /// @return A vector containing the signed data.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        std::vector<unsigned char> sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format, istream *asset = nullptr);
+        std::vector<unsigned char> sign_data_hashed_embeddable(Signer &signer, const std::string &data_hash, const std::string &format, std::istream *asset = nullptr);
 
         /// @brief convert an unformatted manifest data to an embeddable format.
         /// @param format The format for embedding into.
         /// @param data An unformatted manifest data block from sign_data_hashed_embeddable using "c2pa" format.
         /// @return A formatted copy of the data.
-        static std::vector<unsigned char> format_embeddable(const string &format, std::vector<unsigned char> &data);
+        static std::vector<unsigned char> format_embeddable(const std::string &format, std::vector<unsigned char> &data);
 
         /// @brief Returns a vector of mime types that the SDK is able to sign.
         static std::vector<std::string> supported_mime_types();
 
     private:
         // Private constructor for Builder from an archive (todo: find a better way to handle this)
-        explicit Builder(istream &archive);
+        explicit Builder(std::istream &archive);
     };
 }
 
