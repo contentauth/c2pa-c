@@ -77,7 +77,7 @@ namespace c2pa
     /// @details Implement this interface to make your own context
     class C2PA_CPP_API IContextProvider {
     public:
-        virtual ~IContextProvider() = default;
+        virtual ~IContextProvider() noexcept = default;
         
         /// @brief Get the underlying C2PA context pointer for FFI operations.
         /// @return Pointer to C2paContext, or nullptr if not available.
@@ -119,7 +119,7 @@ namespace c2pa
         Settings(const Settings&) = delete;
         Settings& operator=(const Settings&) = delete;
         
-        ~Settings();
+        ~Settings() noexcept;
         
         /// @brief Set a single configuration value by path.
         /// @param path Dot-separated path to the setting (e.g., "verify.verify_after_sign").
@@ -153,7 +153,7 @@ namespace c2pa
         class C2PA_CPP_API ContextBuilder {
         public:
             ContextBuilder();
-            ~ContextBuilder();
+            ~ContextBuilder() noexcept;
             
             // Move semantics
             ContextBuilder(ContextBuilder&&) noexcept;
@@ -213,14 +213,13 @@ namespace c2pa
         Context(Context&&) = delete;
         Context& operator=(Context&&) = delete;
         
-        ~Context() override;
+        ~Context() noexcept override;
         
         // IContextProvider implementation
         [[nodiscard]] C2paContext* c_context() const override;
         [[nodiscard]] bool has_context() const noexcept override;
         
         /// @brief Internal constructor (use static factory methods instead).
-        /// @note This is public to allow std::make_shared but should not be called directly.
         explicit Context(C2paContext* ctx);
         
     private:

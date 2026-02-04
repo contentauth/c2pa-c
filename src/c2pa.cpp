@@ -140,7 +140,7 @@ namespace c2pa
         return *this;
     }
 
-    Settings::~Settings() {
+    Settings::~Settings() noexcept {
         if (settings_) {
             c2pa_free(settings_);
         }
@@ -172,7 +172,7 @@ namespace c2pa
         }
     }
 
-    Context::~Context() {
+    Context::~Context() noexcept {
         if (context_) {
             c2pa_free(context_);
         }
@@ -225,7 +225,7 @@ namespace c2pa
         return *this;
     }
 
-    Context::ContextBuilder::~ContextBuilder() {
+    Context::ContextBuilder::~ContextBuilder() noexcept {
         if (context_builder_) {
             c2pa_free(context_builder_);
         }
