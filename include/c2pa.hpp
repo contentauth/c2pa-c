@@ -97,7 +97,7 @@ namespace c2pa
         IContextProvider& operator=(IContextProvider&&) = default;
     };
 
-    /// @brief Mutable settings configuration object for creating contexts.
+    /// @brief (C2PA SDK) Settings configuration object for creating contexts.
     /// @details Settings can be configured via JSON/TOML strings or programmatically
     ///          via set() and update() methods. Once passed to Context::ContextBuilder,
     ///          the settings are copied and the Settings object can be reused or discarded.
@@ -359,7 +359,7 @@ namespace c2pa
     private:
         C2paReader *c2pa_reader;
         CppIStream *cpp_stream = nullptr;
-        ContextProviderPtr context_;  // Keeps context alive - TODO-TMN: Rename
+        ContextProviderPtr context_;  // Keeps context alive: TODO-TMN: Rename
 
     public:
         /// @brief Create a Reader from a context and stream.

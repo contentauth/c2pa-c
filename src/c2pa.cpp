@@ -739,8 +739,6 @@ namespace c2pa
         c2pa_reader = updated;
     }
 
-    // ===== Legacy Reader constructors (deprecated) =====
-
     Reader::Reader(const string &format, std::istream &stream)
         : context_(nullptr)
     {
@@ -893,12 +891,13 @@ namespace c2pa
             throw C2paException("Invalid context provider");
         }
 
+        // This creates the Builder using the cotnext, eg. propagates settings
         builder = c2pa_builder_from_context(context_->c_context());
         if (builder == nullptr) {
             throw C2paException("Failed to create builder from context");
         }
 
-        // Apply the manifest definition
+        // Apply the manifest definition to the Builder
         C2paBuilder* updated = c2pa_builder_with_definition(builder, manifest_json.c_str());
         if (updated == nullptr) {
             c2pa_free(builder);
@@ -906,8 +905,6 @@ namespace c2pa
         }
         builder = updated;
     }
-
-    // ===== Legacy Builder constructors (deprecated) =====
 
     Builder::Builder(const string &manifest_json)
         : builder(nullptr), context_(nullptr)
