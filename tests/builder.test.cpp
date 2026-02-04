@@ -24,7 +24,6 @@ using nlohmann::json;
 
 // TODO-TMN
 // Other settings to try out from https://github.com/contentauth/c2pa-rs/blob/main/sdk/tests/fixtures/test_settings.toml:
-// - tsa_url
 // - claim generator
 // - all_actions_included
 
@@ -66,7 +65,7 @@ TEST(Builder, AddAnActionAndSign)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/image_with_one_action.jpg";
+    fs::path output_path = current_dir / "../build/examples/image_with_one_action.jpg";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -159,7 +158,7 @@ TEST(Builder, AddMultipleActionsAndSign)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/image_with_multiple_actions.jpg";
+    fs::path output_path = current_dir / "../build/examples/image_with_multiple_actions.jpg";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -281,7 +280,7 @@ TEST(Builder, SignImageFileOnly)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/training_image_only.jpg";
+    fs::path output_path = current_dir / "../build/examples/training_image_only.jpg";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -314,7 +313,7 @@ TEST(Builder, SignImageFileNoThumbnailAutoGenThreadLocalSettings)
         fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
         fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
         fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-        fs::path output_path = current_dir / "../build/example/training_image_only.jpg";
+        fs::path output_path = current_dir / "../build/examples/training_image_only.jpg";
 
         auto manifest = read_text_file(manifest_path);
         auto certs = read_text_file(certs_path);
@@ -353,8 +352,8 @@ TEST(Builder, SignImageFileNoThumbnailAutoGen)
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path_with_context = current_dir / "../build/example/settings_no_thumbnails.jpg";
-    fs::path output_path_no_context = current_dir / "../build/example/settings_with_thumbnails.jpg";
+    fs::path output_path_with_context = current_dir / "../build/examples/settings_no_thumbnails.jpg";
+    fs::path output_path_no_context = current_dir / "../build/examples/settings_with_thumbnails.jpg";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -416,8 +415,8 @@ TEST(Builder, SignImageThumbnailSettingsFileToml)
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path_with_context = current_dir / "../build/example/image_context_settings_toml.jpg";
-    fs::path output_path_no_context = current_dir / "../build/example/image_no_context_toml.jpg";
+    fs::path output_path_with_context = current_dir / "../build/examples/image_context_settings_toml.jpg";
+    fs::path output_path_no_context = current_dir / "../build/examples/image_no_context_toml.jpg";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -485,8 +484,8 @@ TEST(Builder, SignImageThumbnailSettingsFileJson)
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path_with_context = current_dir / "../build/example/image_context_settings_json.jpg";
-    fs::path output_path_no_context = current_dir / "../build/example/image_no_context_json.jpg";
+    fs::path output_path_with_context = current_dir / "../build/examples/image_context_settings_json.jpg";
+    fs::path output_path_no_context = current_dir / "../build/examples/image_no_context_json.jpg";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -555,7 +554,7 @@ TEST(Builder, SignImageFileWithResource)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/training_resource_only.jpg";
+    fs::path output_path = current_dir / "../build/examples/training_resource_only.jpg";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -591,7 +590,7 @@ TEST(Builder, SignWithMultipleResources)
     fs::path image_resource = current_dir / "../tests/fixtures/C.jpg";
     fs::path image_resource_other = current_dir / "../tests/fixtures/sample1.gif";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/multiple_resources.jpg";
+    fs::path output_path = current_dir / "../build/examples/multiple_resources.jpg";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -628,7 +627,7 @@ TEST(Builder, SignImageFileWithIngredient)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/training_ingredient_only.jpg";
+    fs::path output_path = current_dir / "../build/examples/training_ingredient_only.jpg";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -665,7 +664,7 @@ TEST(Builder, SignImageFileWithResourceAndIngredient)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/training.jpg";
+    fs::path output_path = current_dir / "../build/examples/training.jpg";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -704,7 +703,7 @@ TEST(Builder, SignVideoFileWithMultipleIngredients)
     fs::path signed_video_path = current_dir / "../tests/fixtures/video1.mp4";
     fs::path audio_ingredient = current_dir / "../tests/fixtures/sample1_signed.wav";
     fs::path image_ingredient = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/video1_signed.mp4";
+    fs::path output_path = current_dir / "../build/examples/video1_signed.mp4";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -748,7 +747,7 @@ TEST(Builder, SignVideoFileWithMultipleIngredientsAndResources)
     fs::path image_ingredient = current_dir / "../tests/fixtures/A.jpg";
     fs::path image_resource = current_dir / "../tests/fixtures/C.jpg";
     fs::path image_resource_other = current_dir / "../tests/fixtures/sample1.gif";
-    fs::path output_path = current_dir / "../build/example/video1_signed_with_ingredients_and_resources.mp4";
+    fs::path output_path = current_dir / "../build/examples/video1_signed_with_ingredients_and_resources.mp4";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -797,7 +796,7 @@ TEST(Builder, SignVideoFileWithMultipleIngredientsAndResourcesInterleaved)
     fs::path image_ingredient = current_dir / "../tests/fixtures/A.jpg";
     fs::path image_resource = current_dir / "../tests/fixtures/C.jpg";
     fs::path image_resource_other = current_dir / "../tests/fixtures/sample1.gif";
-    fs::path output_path = current_dir / "../build/example/video1_signed.mp4";
+    fs::path output_path = current_dir / "../build/examples/video1_signed.mp4";
 
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
@@ -857,7 +856,7 @@ TEST_P(SimplePathSignTest, SignsFileTypes) {
   fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
   fs::path asset_path = current_dir / "../tests/fixtures" / SimplePathSignTest::GetParam();
 
-  fs::path output_path = current_dir / "../build/example" / SimplePathSignTest::GetParam();
+  fs::path output_path = current_dir / "../build/examples" / SimplePathSignTest::GetParam();
   std::filesystem::remove(output_path.c_str()); // remove the file if it exists
 
   auto manifest = read_text_file(manifest_path);
@@ -1460,7 +1459,7 @@ TEST(Builder, AddIngredientAsResourceToBuilder)
 
     std::vector<unsigned char> manifest_data;
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/signed_with_ingredient_and_resource.jpg";
+    fs::path output_path = current_dir / "../build/examples/signed_with_ingredient_and_resource.jpg";
     manifest_data = builder.sign(signed_image_path, output_path, signer);
 
     auto reader = c2pa::Reader(output_path);
@@ -1526,7 +1525,7 @@ TEST(Builder, LinkIngredientsAndSign)
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/signed_with_ingredient_and_resource.jpg";
+    fs::path output_path = current_dir / "../build/examples/signed_with_ingredient_and_resource.jpg";
 
     std::vector<unsigned char> manifest_data;
     manifest_data = builder.sign(signed_image_path, output_path, signer);
@@ -1649,7 +1648,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePath)
 
     std::vector<unsigned char> manifest_data;
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/signed_with_ingredient_and_resource.jpg";
+    fs::path output_path = current_dir / "../build/examples/signed_with_ingredient_and_resource.jpg";
     ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
 
     auto reader = c2pa::Reader(output_path);
@@ -1743,7 +1742,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathPlacedActionThreadLocalSettings
 
         std::vector<unsigned char> manifest_data;
         fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-        fs::path output_path = current_dir / "../build/example/signed_with_ingredient_and_resource.jpg";
+        fs::path output_path = current_dir / "../build/examples/signed_with_ingredient_and_resource.jpg";
         ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
 
         auto reader = c2pa::Reader(output_path);
@@ -1839,7 +1838,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
     // Sign the image
     std::vector<unsigned char> manifest_data;
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/signed_with_ingredient_context.jpg";
+    fs::path output_path = current_dir / "../build/examples/signed_with_ingredient_context.jpg";
     ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
 
     // Read and verify
@@ -1908,7 +1907,7 @@ TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)
 
     std::vector<unsigned char> manifest_data;
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/signed_with_ingredient_and_resource.jpg";
+    fs::path output_path = current_dir / "../build/examples/signed_with_ingredient_and_resource.jpg";
     ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
 
     auto reader = c2pa::Reader(output_path);
@@ -1923,8 +1922,8 @@ TEST(Builder, MultipleBuildersDifferentThumbnailSettingsInterleaved)
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path_no_thumbnail = current_dir / "../build/example/no_thumbnail_interleaved_1.jpg";
-    fs::path output_path_with_thumbnails = current_dir / "../build/example/with_thumbnails_interleaved_1.jpg";
+    fs::path output_path_no_thumbnail = current_dir / "../build/examples/no_thumbnail_interleaved_1.jpg";
+    fs::path output_path_with_thumbnails = current_dir / "../build/examples/with_thumbnails_interleaved_1.jpg";
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
     auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
@@ -1993,8 +1992,8 @@ TEST(Builder, MultipleBuildersDifferentThumbnailSettingsInterleaved2)
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path_no_thumbnail = current_dir / "../build/example/no_thumbnail_interleaved_2.jpg";
-    fs::path output_path_with_thumbnails = current_dir / "../build/example/with_thumbnails_interleaved_2.jpg";
+    fs::path output_path_no_thumbnail = current_dir / "../build/examples/no_thumbnail_interleaved_2.jpg";
+    fs::path output_path_with_thumbnails = current_dir / "../build/examples/with_thumbnails_interleaved_2.jpg";
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
     auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
@@ -2063,7 +2062,7 @@ TEST(Builder, TrustHandling)
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/no_thumbnail_interleaved_2.jpg";
+    fs::path output_path = current_dir / "../build/examples/trust_handling_test.jpg";
     auto manifest = read_text_file(manifest_path);
     auto certs = read_text_file(certs_path);
     auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
@@ -2133,7 +2132,6 @@ TEST(Builder, TrustHandling)
     ASSERT_NO_THROW(read_json_manifest3 = reader3.json());
     ASSERT_FALSE(read_json_manifest3.empty());
 
-    std::cout << "Signed manifest: " << read_json_manifest3 << std::endl;
     // Both builders should successfully create valid manifests,
     // but one should have thumbnails whereas the other shouldn't,
     // and we can even have different settings per Builder, as they trickle down!

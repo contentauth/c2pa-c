@@ -55,8 +55,8 @@ int main()
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/training.jpg";
-    fs::path thumbnail_path = current_dir / "../build/example/thumbnail.jpg";
+    fs::path output_path = current_dir / "../build/examples/training.jpg";
+    fs::path thumbnail_path = current_dir / "../build/examples/thumbnail.jpg";
 
     try
     {

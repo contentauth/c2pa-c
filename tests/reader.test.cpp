@@ -19,6 +19,20 @@
 using nlohmann::json;
 namespace fs = std::filesystem;
 
+/// @brief Read a text file into a string
+static std::string read_text_file(const fs::path &path)
+{
+    // TMN-TODO Refactor with the one from the other test
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        throw std::runtime_error("Could not open file " + path.string());
+    }
+    std::string contents((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+    return contents.data();
+}
+
 TEST(Reader, SupportedTypes) {
   auto supported_types = c2pa::Reader::supported_mime_types();
   EXPECT_TRUE(std::find(supported_types.begin(), supported_types.end(), "image/jpeg") != supported_types.end());
@@ -239,12 +253,50 @@ TEST(Reader, StreamClosed)
     }, c2pa::C2paException);
 };
 
-TEST(Reader, ReadManifestWithoutTrustConfigured)
+TEST(Reader, ReadManifestWithTrustConfiguredTomlSettings)
 {
-  // TODO-TMN Ref settings: https://github.com/contentauth/c2pa-python/blob/main/tests/fixtures/settings.toml
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path signed_image_path = current_dir / "../tests/fixtures/for_trusted_read.jpg";
+
+    // Trust is based on a chain of trusted certificates. When signing, we may need to know
+    // if the ingredients are trusted at time of signing, so we benefit from having a context
+    // already configured with that trust to use with our Builder and Reader.
+    fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_all.toml";
+    auto settings = read_text_file(settings_path);
+    auto trusted_context = c2pa::Context::from_toml(settings);
+
+    // When reading, the Reader also knows to know about trust, to determine the manifest validation state
+    // If there is a valid trust chain, the manifest will be in validation_state Trusted.
+    auto reader = c2pa::Reader(trusted_context, signed_image_path);
+    std::string read_json_manifest;
+    ASSERT_NO_THROW(read_json_manifest = reader.json());
+    ASSERT_FALSE(read_json_manifest.empty());
+
+    json parsed_manifest_json = json::parse(read_json_manifest);
+
+    ASSERT_TRUE(parsed_manifest_json["validation_state"] == "Trusted");
 }
 
-TEST(Reader, ReadManifestWithTrustConfigured)
+TEST(Reader, ReadManifestWithTrustConfiguredJsonSettings)
 {
-  // TODO-TMN Ref settings: https://github.com/contentauth/c2pa-python/blob/main/tests/fixtures/settings.toml
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path signed_image_path = current_dir / "../tests/fixtures/for_trusted_read.jpg";
+
+    // Trust is based on a chain of trusted certificates. When signing, we may need to know
+    // if the ingredients are trusted at time of signing, so we benefit from having a context
+    // already configured with that trust to use with our Builder and Reader.
+    fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_all.json";
+    auto settings = read_text_file(settings_path);
+    auto trusted_context = c2pa::Context::from_json(settings);
+
+    // When reading, the Reader also knows to know about trust, to determine the manifest validation state
+    // If there is a valid trust chain, the manifest will be in validation_state Trusted.
+    auto reader = c2pa::Reader(trusted_context, signed_image_path);
+    std::string read_json_manifest;
+    ASSERT_NO_THROW(read_json_manifest = reader.json());
+    ASSERT_FALSE(read_json_manifest.empty());
+
+    json parsed_manifest_json = json::parse(read_json_manifest);
+
+    ASSERT_TRUE(parsed_manifest_json["validation_state"] == "Trusted");
 }
