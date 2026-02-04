@@ -2060,3 +2060,91 @@ TEST(Builder, MultipleBuildersDifferentThumbnailSettingsInterleaved2)
     std::string active_manifest_value_no_context = parsed_with_thumbnail["active_manifest"];
     EXPECT_TRUE(parsed_with_thumbnail["manifests"][active_manifest_value_no_context].contains("thumbnail"));
 };
+
+TEST(Builder, TrustHandling)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // All the test fixtures
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path = current_dir / "../build/example/no_thumbnail_interleaved_2.jpg";
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+    // Create our very own signer
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    std::filesystem::remove(output_path.c_str());
+
+    // Trust is based on a chain of trusted certificates. When signing, we may need to know
+    // if the ingredients are trusted at time of signing, so we benefit from having a context
+    // already configured with that trust to use with our Builder and Reader.
+    fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_all.toml";
+    auto settings = read_text_file(settings_path);
+    auto trusted_context = c2pa::Context::from_toml(settings);
+
+    // Create builder using context containing settings that does generate thumbnails
+    auto builder = c2pa::Builder(trusted_context, manifest);
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path, signer));
+
+    // Verify the signed file with context exists and is readable
+    ASSERT_TRUE(std::filesystem::exists(output_path));
+
+    // When reading, the Reader also knows to know about trust, to determine the manifest validation state
+    // If there is a valid trust chain, the manifest will be in validation_state Trusted.
+    auto reader = c2pa::Reader(trusted_context, output_path);
+    std::string read_json_manifest;
+    ASSERT_NO_THROW(read_json_manifest = reader.json());
+    ASSERT_FALSE(read_json_manifest.empty());
+
+    // Both builders should successfully create valid manifests,
+    // but one should have thumbnails whereas the other shouldn't,
+    // and we can even have different settings per Builder, as they trickle down!
+    json parsed_manifest_json = json::parse(read_json_manifest);
+
+    // Smoke check that the manifest has a valid structure
+    ASSERT_TRUE(parsed_manifest_json["validation_state"] == "Trusted");
+
+    // But if we don't know about the whole trust chain,
+    // for instance it is not configured on the Reader's context,
+    // then our manifest is "only" Valid.
+
+    // If the Reader doesn't know about trust, we can only be "Valid" in the best case
+    // For instance, a Reader without context won't know about trust
+    auto reader2 = c2pa::Reader(output_path);
+    std::string read_json_manifest2;
+    ASSERT_NO_THROW(read_json_manifest2 = reader2.json());
+    ASSERT_FALSE(read_json_manifest2.empty());
+
+
+    // Both builders should successfully create valid manifests,
+    // but one should have thumbnails whereas the other shouldn't,
+    // and we can even have different settings per Builder, as they trickle down!
+    json parsed_manifest_json2 = json::parse(read_json_manifest2);
+
+    // Smoke check that the manifest has a valid structure
+    ASSERT_TRUE(parsed_manifest_json2["validation_state"] == "Valid");
+
+    // It is also important to make sure the proper trust chain is configured in settings...
+    // If not, we won't be able to read the manifest as trusted!
+    fs::path settings_without_trust_path = current_dir / "../tests/fixtures/settings/test_settings_no_thumbnail.json";
+    auto settings_without_trust = read_text_file(settings_without_trust_path);
+    auto no_trust_context = c2pa::Context::from_json(settings_without_trust);
+
+    auto reader3 = c2pa::Reader(no_trust_context, output_path);
+    std::string read_json_manifest3;
+    ASSERT_NO_THROW(read_json_manifest3 = reader3.json());
+    ASSERT_FALSE(read_json_manifest3.empty());
+
+    std::cout << "Signed manifest: " << read_json_manifest3 << std::endl;
+    // Both builders should successfully create valid manifests,
+    // but one should have thumbnails whereas the other shouldn't,
+    // and we can even have different settings per Builder, as they trickle down!
+    json parsed_manifest_json3 = json::parse(read_json_manifest3);
+    // Smoke check that the manifest has a valid structure
+    ASSERT_TRUE(parsed_manifest_json3["validation_state"] == "Valid");
+};
