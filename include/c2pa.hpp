@@ -358,7 +358,7 @@ namespace c2pa
         ContextProviderPtr context_;  // Keeps context alive
 
     public:
-        // ===== Context-based constructors (NEW, RECOMMENDED) =====
+        // ===== Context-based constructors =====
         
         /// @brief Create a Reader from a context and stream.
         /// @param context Context provider to use for this reader.
@@ -530,21 +530,21 @@ namespace c2pa
         ContextProviderPtr context_;  // Keeps context alive
 
     public:
-        // ===== Context-based constructors (NEW, RECOMMENDED) =====
-        
+        // ===== Context-based constructors =====
+
         /// @brief Create a Builder from a context with an empty manifest.
         /// @param context Context provider to use for this builder.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         explicit Builder(ContextProviderPtr context);
-        
+
         /// @brief Create a Builder from a context and manifest JSON string.
         /// @param context Context provider to use for this builder.
         /// @param manifest_json The manifest JSON string.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         Builder(ContextProviderPtr context, const std::string &manifest_json);
-        
+
         // ===== Legacy constructor (DEPRECATED) =====
-        
+
         /// @brief Create a Builder from a manifest JSON string (uses global settings).
         /// @param manifest_json The manifest JSON string.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
@@ -571,7 +571,7 @@ namespace c2pa
         }
 
         ~Builder();
-        
+
         /// @brief Get the context associated with this Builder.
         /// @return Shared pointer to the context, or nullptr if using legacy API.
         [[nodiscard]] inline ContextProviderPtr context() const noexcept {
@@ -581,7 +581,7 @@ namespace c2pa
         /// @brief  Get the underlying C2paBuilder pointer.
         /// @return Pointer managed by this wrapper.
         C2paBuilder *c2pa_builder() const noexcept;
-        
+
         /// @brief Set or update the manifest definition.
         /// @param manifest_json The manifest JSON string.
         /// @return Reference to this Builder for method chaining.
