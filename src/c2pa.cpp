@@ -359,10 +359,8 @@ namespace c2pa
         char *result = c2pa_sign_file(path_to_string(source_path).c_str(), path_to_string(dest_path).c_str(), manifest, signer_info, dir.c_str());
         if (result == nullptr)
         {
-            // NULL means error occurred
             throw c2pa::C2paException();
         }
-        // Result contains JSON manifest on success
         c2pa_free(result);
     }
 
@@ -868,7 +866,7 @@ namespace c2pa
         return c2pa_signer_reserve_size(signer);
     }
 
-    // Builder class for creating and signing manifests
+    /// @brief  Builder class for creating a manifest implementation.
 
     Builder::Builder(ContextProviderPtr context)
         : builder(nullptr), context_(std::move(context))
