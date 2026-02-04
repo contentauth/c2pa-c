@@ -195,11 +195,11 @@ namespace c2pa
     }
     
     ContextProviderPtr Context::from_json(const string& json) {
-        return ContextCreator().with_json(json).create();
+        return ContextCreator().with_json(json).create_context();
     }
     
     ContextProviderPtr Context::from_toml(const string& toml) {
-        return ContextCreator().with_toml(toml).create();
+        return ContextCreator().with_toml(toml).create_context();
     }
     
     // ===== Context::Builder Implementation =====
@@ -248,7 +248,7 @@ namespace c2pa
         return with_settings(settings);
     }
     
-    ContextProviderPtr Context::ContextCreator::create() {
+    ContextProviderPtr Context::ContextCreator::create_context() {
         if (!builder_) {
             throw C2paException("Builder already consumed");
         }
