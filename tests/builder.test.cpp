@@ -794,15 +794,10 @@ TEST(Builder, SignStreamCloudUrl)
         dest.seekp(0, std::ios::beg);
 
         auto reader = c2pa::Reader("image/jpeg", dest);
-        printf("READER OK \n");
         auto json = reader.json();
-        printf("JSON \n");
-        printf("%s\n", json.c_str());
     }
     catch (c2pa::C2paException const &e)
     {
-        printf("ERROR \n");
-        printf("%s\n", e.what());
         std::string error_message = e.what();
         if (error_message.rfind("Other: could not fetch the remote manifest", 0) == 0)
         {

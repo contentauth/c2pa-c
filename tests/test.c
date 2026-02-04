@@ -69,13 +69,13 @@ int main(void)
     char *manifest = load_file("tests/fixtures/training.json");
 
     // create a sign_info struct (using positional initialization to avoid designated initializers)
-    // Using NULL for timestamp URL to avoid network dependency in tests
-    C2paSignerInfo sign_info = {"es256", certs, private_key, NULL};
+    C2paSignerInfo sign_info = {"es256", certs, private_key, "http://timestamp.digicert.com"};
 
     // Remove the file if it exists
     remove("build/tmp/earth.jpg");
     result = c2pa_sign_file("tests/fixtures/C.jpg", "build/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
-    // c2pa_sign_file returns JSON manifest from the Reader on success, NULL on error
+    // c2pa_sign_file returns JSON manifest on success, NULL on error
+    printf("result = %s\n", result);
     assert_str_not_null("c2pa_sign_file_ok", result);
 
     remove("build/tmp/earth2.jpg");
