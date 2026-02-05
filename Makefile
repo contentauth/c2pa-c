@@ -77,4 +77,3 @@ clean:
 # Build C API docs with Doxygen
 docs:
 	./scripts/generate_api_docs.sh
-

@@ -11,10 +11,14 @@ Although this library works for plain C applications, the documentation assumes 
 
 For the best experience, read the docs on the [CAI Open Source SDK documentation website](https://opensource.contentauthenticity.org/docs/c2pa-c).  If you want to view the documentation in GitHub, see:
 - [Using the C++ library](docs/usage.md)
-- [Supported formats](https://github.com/contentauth/c2pa-rs/blob/crandmck/reorg-docs/docs/supported-formats.md)
+- [Supported formats](https://github.com/contentauth/c2pa-rs/blob/main/docs/supported-formats.md)
 
 </div>
 </div>
+
+## Overview
+
+TBD
 
 ## Using c2pa_cpp
 
@@ -47,32 +51,57 @@ See the [`examples/`](examples/) directory for sample applications that demonstr
 
 This project has been tested on macOS and should also work on common Linux distributions.
 
+You must install the [Ninja](https://github.com/ninja-build/ninja/wiki/Pre-built-Ninja-packages) build system to run the unit tests.
 
-You must install the [Ninja](https://github.com/ninja-build/ninja/wiki/Pre-built-Ninja-packages) build system to run the unit tests. 
+### Building using pre-build C FFI libraries
 
-### Building 
+Building the library holding the C++ SDK requires [GNU make](https://www.gnu.org/software/make/), which is installed on most macOS systems.
 
-Building the library requires [GNU make](https://www.gnu.org/software/make/), which is installed on most macOS systems.
-
-Enter this command to build the C library: 
+Enter this command to build the SDK:
 
 ```
 make release
 ```
 
+This will download the [pre-build libraries published with c2pa releases](https://github.com/contentauth/c2pa-rs/releases), build and link the C++ code.
+
 The Makefile has a number of other targets; for example:
-- `unit-tests` to run C++ unit tests
+- `test` to run unit tests
 - `examples` to build and run the C++ examples.
-- `all` to run everything.
+- `all` to build and run everything.
 
 Results are saved in the `build` directory.
+
+### Building using local sources
+
+This project can also be built entirely from source (without pre-built library download), with the pre-requisite that you will also need [c2pa-rs](https://github.com/contentauth/c2pa-rs) on the local machine, as well as the [Rust toolchain](https://rust-lang.org/tools/install/).
+
+To build in this case, the build scripts need to be able to locate the `c2pa-rs` sources as well as the librari this builds for linking. This is done by setting environment variables in the terminal where the builds will run.
+
+```sh
+# Enable local c2pa-rs build
+export C2PA_BUILD_FROM_SOURCE=ON
+
+# If local build is enabled, set this environment variable to contain the path to c2pa-rs sources
+export C2PA_RS_PATH=path_to_c2pa_rs_sources
+
+# Since this is going to build Rust code, the build sysstem need to locate cargo, the tool to build RUst code
+# Add Rust cargo to PATH if not already there
+export PATH="$HOME/.cargo/bin:$PATH"
+
+# macOs: Set built library path for running tests
+export DYLD_LIBRARY_PATH="$(pwd)/build/release/tests:$DYLD_LIBRARY_PATH"
+
+# Linux: Set built library path for running tests
+export LD_LIBRARY_PATH="$(pwd)/build/release/tests:$LD_LIBRARY_PATH"
+```
 
 ### Testing
 
 Build the [unit tests](https://github.com/contentauth/c2pa-c/tree/main/tests) by entering this `make` command:
 
 ```
-make unit-test
+make test
 ```
 
 ### Building API documentation
@@ -111,6 +140,3 @@ Note that some components and dependent crates are licensed under different term
 ### Contributions and feedback
 
 We welcome contributions to this project.  For information on contributing, providing feedback, and about ongoing work, see [Contributing](https://github.com/contentauth/c2pa-c/blob/main/CONTRIBUTING.md).
-
-// TODO-TMN: Add links to settings reference: https://github.com/contentauth/c2pa-rs/blob/main/docs/settings.md#property-reference
-// TODO-TMN: Add example settings in tests + how to load trust

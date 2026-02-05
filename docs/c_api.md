@@ -4,9 +4,8 @@ This describes a C API using an older model. This API will be deprecated in favo
 Most applications should use the C++ API
 
 ### C
-Add the prebuilt library and header file `include/c2pa.h` to your project and add the dynamic library to your library path.
 
-For instructions on how to build the library and run the tests and examples, see [Development](#development).
+TBD: THis is totally obsolete now with prebuilt libraries and the C FFI moving to c2pa-rs. But we can salvage sentences from this readme to put them in other places.
 
 ### Read and validate C2PA data in a file
 
@@ -70,14 +69,14 @@ The parameters are:
 - `<SIGNED_ASSET_FILE>` - Path to the destination asset file that will contain a copy of the source asset with the manifest data added.
 - `manifest_json` - An string containing a JSON-formatted manifest data to add to the asset; see [Creating a manifest JSON definition file](#creating-a-manifest-json-definition-file).
 - `sign_info` - A valid `SignerInfo` object instance; see [Generating SignerInfo](#generating-signerinfo).
-- `<DATA_DIR>` - Optional path to data directory from which to load resource files referenced in the manifest JSON; for example, thumbnails, icons, and manifest data for ingredients.  
+- `<DATA_DIR>` - Optional path to data directory from which to load resource files referenced in the manifest JSON; for example, thumbnails, icons, and manifest data for ingredients.
 
 Exceptions will be thrown on errors.
 
 For example:
 
 ```cpp
-C2pa::sign_file("path/to/source.jpg", 
+C2pa::sign_file("path/to/source.jpg",
                          "path/to/dest.jpg",
                          manifest_json.c_str(),
                          sign_info,

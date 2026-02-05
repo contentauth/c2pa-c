@@ -6,7 +6,7 @@ To use this library, include the header file in your code as follows:
 #include "c2pa.hpp"
 ```
 
-## Read and validate an istream 
+## Read and validate an istream
 
 Use the `Reader` constructor to read C2PA data from a stream. This constructor examines the specified stream for C2PA data in the given format and its return value is a Reader that can be used to extract more information. Exceptions are thrown on errors.
 
@@ -67,6 +67,14 @@ const std::string manifest_json = R"{
  };
 ```
 
+## Using settings
+
+The behavior of the SDK cn be configured through various [settings](https://github.com/contentauth/c2pa-rs/blob/main/docs/settings.md#property-reference). SDK settings can be loaded from JSON or TOML files, as well as valid JSON strings directly in the code.
+
+SDK settings are set on the `Context` objects used by the Builder and Reader objects.
+
+NOTE: If you don't specify a value for a property, then the SDK will use the default value. If you specify a value of null, then the property will be set to null, not the default.
+
 ## Creating a Builder
 
 Use the `Builder` constructor to create a `Builder` instance.
@@ -85,7 +93,7 @@ For example:
 
 ## Creating a Signer
 
-For testing you can create a signer using any supported algorithm by with Signer constructor.
+For testing you can create a signer using any supported algorithm by a Signer constructor.
 There are multiple forms of constructors. But in this example we show how to create a signer with
 a public and private key.
 
@@ -123,9 +131,13 @@ For example:
 
 The C++ library can validate [CAWG identity assertions](https://cawg.io/identity/).
 
+## On trust configuration
+
+TBD
+
 ## More examples
 
-The simple C++ example in [`examples/training.cpp`](https://github.com/contentauth/c2pa-c/blob/main/examples/training.cpp) uses the [JSON for Modern C++](https://json.nlohmann.me/) library class.
+The C++ example in [`examples/training.cpp`](https://github.com/contentauth/c2pa-c/blob/main/examples/training.cpp) uses the [JSON for Modern C++](https://json.nlohmann.me/) library class.
 
 Build and run the example by entering this `make` command:
 
