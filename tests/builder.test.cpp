@@ -2191,7 +2191,7 @@ TEST(Builder, TrustHandling)
     // Verify the signed file with context exists and is readable
     ASSERT_TRUE(std::filesystem::exists(output_path));
 
-    // When reading, the Reader also knows to know about trust, to determine the manifest validation state
+    // When reading, the Reader also needs to know about trust, to determine the manifest validation state
     // If there is a valid trust chain, the manifest will be in validation_state Trusted.
     auto reader = c2pa::Reader(trusted_context, output_path);
     std::string read_json_manifest;
