@@ -95,9 +95,7 @@ constexpr std::ios_base::seekdir whence_to_seekdir(C2paSeekMode whence) noexcept
     }
 }
 
-/// Traits: how to seek and get position for a given stream type (C++17).
-/// Specialize for std::istream (seekg/tellg), std::ostream (seekp/tellp),
-/// std::iostream (both; tell returns write position).
+/// Traits (templated): how to seek and get position for a given stream type.
 template<typename Stream>
 struct StreamSeekTraits;
 
@@ -132,7 +130,7 @@ struct StreamSeekTraits<std::iostream> {
     }
 };
 
-/// Single seeker implementation: one code path for all stream types (C++17).
+/// Seeker impl.
 template<typename Stream>
 intptr_t stream_seeker(StreamContext* context, intptr_t offset, C2paSeekMode whence) {
     auto* stream = reinterpret_cast<Stream*>(context);
@@ -155,8 +153,7 @@ intptr_t stream_seeker(StreamContext* context, intptr_t offset, C2paSeekMode whe
     return static_cast<intptr_t>(pos);
 }
 
-/// Single reader implementation for streams that support read() and gcount() (std::istream, std::iostream).
-/// Validates context, buffer, and size before calling read() to avoid UB from bad C-layer inputs.
+/// Reader impl.
 template<typename Stream>
 intptr_t stream_reader(StreamContext* context, uint8_t* buffer, intptr_t size) {
     if (!context || !buffer) {
@@ -181,7 +178,7 @@ intptr_t stream_reader(StreamContext* context, uint8_t* buffer, intptr_t size) {
     return static_cast<intptr_t>(stream->gcount());
 }
 
-/// Shared helper: get stream from context, run op(stream), then check fail/bad. Used by writer and flusher.
+/// Get stream from context, used by writer and flusher.
 template<typename Stream, typename Op>
 intptr_t stream_op(StreamContext* context, Op op) {
     auto* stream = reinterpret_cast<Stream*>(context);
@@ -198,7 +195,7 @@ intptr_t stream_op(StreamContext* context, Op op) {
     return result;
 }
 
-/// Single writer implementation: delegates to stream_op (C++17).
+/// Writer impl.
 template<typename Stream>
 intptr_t stream_writer(StreamContext* context, const uint8_t* buffer, intptr_t size) {
     return stream_op<Stream>(context, [buffer, size](Stream* s) {
@@ -207,7 +204,7 @@ intptr_t stream_writer(StreamContext* context, const uint8_t* buffer, intptr_t s
     });
 }
 
-/// Single flusher implementation: delegates to stream_op (C++17).
+/// Flusher impl.
 template<typename Stream>
 intptr_t stream_flusher(StreamContext* context) {
     return stream_op<Stream>(context, [](Stream* s) {

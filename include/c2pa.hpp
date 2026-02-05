@@ -349,7 +349,7 @@ namespace c2pa
                             const std::optional<std::filesystem::path> data_dir = std::nullopt);
 
     /// @defgroup StreamWrappers Stream wrappers for C2PA C API
-    /// @brief C++ stream types that adapt std::istream / std::ostream to C2paStream.
+    /// @brief C++ stream types that adapt stream types to C2paStream.
     ///
     /// The C2PA C API expects a C2paStream with four callbacks: reader, writer, seeker, flusher.
     /// The contract for each callback is:
@@ -357,10 +357,9 @@ namespace c2pa
     /// - writer(context, buffer, size): write size bytes from buffer; return bytes written, or -1 on error (set errno).
     /// - seeker(context, offset, whence): seek to offset (whence = Start/Current/End); return new position or -1 (set errno).
     /// - flusher(context): flush; return 0 on success, -1 on error (set errno).
-    /// @{
 
     /// @brief Istream Class wrapper for C2paStream.
-    /// @details Wraps an input stream for use with the C2PA library.
+    /// @details This class is used to wrap an input stream for use with the C2PA library.
     class C2PA_CPP_API CppIStream : public C2paStream
     {
     public:
@@ -390,7 +389,7 @@ namespace c2pa
     };
 
     /// @brief Ostream Class wrapper for C2paStream.
-    /// @details Wraps an output stream (e.g. std::ofstream, std::ostringstream) for use with the C2PA library.
+    /// @details This class is used to wrap an output stream for use with the C2PA library.
     class C2PA_CPP_API CppOStream : public C2paStream
     {
     public:
@@ -417,7 +416,7 @@ namespace c2pa
     };
 
     /// @brief IOStream Class wrapper for C2paStream.
-    /// @details Wraps a stream for use with the C2PA library.
+    /// @details This class is used to wrap an input/output stream for use with the C2PA library.
     class C2PA_CPP_API CppIOStream : public C2paStream
     {
     public:
@@ -453,7 +452,7 @@ namespace c2pa
         C2paReader *c2pa_reader;
         std::unique_ptr<std::ifstream> owned_stream;       // Owns file stream when created from path
         std::unique_ptr<CppIStream> cpp_stream;            // Wraps stream for C API; destroyed before owned_stream
-        std::shared_ptr<IContextProvider> reader_context;  // Keeps context alive for this reader
+        std::shared_ptr<IContextProvider> reader_context;  // Keeps context alive for this Reader instance
 
     public:
         /// @brief Create a Reader from a context and stream.
@@ -465,12 +464,12 @@ namespace c2pa
 
         /// @brief Create a Reader from a context and file path.
         /// @param context Context provider to use for this reader.
-        /// @param source_path The path to the file to read.
+        /// @param source_path the path to the file to read.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         /// @note Prefer using the streaming APIs if possible
         Reader(std::shared_ptr<IContextProvider> context, const std::filesystem::path &source_path);
 
-        /// @brief Create a Reader from a stream (uses global settings).
+        /// @brief Create a Reader from a stream (will use global settings if any loaded).
         /// @details The validation_status field in the json contains validation results.
         /// @param format The mime format of the stream.
         /// @param stream The input stream to read from.
@@ -479,7 +478,7 @@ namespace c2pa
         [[deprecated("Use Reader(ContextProviderPtr, format, stream) instead")]]
         Reader(const std::string &format, std::istream &stream);
 
-        /// @brief Create a Reader from a file path (uses global settings).
+        /// @brief Create a Reader from a file path (will use global settings if any loaded).
         /// @param source_path The path to the file to read.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         /// @deprecated Use Reader(ContextProviderPtr, source_path) instead.
@@ -491,7 +490,7 @@ namespace c2pa
         Reader(const Reader&) = delete;
         Reader& operator=(const Reader&) = delete;
 
-        // Move semantics (owned_stream before cpp_stream so cpp_stream is destroyed first)
+        // Move semantics
         Reader(Reader&& other) noexcept
             : c2pa_reader(other.c2pa_reader),
               owned_stream(std::move(other.owned_stream)),
@@ -639,7 +638,7 @@ namespace c2pa
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         Builder(std::shared_ptr<IContextProvider> context, const std::string &manifest_json);
 
-        /// @brief Create a Builder from a manifest JSON std::string (uses global settings).
+        /// @brief Create a Builder from a manifest JSON std::string (will use global settings if any loaded).
         /// @param manifest_json The manifest JSON string.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         /// @deprecated Use Builder(ContextProviderPtr, manifest_json) instead.
