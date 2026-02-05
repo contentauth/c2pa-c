@@ -341,8 +341,19 @@ namespace c2pa
                             SignerInfo *signer_info,
                             const std::optional<std::filesystem::path> data_dir = std::nullopt);
 
+    /// @defgroup StreamWrappers Stream wrappers for C2PA C API
+    /// @brief C++ stream types that adapt std::istream / std::ostream to C2paStream.
+    ///
+    /// The C2PA C API expects a C2paStream with four callbacks: reader, writer, seeker, flusher.
+    /// The contract for each callback is:
+    /// - reader(context, buffer, size): read up to size bytes into buffer; return bytes read, or -1 on error (set errno).
+    /// - writer(context, buffer, size): write size bytes from buffer; return bytes written, or -1 on error (set errno).
+    /// - seeker(context, offset, whence): seek to offset (whence = Start/Current/End); return new position or -1 (set errno).
+    /// - flusher(context): flush; return 0 on success, -1 on error (set errno).
+    /// @{
+
     /// @brief Istream Class wrapper for C2paStream.
-    /// @details This class is used to wrap an input stream for use with the C2PA library.
+    /// @details Wraps an input stream for use with the C2PA library.
     class C2PA_CPP_API CppIStream : public C2paStream
     {
     public:
@@ -372,7 +383,7 @@ namespace c2pa
     };
 
     /// @brief Ostream Class wrapper for C2paStream.
-    /// @details This class is used to wrap an output stream for use with the C2PA library.
+    /// @details Wraps an output stream (e.g. std::ofstream, std::ostringstream) for use with the C2PA library.
     class C2PA_CPP_API CppOStream : public C2paStream
     {
     public:
@@ -399,7 +410,7 @@ namespace c2pa
     };
 
     /// @brief IOStream Class wrapper for C2paStream.
-    /// @details This class is used to wrap an input/output stream for use with the C2PA library.
+    /// @details Wraps a stream for use with the C2PA library.
     class C2PA_CPP_API CppIOStream : public C2paStream
     {
     public:

@@ -2242,3 +2242,117 @@ TEST(Builder, TrustHandling)
     // Smoke check that the manifest has a valid structure
     ASSERT_TRUE(parsed_manifest_json3["validation_state"] == "Valid");
 };
+
+// =============================================================================
+// Stream abstraction tests (CppIStream, CppOStream, CppIOStream)
+// These tests verify that the C++ stream wrappers correctly adapt std::istream,
+// std::ostream, and std::iostream to the C2PA C layer (reader, writer, seeker,
+// flusher callbacks). No API surface changes; they guard the shared detail logic.
+// =============================================================================
+
+TEST(StreamAbstractions, SignWithIStreamAndOStream_RoundTrip)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path = current_dir / "../build/examples/stream_ostream_roundtrip.jpg";
+
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    std::filesystem::remove(output_path);
+    std::filesystem::create_directories(output_path.parent_path());
+
+    auto builder = c2pa::Builder(manifest);
+    std::ifstream source(image_path, std::ios::binary);
+    ASSERT_TRUE(source) << "Failed to open " << image_path;
+
+    std::ofstream dest(output_path, std::ios::binary);
+    ASSERT_TRUE(dest) << "Failed to open " << output_path;
+
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign("image/jpeg", source, dest, signer));
+    source.close();
+    dest.close();
+
+    ASSERT_FALSE(manifest_data.empty());
+    ASSERT_TRUE(std::filesystem::exists(output_path));
+
+    c2pa::Reader reader(output_path);
+    std::string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+    ASSERT_TRUE(json_result.find("cawg.training-mining") != std::string::npos);
+}
+
+TEST(StreamAbstractions, SignWithIStreamAndIOStream_RoundTrip)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
+
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    auto builder = c2pa::Builder(manifest);
+    std::ifstream source(image_path, std::ios::binary);
+    ASSERT_TRUE(source) << "Failed to open " << image_path;
+
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    std::iostream& dest = buffer;
+
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign("image/jpeg", source, dest, signer));
+    source.close();
+
+    dest.flush();
+    dest.seekg(0, std::ios::beg);
+    dest.seekp(0, std::ios::beg);
+
+    c2pa::Reader reader("image/jpeg", dest);
+    std::string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+    ASSERT_FALSE(manifest_data.empty());
+    ASSERT_TRUE(json_result.find("cawg.training-mining") != std::string::npos);
+}
+
+TEST(StreamAbstractions, ReaderFromPathUsesOwnedStream)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path signed_path = current_dir / "../tests/fixtures/sample1_signed.wav";
+
+    if (!std::filesystem::exists(signed_path))
+    {
+        GTEST_SKIP() << "Fixture not found: " << signed_path;
+    }
+
+    c2pa::Reader reader(signed_path);
+    std::string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+    ASSERT_FALSE(json_result.empty());
+}
+
+TEST(StreamAbstractions, ReaderFromIStreamWithContext)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path signed_path = current_dir / "../tests/fixtures/sample1_signed.wav";
+
+    if (!std::filesystem::exists(signed_path))
+    {
+        GTEST_SKIP() << "Fixture not found: " << signed_path;
+    }
+
+    auto context = c2pa::Context::create();
+    std::ifstream stream(signed_path, std::ios::binary);
+    ASSERT_TRUE(stream) << "Failed to open " << signed_path;
+
+    c2pa::Reader reader(context, "audio/wav", stream);
+    std::string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+    ASSERT_FALSE(json_result.empty());
+}

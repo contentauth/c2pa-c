@@ -83,6 +83,131 @@ intptr_t signer_passthrough(const void *context, const unsigned char *data, uint
 
 namespace c2pa
 {
+namespace detail {
+
+/// Maps C2PA seek mode to std::ios seek direction.
+constexpr std::ios_base::seekdir whence_to_seekdir(C2paSeekMode whence) noexcept {
+    switch (whence) {
+        case C2paSeekMode::Start:   return std::ios_base::beg;
+        case C2paSeekMode::Current: return std::ios_base::cur;
+        case C2paSeekMode::End:     return std::ios_base::end;
+        default:                    return std::ios_base::beg;
+    }
+}
+
+/// Traits: how to seek and get position for a given stream type (C++17).
+/// Specialize for std::istream (seekg/tellg), std::ostream (seekp/tellp),
+/// std::iostream (both; tell returns write position).
+template<typename Stream>
+struct StreamSeekTraits;
+
+template<>
+struct StreamSeekTraits<std::istream> {
+    static void seek(std::istream* s, intptr_t offset, std::ios_base::seekdir dir) {
+        s->seekg(offset, dir);
+    }
+    static int64_t tell(std::istream* s) {
+        return static_cast<int64_t>(s->tellg());
+    }
+};
+
+template<>
+struct StreamSeekTraits<std::ostream> {
+    static void seek(std::ostream* s, intptr_t offset, std::ios_base::seekdir dir) {
+        s->seekp(offset, dir);
+    }
+    static int64_t tell(std::ostream* s) {
+        return static_cast<int64_t>(s->tellp());
+    }
+};
+
+template<>
+struct StreamSeekTraits<std::iostream> {
+    static void seek(std::iostream* s, intptr_t offset, std::ios_base::seekdir dir) {
+        s->seekg(offset, dir);
+        s->seekp(offset, dir);
+    }
+    static int64_t tell(std::iostream* s) {
+        return static_cast<int64_t>(s->tellp());
+    }
+};
+
+/// Single seeker implementation: one code path for all stream types (C++17).
+template<typename Stream>
+intptr_t stream_seeker(StreamContext* context, intptr_t offset, C2paSeekMode whence) {
+    auto* stream = reinterpret_cast<Stream*>(context);
+    if (!stream) {
+        return stream_error_return(StreamError::InvalidArgument);
+    }
+    const std::ios_base::seekdir dir = whence_to_seekdir(whence);
+    stream->clear();
+    StreamSeekTraits<Stream>::seek(stream, offset, dir);
+    if (stream->fail()) {
+        return stream_error_return(StreamError::InvalidArgument);
+    }
+    if (stream->bad()) {
+        return stream_error_return(StreamError::IoError);
+    }
+    const int64_t pos = StreamSeekTraits<Stream>::tell(stream);
+    if (pos < 0) {
+        return stream_error_return(StreamError::IoError);
+    }
+    return static_cast<intptr_t>(pos);
+}
+
+/// Single reader implementation for streams that support read() and gcount() (std::istream, std::iostream).
+template<typename Stream>
+intptr_t stream_reader(StreamContext* context, uint8_t* buffer, intptr_t size) {
+    auto* stream = reinterpret_cast<Stream*>(context);
+    stream->read(reinterpret_cast<char*>(buffer), size);
+    if (stream->fail()) {
+        if (!stream->eof()) {
+            return stream_error_return(StreamError::InvalidArgument);
+        }
+    }
+    if (stream->bad()) {
+        return stream_error_return(StreamError::IoError);
+    }
+    return static_cast<intptr_t>(stream->gcount());
+}
+
+/// Shared helper: get stream from context, run op(stream), then check fail/bad. Used by writer and flusher.
+template<typename Stream, typename Op>
+intptr_t stream_op(StreamContext* context, Op op) {
+    auto* stream = reinterpret_cast<Stream*>(context);
+    if (!stream) {
+        return stream_error_return(StreamError::InvalidArgument);
+    }
+    const intptr_t result = op(stream);
+    if (stream->fail()) {
+        return stream_error_return(StreamError::InvalidArgument);
+    }
+    if (stream->bad()) {
+        return stream_error_return(StreamError::IoError);
+    }
+    return result;
+}
+
+/// Single writer implementation: delegates to stream_op (C++17).
+template<typename Stream>
+intptr_t stream_writer(StreamContext* context, const uint8_t* buffer, intptr_t size) {
+    return stream_op<Stream>(context, [buffer, size](Stream* s) {
+        s->write(reinterpret_cast<const char*>(buffer), size);
+        return size;
+    });
+}
+
+/// Single flusher implementation: delegates to stream_op (C++17).
+template<typename Stream>
+intptr_t stream_flusher(StreamContext* context) {
+    return stream_op<Stream>(context, [](Stream* s) {
+        s->flush();
+        return 0;
+    });
+}
+
+} // namespace detail
+
     /// C2paException class for C2PA errors.
     /// This class is used to throw exceptions for errors encountered by the C2PA library via c2pa_error().
 
@@ -381,84 +506,22 @@ namespace c2pa
 
     intptr_t CppIStream::reader(StreamContext *context, uint8_t *buffer, intptr_t size)
     {
-        std::istream *istream = (std::istream *)context;
-        istream->read((char *)buffer, size);
-        if (istream->fail())
-        {
-            if (!istream->eof())
-            {
-                return stream_error_return(StreamError::InvalidArgument);
-            }
-        }
-        if (istream->bad())
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-        size_t gcount = istream->gcount();
-        return gcount;
+        return detail::stream_reader<std::istream>(context, buffer, size);
     }
 
     intptr_t CppIStream::seeker(StreamContext *context, intptr_t offset, C2paSeekMode whence)
     {
-        std::istream *istream = (std::istream *)context;
-
-        std::ios_base::seekdir dir = std::ios_base::beg;
-        switch (whence)
-        {
-        case C2paSeekMode::Start:
-            dir = std::ios_base::beg;
-            break;
-        case C2paSeekMode::Current:
-            dir = std::ios_base::cur;
-            break;
-        case C2paSeekMode::End:
-            dir = std::ios_base::end;
-            break;
-        };
-
-        istream->clear(); // important: clear any flags
-        istream->seekg(offset, dir);
-        if (istream->fail())
-        {
-            return stream_error_return(StreamError::InvalidArgument);
-        }
-        if (istream->bad())
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-        int64_t pos = static_cast<int64_t>(istream->tellg());
-        if (pos < 0)
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-        // printf("seeker offset= %ld pos = %lld whence = %d\n", offset, (long long)pos, dir);
-        return static_cast<intptr_t>(pos);
+        return detail::stream_seeker<std::istream>(context, offset, whence);
     }
 
     intptr_t CppIStream::writer(StreamContext *context, const uint8_t *buffer, intptr_t size)
     {
-        std::iostream *stream = (std::iostream *)context;
-        stream->write((const char *)buffer, size);
-        if (stream->fail())
-        {
-            return stream_error_return(StreamError::InvalidArgument);
-        }
-        if (stream->bad())
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-        return size;
+        return detail::stream_writer<std::iostream>(context, buffer, size);
     }
 
     intptr_t CppIStream::flusher(StreamContext *context)
     {
-        std::iostream *stream = (std::iostream *)context;
-        stream->flush();
-        if (stream->fail() || stream->bad())
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-        return 0;
+        return detail::stream_flusher<std::iostream>(context);
     }
 
     /// Ostream Class wrapper for C2paStream implementation.
@@ -478,70 +541,17 @@ namespace c2pa
 
     intptr_t CppOStream::seeker(StreamContext *context, intptr_t offset, C2paSeekMode whence)
     {
-        std::ostream *ostream = (std::ostream *)context;
-        // printf("seeker std::ofstream = %p\n", ostream);
-
-        if (!ostream)
-        {
-            return stream_error_return(StreamError::InvalidArgument);
-        }
-
-        std::ios_base::seekdir dir = std::ios_base::beg;
-        switch (whence)
-        {
-        case C2paSeekMode::Start:
-            dir = std::ios_base::beg;
-            break;
-        case C2paSeekMode::Current:
-            dir = std::ios_base::cur;
-            break;
-        case C2paSeekMode::End:
-            dir = std::ios_base::end;
-            break;
-        };
-
-        ostream->clear();
-        ostream->seekp(offset, dir);
-        if (ostream->fail())
-        {
-            return stream_error_return(StreamError::InvalidArgument);
-        }
-        if (ostream->bad())
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-        int64_t pos = static_cast<int64_t>(ostream->tellp());
-        if (pos < 0)
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-        return static_cast<intptr_t>(pos);
+        return detail::stream_seeker<std::ostream>(context, offset, whence);
     }
 
     intptr_t CppOStream::writer(StreamContext *context, const uint8_t *buffer, intptr_t size)
     {
-        std::ostream *ofstream = (std::ostream *)context;
-        ofstream->write((const char *)buffer, size);
-        if (ofstream->fail())
-        {
-            return stream_error_return(StreamError::InvalidArgument);
-        }
-        if (ofstream->bad())
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-        return size;
+        return detail::stream_writer<std::ostream>(context, buffer, size);
     }
 
     intptr_t CppOStream::flusher(StreamContext *context)
     {
-        std::ostream *ofstream = (std::ostream *)context;
-        ofstream->flush();
-        if (ofstream->fail() || ofstream->bad())
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-        return 0;
+        return detail::stream_flusher<std::ostream>(context);
     }
 
     /// IOStream Class wrapper for C2paStream implementation.
@@ -552,103 +562,22 @@ namespace c2pa
 
     intptr_t CppIOStream::reader(StreamContext *context, uint8_t *buffer, intptr_t size)
     {
-        std::iostream *iostream = (std::iostream *)context;
-        iostream->read((char *)buffer, size);
-        if (iostream->fail())
-        {
-            if (!iostream->eof())
-            {
-                return stream_error_return(StreamError::InvalidArgument);
-            }
-        }
-        if (iostream->bad())
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-        size_t gcount = iostream->gcount();
-        return gcount;
+        return detail::stream_reader<std::iostream>(context, buffer, size);
     }
 
     intptr_t CppIOStream::seeker(StreamContext *context, intptr_t offset, C2paSeekMode whence)
     {
-        std::iostream *iostream = (std::iostream *)context;
-
-        if (!iostream)
-        {
-            return stream_error_return(StreamError::InvalidArgument);
-        }
-
-        std::ios_base::seekdir dir = std::ios_base::beg;
-        switch (whence)
-        {
-        case C2paSeekMode::Start:
-            dir = std::ios_base::beg;
-            break;
-        case C2paSeekMode::Current:
-            dir = std::ios_base::cur;
-            break;
-        case C2paSeekMode::End:
-            dir = std::ios_base::end;
-            break;
-        };
-
-        iostream->clear();
-        iostream->seekg(offset, dir);
-        if (iostream->fail())
-        {
-            return stream_error_return(StreamError::InvalidArgument);
-        }
-        if (iostream->bad())
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-        int64_t pos = static_cast<int64_t>(iostream->tellg());
-        if (pos < 0)
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-
-        iostream->seekp(offset, dir);
-        if (iostream->fail())
-        {
-            return stream_error_return(StreamError::InvalidArgument);
-        }
-        if (iostream->bad())
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-        pos = static_cast<int64_t>(iostream->tellp());
-        if (pos < 0)
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-        return static_cast<intptr_t>(pos);
+        return detail::stream_seeker<std::iostream>(context, offset, whence);
     }
 
     intptr_t CppIOStream::writer(StreamContext *context, const uint8_t *buffer, intptr_t size)
     {
-        std::iostream *iostream = (std::iostream *)context;
-        iostream->write((const char *)buffer, size);
-        if (iostream->fail())
-        {
-            return stream_error_return(StreamError::InvalidArgument);
-        }
-        if (iostream->bad())
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-        return size;
+        return detail::stream_writer<std::iostream>(context, buffer, size);
     }
 
     intptr_t CppIOStream::flusher(StreamContext *context)
     {
-        std::iostream *iostream = (std::iostream *)context;
-        iostream->flush();
-        if (iostream->fail() || iostream->bad())
-        {
-            return stream_error_return(StreamError::IoError);
-        }
-        return 0;
+        return detail::stream_flusher<std::iostream>(context);
     }
 
     /// Reader class for reading manifests
