@@ -67,11 +67,7 @@ training: release
 	cmake --build $(RELEASE_BUILD_DIR) --target training
 	$(RELEASE_BUILD_DIR)/examples/training
 
-context: release
-	cmake --build $(RELEASE_BUILD_DIR) --target context_demo
-	$(RELEASE_BUILD_DIR)/examples/context_demo
-
-examples: training demo context
+examples: training demo
 
 clean:
 	rm -rf $(BUILD_DIR)

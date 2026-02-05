@@ -1028,7 +1028,7 @@ namespace c2pa
 
     std::vector<unsigned char> Builder::sign(const std::string &format, std::istream &source, std::ostream &dest, Signer &signer)
     {
-        // IMPORTANT: Caller's source/dest streams must outlive this call
+        // Caller's source/dest streams must outlive this call
         // Stream wrappers are stack locals that wrap the caller's streams
         CppIStream c_source(source);
         CppOStream c_dest(dest);
@@ -1043,13 +1043,13 @@ namespace c2pa
 
         auto manifest_bytes = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
         c2pa_free(c2pa_manifest_bytes);
-        // Wrappers destruct here but caller's streams remain valid
+
         return manifest_bytes;
     }
 
     std::vector<unsigned char> Builder::sign(const std::string &format, std::istream &source, std::iostream &dest, Signer &signer)
     {
-        // IMPORTANT: Caller's source/dest streams must outlive this call
+        // Caller's source/dest streams must outlive this call
         // Stream wrappers are stack locals that wrap the caller's streams
         CppIStream c_source(source);
         CppIOStream c_dest(dest);
@@ -1064,7 +1064,7 @@ namespace c2pa
 
         auto manifest_bytes = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
         c2pa_free(c2pa_manifest_bytes);
-        // Wrappers destruct here but caller's streams remain valid
+
         return manifest_bytes;
     }
 

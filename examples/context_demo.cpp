@@ -10,6 +10,8 @@
 #include <iostream>
 #include <filesystem>
 
+// TMN-TODO: THis is going to become the readme!
+
 namespace fs = std::filesystem;
 
 int main() {
