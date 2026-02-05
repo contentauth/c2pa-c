@@ -23,8 +23,7 @@ namespace fs = std::filesystem;
 using nlohmann::json;
 
 // TODO-TMN
-// Other settings to try out from https://github.com/contentauth/c2pa-rs/blob/main/sdk/tests/fixtures/test_settings.toml:
-// - claim generator
+// Other settings for this:
 // - all_actions_included
 
 /// @brief Read a text file into a string

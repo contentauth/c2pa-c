@@ -108,8 +108,7 @@ namespace c2pa
     /// @brief Interface for types that can provide C2PA context functionality.
     /// @details This interface can be implemented by external libraries to provide
     ///          custom context implementations (e.g. AdobeContext wrappers).
-    ///          Copy is deleted; move is defaulted so implementations can be move-only
-    ///          (e.g. holding unique_ptr) or used via shared_ptr (e.g. Context).
+    ///          Copy is deleted; move is defaulted.
     ///
     /// Example external implementation:
     /// @code
@@ -215,7 +214,8 @@ namespace c2pa
     public:
         /// @brief ContextBuilder for creating customized Context instances.
         /// @details The builder follows a consuming builder pattern: after calling
-        ///          create_context(), the builder is left in an invalid state.
+        ///          create_context(), the builder is left in an invalid state
+        ///          (is_valid can be used to check if the builder is still valid).
         class C2PA_CPP_API ContextBuilder {
         public:
             ContextBuilder();
@@ -349,7 +349,7 @@ namespace c2pa
         C2paStream *c_stream;
         template <typename IStream>
         explicit CppIStream(IStream &istream) {
-            // TODO-TMN Review the static assert here
+            // TODO Review the static assert here
             static_assert(std::is_base_of<std::istream, IStream>::value,
                       "Stream must be derived from std::istream");
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&istream), reader, seeker, writer, flusher);
@@ -379,7 +379,7 @@ namespace c2pa
         C2paStream *c_stream;
         template <typename OStream>
         explicit CppOStream(OStream &ostream) {
-            // TODO-TMN Review the static assert here
+            // TODO Review the static assert here
             static_assert(std::is_base_of<std::ostream, OStream>::value, "Stream must be derived from std::ostream");
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&ostream), reader, seeker, writer, flusher);
         }
@@ -406,7 +406,7 @@ namespace c2pa
         C2paStream *c_stream;
         template <typename IOStream>
         CppIOStream(IOStream &iostream) {
-            // TODO-TMN Review the static assert here
+            // TODO Review the static assert here
             static_assert(std::is_base_of<std::iostream, IOStream>::value, "Stream must be derived from std::iostream");
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&iostream), reader, seeker, writer, flusher);
         }
@@ -433,8 +433,8 @@ namespace c2pa
     {
     private:
         C2paReader *c2pa_reader;
-        std::unique_ptr<std::ifstream> owned_stream;  // Owns file stream when created from path
-        std::unique_ptr<CppIStream> cpp_stream;       // Wraps stream for C API; destroyed before owned_stream
+        std::unique_ptr<std::ifstream> owned_stream;       // Owns file stream when created from path
+        std::unique_ptr<CppIStream> cpp_stream;            // Wraps stream for C API; destroyed before owned_stream
         std::shared_ptr<IContextProvider> reader_context;  // Keeps context alive for this reader
 
     public:
