@@ -69,9 +69,6 @@ training: release
 
 examples: training demo
 
-clean:
-	rm -rf $(BUILD_DIR)
-
 .PHONY: all debug release cmake test test-release demo training examples clean
 
 # Build C API docs with Doxygen

@@ -17,7 +17,7 @@ cmake_minimum_required(VERSION 3.27)
 project(c2pa-c VERSION 0.13.0)
 
 # Set the version of the c2pa_rs library used here
-set(C2PA_VERSION "0.75.13")
+set(C2PA_VERSION "0.75.14")
 
 set(CMAKE_POLICY_DEFAULT_CMP0135 NEW)
 set(CMAKE_C_STANDARD 17)
