@@ -15,7 +15,7 @@ ifdef C2PA_RS_PATH
 endif
 
 # Default target
-all: test examples
+all: clean test examples
 
 clean:
 	rm -rf $(BUILD_DIR)
