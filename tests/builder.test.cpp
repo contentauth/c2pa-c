@@ -545,6 +545,114 @@ TEST(Builder, SignImageThumbnailSettingsFileJson)
     EXPECT_TRUE(parsed_with_thumbnail["manifests"][active_manifest_value_no_context].contains("thumbnail"));
 };
 
+TEST(Builder, SignImageThumbnailSettingsObject)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the paths relative to the current directory
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path_no_thumbnail = current_dir / "../build/examples/image_no_thumbnail_incremental.jpg";
+
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+    // Create a signer
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    std::filesystem::remove(output_path_no_thumbnail);
+
+    // Here we are going to build settings, field by field
+    // Start with default settings
+    // If setting the same value multiple times, last one wins
+    c2pa::Settings settings;
+    settings
+        .set("builder.thumbnail.enabled", "true")
+        .set("builder.thumbnail.enabled", "false");
+
+    // Build context from Settings object we just did
+    auto context = c2pa::Context::ContextBuilder()
+        .with_settings(settings)
+        .create_context();
+
+    auto builder = c2pa::Builder(context, manifest);
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path_no_thumbnail, signer));
+
+    // Verify the signed file exists and is readable
+    ASSERT_TRUE(std::filesystem::exists(output_path_no_thumbnail));
+    auto reader = c2pa::Reader(output_path_no_thumbnail);
+    std::string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+    EXPECT_FALSE(json_result.empty());
+
+    // Verify NO thumbnail is present
+    auto parsed = json::parse(json_result);
+    EXPECT_TRUE(parsed.contains("active_manifest"));
+    std::string active_manifest = parsed["active_manifest"];
+    EXPECT_FALSE(parsed["manifests"][active_manifest].contains("thumbnail"));
+}
+
+TEST(Builder, SignImageThumbnailSettingsIncrementalObject)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+
+    // Construct the paths relative to the current directory
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
+    fs::path output_path_no_thumbnail = current_dir / "../build/examples/image_no_thumbnail_incremental.jpg";
+
+    auto manifest = read_text_file(manifest_path);
+    auto certs = read_text_file(certs_path);
+    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+
+    // Create a signer
+    c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+
+    std::filesystem::remove(output_path_no_thumbnail);
+
+    // Here we are going to build settings, field by field
+    // Start with default settings
+    // If setting the same value multiple times, last one wins
+    c2pa::Settings settings;
+    settings.set("builder.thumbnail.enabled", "true");
+
+    std::string updated_config = R"({
+        "builder": {
+            "thumbnail": {
+                "enabled": false
+            }
+        }
+    })";
+
+    settings.update(updated_config, c2pa::ConfigFormat::JSON);
+
+    // Build context from Settings object we just did
+    auto context = c2pa::Context::ContextBuilder()
+        .with_settings(settings)
+        .create_context();
+
+    auto builder = c2pa::Builder(context, manifest);
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(signed_image_path, output_path_no_thumbnail, signer));
+
+    // Verify the signed file exists and is readable
+    ASSERT_TRUE(std::filesystem::exists(output_path_no_thumbnail));
+    auto reader = c2pa::Reader(output_path_no_thumbnail);
+    std::string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+    EXPECT_FALSE(json_result.empty());
+
+    // Verify NO thumbnail is present
+    auto parsed = json::parse(json_result);
+    EXPECT_TRUE(parsed.contains("active_manifest"));
+    std::string active_manifest = parsed["active_manifest"];
+    EXPECT_FALSE(parsed["manifests"][active_manifest].contains("thumbnail"));
+}
+
 TEST(Builder, SignImageFileWithResource)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();

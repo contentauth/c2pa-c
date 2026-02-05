@@ -53,6 +53,22 @@ namespace c2pa
     class Context;
     class IContextProvider;
 
+    enum class ConfigFormat {
+        JSON,
+        TOML
+    };
+
+    /// @brief Helper to convert enum to string format
+    /// @param format ConfigFormat enum value
+    /// @return Format as string, defaults to json
+    inline const char* config_format_to_string(ConfigFormat format) {
+        switch(format) {
+            case ConfigFormat::JSON: return "json";
+            case ConfigFormat::TOML: return "toml";
+            default: return "json";
+        }
+    }
+
     /// @brief Shared pointer to context provider for polymorphic usage.
     using ContextProviderPtr = std::shared_ptr<IContextProvider>;
 
@@ -121,6 +137,13 @@ namespace c2pa
         /// @throws C2paException if parsing fails.
         Settings(const std::string& data, const std::string& format);
 
+        /// @brief Create settings from a configuration string.
+        /// @param data Configuration data in ConfigFormat format.
+        /// @param format Format of the data from `ConfigFormat` enum.
+        /// @throws C2paException if parsing fails.
+        Settings(const std::string& data, ConfigFormat format)
+            : Settings(data, config_format_to_string(format)) {}
+
         // Move semantics
         Settings(Settings&&) noexcept;
         Settings& operator=(Settings&&) noexcept;
@@ -144,6 +167,15 @@ namespace c2pa
         /// @return Reference to this Settings for method chaining.
         /// @throws C2paException if parsing fails.
         Settings& update(const std::string& data, const std::string& format);
+
+        /// @brief Merge configuration from a std::string (latest configuration wins).
+        /// @param data Configuration data in ConfigFormat format.
+        /// @param format Format of the data as `ConfigFormat` enum.
+        /// @return Reference to this Settings for method chaining.
+        /// @throws C2paException if parsing fails.
+        Settings& update(const std::string& data, ConfigFormat format) {
+            return update(data, config_format_to_string(format));
+        }
 
         /// @brief Get the raw C FFI settings pointer.
         /// @return Pointer to C2paSettings, or nullptr if not initialized.

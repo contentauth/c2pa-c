@@ -238,12 +238,12 @@ namespace c2pa
     }
 
     Context::ContextBuilder& Context::ContextBuilder::with_json(const std::string& json) {
-        Settings settings(json, "json");
+        Settings settings(json, ConfigFormat::JSON);
         return with_settings(settings);
     }
 
     Context::ContextBuilder& Context::ContextBuilder::with_toml(const std::string& toml) {
-        Settings settings(toml, "toml");
+        Settings settings(toml, ConfigFormat::TOML);
         return with_settings(settings);
     }
 
@@ -272,6 +272,7 @@ namespace c2pa
     /// @param data the std::string to load.
     /// @param format the mime format of the string.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
+    [[deprecated("Use Settings on Builder and Reader instead")]]
     void load_settings(const std::string &data, const std::string &format)
     {
         auto result = c2pa_load_settings(data.c_str(), format.c_str());
