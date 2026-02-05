@@ -91,6 +91,28 @@ For example:
   auto builder = Builder(manifest_json);
 ```
 
+### Create a SignerInfo instance
+
+A `SignerInfo` object contains information about a signature.  To create an instance of `SignerInfo`, first set up the signer information from the public and private key files. For example, using the simple `read_text_file` function defined in the [`training.cpp` example](https://github.com/contentauth/c2pa-c/blob/main/examples/training.cpp):
+
+```cpp
+string certs = read_text_file("path/to/certs.pem").data();
+string private_key = read_text_file("path/to/private.key").data();
+```
+
+Then create a new `SignerInfo` instance using the keys, specifying the signing algorithm in the `.alg` field and optionally a time stamp authority URL in the `.ta_url` field:
+
+```cpp
+C2paSignerInfo sign_info = {"es256",
+                            certs.c_str(),
+                            private_key.c_str(),
+                            "http://timestamp.digicert.com"};
+```
+
+For the list of supported signing algorithms, see [Creating and using an X.509 certificate](https://opensource.contentauthenticity.org/docs/c2patool/x_509).
+
+**WARNING**: Do not access a private key and certificate directly like this in production  because it's not secure. Instead use a hardware security module (HSM) and optionally a Key Management Service (KMS) to access the key; for example as show in the [C2PA Python Example](https://github.com/contentauth/c2pa-python-example).
+
 ## Creating a Signer
 
 For testing you can create a signer using any supported algorithm by a Signer constructor.
@@ -112,6 +134,8 @@ Signer signer = c2pa::Signer("Es256", certs, private_key, "http://timestamp.digi
 ```
 
 ## Signing and embedding a manifest
+
+A media file may contain many manifests in a manifest store. The `active_manifest` property in the manifest store identifies the most recently-added manifest.  For a comprehensive reference to the JSON manifest structure, see the [CAI manifest store reference](https://opensource.contentauthenticity.org/docs/manifest/manifest-ref).
 
 ```cpp
   auto manifest_data = builder.sign(image_path, output_path, signer);
