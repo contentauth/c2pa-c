@@ -614,12 +614,9 @@ TEST(Builder, SignImageThumbnailSettingsIncrementalObject)
 
     std::filesystem::remove(output_path_no_thumbnail);
 
-    // Here we are going to build settings, field by field
-    // Start with default settings
-    // If setting the same value multiple times, last one wins
+    // Here we are going to update a settings object we just build
     c2pa::Settings settings;
     settings.set("builder.thumbnail.enabled", "true");
-
     std::string updated_config = R"({
         "builder": {
             "thumbnail": {
@@ -627,7 +624,6 @@ TEST(Builder, SignImageThumbnailSettingsIncrementalObject)
             }
         }
     })";
-
     settings.update(updated_config, c2pa::ConfigFormat::JSON);
 
     // Build context from Settings object we just did
