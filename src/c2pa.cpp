@@ -50,8 +50,7 @@ intptr_t signer_passthrough(const void *context, const unsigned char *data, uint
 {
   if (data == nullptr || signature == nullptr)
   {
-    errno = EINVAL;
-    return -1;
+    return c2pa::stream_error_return(c2pa::StreamError::InvalidArgument);
   }
   try
   {
@@ -61,8 +60,7 @@ intptr_t signer_passthrough(const void *context, const unsigned char *data, uint
     std::vector<uint8_t> signature_vec = (callback)(data_vec);
     if (signature_vec.size() > sig_max_len)
     {
-      errno = ENOBUFS;
-      return -1;
+      return c2pa::stream_error_return(c2pa::StreamError::NoBufferSpace);
     }
     std::copy(signature_vec.begin(), signature_vec.end(), signature);
     return signature_vec.size();
@@ -183,7 +181,7 @@ namespace c2pa
         return context_ != nullptr;
     }
 
-    ContextProviderPtr Context::create() {
+    std::shared_ptr<IContextProvider> Context::create() {
         C2paContext* ctx = c2pa_context_new();
         if (!ctx) {
             throw C2paException("Failed to create context");
@@ -191,11 +189,11 @@ namespace c2pa
         return std::make_shared<Context>(ctx);
     }
 
-    ContextProviderPtr Context::from_json(const std::string& json) {
+    std::shared_ptr<IContextProvider> Context::from_json(const std::string& json) {
         return ContextBuilder().with_json(json).create_context();
     }
 
-    ContextProviderPtr Context::from_toml(const std::string& toml) {
+    std::shared_ptr<IContextProvider> Context::from_toml(const std::string& toml) {
         return ContextBuilder().with_toml(toml).create_context();
     }
 
@@ -228,7 +226,14 @@ namespace c2pa
         }
     }
 
+    bool Context::ContextBuilder::is_valid() const noexcept {
+        return context_builder != nullptr;
+    }
+
     Context::ContextBuilder& Context::ContextBuilder::with_settings(const Settings& settings) {
+        if (!is_valid()) {
+            throw C2paException("ContextBuilder is invalid (already consumed)");
+        }
         if (c2pa_context_builder_set_settings(context_builder, settings.c_settings()) != 0) {
             throw C2paException();
         }
@@ -236,18 +241,24 @@ namespace c2pa
     }
 
     Context::ContextBuilder& Context::ContextBuilder::with_json(const std::string& json) {
+        if (!is_valid()) {
+            throw C2paException("ContextBuilder is invalid (already consumed)");
+        }
         Settings settings(json, ConfigFormat::JSON);
         return with_settings(settings);
     }
 
     Context::ContextBuilder& Context::ContextBuilder::with_toml(const std::string& toml) {
+        if (!is_valid()) {
+            throw C2paException("ContextBuilder is invalid (already consumed)");
+        }
         Settings settings(toml, ConfigFormat::TOML);
         return with_settings(settings);
     }
 
-    ContextProviderPtr Context::ContextBuilder::create_context() {
-        if (!context_builder) {
-            throw C2paException("Builder already consumed");
+    std::shared_ptr<IContextProvider> Context::ContextBuilder::create_context() {
+        if (!is_valid()) {
+            throw C2paException("ContextBuilder is invalid (already consumed)");
         }
         C2paContext* ctx = c2pa_context_builder_build(context_builder);
         if (!ctx) {
@@ -375,17 +386,13 @@ namespace c2pa
         if (istream->fail())
         {
             if (!istream->eof())
-            {                   // do not report eof as an error
-                errno = EINVAL; // Invalid argument
-                // std::perror("Error: Invalid argument");
-                return -1;
+            {
+                return stream_error_return(StreamError::InvalidArgument);
             }
         }
         if (istream->bad())
         {
-            errno = EIO; // Input/output error
-            // std::perror("Error: Input/output error");
-            return -1;
+            return stream_error_return(StreamError::IoError);
         }
         size_t gcount = istream->gcount();
         return gcount;
@@ -413,20 +420,16 @@ namespace c2pa
         istream->seekg(offset, dir);
         if (istream->fail())
         {
-            errno = EINVAL;
-            return -1;
+            return stream_error_return(StreamError::InvalidArgument);
         }
-        else if (istream->bad())
+        if (istream->bad())
         {
-            errno = EIO;
-            return -1;
+            return stream_error_return(StreamError::IoError);
         }
-        // Use int64_t instead of long to avoid 2GB limit on systems where long is 32-bit
         int64_t pos = static_cast<int64_t>(istream->tellg());
         if (pos < 0)
         {
-            errno = EIO;
-            return -1;
+            return stream_error_return(StreamError::IoError);
         }
         // printf("seeker offset= %ld pos = %lld whence = %d\n", offset, (long long)pos, dir);
         return static_cast<intptr_t>(pos);
@@ -438,13 +441,11 @@ namespace c2pa
         stream->write((const char *)buffer, size);
         if (stream->fail())
         {
-            errno = EINVAL; // Invalid argument
-            return -1;
+            return stream_error_return(StreamError::InvalidArgument);
         }
-        else if (stream->bad())
+        if (stream->bad())
         {
-            errno = EIO; // I/O error
-            return -1;
+            return stream_error_return(StreamError::IoError);
         }
         return size;
     }
@@ -454,10 +455,9 @@ namespace c2pa
         std::iostream *stream = (std::iostream *)context;
         stream->flush();
         if (stream->fail() || stream->bad())
-          {
-              errno = EIO;
-              return -1;
-          }
+        {
+            return stream_error_return(StreamError::IoError);
+        }
         return 0;
     }
 
@@ -473,8 +473,7 @@ namespace c2pa
         (void) context;
         (void) buffer;
         (void) size;
-        errno = EINVAL; // Invalid argument
-        return -1;
+        return stream_error_return(StreamError::InvalidArgument);
     }
 
     intptr_t CppOStream::seeker(StreamContext *context, intptr_t offset, C2paSeekMode whence)
@@ -484,8 +483,7 @@ namespace c2pa
 
         if (!ostream)
         {
-            errno = EINVAL; // Invalid argument
-            return -1;
+            return stream_error_return(StreamError::InvalidArgument);
         }
 
         std::ios_base::seekdir dir = std::ios_base::beg;
@@ -502,24 +500,20 @@ namespace c2pa
             break;
         };
 
-        ostream->clear(); // Clear any error flags
+        ostream->clear();
         ostream->seekp(offset, dir);
         if (ostream->fail())
         {
-            errno = EINVAL; // Invalid argument
-            return -1;
+            return stream_error_return(StreamError::InvalidArgument);
         }
-        else if (ostream->bad())
+        if (ostream->bad())
         {
-            errno = EIO; // Input/output error
-            return -1;
+            return stream_error_return(StreamError::IoError);
         }
-        // Use int64_t instead of long to avoid 2GB limit on systems where long is 32-bit
         int64_t pos = static_cast<int64_t>(ostream->tellp());
         if (pos < 0)
         {
-            errno = EIO; // Input/output error
-            return -1;
+            return stream_error_return(StreamError::IoError);
         }
         return static_cast<intptr_t>(pos);
     }
@@ -527,17 +521,14 @@ namespace c2pa
     intptr_t CppOStream::writer(StreamContext *context, const uint8_t *buffer, intptr_t size)
     {
         std::ostream *ofstream = (std::ostream *)context;
-        // printf("writer ofstream = %p\n", ofstream);
         ofstream->write((const char *)buffer, size);
         if (ofstream->fail())
         {
-            errno = EINVAL; // Invalid argument
-            return -1;
+            return stream_error_return(StreamError::InvalidArgument);
         }
-        else if (ofstream->bad())
+        if (ofstream->bad())
         {
-            errno = EIO; // I/O error
-            return -1;
+            return stream_error_return(StreamError::IoError);
         }
         return size;
     }
@@ -546,9 +537,9 @@ namespace c2pa
     {
         std::ostream *ofstream = (std::ostream *)context;
         ofstream->flush();
-        if (ofstream->fail() || ofstream->bad()) {
-            errno = EIO;
-            return -1;
+        if (ofstream->fail() || ofstream->bad())
+        {
+            return stream_error_return(StreamError::IoError);
         }
         return 0;
     }
@@ -566,17 +557,13 @@ namespace c2pa
         if (iostream->fail())
         {
             if (!iostream->eof())
-            {                   // do not report eof as an error, but as
-                errno = EINVAL; // invalid argument instead
-                // std::perror("Error: Invalid argument");
-                return -1;
+            {
+                return stream_error_return(StreamError::InvalidArgument);
             }
         }
         if (iostream->bad())
         {
-            errno = EIO; // Input/output error
-            // std::perror("Error: Input/output error");
-            return -1;
+            return stream_error_return(StreamError::IoError);
         }
         size_t gcount = iostream->gcount();
         return gcount;
@@ -588,8 +575,7 @@ namespace c2pa
 
         if (!iostream)
         {
-            errno = EINVAL; // Invalid argument
-            return -1;
+            return stream_error_return(StreamError::InvalidArgument);
         }
 
         std::ios_base::seekdir dir = std::ios_base::beg;
@@ -605,44 +591,36 @@ namespace c2pa
             dir = std::ios_base::end;
             break;
         };
-        // seek for both read and write since rust does it that way
 
-        iostream->clear(); // Clear any error flags
+        iostream->clear();
         iostream->seekg(offset, dir);
         if (iostream->fail())
         {
-            errno = EINVAL; // Invalid argument
-            return -1;
+            return stream_error_return(StreamError::InvalidArgument);
         }
-        else if (iostream->bad())
+        if (iostream->bad())
         {
-            errno = EIO; // Input/output error
-            return -1;
+            return stream_error_return(StreamError::IoError);
         }
-        // Use int64_t instead of long to avoid 2GB limit on systems where long is 32-bit
         int64_t pos = static_cast<int64_t>(iostream->tellg());
         if (pos < 0)
         {
-            errno = EIO; // Input/output error
-            return -1;
+            return stream_error_return(StreamError::IoError);
         }
 
         iostream->seekp(offset, dir);
         if (iostream->fail())
         {
-            errno = EINVAL; // Invalid argument
-            return -1;
+            return stream_error_return(StreamError::InvalidArgument);
         }
-        else if (iostream->bad())
+        if (iostream->bad())
         {
-            errno = EIO; // Input/output error
-            return -1;
+            return stream_error_return(StreamError::IoError);
         }
         pos = static_cast<int64_t>(iostream->tellp());
         if (pos < 0)
         {
-            errno = EIO; // Input/output error
-            return -1;
+            return stream_error_return(StreamError::IoError);
         }
         return static_cast<intptr_t>(pos);
     }
@@ -653,13 +631,11 @@ namespace c2pa
         iostream->write((const char *)buffer, size);
         if (iostream->fail())
         {
-            errno = EINVAL; // Invalid argument
-            return -1;
+            return stream_error_return(StreamError::InvalidArgument);
         }
-        else if (iostream->bad())
+        if (iostream->bad())
         {
-            errno = EIO; // I/O error
-            return -1;
+            return stream_error_return(StreamError::IoError);
         }
         return size;
     }
@@ -669,17 +645,16 @@ namespace c2pa
         std::iostream *iostream = (std::iostream *)context;
         iostream->flush();
         if (iostream->fail() || iostream->bad())
-          {
-              errno = EIO;
-              return -1;
-          }
+        {
+            return stream_error_return(StreamError::IoError);
+        }
         return 0;
     }
 
     /// Reader class for reading manifests
 
-    Reader::Reader(ContextProviderPtr context, const std::string &format, std::istream &stream)
-        : reader_context(std::move(context))
+    Reader::Reader(std::shared_ptr<IContextProvider> context, const std::string &format, std::istream &stream)
+        : c2pa_reader(nullptr), reader_context(std::move(context))
     {
         if (!reader_context || !reader_context->has_context()) {
             throw C2paException("Invalid context provider");
@@ -690,19 +665,18 @@ namespace c2pa
             throw C2paException("Failed to create reader from context");
         }
 
-        cpp_stream = new CppIStream(stream);
+        cpp_stream = std::make_unique<CppIStream>(stream);
         // Update reader with stream
         C2paReader* updated = c2pa_reader_with_stream(c2pa_reader, format.c_str(), cpp_stream->c_stream);
         if (updated == nullptr) {
-            delete cpp_stream;
             c2pa_free(c2pa_reader);
             throw C2paException("Failed to configure reader with stream");
         }
         c2pa_reader = updated;
     }
 
-    Reader::Reader(ContextProviderPtr context, const std::filesystem::path &source_path)
-        : reader_context(std::move(context))
+    Reader::Reader(std::shared_ptr<IContextProvider> context, const std::filesystem::path &source_path)
+        : c2pa_reader(nullptr), reader_context(std::move(context))
     {
         if (!reader_context || !reader_context->has_context()) {
             throw C2paException("Invalid context provider");
@@ -726,10 +700,9 @@ namespace c2pa
         }
 
         // CppIStream stores reference to owned_stream, which lives as long as Reader
-        cpp_stream = new CppIStream(*owned_stream);
+        cpp_stream = std::make_unique<CppIStream>(*owned_stream);
         C2paReader* updated = c2pa_reader_with_stream(c2pa_reader, extension.c_str(), cpp_stream->c_stream);
         if (updated == nullptr) {
-            delete cpp_stream;
             c2pa_free(c2pa_reader);
             throw C2paException("Failed to configure reader with stream");
         }
@@ -739,11 +712,10 @@ namespace c2pa
     Reader::Reader(const std::string &format, std::istream &stream)
         : reader_context(nullptr)
     {
-        cpp_stream = new CppIStream(stream); // keep this allocated for life of Reader
+        cpp_stream = std::make_unique<CppIStream>(stream);
         c2pa_reader = c2pa_reader_from_stream(format.c_str(), cpp_stream->c_stream);
         if (c2pa_reader == nullptr)
         {
-            delete cpp_stream;
             throw C2paException();
         }
     }
@@ -766,11 +738,10 @@ namespace c2pa
         }
 
         // CppIStream stores reference to owned_stream, which lives as long as Reader
-        cpp_stream = new CppIStream(*owned_stream); // keep this allocated for life of Reader
+        cpp_stream = std::make_unique<CppIStream>(*owned_stream);
         c2pa_reader = c2pa_reader_from_stream(extension.c_str(), cpp_stream->c_stream);
         if (c2pa_reader == nullptr)
         {
-            delete cpp_stream;
             throw C2paException();
         }
     }
@@ -778,10 +749,7 @@ namespace c2pa
     Reader::~Reader()
     {
         c2pa_free(c2pa_reader);
-        if (cpp_stream != nullptr)
-        {
-            delete cpp_stream;
-        }
+        // cpp_stream and owned_stream are automatically cleaned up by unique_ptr
     }
 
     std::string Reader::json() const
@@ -868,7 +836,7 @@ namespace c2pa
 
     /// @brief  Builder class for creating a manifest implementation.
 
-    Builder::Builder(ContextProviderPtr context)
+    Builder::Builder(std::shared_ptr<IContextProvider> context)
         : builder(nullptr), builder_context(std::move(context))
     {
         if (!builder_context || !builder_context->has_context()) {
@@ -881,7 +849,7 @@ namespace c2pa
         }
     }
 
-    Builder::Builder(ContextProviderPtr context, const std::string &manifest_json)
+    Builder::Builder(std::shared_ptr<IContextProvider> context, const std::string &manifest_json)
         : builder(nullptr), builder_context(std::move(context))
     {
         if (!builder_context || !builder_context->has_context()) {
@@ -945,7 +913,7 @@ namespace c2pa
     void Builder::set_remote_url(const std::string &remote_url)
     {
         int result = c2pa_builder_set_remote_url(builder, remote_url.c_str());
-        if (result < 0)
+        if (result != 0)
         {
             throw C2paException();
         }
@@ -964,7 +932,7 @@ namespace c2pa
     void Builder::set_base_path(const std::string &base_path)
     {
         int result = c2pa_builder_set_base_path(builder, base_path.c_str());
-        if (result < 0)
+        if (result != 0)
         {
             throw C2paException();
         }
@@ -974,7 +942,7 @@ namespace c2pa
     {
         CppIStream c_source = CppIStream(source);
         int result = c2pa_builder_add_resource(builder, uri.c_str(), c_source.c_stream);
-        if (result < 0)
+        if (result != 0)
         {
             throw C2paException();
         }
@@ -994,7 +962,7 @@ namespace c2pa
     {
         CppIStream c_source = CppIStream(source);
         int result = c2pa_builder_add_ingredient_from_stream(builder, ingredient_json.c_str(), format.c_str(), c_source.c_stream);
-        if (result < 0)
+        if (result != 0)
         {
             throw C2paException();
         }
@@ -1018,7 +986,7 @@ namespace c2pa
     void Builder::add_action(const std::string &action_json)
     {
         int result = c2pa_builder_add_action(builder, action_json.c_str());
-        if (result < 0)
+        if (result != 0)
         {
             throw C2paException();
         }
@@ -1131,7 +1099,7 @@ namespace c2pa
     {
         CppOStream c_dest = CppOStream(dest);
         int result = c2pa_builder_to_archive(builder, c_dest.c_stream);
-        if (result < 0)
+        if (result != 0)
         {
             throw C2paException();
         }

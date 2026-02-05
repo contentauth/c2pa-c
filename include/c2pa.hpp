@@ -31,6 +31,7 @@
 #pragma warning(disable : 4505)
 #endif
 
+#include <cerrno>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -53,7 +54,25 @@ namespace c2pa
     class Context;
     class IContextProvider;
 
-    // TODO-TMN: Enum for error codes too
+    /// @brief Result codes for C API operations (matches C API return convention).
+    enum class OperationResult : int {
+        Success = 0,     ///< Operation succeeded
+        Error = -1       ///< Operation failed (check C2paException for details)
+    };
+
+    /// @brief Stream/FFI error codes (maps to errno values used by the C layer).
+    enum class StreamError : int {
+        InvalidArgument = EINVAL,
+        IoError = EIO,
+        NoBufferSpace = ENOBUFS
+    };
+
+    /// @brief Set errno from StreamError and return error sentinel.
+    inline int stream_error_return(StreamError e) noexcept {
+        errno = static_cast<int>(e);
+        return -1;
+    }
+
     /// @brief Enum for settings/configuration format
     enum class ConfigFormat {
         JSON,
@@ -70,10 +89,6 @@ namespace c2pa
             default: return "json";
         }
     }
-
-    // TODO-TMN: Remove this alias: use of smart pointers like shared_ptr for ownership (R.20) and raw pointers or references for non-owning interfaces. This alias mixes concerns, potentially leading to overuse of shared ownership where unique ownership or references suffice.. Check if unique ownership is enough (it probably is). Prefer using ContextProviderRef = IContextProvider&; or IContextProvider* for interfaces to emphasize non-ownership. If shared ownership is truly needed, use std::shared_ptr<IContextProvider> directly.
-    /// @brief Shared pointer to context provider for polymorphic usage.
-    using ContextProviderPtr = std::shared_ptr<IContextProvider>;
 
     /// C2paException class for C2pa errors.
     /// This class is used to throw exceptions for errors encountered by the C2pa library via c2pa_error().
@@ -92,13 +107,15 @@ namespace c2pa
 
     /// @brief Interface for types that can provide C2PA context functionality.
     /// @details This interface can be implemented by external libraries to provide
-    ///          custom context implementations.
+    ///          custom context implementations (e.g. AdobeContext wrappers).
+    ///          Copy is deleted; move is defaulted so implementations can be move-only
+    ///          (e.g. holding unique_ptr) or used via shared_ptr (e.g. Context).
     ///
     /// Example external implementation:
     /// @code
     /// class MyContext : public c2pa::IContextProvider {
     /// public:
-    ///     C2paContext* c_context() const override { return my_context_; }
+    ///     C2paContext* c_context() const noexcept override { return my_context_; }
     ///     bool has_context() const noexcept override { return my_context_ != nullptr; }
     /// private:
     ///     C2paContext* my_context_;
@@ -119,8 +136,9 @@ namespace c2pa
 
     protected:
         IContextProvider() = default;
-        IContextProvider(const IContextProvider&) = default;
-        IContextProvider& operator=(const IContextProvider&) = default;
+
+        IContextProvider(const IContextProvider&) = delete;
+        IContextProvider& operator=(const IContextProvider&) = delete;
         IContextProvider(IContextProvider&&) = default;
         IContextProvider& operator=(IContextProvider&&) = default;
     };
@@ -189,15 +207,15 @@ namespace c2pa
         C2paSettings* settings_;
     };
 
-    // TODO-TMN: IContextProvider defaults copy/move, but it's an abstract interface role where neither should be needed.
     /// @brief Immutable C2PA context implementing IContextProvider.
     /// @details Context objects are immutable after construction.
     ///          Create contexts using factory methods or the
     ///          builder pattern using the ContextBuilder object.
     class C2PA_CPP_API Context : public IContextProvider {
     public:
-        // TODO-TMN: Add a way to detect invalidation (ContextBuilder::create_context() leaves builder in "moved-from" state post-call). We likely want a valid() function here or something nice
         /// @brief ContextBuilder for creating customized Context instances.
+        /// @details The builder follows a consuming builder pattern: after calling
+        ///          create_context(), the builder is left in an invalid state.
         class C2PA_CPP_API ContextBuilder {
         public:
             ContextBuilder();
@@ -211,29 +229,34 @@ namespace c2pa
             ContextBuilder(const ContextBuilder&) = delete;
             ContextBuilder& operator=(const ContextBuilder&) = delete;
 
+            /// @brief Check if the builder is in a valid state (not consumed).
+            /// @return true if the builder can still be used, false if consumed.
+            [[nodiscard]] bool is_valid() const noexcept;
+
             /// @brief Configure with Settings object.
             /// @param settings Settings to use (will be copied into the context).
             /// @return Reference to this ContextBuilder for method chaining.
+            /// @throws C2paException if builder is invalid or settings are invalid.
             ContextBuilder& with_settings(const Settings& settings);
 
             /// @brief Configure settings with JSON string.
             /// @param json JSON configuration string.
             /// @return Reference to this ContextBuilder for method chaining.
-            /// @throws C2paException if JSON is invalid.
+            /// @throws C2paException if builder is invalid or JSON is invalid.
             ContextBuilder& with_json(const std::string& json);
 
             /// @brief Configure settings with TOML string.
             /// @param toml TOML configuration string.
             /// @return Reference to this ContextBuilder for method chaining.
-            /// @throws C2paException if TOML is invalid.
+            /// @throws C2paException if builder is invalid or TOML is invalid.
             ContextBuilder& with_toml(const std::string& toml);
 
-            /// @brief Create the immutable Context (build() from builder pattern).
+            /// @brief Create the immutable Context (consuming build operation).
             /// @return Shared pointer to the new Context.
-            /// @throws C2paException if context creation fails.
+            /// @throws C2paException if context creation fails or builder is invalid.
             /// @note This consumes the ContextBuilder. After calling create_context(),
-            ///       the ContextBuilder is in a moved-from state.
-            [[nodiscard]] ContextProviderPtr create_context(); // TODO-TMN: Make consuming?
+            ///       the builder is left in an invalid state (is_valid() returns false).
+            [[nodiscard]] std::shared_ptr<IContextProvider> create_context();
 
         private:
             C2paContextBuilder* context_builder;
@@ -242,19 +265,19 @@ namespace c2pa
         /// @brief Create a Context with default settings.
         /// @return Shared pointer to the new Context.
         /// @throws C2paException if context creation fails.
-        [[nodiscard]] static ContextProviderPtr create();
+        [[nodiscard]] static std::shared_ptr<IContextProvider> create();
 
         /// @brief Create a Context from JSON configuration (settings).
         /// @param json JSON configuration string.
         /// @return Shared pointer to the new Context.
         /// @throws C2paException if JSON is invalid or context creation fails.
-        [[nodiscard]] static ContextProviderPtr from_json(const std::string& json);
+        [[nodiscard]] static std::shared_ptr<IContextProvider> from_json(const std::string& json);
 
         /// @brief Create a Context from TOML configuration (settings).
         /// @param toml TOML configuration string.
         /// @return Shared pointer to the new Context.
         /// @throws C2paException if TOML is invalid or context creation fails.
-        [[nodiscard]] static ContextProviderPtr from_toml(const std::string& toml);
+        [[nodiscard]] static std::shared_ptr<IContextProvider> from_toml(const std::string& toml);
 
         // Non-copyable, non-moveable
         Context(const Context&) = delete;
@@ -402,17 +425,17 @@ namespace c2pa
         static intptr_t flusher(StreamContext *context);
     };
 
-    // TODO-TMN: Builder + Reader: move constructors don't null-check or reset owned_stream, risking double-closes on moved-from objects.
     /// @brief Reader class for reading a manifest.
     /// @details This class is used to read and validate a manifest from a stream or file.
+    ///          Resources are managed using RAII; member order ensures cpp_stream (which
+    ///          holds a C stream pointing at the ifstream) is destroyed before owned_stream.
     class C2PA_CPP_API Reader
     {
     private:
-        // TODO-TMN: Reader owns std::ifstream via unique_ptr but also holds CppIStream* cpp_stream (raw pointer), mixing heap/file resources without unified cleanup.
         C2paReader *c2pa_reader;
-        CppIStream *cpp_stream = nullptr;
-        std::unique_ptr<std::ifstream> owned_stream;  // Owns stream when created from file path
-        ContextProviderPtr reader_context;  // Keeps context alive for this reader
+        std::unique_ptr<std::ifstream> owned_stream;  // Owns file stream when created from path
+        std::unique_ptr<CppIStream> cpp_stream;       // Wraps stream for C API; destroyed before owned_stream
+        std::shared_ptr<IContextProvider> reader_context;  // Keeps context alive for this reader
 
     public:
         /// @brief Create a Reader from a context and stream.
@@ -420,14 +443,14 @@ namespace c2pa
         /// @param format The mime format of the stream.
         /// @param stream The input stream to read from.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        Reader(ContextProviderPtr context, const std::string &format, std::istream &stream);
+        Reader(std::shared_ptr<IContextProvider> context, const std::string &format, std::istream &stream);
 
         /// @brief Create a Reader from a context and file path.
         /// @param context Context provider to use for this reader.
         /// @param source_path The path to the file to read.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         /// @note Prefer using the streaming APIs if possible
-        Reader(ContextProviderPtr context, const std::filesystem::path &source_path);
+        Reader(std::shared_ptr<IContextProvider> context, const std::filesystem::path &source_path);
 
         /// @brief Create a Reader from a stream (uses global settings).
         /// @details The validation_status field in the json contains validation results.
@@ -450,21 +473,22 @@ namespace c2pa
         Reader(const Reader&) = delete;
         Reader& operator=(const Reader&) = delete;
 
-        // Move semantics
+        // Move semantics (owned_stream before cpp_stream so cpp_stream is destroyed first)
         Reader(Reader&& other) noexcept
-            : c2pa_reader(other.c2pa_reader), cpp_stream(other.cpp_stream), reader_context(std::move(other.reader_context)) {
+            : c2pa_reader(other.c2pa_reader),
+              owned_stream(std::move(other.owned_stream)),
+              cpp_stream(std::move(other.cpp_stream)),
+              reader_context(std::move(other.reader_context)) {
             other.c2pa_reader = nullptr;
-            other.cpp_stream = nullptr;
         }
         Reader& operator=(Reader&& other) noexcept {
             if (this != &other) {
                 c2pa_free(c2pa_reader);
-                delete cpp_stream;
                 c2pa_reader = other.c2pa_reader;
-                cpp_stream = other.cpp_stream;
+                owned_stream = std::move(other.owned_stream);
+                cpp_stream = std::move(other.cpp_stream);
                 reader_context = std::move(other.reader_context);
                 other.c2pa_reader = nullptr;
-                other.cpp_stream = nullptr;
             }
             return *this;
         }
@@ -473,7 +497,7 @@ namespace c2pa
 
         /// @brief Get the context associated with this Reader.
         /// @return Shared pointer to the context, or nullptr if using legacy/context-free API.
-        [[nodiscard]] inline ContextProviderPtr context() const noexcept {
+        [[nodiscard]] inline std::shared_ptr<IContextProvider> context() const noexcept {
             return reader_context;
         }
 
@@ -583,19 +607,19 @@ namespace c2pa
     {
     private:
         C2paBuilder *builder;
-        ContextProviderPtr builder_context;  // Keeps context alive for this builder
+        std::shared_ptr<IContextProvider> builder_context;  // Keeps context alive for this builder
 
     public:
         /// @brief Create a Builder from a context with an empty manifest.
         /// @param context Context provider to use for this builder.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        explicit Builder(ContextProviderPtr context);
+        explicit Builder(std::shared_ptr<IContextProvider> context);
 
         /// @brief Create a Builder from a context and manifest JSON string.
         /// @param context Context provider to use for this builder.
         /// @param manifest_json The manifest JSON string.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        Builder(ContextProviderPtr context, const std::string &manifest_json);
+        Builder(std::shared_ptr<IContextProvider> context, const std::string &manifest_json);
 
         /// @brief Create a Builder from a manifest JSON std::string (uses global settings).
         /// @param manifest_json The manifest JSON string.
@@ -626,7 +650,7 @@ namespace c2pa
 
         /// @brief Get the context associated with this Builder.
         /// @return Shared pointer to the context, or nullptr if using legacy/context-free API.
-        [[nodiscard]] inline ContextProviderPtr context() const noexcept {
+        [[nodiscard]] inline std::shared_ptr<IContextProvider> context() const noexcept {
             return builder_context;
         }
 
