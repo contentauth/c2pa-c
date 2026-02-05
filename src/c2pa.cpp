@@ -156,8 +156,18 @@ intptr_t stream_seeker(StreamContext* context, intptr_t offset, C2paSeekMode whe
 }
 
 /// Single reader implementation for streams that support read() and gcount() (std::istream, std::iostream).
+/// Validates context, buffer, and size before calling read() to avoid UB from bad C-layer inputs.
 template<typename Stream>
 intptr_t stream_reader(StreamContext* context, uint8_t* buffer, intptr_t size) {
+    if (!context || !buffer) {
+        return stream_error_return(StreamError::InvalidArgument);
+    }
+    if (size < 0) {
+        return stream_error_return(StreamError::InvalidArgument);
+    }
+    if (size == 0) {
+        return 0;
+    }
     auto* stream = reinterpret_cast<Stream*>(context);
     stream->read(reinterpret_cast<char*>(buffer), size);
     if (stream->fail()) {
@@ -214,17 +224,17 @@ intptr_t stream_flusher(StreamContext* context) {
     C2paException::C2paException()
     {
         auto result = c2pa_error();
-        message = std::string(result);
+        message_ = std::string(result);
         c2pa_free(result);
     }
 
-    C2paException::C2paException(std::string what) : message(std::move(what))
+    C2paException::C2paException(std::string message) : message_(std::move(message))
     {
     }
 
-    const char *C2paException::what() const noexcept
+    const char* C2paException::what() const noexcept
     {
-        return message.c_str();
+        return message_.c_str();
     }
 
     // ===== Settings Implementation =====

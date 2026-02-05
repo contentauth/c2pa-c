@@ -92,17 +92,24 @@ namespace c2pa
 
     /// C2paException class for C2pa errors.
     /// This class is used to throw exceptions for errors encountered by the C2pa library via c2pa_error().
-    class C2PA_CPP_API C2paException : public std::exception
+    class C2PA_CPP_API C2paException final : public std::exception
     {
-    private:
-        std::string message;
-
     public:
         C2paException();
 
-        C2paException(std::string what);
+        explicit C2paException(std::string message);
 
-        virtual const char *what() const noexcept;
+        ~C2paException() override = default;
+
+        C2paException(const C2paException&) = default;
+        C2paException& operator=(const C2paException&) = default;
+        C2paException(C2paException&&) = default;
+        C2paException& operator=(C2paException&&) = default;
+
+        const char* what() const noexcept override;
+
+    private:
+        std::string message_;
     };
 
     /// @brief Interface for types that can provide C2PA context functionality.
