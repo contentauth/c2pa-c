@@ -417,9 +417,9 @@ intent = "edit"
 # Claim generator info list.
 [builder.claim_generator_info]
 # A human readable name.
-name = "c2pa-rs testing"
+name = "c2pa-cpp testing"
 # A human readable string of the product's version.
-version = "1.0.0"
+version = "0.1.0"
 # The operating system the claim generator is running on.
 #operating_system.name = "macOS"
 # Or specify "auto" to infer the operating system automatically.
@@ -435,72 +435,6 @@ operating_system = "auto"
 # Signifies if all the actions that ever happened on a particular asset are specified
 # or if some are missing.
 #all_actions_included = true
-
-# A template to use as the base values for a particular action.
-#[[builder.actions.templates]]
-# The label of the action.
-#action = "c2pa.edited"
-# TODO: do we want to document these fields here or just include links to the docs
-#       rust docs or c2pa docs?
-# The source type field is required for the c2pa.created action.
-#
-# For more information, see `c2pa::assertions::actions::source_type`.
-#source_type = "http://c2pa.org/digitalsourcetype/empty"
-# Description for the action
-#description = "Some edit action."
-# Arbitrary key/value pairs to store in the action.
-#template_parameters = { "arbitrary_key" = true }
-# A software agent has the same fields as a claim generator info.
-#software_agent = { name = "My Service" }
-
-# Multiple templates can be specified.
-#[[builder.actions.templates]]
-#action = "c2pa.cropped"
-
-# TODO: document rest of fields for actions
-# Actions to be added to every "Actions" assertion.
-#[[builder.actions.actions]]
-# The label of the action.
-#action = "c2pa.drawing"
-
-# Similarly, multiple actions can be defined.
-#382[[builder.actions.actions]]
-#action = "c2pa.color_adjustments"
-
-# Settings for configuring how c2pa.created actions are auto created.
-#
-# This is a convenience setting and it can be disabled if the information
-# is provided manually.
-#[builder.actions.auto_created_action]
-# Whether to auto create the c2pa.created action.
-#enabled = true
-# The source type field is required for the c2pa.created action.
-#
-# For more information, see `c2pa::assertions::actions::source_type`.
-#source_type = "http://c2pa.org/digitalsourcetype/empty"
-
-# Settings for configuring how c2pa.opened actions are auto created.
-#
-# This is a convenience setting and it can be disabled if the information
-# is provided manually.
-#[builder.actions.auto_opened_action]
-# Whether to auto create the c2pa.opened action.
-#enabled = true
-# For more information, see `c2pa::assertions::actions::source_type`.
-#
-# Note this field is optional for the c2pa.opened action.
-#source_type = "http://c2pa.org/digitalsourcetype/empty"
-# Settings for configuring how c2pa.placed actions are auto created.
-#
-# This is a convenience setting and it can be disabled if the information
-# is provided manually.
-#[builder.actions.auto_placed_action]
-# Whether to auto create the c2pa.placed action.
-#enabled = true
-# For more information, see `c2pa::assertions::actions::source_type`.
-#
-# Note this field is optional for the c2pa.placed action.
-#source_type = "http://c2pa.org/digitalsourcetype/empty"
 
 # Settings for automatic thumbnail generation.
 [builder.thumbnail]

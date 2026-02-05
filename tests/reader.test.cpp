@@ -261,7 +261,7 @@ TEST(Reader, ReadManifestWithTrustConfiguredTomlSettings)
     // Trust is based on a chain of trusted certificates. When signing, we may need to know
     // if the ingredients are trusted at time of signing, so we benefit from having a context
     // already configured with that trust to use with our Builder and Reader.
-    fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_all.toml";
+    fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_example.toml";
     auto settings = read_text_file(settings_path);
     auto trusted_context = c2pa::Context::from_toml(settings);
 
@@ -285,7 +285,7 @@ TEST(Reader, ReadManifestWithTrustConfiguredJsonSettings)
     // Trust is based on a chain of trusted certificates. When signing, we may need to know
     // if the ingredients are trusted at time of signing, so we benefit from having a context
     // already configured with that trust to use with our Builder and Reader.
-    fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_all.json";
+    fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_example.json";
     auto settings = read_text_file(settings_path);
     auto trusted_context = c2pa::Context::from_json(settings);
 

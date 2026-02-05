@@ -4,9 +4,9 @@
     "intent": "edit",
     "actions": {},
     "claim_generator_info": {
-      "name": "c2pa-rs testing",
+      "name": "c2pa-cpp testing",
       "operating_system": "auto",
-      "version": "1.0.0"
+      "version": "0.1.0"
     },
     "thumbnail": {
       "enabled": true,

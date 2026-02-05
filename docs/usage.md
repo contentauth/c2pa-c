@@ -13,6 +13,7 @@ Use the `Reader` constructor to read C2PA data from a stream. This constructor e
 ```cpp
   auto reader = c2pa::Reader(<"FORMAT">, <"STREAM">);
 ```
+
 The parameters are:
 
 - `<FORMAT>`- A MIME string format for the stream; must be one of the [supported file formats](supported-formats.md).
@@ -42,12 +43,12 @@ The manifest JSON string defines the C2PA manifest to add to the file.
 A sample JSON manifest is provided in [tests/fixtures/training.json](https://github.com/contentauth/c2pa-c/blob/main/tests/fixtures/training.json).
 
 For example:
+
 ```cpp
 const std::string manifest_json = R"{
-    "claim_generator": "c2pa_c_test/0.1",
     "claim_generator_info": [
       {
-        "name": "c2pa-c test",
+        "name": "c2pa-cpp test",
         "version": "0.1"
       }
     ],
@@ -91,37 +92,17 @@ For example:
   auto builder = Builder(manifest_json);
 ```
 
-### Create a SignerInfo instance
-
-A `SignerInfo` object contains information about a signature.  To create an instance of `SignerInfo`, first set up the signer information from the public and private key files. For example, using the simple `read_text_file` function defined in the [`training.cpp` example](https://github.com/contentauth/c2pa-c/blob/main/examples/training.cpp):
-
-```cpp
-string certs = read_text_file("path/to/certs.pem").data();
-string private_key = read_text_file("path/to/private.key").data();
-```
-
-Then create a new `SignerInfo` instance using the keys, specifying the signing algorithm in the `.alg` field and optionally a time stamp authority URL in the `.ta_url` field:
-
-```cpp
-C2paSignerInfo sign_info = {"es256",
-                            certs.c_str(),
-                            private_key.c_str(),
-                            "http://timestamp.digicert.com"};
-```
-
-For the list of supported signing algorithms, see [Creating and using an X.509 certificate](https://opensource.contentauthenticity.org/docs/c2patool/x_509).
-
-**WARNING**: Do not access a private key and certificate directly like this in production  because it's not secure. Instead use a hardware security module (HSM) and optionally a Key Management Service (KMS) to access the key; for example as show in the [C2PA Python Example](https://github.com/contentauth/c2pa-python-example).
-
 ## Creating a Signer
 
-For testing you can create a signer using any supported algorithm by a Signer constructor.
+For testing you can create a signer using any supported algorithm by a Signer constructor. For the list of supported signing algorithms, see [Creating and using an X.509 certificate](https://opensource.contentauthenticity.org/docs/c2patool/x_509).
+
 There are multiple forms of constructors. But in this example we show how to create a signer with
 a public and private key.
 
 ```cpp
   Signer signer = Signer("<SIGNING_ALG>", "<PUBLIC_CERTS>",  "<PRIVATE_KEY>", "<TIMESTAMP_URL>");
 ```
+
 The parameters are:
 - `<SIGNING_ALG>`- The `C2paSigningAlg` from `c2pa.h` associated with the signing function.
 - `<PUBLIC_CERTS>`- A buffer containing the public cert chain in PEM format.
@@ -129,9 +110,12 @@ The parameters are:
 - `<TIMESTAMP_URL>`- An optional parameter containing a URL to a public Time Stamp Authority service.
 
 For example:
+
 ```cpp
 Signer signer = c2pa::Signer("Es256", certs, private_key, "http://timestamp.digicert.com");
 ```
+
+**WARNING**: Do not access a private key and certificate directly like this in production  because it's not secure. Instead use a hardware security module (HSM) and optionally a Key Management Service (KMS) to access the key; for example as show in the [C2PA Python Example](https://github.com/contentauth/c2pa-python-example).
 
 ## Signing and embedding a manifest
 
@@ -142,11 +126,12 @@ A media file may contain many manifests in a manifest store. The `active_manifes
 ```
 
 The parameters are:
+
 - `<SOURCE_ASSET>`- A file path or an istream referencing the asset to sign.
 - `<OUTPUT_ASSET>`- A file path or an iostream referencing the asset to generate.
 - `<SIGNER>` - A `Signer` instance.
 
-For example: 
+For example:
 ```cpp
   auto manifest_data = builder.sign("source_asset.jpg", "output_asset.jpg", signer);
 ```
