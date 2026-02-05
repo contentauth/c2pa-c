@@ -26,8 +26,6 @@
 
 #include "c2pa.hpp"
 
-using namespace c2pa;
-
 namespace {
 
 /// @brief Converts a C array of C strings to a std::vector of std::string.
@@ -58,7 +56,7 @@ intptr_t signer_passthrough(const void *context, const unsigned char *data, uint
   try
   {
     // the context is a pointer to the C++ callback function
-    SignerFunc *callback = (SignerFunc *)context;
+    c2pa::SignerFunc *callback = (c2pa::SignerFunc *)context;
     std::vector<uint8_t> data_vec(data, data + len);
     std::vector<uint8_t> signature_vec = (callback)(data_vec);
     if (signature_vec.size() > sig_max_len)
@@ -177,7 +175,7 @@ namespace c2pa
         }
     }
 
-    C2paContext* Context::c_context() const {
+    C2paContext* Context::c_context() const noexcept {
         return context_;
     }
 

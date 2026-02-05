@@ -53,6 +53,8 @@ namespace c2pa
     class Context;
     class IContextProvider;
 
+    // TODO-TMN: Enum for error codes too
+    /// @brief Enum for settings/configuration format
     enum class ConfigFormat {
         JSON,
         TOML
@@ -61,7 +63,7 @@ namespace c2pa
     /// @brief Helper to convert enum to string format
     /// @param format ConfigFormat enum value
     /// @return Format as string, defaults to json
-    inline const char* config_format_to_string(ConfigFormat format) {
+    inline const char* config_format_to_string(ConfigFormat format) noexcept {
         switch(format) {
             case ConfigFormat::JSON: return "json";
             case ConfigFormat::TOML: return "toml";
@@ -69,6 +71,7 @@ namespace c2pa
         }
     }
 
+    // TODO-TMN: Remove this alias: use of smart pointers like shared_ptr for ownership (R.20) and raw pointers or references for non-owning interfaces. This alias mixes concerns, potentially leading to overuse of shared ownership where unique ownership or references suffice.. Check if unique ownership is enough (it probably is). Prefer using ContextProviderRef = IContextProvider&; or IContextProvider* for interfaces to emphasize non-ownership. If shared ownership is truly needed, use std::shared_ptr<IContextProvider> directly.
     /// @brief Shared pointer to context provider for polymorphic usage.
     using ContextProviderPtr = std::shared_ptr<IContextProvider>;
 
@@ -93,7 +96,7 @@ namespace c2pa
     ///
     /// Example external implementation:
     /// @code
-    /// class MyCOntext : public c2pa::IContextProvider {
+    /// class MyContext : public c2pa::IContextProvider {
     /// public:
     ///     C2paContext* c_context() const override { return my_context_; }
     ///     bool has_context() const noexcept override { return my_context_ != nullptr; }
@@ -108,7 +111,7 @@ namespace c2pa
         /// @brief Get the underlying C2PA context pointer for FFI operations.
         /// @return Pointer to C2paContext, or nullptr if not available.
         /// @note Provider retains ownership; pointer valid for provider's lifetime.
-        [[nodiscard]] virtual C2paContext* c_context() const = 0;
+        [[nodiscard]] virtual C2paContext* c_context() const noexcept = 0;
 
         /// @brief Check if this provider has a valid context.
         /// @return true if context is available, false otherwise.
@@ -125,7 +128,8 @@ namespace c2pa
     /// @brief (C2PA SDK) Settings configuration object for creating contexts.
     /// @details Settings can be configured via JSON/TOML strings or programmatically
     ///          via set() and update() methods. Once passed to Context::ContextBuilder,
-    ///          the settings are copied and the Settings object can be reused or discarded.
+    ///          the settings are copied into the context and the Settings
+    ///          object can be reused or discarded.
     class C2PA_CPP_API Settings {
     public:
         /// @brief Create default settings.
@@ -185,12 +189,14 @@ namespace c2pa
         C2paSettings* settings_;
     };
 
+    // TODO-TMN: IContextProvider defaults copy/move, but it's an abstract interface role where neither should be needed.
     /// @brief Immutable C2PA context implementing IContextProvider.
     /// @details Context objects are immutable after construction.
-    ///          Create contexts using static factory methods or the
+    ///          Create contexts using factory methods or the
     ///          builder pattern using the ContextBuilder object.
     class C2PA_CPP_API Context : public IContextProvider {
     public:
+        // TODO-TMN: Add a way to detect invalidation (ContextBuilder::create_context() leaves builder in "moved-from" state post-call). We likely want a valid() function here or something nice
         /// @brief ContextBuilder for creating customized Context instances.
         class C2PA_CPP_API ContextBuilder {
         public:
@@ -250,7 +256,7 @@ namespace c2pa
         /// @throws C2paException if TOML is invalid or context creation fails.
         [[nodiscard]] static ContextProviderPtr from_toml(const std::string& toml);
 
-        // Non-copyable, non-moveable (managed via shared_ptr)
+        // Non-copyable, non-moveable
         Context(const Context&) = delete;
         Context& operator=(const Context&) = delete;
         Context(Context&&) = delete;
@@ -259,7 +265,7 @@ namespace c2pa
         ~Context() noexcept override;
 
         // IContextProvider implementation
-        [[nodiscard]] C2paContext* c_context() const override;
+        [[nodiscard]] C2paContext* c_context() const noexcept override;
         [[nodiscard]] bool has_context() const noexcept override;
 
         /// @brief Internal constructor (use static factory methods instead).
@@ -320,6 +326,7 @@ namespace c2pa
         C2paStream *c_stream;
         template <typename IStream>
         explicit CppIStream(IStream &istream) {
+            // TODO-TMN Review the static assert here
             static_assert(std::is_base_of<std::istream, IStream>::value,
                       "Stream must be derived from std::istream");
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&istream), reader, seeker, writer, flusher);
@@ -349,6 +356,7 @@ namespace c2pa
         C2paStream *c_stream;
         template <typename OStream>
         explicit CppOStream(OStream &ostream) {
+            // TODO-TMN Review the static assert here
             static_assert(std::is_base_of<std::ostream, OStream>::value, "Stream must be derived from std::ostream");
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&ostream), reader, seeker, writer, flusher);
         }
@@ -375,6 +383,7 @@ namespace c2pa
         C2paStream *c_stream;
         template <typename IOStream>
         CppIOStream(IOStream &iostream) {
+            // TODO-TMN Review the static assert here
             static_assert(std::is_base_of<std::iostream, IOStream>::value, "Stream must be derived from std::iostream");
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&iostream), reader, seeker, writer, flusher);
         }
@@ -393,11 +402,13 @@ namespace c2pa
         static intptr_t flusher(StreamContext *context);
     };
 
+    // TODO-TMN: Builder + Reader: move constructors don't null-check or reset owned_stream, risking double-closes on moved-from objects.
     /// @brief Reader class for reading a manifest.
     /// @details This class is used to read and validate a manifest from a stream or file.
     class C2PA_CPP_API Reader
     {
     private:
+        // TODO-TMN: Reader owns std::ifstream via unique_ptr but also holds CppIStream* cpp_stream (raw pointer), mixing heap/file resources without unified cleanup.
         C2paReader *c2pa_reader;
         CppIStream *cpp_stream = nullptr;
         std::unique_ptr<std::ifstream> owned_stream;  // Owns stream when created from file path
