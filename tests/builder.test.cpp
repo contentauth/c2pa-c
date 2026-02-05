@@ -1225,7 +1225,7 @@ TEST(Builder, SignStreamCloudUrl)
     catch (c2pa::C2paException const &e)
     {
         std::string error_message = e.what();
-        if (error_message.rfind("Other: could not fetch the remote manifest", 0) == 0)
+        if (error_message.rfind("Remote:", 0) == 0)
         {
             SUCCEED();
         }
