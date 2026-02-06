@@ -166,7 +166,7 @@ if(APPLE)
     )
 elseif(UNIX)
     set_tests_properties(c_test PROPERTIES
-        ENVIRONMENT "LD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH}"
+        ENVIRONMENT "LD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH};LSAN_OPTIONS=suppressions=${LSAN_SUPPRESSIONS_FILE}"
     )
 endif()
 
