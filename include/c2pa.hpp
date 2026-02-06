@@ -302,7 +302,7 @@ namespace c2pa
         explicit Context(C2paContext* ctx);
 
     private:
-        C2paContext* context_;
+        C2paContext* context;
 
         friend class Builder;
     };

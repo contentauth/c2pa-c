@@ -23,6 +23,7 @@
 #include <optional>
 #include <filesystem>
 #include <system_error> // For std::system_error
+#include <utility>       // For std::exchange
 
 #include "c2pa.hpp"
 
@@ -252,8 +253,8 @@ intptr_t stream_flusher(StreamContext* context) {
         }
     }
 
-    Settings::Settings(Settings&& other) noexcept : settings_(other.settings_) {
-        other.settings_ = nullptr;
+    Settings::Settings(Settings&& other) noexcept
+        : settings_(std::exchange(other.settings_, nullptr)) {
     }
 
     Settings& Settings::operator=(Settings&& other) noexcept {
@@ -261,8 +262,7 @@ intptr_t stream_flusher(StreamContext* context) {
             if (settings_) {
                 c2pa_free(settings_);
             }
-            settings_ = other.settings_;
-            other.settings_ = nullptr;
+            settings_ = std::exchange(other.settings_, nullptr);
         }
         return *this;
     }
@@ -293,28 +293,28 @@ intptr_t stream_flusher(StreamContext* context) {
 
     // ===== Context Implementation =====
 
-    Context::Context(C2paContext* ctx) : context_(ctx) {
-        if (!context_) {
+    Context::Context(C2paContext* ctx) : context(ctx) {
+        if (!context) {
             throw C2paException("Invalid context pointer");
         }
     }
 
     Context::~Context() noexcept {
-        if (context_) {
-            c2pa_free(context_);
+        if (context) {
+            c2pa_free(context);
         }
     }
 
     C2paContext* Context::c_context() const noexcept {
-        return context_;
+        return context;
     }
 
     bool Context::has_context() const noexcept {
-        return context_ != nullptr;
+        return context != nullptr;
     }
 
     std::shared_ptr<IContextProvider> Context::create() {
-        C2paContext* ctx = c2pa_context_new();
+        auto ctx = c2pa_context_new();
         if (!ctx) {
             throw C2paException("Failed to create context");
         }
@@ -337,8 +337,8 @@ intptr_t stream_flusher(StreamContext* context) {
         }
     }
 
-    Context::ContextBuilder::ContextBuilder(ContextBuilder&& other) noexcept : context_builder(other.context_builder) {
-        other.context_builder = nullptr;
+    Context::ContextBuilder::ContextBuilder(ContextBuilder&& other) noexcept
+        : context_builder(std::exchange(other.context_builder, nullptr)) {
     }
 
     Context::ContextBuilder& Context::ContextBuilder::operator=(ContextBuilder&& other) noexcept {
@@ -346,8 +346,7 @@ intptr_t stream_flusher(StreamContext* context) {
             if (context_builder) {
                 c2pa_free(context_builder);
             }
-            context_builder = other.context_builder;
-            other.context_builder = nullptr;
+            context_builder = std::exchange(other.context_builder, nullptr);
         }
         return *this;
     }
@@ -376,16 +375,14 @@ intptr_t stream_flusher(StreamContext* context) {
         if (!is_valid()) {
             throw C2paException("ContextBuilder is invalid (already consumed)");
         }
-        Settings settings(json, ConfigFormat::JSON);
-        return with_settings(settings);
+        return with_settings(Settings(json, ConfigFormat::JSON));
     }
 
     Context::ContextBuilder& Context::ContextBuilder::with_toml(const std::string& toml) {
         if (!is_valid()) {
             throw C2paException("ContextBuilder is invalid (already consumed)");
         }
-        Settings settings(toml, ConfigFormat::TOML);
-        return with_settings(settings);
+        return with_settings(Settings(toml, ConfigFormat::TOML));
     }
 
     std::shared_ptr<IContextProvider> Context::ContextBuilder::create_context() {
@@ -823,7 +820,7 @@ intptr_t stream_flusher(StreamContext* context) {
     Builder::Builder(std::istream &archive)
         : builder(nullptr), builder_context(nullptr)
     {
-        CppIStream c_archive = CppIStream(archive);
+        CppIStream c_archive(archive);
         builder = c2pa_builder_from_archive(c_archive.c_stream);
         if (builder == nullptr)
         {
@@ -876,7 +873,7 @@ intptr_t stream_flusher(StreamContext* context) {
 
     void Builder::add_resource(const std::string &uri, std::istream &source)
     {
-        CppIStream c_source = CppIStream(source);
+        CppIStream c_source(source);
         int result = c2pa_builder_add_resource(builder, uri.c_str(), c_source.c_stream);
         if (result < 0)
         {
@@ -896,7 +893,7 @@ intptr_t stream_flusher(StreamContext* context) {
 
     void Builder::add_ingredient(const std::string &ingredient_json, const std::string &format, std::istream &source)
     {
-        CppIStream c_source = CppIStream(source);
+        CppIStream c_source(source);
         int result = c2pa_builder_add_ingredient_from_stream(builder, ingredient_json.c_str(), format.c_str(), c_source.c_stream);
         if (result < 0)
         {
