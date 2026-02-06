@@ -29,9 +29,11 @@ int main(void)
 
     char *result = c2pa_read_file("tests/fixtures/C.jpg", "build/tmp");
     assert_str_not_null("c2pa_read_file", result);
+    c2pa_free(result);
 
     result = c2pa_read_ingredient_file("tests/fixtures/C.jpg", "build/ingredient");
     assert_str_not_null("c2pa_ingredient_from_file", result);
+    c2pa_free(result);
 
     C2paStream *input_stream = open_file_stream("tests/fixtures/C.jpg", "rb");
     assert_not_null("open_file_stream", input_stream);
