@@ -25,6 +25,7 @@ int main(void)
 
     char *result1 = c2pa_read_file("tests/fixtures/C.jpg", NULL);
     assert_str_not_null("c2pa_read_file_no_data_dir", result1);
+    c2pa_free(result1);
 
     char *result = c2pa_read_file("tests/fixtures/C.jpg", "build/tmp");
     assert_str_not_null("c2pa_read_file", result);
@@ -59,6 +60,7 @@ int main(void)
     // write the thumbnail resource to the stream
     int res = c2pa_reader_resource_to_stream(reader, uri, thumb_stream);
     free(uri);
+    c2pa_free(json);
     assert_int("c2pa_reader_resource", res);
 
     c2pa_free(reader);
@@ -77,6 +79,7 @@ int main(void)
     result = c2pa_sign_file("tests/fixtures/C.jpg", "build/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
     // c2pa_sign_file returns JSON manifest from the Reader on success, NULL on error
     assert_not_null("c2pa_sign_file_ok", result);
+    c2pa_free(result);
 
     remove("build/tmp/earth2.jpg");
     result = c2pa_sign_file("tests/fixtures/foo.jpg", "build/tmp/earth2.jpg", manifest, &sign_info, "tests/fixtures");
