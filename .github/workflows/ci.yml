@@ -46,5 +46,9 @@ jobs:
         run: |
           which make
           make --version
+
       - name: Run tests
         run: make test
+
+      - name: Run tests (with sanitizers)
+        run: make test-san
