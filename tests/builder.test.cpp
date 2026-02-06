@@ -2243,7 +2243,14 @@ TEST(Builder, TrustHandling)
     ASSERT_TRUE(parsed_manifest_json3["validation_state"] == "Valid");
 };
 
-TEST(Builder, SignWithIStreamAndOStreamRoundTrip)
+// =============================================================================
+// Stream abstraction tests (CppIStream, CppOStream, CppIOStream)
+// These tests verify that the C++ stream wrappers correctly adapt std::istream,
+// std::ostream, and std::iostream to the C2PA C layer (reader, writer, seeker,
+// flusher callbacks). No API surface changes; they guard the shared detail logic.
+// =============================================================================
+
+TEST(StreamAbstractions, SignWithIStreamAndOStream_RoundTrip)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
@@ -2280,7 +2287,7 @@ TEST(Builder, SignWithIStreamAndOStreamRoundTrip)
     ASSERT_TRUE(json_result.find("cawg.training-mining") != std::string::npos);
 }
 
-TEST(Builder, SignWithIStreamAndIOStreamRoundTrip)
+TEST(StreamAbstractions, SignWithIStreamAndIOStream_RoundTrip)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
@@ -2312,4 +2319,40 @@ TEST(Builder, SignWithIStreamAndIOStreamRoundTrip)
     ASSERT_NO_THROW(json_result = reader.json());
     ASSERT_FALSE(manifest_data.empty());
     ASSERT_TRUE(json_result.find("cawg.training-mining") != std::string::npos);
+}
+
+TEST(StreamAbstractions, ReaderFromPathUsesOwnedStream)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path signed_path = current_dir / "../tests/fixtures/sample1_signed.wav";
+
+    if (!std::filesystem::exists(signed_path))
+    {
+        GTEST_SKIP() << "Fixture not found: " << signed_path;
+    }
+
+    c2pa::Reader reader(signed_path);
+    std::string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+    ASSERT_FALSE(json_result.empty());
+}
+
+TEST(StreamAbstractions, ReaderFromIStreamWithContext)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path signed_path = current_dir / "../tests/fixtures/sample1_signed.wav";
+
+    if (!std::filesystem::exists(signed_path))
+    {
+        GTEST_SKIP() << "Fixture not found: " << signed_path;
+    }
+
+    auto context = c2pa::Context::create();
+    std::ifstream stream(signed_path, std::ios::binary);
+    ASSERT_TRUE(stream) << "Failed to open " << signed_path;
+
+    c2pa::Reader reader(context, "audio/wav", stream);
+    std::string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+    ASSERT_FALSE(json_result.empty());
 }
