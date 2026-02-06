@@ -300,3 +300,23 @@ TEST(Reader, ReadManifestWithTrustConfiguredJsonSettings)
 
     ASSERT_TRUE(parsed_manifest_json["validation_state"] == "Trusted");
 }
+
+TEST(Reader, ReaderFromIStreamWithContext)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path signed_path = current_dir / "../tests/fixtures/sample1_signed.wav";
+
+    if (!std::filesystem::exists(signed_path))
+    {
+        GTEST_SKIP() << "Fixture not found: " << signed_path;
+    }
+
+    auto context = c2pa::Context::create();
+    std::ifstream stream(signed_path, std::ios::binary);
+    ASSERT_TRUE(stream) << "Failed to open " << signed_path;
+
+    c2pa::Reader reader(context, "audio/wav", stream);
+    std::string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+    ASSERT_FALSE(json_result.empty());
+}
