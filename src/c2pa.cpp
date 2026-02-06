@@ -39,6 +39,8 @@ std::vector<std::string> c_mime_types_to_vector(const char* const* mime_types, u
   std::vector<std::string> result;
   if (mime_types == nullptr) { return result; }
 
+  result.reserve(count);  // Pre-allocate to avoid reallocations
+
   for(uintptr_t i = 0; i < count; i++) {
     result.emplace_back(mime_types[i]);
   }
@@ -453,7 +455,8 @@ intptr_t stream_flusher(StreamContext* context) {
             dir_ptr = dir_str.c_str();
         }
 
-        char *result = c2pa_read_file(path_to_string(source_path).c_str(), dir_ptr);
+        std::string source_str = path_to_string(source_path);
+        char *result = c2pa_read_file(source_str.c_str(), dir_ptr);
 
         if (result == nullptr)
         {
@@ -477,7 +480,9 @@ intptr_t stream_flusher(StreamContext* context) {
     [[deprecated("Use stream APIs instead: add_ingredient on the Builder")]]
     std::string read_ingredient_file(const std::filesystem::path &source_path, const std::filesystem::path &data_dir)
     {
-        char *result = c2pa_read_ingredient_file(path_to_string(source_path).c_str(), path_to_string(data_dir).c_str());
+        std::string source_str = path_to_string(source_path);
+        std::string data_dir_str = path_to_string(data_dir);
+        char *result = c2pa_read_ingredient_file(source_str.c_str(), data_dir_str.c_str());
         if (result == nullptr)
         {
             throw c2pa::C2paException();
@@ -502,8 +507,10 @@ intptr_t stream_flusher(StreamContext* context) {
                    const std::optional<std::filesystem::path> data_dir)
     {
         auto dir = data_dir.has_value() ? path_to_string(data_dir.value()) : std::string();
+        std::string source_str = path_to_string(source_path);
+        std::string dest_str = path_to_string(dest_path);
 
-        char *result = c2pa_sign_file(path_to_string(source_path).c_str(), path_to_string(dest_path).c_str(), manifest, signer_info, dir.c_str());
+        char *result = c2pa_sign_file(source_str.c_str(), dest_str.c_str(), manifest, signer_info, dir.c_str());
         if (result == nullptr)
         {
             throw c2pa::C2paException();
@@ -665,7 +672,8 @@ intptr_t stream_flusher(StreamContext* context) {
         : reader_context(nullptr)
     {
         // Create owned stream that will live as long as the Reader
-        owned_stream = std::make_unique<std::ifstream>(path_to_string(source_path), std::ios_base::binary);
+        std::string source_str = path_to_string(source_path);
+        owned_stream = std::make_unique<std::ifstream>(source_str, std::ios_base::binary);
         if (!owned_stream->is_open())
         {
             // Use std::system_error for cross-platform error handling
@@ -721,7 +729,8 @@ intptr_t stream_flusher(StreamContext* context) {
 
     int64_t Reader::get_resource(const std::string &uri, const std::filesystem::path &path)
     {
-        std::ofstream file_stream(path_to_string(path), std::ios_base::binary);
+        std::string path_str = path_to_string(path);
+        std::ofstream file_stream(path_str, std::ios_base::binary);
         if (!file_stream.is_open())
         {
             throw C2paException(); // Handle file open error appropriately
@@ -891,7 +900,8 @@ intptr_t stream_flusher(StreamContext* context) {
 
     void Builder::add_resource(const std::string &uri, const std::filesystem::path &source_path)
     {
-        std::ifstream stream = std::ifstream(path_to_string(source_path), std::ios_base::binary);
+        std::string source_str = path_to_string(source_path);
+        std::ifstream stream = std::ifstream(source_str, std::ios_base::binary);
         if (!stream.is_open())
         {
             throw std::runtime_error("Failed to open source file: " + source_path.string());
@@ -911,7 +921,8 @@ intptr_t stream_flusher(StreamContext* context) {
 
     void Builder::add_ingredient(const std::string &ingredient_json, const std::filesystem::path &source_path)
     {
-        std::ifstream stream = std::ifstream(path_to_string(source_path), std::ios_base::binary);
+        std::string source_str = path_to_string(source_path);
+        std::ifstream stream = std::ifstream(source_str, std::ios_base::binary);
         if (!stream.is_open())
         {
             throw std::runtime_error("Failed to open source file: " + source_path.string());
@@ -983,7 +994,8 @@ intptr_t stream_flusher(StreamContext* context) {
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     std::vector<unsigned char> Builder::sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path, Signer &signer)
     {
-        std::ifstream source(path_to_string(source_path), std::ios_base::binary);
+        std::string source_str = path_to_string(source_path);
+        std::ifstream source(source_str, std::ios_base::binary);
         if (!source.is_open())
         {
             throw std::runtime_error("Failed to open source file: " + source_path.string());
@@ -1025,7 +1037,8 @@ intptr_t stream_flusher(StreamContext* context) {
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     Builder Builder::from_archive(const std::filesystem::path &archive_path)
     {
-        std::ifstream path(path_to_string(archive_path), std::ios_base::binary);
+        std::string archive_str = path_to_string(archive_path);
+        std::ifstream path(archive_str, std::ios_base::binary);
         if (!path.is_open())
         {
             throw std::runtime_error("Failed to open archive file: " + archive_path.string());
@@ -1051,7 +1064,8 @@ intptr_t stream_flusher(StreamContext* context) {
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     void Builder::to_archive(const std::filesystem::path &dest_path)
     {
-        std::ofstream dest(path_to_string(dest_path), std::ios_base::binary);
+        std::string dest_str = path_to_string(dest_path);
+        std::ofstream dest(dest_str, std::ios_base::binary);
         if (!dest.is_open())
         {
             throw std::runtime_error("Failed to open destination file: " + dest_path.string());
