@@ -46,7 +46,7 @@ else()
     add_compile_options(-Wall -Wextra -Werror)
 endif()
 
-# Optional sanitizers for memory safety and undefined behavior detection
+# Sanitizers (for debug/verification builds)
 option(ENABLE_SANITIZERS "Enable AddressSanitizer, UndefinedBehaviorSanitizer, and LeakSanitizer" OFF)
 option(ENABLE_MSAN "Enable MemorySanitizer (mutually exclusive with ASAN)" OFF)
 
