@@ -51,7 +51,5 @@ jobs:
         run: make test
 
       - name: Run tests (debug build, with sanitizers)
-        run: make test-san
-
-      - name: Run tests (release build)
+        if: runner.os != 'Windows'
         run: make test-san

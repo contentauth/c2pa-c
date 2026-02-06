@@ -55,22 +55,26 @@ if(ENABLE_SANITIZERS AND ENABLE_MSAN)
 endif()
 
 if(ENABLE_SANITIZERS)
-    if(NOT MSVC)
+    if(MSVC)
+        message(WARNING "Sanitizers are not supported with MSVC in this configuration")
+    elseif(WIN32)
+        # MinGW on Windows doesn't have sanitizer libraries available
+        message(WARNING "Sanitizers are not available on Windows with MinGW - skipping sanitizer build")
+    else()
         # AddressSanitizer, UndefinedBehaviorSanitizer, and LeakSanitizer for GCC/Clang
-        # Note: LeakSanitizer is automatically included with AddressSanitizer on most platforms
-        # On macOS ARM64, explicit leak sanitizer flag is not needed and causes errors
-        if(APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+        # Note: LeakSanitizer is not supported on macOS (both x86_64 and ARM64)
+        # On Linux, LeakSanitizer is integrated with AddressSanitizer
+        if(APPLE)
             add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
             add_link_options(-fsanitize=address,undefined)
+            message(STATUS "Sanitizers enabled on macOS: ASAN and UBSAN (LSan not supported on macOS)")
         else()
             add_compile_options(-fsanitize=address,undefined,leak -fno-omit-frame-pointer -g)
             add_link_options(-fsanitize=address,undefined,leak)
+            message(STATUS "Sanitizers enabled: ASAN, UBSAN, and LSan")
         endif()
         # Allow macro redefinition for _FORTIFY_SOURCE which conflicts with sanitizers
         add_compile_options(-Wno-macro-redefined)
-        message(STATUS "Sanitizers enabled: ASAN, UBSAN, and LSan (integrated)")
-    else()
-        message(WARNING "Sanitizers are not supported with MSVC in this configuration")
     endif()
 endif()
 

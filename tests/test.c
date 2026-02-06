@@ -129,4 +129,5 @@ int main(void)
 
     free(certs);
     free(private_key);
+    free(manifest);
 }
