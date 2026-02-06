@@ -370,6 +370,9 @@ namespace c2pa
             static_assert(std::is_base_of<std::istream, IStream>::value,
                       "Stream must be derived from std::istream");
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&istream), reader, seeker, writer, flusher);
+            if (c_stream == nullptr) {
+                throw C2paException("Failed to create input stream wrapper: is stream open and valid?");
+            }
         }
 
         CppIStream(const CppIStream &) = delete;
@@ -399,6 +402,9 @@ namespace c2pa
             // TODO Review the static assert here
             static_assert(std::is_base_of<std::ostream, OStream>::value, "Stream must be derived from std::ostream");
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&ostream), reader, seeker, writer, flusher);
+            if (c_stream == nullptr) {
+                throw C2paException("Failed to create output stream wrapper: is stream open and valid?");
+            }
         }
 
         CppOStream(const CppOStream &) = delete;
@@ -426,6 +432,9 @@ namespace c2pa
             // TODO Review the static assert here
             static_assert(std::is_base_of<std::iostream, IOStream>::value, "Stream must be derived from std::iostream");
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&iostream), reader, seeker, writer, flusher);
+            if (c_stream == nullptr) {
+                throw C2paException("Failed to create I/O stream wrapper: is stream open and valid?");
+            }
         }
 
         CppIOStream(const CppIOStream &) = delete;

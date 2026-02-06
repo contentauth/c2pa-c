@@ -96,6 +96,12 @@ constexpr std::ios_base::seekdir whence_to_seekdir(C2paSeekMode whence) noexcept
     }
 }
 
+/// Check if stream is in valid state for I/O operations
+template<typename Stream>
+inline bool is_stream_usable(Stream* s) noexcept {
+    return s && !s->bad();
+}
+
 /// Traits (templated): how to seek and get position for a given stream type.
 template<typename Stream>
 struct StreamSeekTraits;
@@ -135,8 +141,8 @@ struct StreamSeekTraits<std::iostream> {
 template<typename Stream>
 intptr_t stream_seeker(StreamContext* context, intptr_t offset, C2paSeekMode whence) {
     auto* stream = reinterpret_cast<Stream*>(context);
-    if (!stream) {
-        return stream_error_return(StreamError::InvalidArgument);
+    if (!is_stream_usable(stream)) {
+        return stream_error_return(StreamError::IoError);
     }
     const std::ios_base::seekdir dir = whence_to_seekdir(whence);
     stream->clear();
@@ -167,6 +173,9 @@ intptr_t stream_reader(StreamContext* context, uint8_t* buffer, intptr_t size) {
         return 0;
     }
     auto* stream = reinterpret_cast<Stream*>(context);
+    if (!is_stream_usable(stream)) {
+        return stream_error_return(StreamError::IoError);
+    }
     stream->read(reinterpret_cast<char*>(buffer), size);
     if (stream->fail()) {
         if (!stream->eof()) {
@@ -183,8 +192,8 @@ intptr_t stream_reader(StreamContext* context, uint8_t* buffer, intptr_t size) {
 template<typename Stream, typename Op>
 intptr_t stream_op(StreamContext* context, Op op) {
     auto* stream = reinterpret_cast<Stream*>(context);
-    if (!stream) {
-        return stream_error_return(StreamError::InvalidArgument);
+    if (!is_stream_usable(stream)) {
+        return stream_error_return(StreamError::IoError);
     }
     const intptr_t result = op(stream);
     if (stream->fail()) {
@@ -529,7 +538,6 @@ intptr_t stream_flusher(StreamContext* context) {
     }
 
     /// Ostream Class wrapper for C2paStream implementation.
-
     CppOStream::~CppOStream()
     {
         c2pa_release_stream(c_stream);

@@ -46,6 +46,22 @@ else()
     add_compile_options(-Wall -Wextra -Werror)
 endif()
 
+# Optional sanitizers for memory safety and undefined behavior detection
+option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+
+if(ENABLE_SANITIZERS)
+    if(NOT MSVC)
+        # AddressSanitizer and UndefinedBehaviorSanitizer for GCC/Clang
+        add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
+        # Allow macro redefinition for _FORTIFY_SOURCE which conflicts with sanitizers
+        add_compile_options(-Wno-macro-redefined)
+        add_link_options(-fsanitize=address,undefined)
+        message(STATUS "Sanitizers enabled: ASAN and TSAN")
+    else()
+        message(WARNING "Sanitizers are not supported with MSVC in this configuration")
+    endif()
+endif()
+
 enable_testing()
 
 ADD_SUBDIRECTORY(src)

@@ -40,6 +40,12 @@ test: clean debug
 test-release: clean release
 	cd $(RELEASE_BUILD_DIR) && ctest --output-on-failure
 
+# Test with sanitizers (ASAN + UBSAN)
+test-san: clean
+	cmake -S . -B $(DEBUG_BUILD_DIR) -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON $(CMAKE_OPTS)
+	cmake --build $(DEBUG_BUILD_DIR)
+	cd $(DEBUG_BUILD_DIR) && ctest --output-on-failure
+
 # Run only the C test (test.c)
 test-c: clean release
 	@echo "Running C test only..."
@@ -69,7 +75,7 @@ training: release
 
 examples: training demo
 
-.PHONY: all debug release cmake test test-release demo training examples clean
+.PHONY: all debug release cmake test test-release test-san test-c test-cpp demo training examples clean
 
 # Build C API docs with Doxygen
 docs:
