@@ -47,8 +47,11 @@ jobs:
           which make
           make --version
 
-      - name: Run tests
+      - name: Run tests (debug build)
         run: make test
 
-      - name: Run tests (with sanitizers)
+      - name: Run tests (debug build, with sanitizers)
+        run: make test-san
+
+      - name: Run tests (release build)
         run: make test-san
