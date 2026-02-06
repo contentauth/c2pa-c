@@ -25,15 +25,12 @@ int main(void)
 
     char *result1 = c2pa_read_file("tests/fixtures/C.jpg", NULL);
     assert_str_not_null("c2pa_read_file_no_data_dir", result1);
-    c2pa_free(result1);
 
     char *result = c2pa_read_file("tests/fixtures/C.jpg", "build/tmp");
     assert_str_not_null("c2pa_read_file", result);
-    c2pa_free(result);
 
     result = c2pa_read_ingredient_file("tests/fixtures/C.jpg", "build/ingredient");
     assert_str_not_null("c2pa_ingredient_from_file", result);
-    c2pa_free(result);
 
     C2paStream *input_stream = open_file_stream("tests/fixtures/C.jpg", "rb");
     assert_not_null("open_file_stream", input_stream);
@@ -62,10 +59,12 @@ int main(void)
     // write the thumbnail resource to the stream
     int res = c2pa_reader_resource_to_stream(reader, uri, thumb_stream);
     free(uri);
-    c2pa_free(json);
+    if (json != NULL)
+        c2pa_free(json);
     assert_int("c2pa_reader_resource", res);
 
-    c2pa_free(reader);
+    if (reader != NULL)
+        c2pa_free(reader);
 
     char *certs = load_file("tests/fixtures/es256_certs.pem");
     char *private_key = load_file("tests/fixtures/es256_private.key");
@@ -81,7 +80,8 @@ int main(void)
     result = c2pa_sign_file("tests/fixtures/C.jpg", "build/tmp/earth.jpg", manifest, &sign_info, "tests/fixtures");
     // c2pa_sign_file returns JSON manifest from the Reader on success, NULL on error
     assert_not_null("c2pa_sign_file_ok", result);
-    c2pa_free(result);
+    if (result != NULL)
+        c2pa_free(result);
 
     remove("build/tmp/earth2.jpg");
     result = c2pa_sign_file("tests/fixtures/foo.jpg", "build/tmp/earth2.jpg", manifest, &sign_info, "tests/fixtures");
@@ -119,15 +119,20 @@ int main(void)
     const unsigned char *formatted_bytes = NULL;
     int64_t result3 = c2pa_format_embeddable("image/jpeg", manifest_bytes, result2, (const unsigned char **)&formatted_bytes);
     assert_int("c2pa_format_embeddable", result3);
-    c2pa_free(manifest_bytes);
-    c2pa_free(formatted_bytes);
+    if (manifest_bytes != NULL)
+        c2pa_free((void *)manifest_bytes);
+    if (formatted_bytes != NULL)
+        c2pa_free((void *)formatted_bytes);
 
     close_file_stream(source);
     close_file_stream(dest);
 
-    c2pa_free(builder2);
-    c2pa_free(builder);
-    c2pa_free(signer);
+    if (builder2 != NULL)
+        c2pa_free(builder2);
+    if (builder != NULL)
+        c2pa_free(builder);
+    if (signer != NULL)
+        c2pa_free(signer);
 
     free(certs);
     free(private_key);

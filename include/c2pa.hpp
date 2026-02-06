@@ -509,7 +509,9 @@ namespace c2pa
         }
         Reader& operator=(Reader&& other) noexcept {
             if (this != &other) {
-                c2pa_free(c2pa_reader);
+                if (c2pa_reader != nullptr) {
+                    c2pa_free(c2pa_reader);
+                }
                 c2pa_reader = other.c2pa_reader;
                 owned_stream = std::move(other.owned_stream);
                 cpp_stream = std::move(other.cpp_stream);
@@ -610,7 +612,8 @@ namespace c2pa
         }
         Signer& operator=(Signer&& other) noexcept {
             if (this != &other) {
-                c2pa_free(signer);
+                if (signer != nullptr)
+                    c2pa_free(signer);
                 signer = other.signer;
                 other.signer = nullptr;
             }
@@ -664,7 +667,8 @@ namespace c2pa
         }
         Builder& operator=(Builder&& other) noexcept {
             if (this != &other) {
-                c2pa_free(builder);
+                if (builder != nullptr)
+                    c2pa_free(builder);
                 builder = other.builder;
                 builder_context = std::move(other.builder_context);
                 other.builder = nullptr;

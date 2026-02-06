@@ -257,6 +257,16 @@ inline std::string extract_file_extension(const std::filesystem::path &path) noe
     return ext.empty() ? "" : ext.substr(1);
 }
 
+/// @brief Only call C API free when pointer is non-null (FFI can panic on null).
+inline void safe_c2pa_free(void* p) {
+    if (p != nullptr)
+        c2pa_free(p);
+}
+inline void safe_c2pa_free(const void* p) {
+    if (p != nullptr)
+        c2pa_free(const_cast<void*>(p));
+}
+
 /// @brief Convert C string result to C++ string with cleanup
 /// @param c_result Raw C string from C API
 /// @return C++ string (throws if null)
@@ -266,7 +276,7 @@ inline std::string c_string_to_string(T* c_result) {
         throw C2paException();
     }
     std::string str(c_result);
-    c2pa_free(const_cast<char*>(static_cast<const char*>(c_result)));
+    safe_c2pa_free(c_result);
     return str;
 }
 
@@ -278,8 +288,8 @@ inline std::string c_string_to_string(T* c_result) {
     C2paException::C2paException()
     {
         auto result = c2pa_error();
-        message_ = std::string(result);
-        c2pa_free(result);
+        message_ = result ? std::string(result) : std::string();
+        detail::safe_c2pa_free(result);
     }
 
     C2paException::C2paException(std::string message) : message_(std::move(message))
@@ -304,7 +314,7 @@ inline std::string c_string_to_string(T* c_result) {
             throw C2paException("Failed to create settings");
         }
         if (c2pa_settings_update_from_string(settings_, data.c_str(), format.c_str()) != 0) {
-            c2pa_free(settings_);
+            detail::safe_c2pa_free(settings_);
             throw C2paException();
         }
     }
@@ -316,7 +326,7 @@ inline std::string c_string_to_string(T* c_result) {
     Settings& Settings::operator=(Settings&& other) noexcept {
         if (this != &other) {
             if (settings_) {
-                c2pa_free(settings_);
+                detail::safe_c2pa_free(settings_);
             }
             settings_ = std::exchange(other.settings_, nullptr);
         }
@@ -325,7 +335,7 @@ inline std::string c_string_to_string(T* c_result) {
 
     Settings::~Settings() noexcept {
         if (settings_) {
-            c2pa_free(settings_);
+            detail::safe_c2pa_free(settings_);
         }
     }
 
@@ -357,7 +367,7 @@ inline std::string c_string_to_string(T* c_result) {
 
     Context::~Context() noexcept {
         if (context) {
-            c2pa_free(context);
+            detail::safe_c2pa_free(context);
         }
     }
 
@@ -400,7 +410,7 @@ inline std::string c_string_to_string(T* c_result) {
     Context::ContextBuilder& Context::ContextBuilder::operator=(ContextBuilder&& other) noexcept {
         if (this != &other) {
             if (context_builder) {
-                c2pa_free(context_builder);
+                detail::safe_c2pa_free(context_builder);
             }
             context_builder = std::exchange(other.context_builder, nullptr);
         }
@@ -409,7 +419,7 @@ inline std::string c_string_to_string(T* c_result) {
 
     Context::ContextBuilder::~ContextBuilder() noexcept {
         if (context_builder) {
-            c2pa_free(context_builder);
+            detail::safe_c2pa_free(context_builder);
         }
     }
 
@@ -500,7 +510,7 @@ inline std::string c_string_to_string(T* c_result) {
             throw c2pa::C2paException();
         }
         std::string str(result);
-        c2pa_free(result);
+        detail::safe_c2pa_free(result);
         return str;
     }
 
@@ -538,13 +548,14 @@ inline std::string c_string_to_string(T* c_result) {
         {
             throw c2pa::C2paException();
         }
-        c2pa_free(result);
+        detail::safe_c2pa_free(result);
     }
 
     /// IStream Class wrapper for C2paStream.
     CppIStream::~CppIStream()
     {
-        c2pa_release_stream(c_stream);
+        if (c_stream != nullptr)
+            c2pa_release_stream(c_stream);
     }
 
     intptr_t CppIStream::reader(StreamContext *context, uint8_t *buffer, intptr_t size)
@@ -570,7 +581,8 @@ inline std::string c_string_to_string(T* c_result) {
     /// Ostream Class wrapper for C2paStream implementation.
     CppOStream::~CppOStream()
     {
-        c2pa_release_stream(c_stream);
+        if (c_stream != nullptr)
+            c2pa_release_stream(c_stream);
     }
 
     intptr_t CppOStream::reader(StreamContext *context, uint8_t *buffer, intptr_t size)
@@ -599,7 +611,8 @@ inline std::string c_string_to_string(T* c_result) {
     /// IOStream Class wrapper for C2paStream implementation.
     CppIOStream::~CppIOStream()
     {
-        c2pa_release_stream(c_stream);
+        if (c_stream != nullptr)
+            c2pa_release_stream(c_stream);
     }
 
     intptr_t CppIOStream::reader(StreamContext *context, uint8_t *buffer, intptr_t size)
@@ -640,7 +653,7 @@ inline std::string c_string_to_string(T* c_result) {
         // Update reader with stream
         C2paReader* updated = c2pa_reader_with_stream(c2pa_reader, format.c_str(), cpp_stream->c_stream);
         if (updated == nullptr) {
-            c2pa_free(c2pa_reader);
+            detail::safe_c2pa_free(c2pa_reader);
             throw C2paException("Failed to configure reader with stream");
         }
         c2pa_reader = updated;
@@ -661,7 +674,7 @@ inline std::string c_string_to_string(T* c_result) {
         // Create owned stream that will live as long as the Reader
         owned_stream = std::make_unique<std::ifstream>(source_path, std::ios::binary);
         if (!owned_stream->is_open()) {
-            c2pa_free(c2pa_reader);
+            detail::safe_c2pa_free(c2pa_reader);
             throw std::system_error(errno, std::system_category(), "Failed to open file: " + source_path.string());
         }
 
@@ -671,7 +684,7 @@ inline std::string c_string_to_string(T* c_result) {
         cpp_stream = std::make_unique<CppIStream>(*owned_stream);
         C2paReader* updated = c2pa_reader_with_stream(c2pa_reader, extension.c_str(), cpp_stream->c_stream);
         if (updated == nullptr) {
-            c2pa_free(c2pa_reader);
+            detail::safe_c2pa_free(c2pa_reader);
             throw C2paException("Failed to configure reader with stream");
         }
         c2pa_reader = updated;
@@ -706,7 +719,7 @@ inline std::string c_string_to_string(T* c_result) {
 
     Reader::~Reader()
     {
-        c2pa_free(c2pa_reader);
+        detail::safe_c2pa_free(c2pa_reader);
         // cpp_stream and owned_stream are automatically cleaned up by unique_ptr
     }
 
@@ -725,7 +738,7 @@ inline std::string c_string_to_string(T* c_result) {
         //
         // TODO: Revisit after determining how we want c2pa-rs to handle
         //       strings that shouldn't be modified by our bindings.
-        c2pa_free(const_cast<char *>(url));
+        detail::safe_c2pa_free(url);
         return url_str;
     }
 
@@ -766,7 +779,7 @@ inline std::string c_string_to_string(T* c_result) {
 
     Signer::~Signer()
     {
-        c2pa_free(signer);
+        detail::safe_c2pa_free(signer);
     }
 
     /// @brief  Get the C2paSigner
@@ -812,7 +825,7 @@ inline std::string c_string_to_string(T* c_result) {
         // Apply the manifest definition to the Builder
         C2paBuilder* updated = c2pa_builder_with_definition(builder, manifest_json.c_str());
         if (updated == nullptr) {
-            c2pa_free(builder);
+            detail::safe_c2pa_free(builder);
             throw C2paException("Failed to set builder definition");
         }
         builder = updated;
@@ -844,7 +857,7 @@ inline std::string c_string_to_string(T* c_result) {
 
     Builder::~Builder()
     {
-        c2pa_free(builder);
+        detail::safe_c2pa_free(builder);
     }
 
     C2paBuilder *Builder::c2pa_builder() const noexcept
@@ -939,11 +952,12 @@ inline std::string c_string_to_string(T* c_result) {
         auto result = c2pa_builder_sign(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, signer.c2pa_signer(), &c2pa_manifest_bytes);
         if (result < 0 || c2pa_manifest_bytes == nullptr)
         {
-          throw C2paException();
+            detail::safe_c2pa_free(c2pa_manifest_bytes);
+            throw C2paException();
         }
 
         auto manifest_bytes = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
-        c2pa_free(c2pa_manifest_bytes);
+        detail::safe_c2pa_free(c2pa_manifest_bytes);
 
         return manifest_bytes;
     }
@@ -960,11 +974,12 @@ inline std::string c_string_to_string(T* c_result) {
         auto result = c2pa_builder_sign(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, signer.c2pa_signer(), &c2pa_manifest_bytes);
         if (result < 0 || c2pa_manifest_bytes == nullptr)
         {
+            detail::safe_c2pa_free(c2pa_manifest_bytes);
             throw C2paException();
         }
 
         auto manifest_bytes = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
-        c2pa_free(c2pa_manifest_bytes);
+        detail::safe_c2pa_free(c2pa_manifest_bytes);
 
         return manifest_bytes;
     }
@@ -1047,7 +1062,7 @@ inline std::string c_string_to_string(T* c_result) {
         }
 
         auto data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
-        c2pa_free(c2pa_manifest_bytes);
+        detail::safe_c2pa_free(c2pa_manifest_bytes);
         return data;
     }
 
@@ -1070,7 +1085,7 @@ inline std::string c_string_to_string(T* c_result) {
         }
 
         auto data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
-        c2pa_free(c2pa_manifest_bytes);
+        detail::safe_c2pa_free(c2pa_manifest_bytes);
         return data;
     }
 
@@ -1084,7 +1099,7 @@ inline std::string c_string_to_string(T* c_result) {
         }
 
         auto formatted_data = std::vector<unsigned char>(c2pa_manifest_bytes, c2pa_manifest_bytes + result);
-        c2pa_free(c2pa_manifest_bytes);
+        detail::safe_c2pa_free(c2pa_manifest_bytes);
         return formatted_data;
     }
 
