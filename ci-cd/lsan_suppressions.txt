@@ -7,4 +7,7 @@
 # Observed on Ubuntu 22.04 aarch64 where LSan classifies the allocation as a
 # "direct leak" rather than "still reachable".
 #
+# Similar if not same as https://github.com/tokio-rs/tokio/issues/4756
+# Happens only on some Linxues as it depends on the OS/glibc version too it seems!
+#
 leak:libc2pa_c

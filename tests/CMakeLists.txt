@@ -108,7 +108,7 @@ set_tests_properties(cpp_tests PROPERTIES
 # Set platform-specific environment
 # On Linux with sanitizers, also set LSAN_OPTIONS to suppress known Tokio runtime
 # initialization leaks inside the prebuilt libc2pa_c Rust library.
-set(LSAN_SUPPRESSIONS_FILE "${c2pa-c_SOURCE_DIR}/cicd/lsan_suppressions.txt")
+set(LSAN_SUPPRESSIONS_FILE "${c2pa-c_SOURCE_DIR}/ci-cd/lsan_suppressions.txt")
 if(APPLE)
     set_tests_properties(cpp_tests PROPERTIES
         ENVIRONMENT "DYLD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{DYLD_LIBRARY_PATH}"
