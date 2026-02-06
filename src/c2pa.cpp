@@ -22,8 +22,8 @@
 #include <string.h>
 #include <optional>
 #include <filesystem>
-#include <system_error> // For std::system_error
-#include <utility>       // For std::exchange
+#include <system_error>
+#include <utility>
 
 #include "c2pa.hpp"
 
@@ -223,6 +223,53 @@ intptr_t stream_flusher(StreamContext* context) {
     });
 }
 
+/// @brief Converts a path to a std::string in utf-8 format
+inline std::string path_to_string(const std::filesystem::path &source_path)
+{
+    // Use u8string to ensure UTF-8 encoding across platforms. We have to convert
+    // to std::string manually because std::string doesn't have a constructor accepting u8String until C++20.
+    auto u8_str = source_path.u8string();
+    return std::string(u8_str.begin(), u8_str.end());
+}
+
+/// @brief Open a binary file stream with error handling
+/// @tparam StreamType std::ifstream or std::ofstream
+/// @param path Path to the file
+/// @return Unique pointer to opened stream
+template<typename StreamType>
+inline std::unique_ptr<StreamType> open_file_binary(const std::filesystem::path &path)
+{
+    auto stream = std::make_unique<StreamType>(
+        path_to_string(path),
+        std::ios_base::binary
+    );
+    if (!stream->is_open()) {
+        throw C2paException("Failed to open file: " + path.string());
+    }
+    return stream;
+}
+
+/// @brief Extract file extension without the leading dot
+/// @param path Filesystem path
+/// @return Extension string (e.g., "jpg" not ".jpg")
+inline std::string extract_file_extension(const std::filesystem::path &path) noexcept {
+    auto ext = path.extension().string();
+    return ext.empty() ? "" : ext.substr(1);
+}
+
+/// @brief Convert C string result to C++ string with cleanup
+/// @param c_result Raw C string from C API
+/// @return C++ string (throws if null)
+template<typename T>
+inline std::string c_string_to_string(T* c_result) {
+    if (c_result == nullptr) {
+        throw C2paException();
+    }
+    std::string str(c_result);
+    c2pa_free(const_cast<char*>(static_cast<const char*>(c_result)));
+    return str;
+}
+
 } // namespace detail
 
     /// C2paException class for C2PA errors.
@@ -244,7 +291,7 @@ intptr_t stream_flusher(StreamContext* context) {
         return message_.c_str();
     }
 
-    // ===== Settings Implementation =====
+    // Settings Implementation
 
     Settings::Settings() : settings_(c2pa_settings_new()) {
         if (!settings_) {
@@ -300,7 +347,7 @@ intptr_t stream_flusher(StreamContext* context) {
         return settings_;
     }
 
-    // ===== Context Implementation =====
+    // Context Implementation
 
     Context::Context(C2paContext* ctx) : context(ctx) {
         if (!context) {
@@ -338,7 +385,7 @@ intptr_t stream_flusher(StreamContext* context) {
         return ContextBuilder().with_toml(toml).create_context();
     }
 
-    // ===== Context::ContextBuilder Implementation =====
+    // Context::ContextBuilder
 
     Context::ContextBuilder::ContextBuilder() : context_builder(c2pa_context_builder_new()) {
         if (!context_builder) {
@@ -409,10 +456,7 @@ intptr_t stream_flusher(StreamContext* context) {
     /// Returns the version of the C2PA library.
     std::string version()
     {
-        auto result = c2pa_version();
-        std::string str(result);
-        c2pa_free(result);
-        return str;
+        return detail::c_string_to_string(c2pa_version());
     }
 
     /// Loads C2PA settings from a std::string in a given format.
@@ -429,15 +473,6 @@ intptr_t stream_flusher(StreamContext* context) {
         }
     }
 
-    /// converts a path to a std::string in utf-8 format
-    inline std::string path_to_string(const std::filesystem::path &source_path)
-    {
-		// Use u8string to ensure UTF-8 encoding across platforms. We have to convert
-		// to std::string manually because std::string doesn't have a constructor accepting u8String until C++20.
-		auto u8_str = source_path.u8string();
-        return std::string(u8_str.begin(), u8_str.end());
-    }
-
     /// Reads a file and returns the manifest json as a C2pa::String.
     /// @param source_path the path to the file to read.
     /// @param data_dir the directory to store binary resources (optional).
@@ -449,11 +484,11 @@ intptr_t stream_flusher(StreamContext* context) {
         const char* dir_ptr = nullptr;
         std::string dir_str;
         if (data_dir.has_value()) {
-            dir_str = path_to_string(data_dir.value());
+            dir_str = detail::path_to_string(data_dir.value());
             dir_ptr = dir_str.c_str();
         }
 
-        char *result = c2pa_read_file(path_to_string(source_path).c_str(), dir_ptr);
+        char *result = c2pa_read_file(detail::path_to_string(source_path).c_str(), dir_ptr);
 
         if (result == nullptr)
         {
@@ -477,14 +512,9 @@ intptr_t stream_flusher(StreamContext* context) {
     [[deprecated("Use stream APIs instead: add_ingredient on the Builder")]]
     std::string read_ingredient_file(const std::filesystem::path &source_path, const std::filesystem::path &data_dir)
     {
-        char *result = c2pa_read_ingredient_file(path_to_string(source_path).c_str(), path_to_string(data_dir).c_str());
-        if (result == nullptr)
-        {
-            throw c2pa::C2paException();
-        }
-        std::string str(result);
-        c2pa_free(result);
-        return str;
+        return detail::c_string_to_string(
+            c2pa_read_ingredient_file(detail::path_to_string(source_path).c_str(),
+                                     detail::path_to_string(data_dir).c_str()));
     }
 
     /// Adds the manifest and signs a file.
@@ -501,9 +531,9 @@ intptr_t stream_flusher(StreamContext* context) {
                    c2pa::SignerInfo *signer_info,
                    const std::optional<std::filesystem::path> data_dir)
     {
-        auto dir = data_dir.has_value() ? path_to_string(data_dir.value()) : std::string();
+        auto dir = data_dir.has_value() ? detail::path_to_string(data_dir.value()) : std::string();
 
-        char *result = c2pa_sign_file(path_to_string(source_path).c_str(), path_to_string(dest_path).c_str(), manifest, signer_info, dir.c_str());
+        char *result = c2pa_sign_file(detail::path_to_string(source_path).c_str(), detail::path_to_string(dest_path).c_str(), manifest, signer_info, dir.c_str());
         if (result == nullptr)
         {
             throw c2pa::C2paException();
@@ -635,10 +665,7 @@ intptr_t stream_flusher(StreamContext* context) {
             throw std::system_error(errno, std::system_category(), "Failed to open file: " + source_path.string());
         }
 
-        std::string extension = source_path.extension().string();
-        if (!extension.empty()) {
-            extension = extension.substr(1); // Skip the dot
-        }
+        std::string extension = detail::extract_file_extension(source_path);
 
         // CppIStream stores reference to owned_stream, which lives as long as Reader
         cpp_stream = std::make_unique<CppIStream>(*owned_stream);
@@ -665,18 +692,8 @@ intptr_t stream_flusher(StreamContext* context) {
         : reader_context(nullptr)
     {
         // Create owned stream that will live as long as the Reader
-        owned_stream = std::make_unique<std::ifstream>(path_to_string(source_path), std::ios_base::binary);
-        if (!owned_stream->is_open())
-        {
-            // Use std::system_error for cross-platform error handling
-            throw C2paException("Failed to open file: " + source_path.string() + " - " +
-                               std::system_error(errno, std::system_category()).what());
-        }
-        std::string extension = source_path.extension().string();
-        if (!extension.empty())
-        {
-            extension = extension.substr(1); // Skip the dot
-        }
+        owned_stream = detail::open_file_binary<std::ifstream>(source_path);
+        std::string extension = detail::extract_file_extension(source_path);
 
         // CppIStream stores reference to owned_stream, which lives as long as Reader
         cpp_stream = std::make_unique<CppIStream>(*owned_stream);
@@ -695,14 +712,7 @@ intptr_t stream_flusher(StreamContext* context) {
 
     std::string Reader::json() const
     {
-        char *result = c2pa_reader_json(c2pa_reader);
-        if (result == nullptr)
-        {
-            throw C2paException();
-        }
-        std::string str(result);
-        c2pa_free(result);
-        return str;
+        return detail::c_string_to_string(c2pa_reader_json(c2pa_reader));
     }
 
     [[nodiscard]] std::optional<std::string> Reader::remote_url() const {
@@ -721,12 +731,8 @@ intptr_t stream_flusher(StreamContext* context) {
 
     int64_t Reader::get_resource(const std::string &uri, const std::filesystem::path &path)
     {
-        std::ofstream file_stream(path_to_string(path), std::ios_base::binary);
-        if (!file_stream.is_open())
-        {
-            throw C2paException(); // Handle file open error appropriately
-        }
-        return get_resource(uri.c_str(), file_stream);
+        auto file_stream = detail::open_file_binary<std::ofstream>(path);
+        return get_resource(uri.c_str(), *file_stream);
     }
 
     int64_t Reader::get_resource(const std::string &uri, std::ostream &stream)
@@ -891,12 +897,8 @@ intptr_t stream_flusher(StreamContext* context) {
 
     void Builder::add_resource(const std::string &uri, const std::filesystem::path &source_path)
     {
-        std::ifstream stream = std::ifstream(path_to_string(source_path), std::ios_base::binary);
-        if (!stream.is_open())
-        {
-            throw std::runtime_error("Failed to open source file: " + source_path.string());
-        }
-        add_resource(uri, stream);
+        auto stream = detail::open_file_binary<std::ifstream>(source_path);
+        add_resource(uri, *stream);
     }
 
     void Builder::add_ingredient(const std::string &ingredient_json, const std::string &format, std::istream &source)
@@ -911,17 +913,9 @@ intptr_t stream_flusher(StreamContext* context) {
 
     void Builder::add_ingredient(const std::string &ingredient_json, const std::filesystem::path &source_path)
     {
-        std::ifstream stream = std::ifstream(path_to_string(source_path), std::ios_base::binary);
-        if (!stream.is_open())
-        {
-            throw std::runtime_error("Failed to open source file: " + source_path.string());
-        }
-        auto format = source_path.extension().string();
-        if (!format.empty())
-        {
-            format = format.substr(1); // Skip the dot.
-        }
-        add_ingredient(ingredient_json, format.c_str(), stream);
+        auto stream = detail::open_file_binary<std::ifstream>(source_path);
+        auto format = detail::extract_file_extension(source_path);
+        add_ingredient(ingredient_json, format.c_str(), *stream);
     }
 
     void Builder::add_action(const std::string &action_json)
@@ -983,11 +977,7 @@ intptr_t stream_flusher(StreamContext* context) {
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     std::vector<unsigned char> Builder::sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path, Signer &signer)
     {
-        std::ifstream source(path_to_string(source_path), std::ios_base::binary);
-        if (!source.is_open())
-        {
-            throw std::runtime_error("Failed to open source file: " + source_path.string());
-        }
+        auto source = detail::open_file_binary<std::ifstream>(source_path);
         // Ensure the destination directory exists
         auto dest_dir = dest_path.parent_path();
         if (!std::filesystem::exists(dest_dir))
@@ -1003,12 +993,8 @@ intptr_t stream_flusher(StreamContext* context) {
         {
             throw std::runtime_error("Failed to open destination file: " + dest_path.string());
         }
-        auto format = dest_path.extension().string();
-        if (!format.empty())
-        {
-            format = format.substr(1); // Skip the dot
-        }
-        auto result = sign(format.c_str(), source, dest, signer);
+        auto format = detail::extract_file_extension(dest_path);
+        auto result = sign(format.c_str(), *source, dest, signer);
         return result;
     }
 
@@ -1025,12 +1011,8 @@ intptr_t stream_flusher(StreamContext* context) {
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     Builder Builder::from_archive(const std::filesystem::path &archive_path)
     {
-        std::ifstream path(path_to_string(archive_path), std::ios_base::binary);
-        if (!path.is_open())
-        {
-            throw std::runtime_error("Failed to open archive file: " + archive_path.string());
-        }
-        return from_archive(path);
+        auto path = detail::open_file_binary<std::ifstream>(archive_path);
+        return from_archive(*path);
     }
 
     /// @brief Write the builder to an archive stream.
@@ -1051,12 +1033,8 @@ intptr_t stream_flusher(StreamContext* context) {
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     void Builder::to_archive(const std::filesystem::path &dest_path)
     {
-        std::ofstream dest(path_to_string(dest_path), std::ios_base::binary);
-        if (!dest.is_open())
-        {
-            throw std::runtime_error("Failed to open destination file: " + dest_path.string());
-        }
-        to_archive(dest);
+        auto dest = detail::open_file_binary<std::ofstream>(dest_path);
+        to_archive(*dest);
     }
 
     std::vector<unsigned char> Builder::data_hashed_placeholder(uintptr_t reserve_size, const std::string &format)
