@@ -47,18 +47,43 @@ else()
 endif()
 
 # Optional sanitizers for memory safety and undefined behavior detection
-option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(ENABLE_SANITIZERS "Enable AddressSanitizer, UndefinedBehaviorSanitizer, and LeakSanitizer" OFF)
+option(ENABLE_MSAN "Enable MemorySanitizer (mutually exclusive with ASAN)" OFF)
+
+if(ENABLE_SANITIZERS AND ENABLE_MSAN)
+    message(FATAL_ERROR "ENABLE_SANITIZERS and ENABLE_MSAN are mutually exclusive - choose one")
+endif()
 
 if(ENABLE_SANITIZERS)
     if(NOT MSVC)
-        # AddressSanitizer and UndefinedBehaviorSanitizer for GCC/Clang
-        add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
+        # AddressSanitizer, UndefinedBehaviorSanitizer, and LeakSanitizer for GCC/Clang
+        # Note: LeakSanitizer is automatically included with AddressSanitizer on most platforms
+        # On macOS ARM64, explicit leak sanitizer flag is not needed and causes errors
+        if(APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+            add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
+            add_link_options(-fsanitize=address,undefined)
+        else()
+            add_compile_options(-fsanitize=address,undefined,leak -fno-omit-frame-pointer -g)
+            add_link_options(-fsanitize=address,undefined,leak)
+        endif()
         # Allow macro redefinition for _FORTIFY_SOURCE which conflicts with sanitizers
         add_compile_options(-Wno-macro-redefined)
-        add_link_options(-fsanitize=address,undefined)
-        message(STATUS "Sanitizers enabled: ASAN and TSAN")
+        message(STATUS "Sanitizers enabled: ASAN, UBSAN, and LSan (integrated)")
     else()
         message(WARNING "Sanitizers are not supported with MSVC in this configuration")
+    endif()
+endif()
+
+if(ENABLE_MSAN)
+    if(NOT MSVC)
+        # MemorySanitizer for detecting uninitialized memory reads
+        # WARNING: Requires all dependencies to be built with MSan
+        add_compile_options(-fsanitize=memory -fno-omit-frame-pointer -g)
+        add_compile_options(-Wno-macro-redefined)
+        add_link_options(-fsanitize=memory)
+        message(STATUS "MemorySanitizer enabled (MSan)")
+    else()
+        message(WARNING "MemorySanitizer is not supported with MSVC")
     endif()
 endif()
 
