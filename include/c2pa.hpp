@@ -141,6 +141,11 @@ namespace c2pa
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&ostream), reader, seeker, writer, flusher);
         }
 
+        CppOStream(const CppOStream &) = delete;
+        CppOStream &operator=(const CppOStream &) = delete;
+        CppOStream(CppOStream &&) = delete;
+        CppOStream &operator=(CppOStream &&) = delete;
+
         ~CppOStream();
 
     private:
@@ -161,6 +166,12 @@ namespace c2pa
             static_assert(std::is_base_of<std::iostream, IOStream>::value, "Stream must be derived from std::iostream");
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&iostream), reader, seeker, writer, flusher);
         }
+
+        CppIOStream(const CppIOStream &) = delete;
+        CppIOStream &operator=(const CppIOStream &) = delete;
+        CppIOStream(CppIOStream &&) = delete;
+        CppIOStream &operator=(CppIOStream &&) = delete;
+
         ~CppIOStream();
 
     private:
@@ -190,6 +201,29 @@ namespace c2pa
         /// @param source_path  the path to the file to read.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         Reader(const std::filesystem::path &source_path);
+
+        // Non-copyable
+        Reader(const Reader&) = delete;
+        Reader& operator=(const Reader&) = delete;
+
+        // Move semantics
+        Reader(Reader&& other) noexcept
+            : c2pa_reader(other.c2pa_reader), cpp_stream(other.cpp_stream) {
+            other.c2pa_reader = nullptr;
+            other.cpp_stream = nullptr;
+        }
+        Reader& operator=(Reader&& other) noexcept {
+            if (this != &other) {
+                c2pa_reader_free(c2pa_reader);
+                delete cpp_stream;
+                c2pa_reader = other.c2pa_reader;
+                cpp_stream = other.cpp_stream;
+                other.c2pa_reader = nullptr;
+                other.cpp_stream = nullptr;
+            }
+            return *this;
+        }
+
         ~Reader();
 
         /// @brief Returns if the reader was created from an embedded manifest.
@@ -206,7 +240,7 @@ namespace c2pa
         /// @brief Get the manifest as a json string.
         /// @return The manifest as a json string.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        string json();
+        string json() const;
 
         /// @brief  Get a resource from the reader and write it to a file.
         /// @param uri The uri of the resource.
@@ -253,9 +287,33 @@ namespace c2pa
         /// @param tsa_uri  The TSA URI to use for time-stamping.
         Signer(SignerFunc *callback, C2paSigningAlg alg, const string &sign_cert, const string &tsa_uri);
 
-        Signer(C2paSigner *signer) : signer(signer) {}
+        /// @brief Create a signer from a signer pointer and takes ownership of that pointer
+        /// @param c_signer The signer pointer to use here (should be non null)
+        Signer(C2paSigner *c_signer) : signer(c_signer) {}
 
+        /// @brief Crates a signer from signer information
+        /// @param alg Signer algorithm
+        /// @param sign_cert Signing certificate
+        /// @param private_key Private key
+        /// @param tsa_uri URL for timestamping authority
         Signer(const string &alg, const string &sign_cert, const string &private_key, const optional<string> &tsa_uri = nullopt);
+
+        // Non-copyable
+        Signer(const Signer&) = delete;
+        Signer& operator=(const Signer&) = delete;
+
+        // Move semantics (for ownership transfer)
+        Signer(Signer&& other) noexcept : signer(other.signer) {
+            other.signer = nullptr;
+        }
+        Signer& operator=(Signer&& other) noexcept {
+            if (this != &other) {
+                c2pa_signer_free(signer);
+                signer = other.signer;
+                other.signer = nullptr;
+            }
+            return *this;
+        }
 
         ~Signer();
 
@@ -264,7 +322,7 @@ namespace c2pa
         uintptr_t reserve_size();
 
         /// @brief  Get the C2paSigner
-        C2paSigner *c2pa_signer();
+        C2paSigner *c2pa_signer() const noexcept;
     };
 
     /// @brief Builder class for creating a manifest.
@@ -280,11 +338,28 @@ namespace c2pa
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         Builder(const std::string &manifest_json);
 
+        // Non-copyable
+        Builder(const Builder&) = delete;
+        Builder& operator=(const Builder&) = delete;
+
+        // Move semantics
+        Builder(Builder&& other) noexcept : builder(other.builder) {
+            other.builder = nullptr;
+        }
+        Builder& operator=(Builder&& other) noexcept {
+            if (this != &other) {
+                c2pa_builder_free(builder);
+                builder = other.builder;
+                other.builder = nullptr;
+            }
+            return *this;
+        }
+
         ~Builder();
 
         /// @brief  Get the underlying C2paBuilder pointer.
         /// @return Pointer managed by this wrapper.
-        C2paBuilder *c2pa_builder();
+        C2paBuilder *c2pa_builder() const noexcept;
 
         /// @brief  Set the no embed flag.
         void set_no_embed();
@@ -380,17 +455,17 @@ namespace c2pa
         void to_archive(const std::filesystem::path &dest_path);
 
         /// @brief Create a hashed placeholder from the builder.
-        /// @param reserved_size  The size required for a signature from the intended signer.
-        /// @param format  The format of the mime type or extension of the asset.
+        /// @param reserved_size The size required for a signature from the intended signer.
+        /// @param format The format of the mime type or extension of the asset.
         /// @return A vector containing the hashed placeholder.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         std::vector<unsigned char> data_hashed_placeholder(uintptr_t reserved_size, const string &format);
 
         /// @brief Sign a Builder using the specified signer and data hash.
-        /// @param signer  The signer to use for signing.
-        /// @param data_hash  The data hash ranges to sign. This must contain hashes unless and asset is provided.
-        /// @param format  The mime format for embedding into.  Use "c2pa" for an unformatted result.
-        /// @param asset  An optional asset to hash according to the data_hash information.
+        /// @param signer The signer to use for signing.
+        /// @param data_hash The data hash ranges to sign. This must contain hashes unless an asset is provided.
+        /// @param format The mime format for embedding into.  Use "c2pa" for an unformatted result.
+        /// @param asset An optional asset to hash according to the data_hash information.
         /// @return A vector containing the signed data.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         std::vector<unsigned char> sign_data_hashed_embeddable(Signer &signer, const string &data_hash, const string &format, istream *asset = nullptr);
