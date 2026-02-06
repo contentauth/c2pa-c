@@ -16,22 +16,10 @@
 #include <filesystem>
 #include <fstream>
 
+#include "test_utils.hpp"
+
 using nlohmann::json;
 namespace fs = std::filesystem;
-
-/// @brief Read a text file into a string
-static std::string read_text_file(const fs::path &path)
-{
-    // TMN-TODO Refactor with the one from the other test
-    std::ifstream file(path);
-    if (!file.is_open())
-    {
-        throw std::runtime_error("Could not open file " + path.string());
-    }
-    std::string contents((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    file.close();
-    return contents.data();
-}
 
 TEST(Reader, SupportedTypes) {
   auto supported_types = c2pa::Reader::supported_mime_types();
@@ -262,7 +250,7 @@ TEST(Reader, ReadManifestWithTrustConfiguredTomlSettings)
     // if the ingredients are trusted at time of signing, so we benefit from having a context
     // already configured with that trust to use with our Builder and Reader.
     fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_example.toml";
-    auto settings = read_text_file(settings_path);
+    auto settings = c2pa_test::read_text_file(settings_path);
     auto trusted_context = c2pa::Context::from_toml(settings);
 
     // When reading, the Reader also needs to know about trust, to determine the manifest validation state
@@ -286,7 +274,7 @@ TEST(Reader, ReadManifestWithTrustConfiguredJsonSettings)
     // if the ingredients are trusted at time of signing, so we benefit from having a context
     // already configured with that trust to use with our Builder and Reader.
     fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_example.json";
-    auto settings = read_text_file(settings_path);
+    auto settings = c2pa_test::read_text_file(settings_path);
     auto trusted_context = c2pa::Context::from_json(settings);
 
     // When reading, the Reader also needs to know about trust, to determine the manifest validation state

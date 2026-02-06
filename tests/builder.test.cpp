@@ -13,31 +13,15 @@
 #include <c2pa.hpp>
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
-//#include <toml++/toml.h>
 #include <string>
 #include <filesystem>
 #include <thread>
 
+#include "test_utils.hpp"
+
 using namespace std;
 namespace fs = std::filesystem;
 using nlohmann::json;
-
-// TODO-TMN
-// Other settings for this:
-// - all_actions_included
-
-/// @brief Read a text file into a string
-static string read_text_file(const fs::path &path)
-{
-    ifstream file(path);
-    if (!file.is_open())
-    {
-        throw runtime_error("Could not open file " + path.string());
-    }
-    string contents((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
-    file.close();
-    return contents.data();
-}
 
 TEST(Builder, supported_mime_types_returns_types) {
   auto supported_types = c2pa::Builder::supported_mime_types();
@@ -50,7 +34,7 @@ TEST(Builder, supported_mime_types_returns_types) {
 TEST(Builder, exposes_raw_pointer) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
-    auto manifest = read_text_file(manifest_path);
+    auto manifest = c2pa_test::read_text_file(manifest_path);
     c2pa::Builder builder(manifest);
     ASSERT_NE(builder.c2pa_builder(), nullptr);
 }
@@ -66,9 +50,9 @@ TEST(Builder, AddAnActionAndSign)
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path = current_dir / "../build/examples/image_with_one_action.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // Create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -159,9 +143,9 @@ TEST(Builder, AddMultipleActionsAndSign)
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path = current_dir / "../build/examples/image_with_multiple_actions.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // Create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -281,9 +265,9 @@ TEST(Builder, SignImageFileOnly)
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path = current_dir / "../build/examples/training_image_only.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -314,9 +298,9 @@ TEST(Builder, SignImageFileNoThumbnailAutoGenThreadLocalSettings)
         fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
         fs::path output_path = current_dir / "../build/examples/training_image_only.jpg";
 
-        auto manifest = read_text_file(manifest_path);
-        auto certs = read_text_file(certs_path);
-        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+        auto manifest = c2pa_test::read_text_file(manifest_path);
+        auto certs = c2pa_test::read_text_file(certs_path);
+        auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
         // set settings to not generate thumbnails (thread-local)
         c2pa::load_settings("{\"builder\": { \"thumbnail\": {\"enabled\": false}}}", "json");
@@ -354,9 +338,9 @@ TEST(Builder, SignImageFileNoThumbnailAutoGen)
     fs::path output_path_with_context = current_dir / "../build/examples/settings_no_thumbnails.jpg";
     fs::path output_path_no_context = current_dir / "../build/examples/settings_with_thumbnails.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // Create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -417,9 +401,9 @@ TEST(Builder, SignImageThumbnailSettingsFileToml)
     fs::path output_path_with_context = current_dir / "../build/examples/image_context_settings_toml.jpg";
     fs::path output_path_no_context = current_dir / "../build/examples/image_no_context_toml.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // Create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -429,7 +413,7 @@ TEST(Builder, SignImageThumbnailSettingsFileToml)
 
     // Create context with specific settings via toml, by loading the TOML file
     fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_no_thumbnail.toml";
-    auto settings_toml = read_text_file(settings_path);
+    auto settings_toml = c2pa_test::read_text_file(settings_path);
     auto context = c2pa::Context::from_toml(settings_toml);
 
     // Create builder using context containing settings (does not generate thumbnails)
@@ -446,7 +430,7 @@ TEST(Builder, SignImageThumbnailSettingsFileToml)
 
     // Now, create builder with another context (settings generate a thumbnail)
     fs::path settings_path2 = current_dir / "../tests/fixtures/settings/test_settings_with_thumbnail.toml";
-    auto settings_toml2 = read_text_file(settings_path2);
+    auto settings_toml2 = c2pa_test::read_text_file(settings_path2);
     auto context2 = c2pa::Context::from_toml(settings_toml2);
 
     auto builder_with_thumbnail = c2pa::Builder(context2, manifest);
@@ -486,9 +470,9 @@ TEST(Builder, SignImageThumbnailSettingsFileJson)
     fs::path output_path_with_context = current_dir / "../build/examples/image_context_settings_json.jpg";
     fs::path output_path_no_context = current_dir / "../build/examples/image_no_context_json.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // Create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -498,7 +482,7 @@ TEST(Builder, SignImageThumbnailSettingsFileJson)
 
     // Create context with specific settings via JSON, by loading the JSON file with the settings
     fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_no_thumbnail.json";
-    auto settings_json = read_text_file(settings_path);
+    auto settings_json = c2pa_test::read_text_file(settings_path);
     auto context = c2pa::Context::from_json(settings_json);
 
     // Create builder using context containing settings (does not generate thumbnails)
@@ -515,7 +499,7 @@ TEST(Builder, SignImageThumbnailSettingsFileJson)
 
     // Now, create builder with another context (settings generate a thumbnail)
     fs::path settings_path2 = current_dir / "../tests/fixtures/settings/test_settings_with_thumbnail.json";
-    auto settings_json2 = read_text_file(settings_path2);
+    auto settings_json2 = c2pa_test::read_text_file(settings_path2);
     auto context2 = c2pa::Context::from_json(settings_json2);
 
     auto builder_with_thumbnail = c2pa::Builder(context2, manifest);
@@ -554,9 +538,9 @@ TEST(Builder, SignImageThumbnailSettingsObject)
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path_no_thumbnail = current_dir / "../build/examples/image_no_thumbnail_incremental.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // Create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -604,9 +588,9 @@ TEST(Builder, SignImageThumbnailSettingsIncrementalObject)
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path_no_thumbnail = current_dir / "../build/examples/image_no_thumbnail_incremental.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // Create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -659,9 +643,9 @@ TEST(Builder, SignImageFileWithResource)
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path = current_dir / "../build/examples/training_resource_only.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -695,9 +679,9 @@ TEST(Builder, SignWithMultipleResources)
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path = current_dir / "../build/examples/multiple_resources.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -732,9 +716,9 @@ TEST(Builder, SignImageFileWithIngredient)
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path = current_dir / "../build/examples/training_ingredient_only.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -769,9 +753,9 @@ TEST(Builder, SignImageFileWithResourceAndIngredient)
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path = current_dir / "../build/examples/training.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -808,9 +792,9 @@ TEST(Builder, SignVideoFileWithMultipleIngredients)
     fs::path image_ingredient = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path = current_dir / "../build/examples/video1_signed.mp4";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -852,9 +836,9 @@ TEST(Builder, SignVideoFileWithMultipleIngredientsAndResources)
     fs::path image_resource_other = current_dir / "../tests/fixtures/sample1.gif";
     fs::path output_path = current_dir / "../build/examples/video1_signed_with_ingredients_and_resources.mp4";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -901,9 +885,9 @@ TEST(Builder, SignVideoFileWithMultipleIngredientsAndResourcesInterleaved)
     fs::path image_resource_other = current_dir / "../tests/fixtures/sample1.gif";
     fs::path output_path = current_dir / "../build/examples/video1_signed.mp4";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -962,9 +946,9 @@ TEST_P(SimplePathSignTest, SignsFileTypes) {
   fs::path output_path = current_dir / "../build/examples" / SimplePathSignTest::GetParam();
   std::filesystem::remove(output_path.c_str()); // remove the file if it exists
 
-  auto manifest = read_text_file(manifest_path);
-  auto certs = read_text_file(certs_path);
-  auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+  auto manifest = c2pa_test::read_text_file(manifest_path);
+  auto certs = c2pa_test::read_text_file(certs_path);
+  auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
   // create a signer
   auto signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -989,9 +973,9 @@ TEST(Builder, SignImageStreamWithoutContext)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -1029,9 +1013,9 @@ TEST(Builder, SignImageStream)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // Create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -1081,9 +1065,9 @@ TEST(Builder, SignImageStreamBuilderReaderDifferentContext)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // Create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -1140,9 +1124,9 @@ TEST(Builder, SignImageWithIngredientHavingManifestStream)
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path ingredient_image_path = current_dir / "../tests/fixtures/C.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -1189,9 +1173,9 @@ TEST(Builder, SignStreamCloudUrl)
         fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
         fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
 
-        auto manifest = read_text_file(manifest_path);
-        auto certs = read_text_file(certs_path);
-        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+        auto manifest = c2pa_test::read_text_file(manifest_path);
+        auto certs = c2pa_test::read_text_file(certs_path);
+        auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
         // create a signer
         c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -1245,9 +1229,9 @@ TEST(Builder, SignDataHashedEmbedded)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     // fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -1281,9 +1265,9 @@ TEST(Builder, SignDataHashedEmbeddedWithAsset)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -1327,9 +1311,9 @@ TEST(Builder, SignWithInvalidStream)
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -1354,9 +1338,9 @@ TEST(Builder, SignWithoutTimestamping)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // Create a signer without tsa uri
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key);
@@ -1541,7 +1525,7 @@ TEST(Builder, AddIngredientAsResourceToBuilder)
     std::string identifier = ingredient_json["thumbnail"]["identifier"];
 
     // Create the builder using a manifest JSON
-    auto manifest = read_text_file(manifest_path);
+    auto manifest = c2pa_test::read_text_file(manifest_path);
 
     // Parse the manifest and add ingredients array
     json manifest_json = json::parse(manifest);
@@ -1556,8 +1540,8 @@ TEST(Builder, AddIngredientAsResourceToBuilder)
 
     // Create a signer
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
     std::vector<unsigned char> manifest_data;
@@ -1588,7 +1572,7 @@ TEST(Builder, LinkIngredientsAndSign)
     fs::create_directories(temp_dir);
 
     // Create the builder using a manifest JSON
-    auto manifest = read_text_file(manifest_path);
+    auto manifest = c2pa_test::read_text_file(manifest_path);
 
     // Parse the manifest and modify it
     json manifest_json = json::parse(manifest);
@@ -1623,8 +1607,8 @@ TEST(Builder, LinkIngredientsAndSign)
 
     // Create a signer
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
@@ -1721,7 +1705,7 @@ TEST(Builder, AddIngredientToBuilderUsingBasePath)
     result = c2pa::read_ingredient_file(ingredient_source_path, temp_dir);
 
     // Create the builder using a manifest JSON
-    auto manifest = read_text_file(manifest_path);
+    auto manifest = c2pa_test::read_text_file(manifest_path);
 
     // Add ingredients array to the manifest JSON, since our demo manifest doesn't have it,
     // and we are adding ingredients more manually than through the Builder.add_ingredient call.
@@ -1745,8 +1729,8 @@ TEST(Builder, AddIngredientToBuilderUsingBasePath)
 
     // Create a signer
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
     std::vector<unsigned char> manifest_data;
@@ -1839,8 +1823,8 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathPlacedActionThreadLocalSettings
 
         // Create a signer
         fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
-        auto certs = read_text_file(certs_path);
-        auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+        auto certs = c2pa_test::read_text_file(certs_path);
+        auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
         c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
         std::vector<unsigned char> manifest_data;
@@ -1934,8 +1918,8 @@ TEST(Builder, AddIngredientToBuilderUsingBasePathWithManifestContainingPlacedAct
 
     // Create a signer
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
     // Sign the image
@@ -1980,7 +1964,7 @@ TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)
     result = c2pa::read_ingredient_file(ingredient_source_path, temp_dir);
 
     // Create the builder using a manifest JSON
-    auto manifest = read_text_file(manifest_path);
+    auto manifest = c2pa_test::read_text_file(manifest_path);
 
     // Add ingredients array to the manifest JSON, since our demo manifest doesn't have it,
     // and we are adding ingredients more manually than through the Builder.add_ingredient call.
@@ -2004,8 +1988,8 @@ TEST(Builder, AddIngredientWithProvenanceDataToBuilderUsingBasePath)
 
     // Create a signer
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
     std::vector<unsigned char> manifest_data;
@@ -2027,9 +2011,9 @@ TEST(Builder, MultipleBuildersDifferentThumbnailSettingsInterleaved)
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path_no_thumbnail = current_dir / "../build/examples/no_thumbnail_interleaved_1.jpg";
     fs::path output_path_with_thumbnails = current_dir / "../build/examples/with_thumbnails_interleaved_1.jpg";
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // Create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -2039,12 +2023,12 @@ TEST(Builder, MultipleBuildersDifferentThumbnailSettingsInterleaved)
 
     // Create one context with specific settings via JSON, by loading the JSON file with the settings
     fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_no_thumbnail.json";
-    auto settings_json = read_text_file(settings_path);
+    auto settings_json = c2pa_test::read_text_file(settings_path);
     auto context_without_thumbnails = c2pa::Context::from_json(settings_json);
 
     // Now, create anothetrcontext, that sets thumbnails to be generated
     fs::path settings_path2 = current_dir / "../tests/fixtures/settings/test_settings_with_thumbnail.json";
-    auto settings_json2 = read_text_file(settings_path2);
+    auto settings_json2 = c2pa_test::read_text_file(settings_path2);
     auto context_with_thumbnails = c2pa::Context::from_json(settings_json2);
 
     // Create builder using context containing settings that does not generate thumbnails
@@ -2097,9 +2081,9 @@ TEST(Builder, MultipleBuildersDifferentThumbnailSettingsInterleaved2)
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path_no_thumbnail = current_dir / "../build/examples/no_thumbnail_interleaved_2.jpg";
     fs::path output_path_with_thumbnails = current_dir / "../build/examples/with_thumbnails_interleaved_2.jpg";
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // Create a signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -2109,12 +2093,12 @@ TEST(Builder, MultipleBuildersDifferentThumbnailSettingsInterleaved2)
 
     // Create one context with specific settings via JSON, by loading the JSON file with the settings
     fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_no_thumbnail.json";
-    auto settings_json = read_text_file(settings_path);
+    auto settings_json = c2pa_test::read_text_file(settings_path);
     auto context_without_thumbnails = c2pa::Context::from_json(settings_json);
 
     // Now, create another context, that sets thumbnails to be generated
     fs::path settings_path2 = current_dir / "../tests/fixtures/settings/test_settings_with_thumbnail.json";
-    auto settings_json2 = read_text_file(settings_path2);
+    auto settings_json2 = c2pa_test::read_text_file(settings_path2);
     auto context_with_thumbnails = c2pa::Context::from_json(settings_json2);
 
     // Create builder using context containing settings that does generate thumbnails
@@ -2166,9 +2150,9 @@ TEST(Builder, TrustHandling)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path signed_image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path = current_dir / "../build/examples/trust_handling_test.jpg";
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
 
     // Create our very own signer
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
@@ -2179,7 +2163,7 @@ TEST(Builder, TrustHandling)
     // if the ingredients are trusted at time of signing, so we benefit from having a context
     // already configured with that trust to use with our Builder and Reader.
     fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_example.toml";
-    auto settings = read_text_file(settings_path);
+    auto settings = c2pa_test::read_text_file(settings_path);
     auto trusted_context = c2pa::Context::from_toml(settings);
 
     // Create builder using context containing settings that does generate thumbnails
@@ -2227,7 +2211,7 @@ TEST(Builder, TrustHandling)
     // It is also important to make sure the proper trust chain is configured in settings...
     // If not, we won't be able to read the manifest as trusted!
     fs::path settings_without_trust_path = current_dir / "../tests/fixtures/settings/test_settings_no_thumbnail.json";
-    auto settings_without_trust = read_text_file(settings_without_trust_path);
+    auto settings_without_trust = c2pa_test::read_text_file(settings_without_trust_path);
     auto no_trust_context = c2pa::Context::from_json(settings_without_trust);
 
     auto reader3 = c2pa::Reader(no_trust_context, output_path);
@@ -2251,9 +2235,9 @@ TEST(Builder, SignWithIStreamAndOStream_RoundTrip)
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
     fs::path output_path = current_dir / "../build/examples/stream_ostream_roundtrip.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
     std::filesystem::remove(output_path);
@@ -2287,9 +2271,9 @@ TEST(Builder, SignWithIStreamAndIOStream_RoundTrip)
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
 
-    auto manifest = read_text_file(manifest_path);
-    auto certs = read_text_file(certs_path);
-    auto p_key = read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
     c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
     auto builder = c2pa::Builder(manifest);
