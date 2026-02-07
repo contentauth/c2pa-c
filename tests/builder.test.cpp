@@ -2726,3 +2726,105 @@ TEST(Builder, MultipleArchivesAsIngredients)
         << "Third ingredient should have componentOf relationship";
 }
 
+// Test adding multiple builder archives as ingredients
+// This approach uses verify_after_reading=false to skip signature validation
+TEST(Builder, MultipleArchivesAsIngredientsDirectly)
+{
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+
+    // Create first builder with an ingredient and export to archive
+    auto builder1 = c2pa::Builder(manifest);
+    std::string ingredient1_prep_json = R"({"title": "Prep Ingredient 1"})";
+    builder1.add_ingredient(ingredient1_prep_json, c2pa_test::get_fixture_path("C.jpg"));
+    std::stringstream archive1_stream(std::ios::in | std::ios::out | std::ios::binary);
+    EXPECT_NO_THROW({
+        builder1.to_archive(archive1_stream);
+    });
+
+    // Create second builder with an ingredient and export to archive
+    auto builder2 = c2pa::Builder(manifest);
+    std::string ingredient2_prep_json = R"({"title": "Prep Ingredient 2"})";
+    builder2.add_ingredient(ingredient2_prep_json, c2pa_test::get_fixture_path("A.jpg"));
+    std::stringstream archive2_stream(std::ios::in | std::ios::out | std::ios::binary);
+    EXPECT_NO_THROW({
+        builder2.to_archive(archive2_stream);
+    });
+
+    // Create third builder with an ingredient and export to archive
+    auto builder3 = c2pa::Builder(manifest);
+    std::string ingredient3_prep_json = R"({"title": "Prep Ingredient 3"})";
+    builder3.add_ingredient(ingredient3_prep_json, c2pa_test::get_fixture_path("sample1.gif"));
+    std::stringstream archive3_stream(std::ios::in | std::ios::out | std::ios::binary);
+    EXPECT_NO_THROW({
+        builder3.to_archive(archive3_stream);
+    });
+
+    // Set thread-local settings to disable verification
+    // This is important because archives contain placeholder BoxHash signatures
+    c2pa::load_settings(R"({"verify": {"verify_after_reading": false}})", "json");
+
+    // Create a final builder and add all three archives DIRECTLY as ingredients
+    auto final_builder = c2pa::Builder(manifest);
+
+    // Add first archive as parentOf ingredient
+    archive1_stream.seekg(0);
+    std::string ingredient1_json = R"({"title": "Archive 1 Direct", "relationship": "parentOf"})";
+    EXPECT_NO_THROW({
+        final_builder.add_ingredient(ingredient1_json, "application/c2pa", archive1_stream);
+    });
+
+    // Add second archive as componentOf ingredient
+    archive2_stream.seekg(0);
+    std::string ingredient2_json = R"({"title": "Archive 2 Direct", "relationship": "componentOf"})";
+    EXPECT_NO_THROW({
+        final_builder.add_ingredient(ingredient2_json, "application/c2pa", archive2_stream);
+    });
+
+    // Add third archive as componentOf ingredient
+    archive3_stream.seekg(0);
+    std::string ingredient3_json = R"({"title": "Archive 3 Direct", "relationship": "componentOf"})";
+    EXPECT_NO_THROW({
+        final_builder.add_ingredient(ingredient3_json, "application/c2pa", archive3_stream);
+    });
+
+    // Reset settings to default
+    c2pa::load_settings(R"({"verify": {"verify_after_reading": true}})", "json");
+
+    // Sign the final builder
+    auto signer = c2pa_test::create_test_signer();
+    std::ifstream final_source(c2pa_test::get_fixture_path("A.jpg"), std::ios::binary);
+    ASSERT_TRUE(final_source.is_open());
+    std::stringstream dest_stream(std::ios::in | std::ios::out | std::ios::binary);
+    EXPECT_NO_THROW({
+        final_builder.sign("image/jpeg", final_source, dest_stream, signer);
+    });
+
+    // Verify all three ingredients are present with correct relationships
+    dest_stream.seekg(0);
+    auto reader = c2pa::Reader(c2pa::Context::create(), "image/jpeg", dest_stream);
+    auto json_result = json::parse(reader.json());
+
+    EXPECT_TRUE(json_result.contains("active_manifest"));
+
+    std::string active = json_result["active_manifest"];
+    ASSERT_TRUE(json_result["manifests"][active].contains("ingredients"));
+
+    auto ingredients = json_result["manifests"][active]["ingredients"];
+    EXPECT_EQ(ingredients.size(), 3) << "Should have exactly 3 ingredients";
+
+    // Verify ingredient titles and relationships are preserved
+    std::map<std::string, std::string> ingredient_relationships;
+    for (const auto& ingredient : ingredients) {
+        EXPECT_TRUE(ingredient.contains("title"));
+        EXPECT_TRUE(ingredient.contains("relationship"));
+        ingredient_relationships[ingredient["title"]] = ingredient["relationship"];
+    }
+
+    EXPECT_EQ(ingredient_relationships["Archive 1 Direct"], "parentOf")
+        << "First ingredient should have parentOf relationship";
+    EXPECT_EQ(ingredient_relationships["Archive 2 Direct"], "componentOf")
+        << "Second ingredient should have componentOf relationship";
+    EXPECT_EQ(ingredient_relationships["Archive 3 Direct"], "componentOf")
+        << "Third ingredient should have componentOf relationship";
+}
+
