@@ -68,7 +68,7 @@ endfunction()
 
 # C++ tests
 file(GLOB CPP_TESTS "*.test.cpp")
-add_executable(c2pa_c_tests ${CPP_TESTS})
+add_executable(c2pa_c_tests ${CPP_TESTS} cmd_signer.cpp)
 target_link_libraries(c2pa_c_tests PRIVATE c2pa_cpp gtest_main)
 target_include_directories(c2pa_c_tests PRIVATE ${nlohmann_json_SOURCE_DIR}/include)
 if(NOT MSVC)

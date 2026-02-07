@@ -199,7 +199,7 @@ intptr_t signer_callback(const void* context, const unsigned char *data, uintptr
     }
     if (context != NULL && strncmp((const char *)context,"testing context", 16)) {
         printf("signer callback unexpected context %s\n", (const char *) context);
-    }    
+    }
     // sign the temp file by calling openssl in a shell
     system("openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out build/c_signature.sig build/c_data.bin");
 

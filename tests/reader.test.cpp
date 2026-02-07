@@ -470,3 +470,73 @@ TEST(ReaderErrorHandling, ErrorMessagesWithAndWithoutContext)
         EXPECT_FALSE(msg.empty()) << "Error message should be present with context API";
     }
 }
+
+// ============================================================================
+// Reader get_resource Tests
+// ============================================================================
+
+TEST(Reader, GetResourceToStream) {
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+
+    c2pa::Reader reader(test_file);
+    auto manifest_json = reader.json();
+    auto parsed = json::parse(manifest_json);
+
+    std::string active = parsed["active_manifest"];
+    auto manifest = parsed["manifests"][active];
+
+    // Extract thumbnail assertion URI
+    std::string thumbnail_uri = "self#jumbf=c2pa.assertions/c2pa.thumbnail.claim.jpeg";
+
+    std::ostringstream output;
+    auto byte_count = reader.get_resource(thumbnail_uri, output);
+
+    EXPECT_GT(byte_count, 0);
+    EXPECT_FALSE(output.str().empty());
+}
+
+TEST(Reader, GetResourceToFilePath) {
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+    fs::path output_file = current_dir / "../tests/.thumbnail_test_output.jpg";
+
+    c2pa::Reader reader(test_file);
+    auto manifest_json = reader.json();
+    auto parsed = json::parse(manifest_json);
+
+    std::string active = parsed["active_manifest"];
+    auto manifest = parsed["manifests"][active];
+
+    // Extract thumbnail assertion URI
+    std::string thumbnail_uri = "self#jumbf=c2pa.assertions/c2pa.thumbnail.claim.jpeg";
+
+    auto byte_count = reader.get_resource(thumbnail_uri, output_file);
+
+    EXPECT_GT(byte_count, 0);
+    EXPECT_TRUE(fs::exists(output_file));
+    EXPECT_GT(fs::file_size(output_file), 0);
+
+    // Clean up
+    fs::remove(output_file);
+}
+
+TEST(Reader, GetResourceInvalidUriThrows) {
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+
+    c2pa::Reader reader(test_file);
+
+    std::ostringstream output;
+    EXPECT_THROW(reader.get_resource("nonexistent_uri", output), c2pa::C2paException);
+}
+
+TEST(Reader, GetResourceWithInvalidUri) {
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+
+    c2pa::Reader reader(test_file);
+
+    std::ostringstream output;
+    EXPECT_THROW(reader.get_resource("invalid://nonexistent", output), c2pa::C2paException);
+}

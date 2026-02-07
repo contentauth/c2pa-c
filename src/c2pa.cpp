@@ -490,7 +490,7 @@ inline std::string c_string_to_string(T* c_result) {
     /// @param data_dir the directory to store binary resources (optional).
     /// @return a std::string containing the manifest json if a manifest was found.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    [[deprecated("Use stream APIs instead: Reader to read combined with Builder to manage ingredients")]]
+    [[deprecated("Use stream APIs instead: Reader to read data, combined with Builder to manage ingredients")]]
     std::optional<std::string> read_file(const std::filesystem::path &source_path, const std::optional<std::filesystem::path> data_dir)
     {
         const char* dir_ptr = nullptr;
@@ -776,13 +776,24 @@ inline std::string c_string_to_string(T* c_result) {
 
     Signer::Signer(SignerFunc *callback, C2paSigningAlg alg, const std::string &sign_cert, const std::string &tsa_uri)
     {
+        // Validate that if tsa_uri is provided, it's not empty
+        // Convert empty strings to nullptr to prevent validation errors from the C library
+        const char* tsa_uri_ptr = tsa_uri.empty() ? nullptr : tsa_uri.c_str();
+
         // Pass the C++ callback as a context to our static callback wrapper.
-        signer = c2pa_signer_create((const void *)callback, &signer_passthrough, alg, sign_cert.c_str(), tsa_uri.c_str());
+        signer = c2pa_signer_create((const void *)callback, &signer_passthrough, alg, sign_cert.c_str(), tsa_uri_ptr);
     }
 
     Signer::Signer(const std::string &alg, const std::string &sign_cert, const std::string &private_key, const std::optional<std::string> &tsa_uri)
     {
-        auto info = C2paSignerInfo { alg.c_str(), sign_cert.c_str(), private_key.c_str(), tsa_uri ? tsa_uri->c_str() : nullptr };
+        // Validate that if tsa_uri is provided, it's not empty
+        // Convert empty strings to nullopt to prevent validation errors from the C library
+        const char* tsa_uri_ptr = nullptr;
+        if (tsa_uri && !tsa_uri->empty()) {
+            tsa_uri_ptr = tsa_uri->c_str();
+        }
+
+        auto info = C2paSignerInfo { alg.c_str(), sign_cert.c_str(), private_key.c_str(), tsa_uri_ptr };
         signer = c2pa_signer_from_info(&info);
     }
 

@@ -2828,3 +2828,99 @@ TEST(Builder, MultipleArchivesAsIngredientsDirectly)
         << "Third ingredient should have componentOf relationship";
 }
 
+TEST(Builder, WithDefinitionUpdatesManifest) {
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path manifest_path = current_dir / "fixtures/training.json";
+
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto context = c2pa::Context::create();
+
+    c2pa::Builder builder(context);
+    builder.with_definition(manifest);
+
+    fs::path asset_path = current_dir / "fixtures/A.jpg";
+    fs::path dest_path = current_dir / ".test_with_definition_output.jpg";
+    fs::path cert_path = current_dir / "fixtures/es256_certs.pem";
+    fs::path key_path = current_dir / "fixtures/es256_private.key";
+
+    auto certs = c2pa_test::read_text_file(cert_path);
+    auto private_key = c2pa_test::read_text_file(key_path);
+    c2pa::Signer signer("es256", certs, private_key);
+
+    builder.sign(asset_path, dest_path, signer);
+
+    c2pa::Reader reader(context, dest_path);
+    auto json_result = json::parse(reader.json());
+
+    fs::remove(dest_path);
+
+    std::string active = json_result["active_manifest"];
+    auto claim_generator_info = json_result["manifests"][active]["claim_generator_info"];
+
+    // Verify the manifest definition from training.json was applied
+    ASSERT_TRUE(claim_generator_info.is_array());
+    ASSERT_GT(claim_generator_info.size(), 0);
+    EXPECT_EQ(claim_generator_info[0]["name"], "c2pa-c test");
+}
+
+TEST(Builder, WithDefinitionChaining) {
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path manifest_path = current_dir / "fixtures/training.json";
+
+    auto initial_manifest = R"({
+      "claim_generator_info": [
+        {
+          "name": "initial-value",
+          "version": "0.1"
+        }
+      ]
+    })";
+    auto updated_manifest = c2pa_test::read_text_file(manifest_path);
+    auto context = c2pa::Context::create();
+
+    c2pa::Builder builder(context, initial_manifest);
+    builder.with_definition(updated_manifest);
+
+    // Sign and verify the updated definition was applied
+    fs::path asset_path = current_dir / "fixtures/A.jpg";
+    fs::path dest_path = current_dir / ".test_with_definition_chaining_output.jpg";
+    fs::path cert_path = current_dir / "fixtures/es256_certs.pem";
+    fs::path key_path = current_dir / "fixtures/es256_private.key";
+
+    auto certs = c2pa_test::read_text_file(cert_path);
+    auto private_key = c2pa_test::read_text_file(key_path);
+    c2pa::Signer signer("es256", certs, private_key);
+
+    builder.sign(asset_path, dest_path, signer);
+
+    c2pa::Reader reader(context, dest_path);
+    auto json_result = json::parse(reader.json());
+
+    fs::remove(dest_path);
+
+    std::string active = json_result["active_manifest"];
+    auto claim_generator_info = json_result["manifests"][active]["claim_generator_info"];
+
+    // Verify updated definition (training.json) was applied, not initial
+    ASSERT_TRUE(claim_generator_info.is_array());
+    ASSERT_GT(claim_generator_info.size(), 0);
+    EXPECT_EQ(claim_generator_info[0]["name"], "c2pa-c test");
+    EXPECT_NE(claim_generator_info[0]["name"], "initial-value");
+}
+
+TEST(Builder, ArchiveToFilePath) {
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path manifest_path = current_dir / "fixtures/training.json";
+    fs::path archive_path = current_dir / ".test_archive.c2pa";
+
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    c2pa::Builder builder(manifest);
+
+    builder.to_archive(archive_path);
+
+    EXPECT_TRUE(fs::exists(archive_path));
+    EXPECT_GT(fs::file_size(archive_path), 0);
+
+    // Clean up
+    fs::remove(archive_path);
+}
