@@ -90,7 +90,7 @@ static void replace_bytes_at_offset(
     file.close();
 }
 
-// Full End-to-End Workflow with A.jpg (has no existing C2PA)
+// e2e workflow with A.jpg (has no existing C2PA)
 TEST(Embeddable, FullWorkflowWithAJpg) {
     // This test demonstrates the complete data-hashed embeddable workflow:
     // 1. Create placeholder
@@ -158,8 +158,7 @@ TEST(Embeddable, FullWorkflowWithAJpg) {
         << "Signed manifest size must match placeholder size for in-place patching";
 }
 
-
-// Workflow with C.jpg (has existing C2PA metadata)
+// e2e workflow with C.jpg (has existing C2PA metadata)
 TEST(Embeddable, FullWorkflowWithCJpg) {
     auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
     auto signer = c2pa_test::create_test_signer();
@@ -200,7 +199,7 @@ TEST(Embeddable, FullWorkflowWithCJpg) {
     EXPECT_EQ(jpeg_embeddable.size(), placeholder.size());
 }
 
-// Pre-Calculated Hash (No Asset Stream)
+// Pre-calculated hash
 TEST(Embeddable, PreCalculatedHash) {
     // This test demonstrates signing with a pre-calculated hash.
     // In production, you might calculate the hash on a different machine or at a different time than signing.
@@ -237,7 +236,7 @@ TEST(Embeddable, PreCalculatedHash) {
     EXPECT_EQ(manifest.size(), placeholder.size()) << "Size should match placeholder";
 }
 
-// Auto-Calculated Hash with Asset Stream
+// Auto-calculated hash
 TEST(Embeddable, AutoCalculatedHash) {
     // This test demonstrates the SDK calculating the hash automatically from an asset stream.
     // The hash field is left empty (""), and the SDK will:
@@ -327,7 +326,7 @@ TEST(Embeddable, FormatEmbeddableRoundTrip) {
     EXPECT_EQ(jpeg_formatted.size(), placeholder.size());
 }
 
-// Verify placeholder size matches final size (A.jpg)
+// Verify placeholder size matches final size (asset has no existing C2PA)
 TEST(Embeddable, PlaceholderSizeMatchesFinalInvariant) {
     // This test verifies the critical invariant:
     // placeholder.size() == final_signed_manifest.size()
@@ -368,7 +367,7 @@ TEST(Embeddable, PlaceholderSizeMatchesFinalInvariant) {
         << "Final signed manifest MUST be same size as placeholder";
 }
 
-// Verify placeholder size matches final size (C.jpg, has C2PA)
+// Verify placeholder size matches final size (asset has existing C2PA metadata)
 TEST(Embeddable, PlaceholderSizeMatchesFinalInvariantWithMetadata) {
     auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
     auto signer = c2pa_test::create_test_signer();
