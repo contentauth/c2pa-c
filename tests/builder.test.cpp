@@ -61,7 +61,6 @@ TEST(BuilderErrorHandling, MalformedJsonManifestReturnsErrorWithContext)
     EXPECT_THROW(c2pa::Builder(context, "{ invalid json"), c2pa::C2paException);
 }
 
-// Consistency tests: Ensure both APIs behave the same for error cases
 TEST(BuilderErrorHandling, JsonErrorsBehaveSameWithAndWithoutContext)
 {
     std::vector<std::string> bad_inputs = {
@@ -89,7 +88,6 @@ TEST(BuilderErrorHandling, JsonErrorsBehaveSameWithAndWithoutContext)
     }
 }
 
-// Test that valid JSON works with both APIs
 TEST(BuilderErrorHandling, ValidJsonWorksWithAndWithoutContext)
 {
     std::string valid_json = R"({"claim_generator": "test"})";
@@ -129,7 +127,6 @@ TEST(BuilderErrorHandling, FailedConstructionWithAndWithoutContext)
     }
 }
 
-// Test that exception messages are meaningful
 TEST(BuilderErrorHandling, ErrorMessagesWithAndWithoutContext)
 {
     // Without context
@@ -3353,7 +3350,7 @@ TEST(Builder, WithDefinitionUpdatesManifest) {
     builder.with_definition(manifest);
 
     fs::path asset_path = current_dir / "fixtures/A.jpg";
-    fs::path dest_path = current_dir / ".test_with_definition_output.jpg";
+    fs::path dest_path = current_dir / "test_with_definition_output.jpg";
     fs::path cert_path = current_dir / "fixtures/es256_certs.pem";
     fs::path key_path = current_dir / "fixtures/es256_private.key";
 
@@ -3397,7 +3394,7 @@ TEST(Builder, WithDefinitionChaining) {
 
     // Sign and verify the updated definition was applied
     fs::path asset_path = current_dir / "fixtures/A.jpg";
-    fs::path dest_path = current_dir / ".test_with_definition_chaining_output.jpg";
+    fs::path dest_path = current_dir / "test_with_definition_chaining_output.jpg";
     fs::path cert_path = current_dir / "fixtures/es256_certs.pem";
     fs::path key_path = current_dir / "fixtures/es256_private.key";
 
@@ -3425,7 +3422,7 @@ TEST(Builder, WithDefinitionChaining) {
 TEST(Builder, ArchiveToFilePath) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path manifest_path = current_dir / "fixtures/training.json";
-    fs::path archive_path = current_dir / ".test_archive.c2pa";
+    fs::path archive_path = current_dir / "test_archive.c2pa";
 
     auto manifest = c2pa_test::read_text_file(manifest_path);
     c2pa::Builder builder(manifest);
@@ -3435,6 +3432,5 @@ TEST(Builder, ArchiveToFilePath) {
     EXPECT_TRUE(fs::exists(archive_path));
     EXPECT_GT(fs::file_size(archive_path), 0);
 
-    // Clean up
     fs::remove(archive_path);
 }
