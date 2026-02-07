@@ -94,6 +94,44 @@ TEST(Reader, MultipleReadersSameFile)
     EXPECT_TRUE(manifest3.find("C.jpg") != std::string::npos);
 };
 
+TEST(Reader, MultipleReadersSameFileUsingContext)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+    ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
+
+    // Create a Context
+    auto context = c2pa::Context::create();
+
+    // create multiple readers from the same file using the context
+    auto reader1 = c2pa::Reader(context, test_file);
+    auto reader2 = c2pa::Reader(context, test_file);
+    auto reader3 = c2pa::Reader(context, test_file);
+
+    // all readers should be able to read the manifest independently
+    auto manifest1 = reader1.json();
+    auto manifest2 = reader2.json();
+    auto manifest3 = reader3.json();
+
+    // all manifests should be identical
+    EXPECT_EQ(manifest1, manifest2);
+    EXPECT_EQ(manifest2, manifest3);
+    EXPECT_EQ(manifest1, manifest3);
+
+    // all readers should report the same embedded status
+    EXPECT_EQ(reader1.is_embedded(), reader2.is_embedded());
+    EXPECT_EQ(reader2.is_embedded(), reader3.is_embedded());
+
+    // all readers should report the same remote URL status
+    EXPECT_EQ(reader1.remote_url().has_value(), reader2.remote_url().has_value());
+    EXPECT_EQ(reader2.remote_url().has_value(), reader3.remote_url().has_value());
+
+    // verify the manifest
+    EXPECT_TRUE(manifest1.find("C.jpg") != std::string::npos);
+    EXPECT_TRUE(manifest2.find("C.jpg") != std::string::npos);
+    EXPECT_TRUE(manifest3.find("C.jpg") != std::string::npos);
+};
+
 TEST(Reader, VideoStreamWithManifestUsingExtension) {
   fs::path current_dir = fs::path(__FILE__).parent_path();
   fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / "video1.mp4";
@@ -104,6 +142,22 @@ TEST(Reader, VideoStreamWithManifestUsingExtension) {
   ASSERT_TRUE(file_stream.is_open()) << "Failed to open video file: " << test_file;
 
   auto reader = c2pa::Reader("mp4", file_stream);
+  auto manifest_store_json = reader.json();
+  EXPECT_TRUE(manifest_store_json.find("My Title") != std::string::npos);
+};
+
+TEST(Reader, VideoStreamWithManifestUsingExtensionUsingContext) {
+  fs::path current_dir = fs::path(__FILE__).parent_path();
+  fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / "video1.mp4";
+  ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
+
+  // read the new manifest and display the JSON
+  std::ifstream file_stream(test_file, std::ios::binary);
+  ASSERT_TRUE(file_stream.is_open()) << "Failed to open video file: " << test_file;
+
+  // Create a Context and pass it to the Reader
+  auto context = c2pa::Context::create();
+  auto reader = c2pa::Reader(context, "mp4", file_stream);
   auto manifest_store_json = reader.json();
   EXPECT_TRUE(manifest_store_json.find("My Title") != std::string::npos);
 };
@@ -202,6 +256,25 @@ TEST(Reader, HasManifestUtf8Path) {
 
     std::ifstream stream(test_file, std::ios::binary);
     auto reader = c2pa::Reader("image/jpeg", stream);
+
+    EXPECT_FALSE(reader.remote_url());
+    EXPECT_TRUE(reader.is_embedded());
+}
+
+TEST(Reader, HasManifestUtf8PathUsingContext) {
+    auto current_dir = fs::path(__FILE__).parent_path();
+    #ifdef _WIN32
+      auto test_file = current_dir.parent_path() / "tests" / "fixtures" / L"CÖÄ_.jpg";
+    #else
+      auto test_file = current_dir.parent_path() / "tests" / "fixtures" / "CÖÄ_.jpg";
+    #endif
+    ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
+
+    std::ifstream stream(test_file, std::ios::binary);
+
+    // Create a Context and pass it to the Reader
+    auto context = c2pa::Context::create();
+    auto reader = c2pa::Reader(context, "image/jpeg", stream);
 
     EXPECT_FALSE(reader.remote_url());
     EXPECT_TRUE(reader.is_embedded());
