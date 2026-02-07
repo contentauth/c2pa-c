@@ -64,6 +64,15 @@ else
 	LD_LIBRARY_PATH=$(RELEASE_BUILD_DIR)/tests:$$LD_LIBRARY_PATH ./$(RELEASE_BUILD_DIR)/tests/c2pa_c_tests
 endif
 
+# Run performance timing tests (release build for meaningful measurements)
+perf-test: clean release
+	@echo "Running performance tests..."
+ifeq ($(OS),Darwin)
+	DYLD_LIBRARY_PATH=$(RELEASE_BUILD_DIR)/tests:$$DYLD_LIBRARY_PATH ./$(RELEASE_BUILD_DIR)/tests/c2pa_perf_tests
+else
+	LD_LIBRARY_PATH=$(RELEASE_BUILD_DIR)/tests:$$LD_LIBRARY_PATH ./$(RELEASE_BUILD_DIR)/tests/c2pa_perf_tests
+endif
+
 # Demo targets
 demo: release
 	cmake --build $(RELEASE_BUILD_DIR) --target demo
@@ -75,7 +84,7 @@ training: release
 
 examples: training demo
 
-.PHONY: all debug release cmake test test-release test-san test-c test-cpp demo training examples clean
+.PHONY: all debug release cmake test test-release test-san test-c test-cpp perf-test demo training examples clean
 
 # Build C API docs with Doxygen
 docs:

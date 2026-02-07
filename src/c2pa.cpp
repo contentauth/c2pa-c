@@ -16,6 +16,7 @@
 ///          Thread safety is not guaranteed due to the use of errno and etc.
 ///          C++ standard: C++17
 
+#include <cassert>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -39,6 +40,7 @@ std::vector<std::string> c_mime_types_to_vector(const char* const* mime_types, u
   std::vector<std::string> result;
   if (mime_types == nullptr) { return result; }
 
+  result.reserve(count);  // P2: pre-allocate to avoid reallocations
   for(uintptr_t i = 0; i < count; i++) {
     result.emplace_back(mime_types[i]);
   }
@@ -57,8 +59,8 @@ intptr_t signer_passthrough(const void *context, const unsigned char *data, uint
   {
     // the context is a pointer to the C++ callback function
     c2pa::SignerFunc *callback = (c2pa::SignerFunc *)context;
-    std::vector<uint8_t> data_vec(data, data + len);
-    std::vector<uint8_t> signature_vec = (callback)(data_vec);
+    // P1: pass raw pointer+size directly, avoiding unnecessary vector copy
+    std::vector<uint8_t> signature_vec = (callback)(data, len);
     if (signature_vec.size() > sig_max_len)
     {
       return c2pa::stream_error_return(c2pa::StreamError::NoBufferSpace);
@@ -102,6 +104,23 @@ inline bool is_stream_usable(Stream* s) noexcept {
     return s && !s->bad();
 }
 
+/// S5: Debug-checked cast from opaque StreamContext* to the expected stream type.
+/// In debug builds, validates the pointer is non-null and the stream is in a usable
+/// state immediately after casting, which catches type confusion bugs early.
+/// In release builds, this compiles to a plain reinterpret_cast (zero overhead).
+template<typename Stream>
+inline Stream* checked_stream_cast(StreamContext* context) noexcept {
+    auto* stream = reinterpret_cast<Stream*>(context);
+#ifndef NDEBUG
+    if (stream != nullptr) {
+        // In debug builds, verify the cast produced a valid stream object.
+        // A type confusion bug would likely produce a corrupted stream state.
+        assert(!stream->bad() && "Stream type confusion detected: cast produced bad stream");
+    }
+#endif
+    return stream;
+}
+
 /// Traits (templated): how to seek and get position for a given stream type.
 template<typename Stream>
 struct StreamSeekTraits;
@@ -140,7 +159,7 @@ struct StreamSeekTraits<std::iostream> {
 /// Seeker impl.
 template<typename Stream>
 intptr_t stream_seeker(StreamContext* context, intptr_t offset, C2paSeekMode whence) {
-    auto* stream = reinterpret_cast<Stream*>(context);
+    auto* stream = checked_stream_cast<Stream>(context);
     if (!is_stream_usable(stream)) {
         return stream_error_return(StreamError::IoError);
     }
@@ -172,7 +191,7 @@ intptr_t stream_reader(StreamContext* context, uint8_t* buffer, intptr_t size) {
     if (size == 0) {
         return 0;
     }
-    auto* stream = reinterpret_cast<Stream*>(context);
+    auto* stream = checked_stream_cast<Stream>(context);
     if (!is_stream_usable(stream)) {
         return stream_error_return(StreamError::IoError);
     }
@@ -191,7 +210,7 @@ intptr_t stream_reader(StreamContext* context, uint8_t* buffer, intptr_t size) {
 /// Get stream from context, used by writer and flusher.
 template<typename Stream, typename Op>
 intptr_t stream_op(StreamContext* context, Op op) {
-    auto* stream = reinterpret_cast<Stream*>(context);
+    auto* stream = checked_stream_cast<Stream>(context);
     if (!is_stream_usable(stream)) {
         return stream_error_return(StreamError::IoError);
     }
@@ -239,12 +258,14 @@ inline std::string path_to_string(const std::filesystem::path &source_path)
 template<typename StreamType>
 inline std::unique_ptr<StreamType> open_file_binary(const std::filesystem::path &path)
 {
+    // P3: cache the path string to avoid redundant conversions
+    auto path_str = path_to_string(path);
     auto stream = std::make_unique<StreamType>(
-        path_to_string(path),
+        path_str,
         std::ios_base::binary
     );
     if (!stream->is_open()) {
-        throw C2paException("Failed to open file: " + path.string());
+        throw C2paException("Failed to open file: " + path_str);
     }
     return stream;
 }

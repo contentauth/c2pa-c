@@ -13,12 +13,15 @@
 #ifndef CMD_SIGNER_H
 #define CMD_SIGNER_H
 
+#include <cstdint>
 #include <vector>
 
 /// @brief signs the data using openssl and returns the signature
-/// @details This function requires openssl to be installed as a command line tool
-/// @param data std::vector<unsigned char> - the data to be signed
+/// @details This function requires openssl to be installed as a command line tool.
+///          Accepts raw pointer+size to avoid unnecessary vector copies (P1).
+/// @param data pointer to the data to be signed
+/// @param len length of the data in bytes
 /// @return std::vector<unsigned char>  - the signature
-std::vector<unsigned char> cmd_signer(const std::vector<unsigned char> &data);
+std::vector<unsigned char> cmd_signer(const uint8_t *data, size_t len);
 
 #endif // CMD_SIGNER_H

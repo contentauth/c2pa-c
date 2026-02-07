@@ -2297,3 +2297,108 @@ TEST(Builder, SignWithIStreamAndIOStream_RoundTrip)
     ASSERT_FALSE(manifest_data.empty());
     ASSERT_TRUE(json_result.find("cawg.training-mining") != std::string::npos);
 }
+
+// Helper functions for archive tests
+static fs::path fixture_path(const std::string &name)
+{
+    return c2pa_test::get_fixture_path(name);
+}
+
+static std::string load_fixture(const std::string &name)
+{
+    return c2pa_test::read_text_file(fixture_path(name));
+}
+
+TEST(Builder, ArchiveRoundTrip)
+{
+    auto manifest = load_fixture("training.json");
+    auto context = c2pa::Context::create();
+    auto builder1 = c2pa::Builder(context, manifest);
+
+    // Export to archive
+    std::stringstream archive_stream(std::ios::in | std::ios::out | std::ios::binary);
+    EXPECT_NO_THROW({
+        builder1.to_archive(archive_stream);
+    });
+
+    // Re-import from archive
+    archive_stream.seekg(0);
+    auto builder2 = c2pa::Builder::from_archive(archive_stream);
+
+    // Sign with the restored builder
+    auto signer = c2pa_test::create_test_signer();
+    std::ifstream source(fixture_path("A.jpg"), std::ios::binary);
+    ASSERT_TRUE(source.is_open());
+    std::stringstream dest(std::ios::in | std::ios::out | std::ios::binary);
+
+    EXPECT_NO_THROW({
+        builder2.sign("image/jpeg", source, dest, signer);
+    });
+
+    // Verify signed output has data
+    dest.seekg(0, std::ios::end);
+    EXPECT_GT(dest.tellg(), 0);
+}
+
+TEST(Builder, ArchiveRoundTripSettingsBehavior)
+{
+    auto manifest = load_fixture("training.json");
+
+    // Create context with settings that disable thumbnail generation
+    std::string settings_json = R"({
+          "version": 1,
+          "builder": {
+              "thumbnail": {
+                  "enabled": false
+              }
+          }
+      })";
+    auto context_no_thumbnail = c2pa::Context::from_json(settings_json);
+
+    // Verify the setting works when set on builder with context (baseline)
+    auto builder_direct = c2pa::Builder(context_no_thumbnail, manifest);
+    auto signer = c2pa_test::create_test_signer();
+    std::ifstream source1(fixture_path("A.jpg"), std::ios::binary);
+    ASSERT_TRUE(source1.is_open());
+    std::stringstream dest_direct(std::ios::in | std::ios::out | std::ios::binary);
+    EXPECT_NO_THROW({
+      builder_direct.sign("image/jpeg", source1, dest_direct, signer);
+    });
+    // Verify no thumbnail in direct sign
+    dest_direct.seekg(0);
+    auto reader_direct = c2pa::Reader(c2pa::Context::create(), "image/jpeg", dest_direct);
+    auto json_direct = json::parse(reader_direct.json());
+    std::string active_direct = json_direct["active_manifest"];
+    EXPECT_FALSE(json_direct["manifests"][active_direct].contains("thumbnail"))
+        << "Direct sign with thumbnail=false should not generate thumbnail";
+
+    // from_archive does not preserve settings of the archived builder,
+    // They would need to be restored... So here we expect a manifest with thumbnails then!
+    auto builder1 = c2pa::Builder(context_no_thumbnail, manifest);
+    // Export to archive
+    std::stringstream archive_stream(std::ios::in | std::ios::out | std::ios::binary);
+    EXPECT_NO_THROW({
+        builder1.to_archive(archive_stream);
+    });
+    // Re-import from archive (creates builder with DEFAULT context/settings)
+    archive_stream.seekg(0);
+    auto builder2 = c2pa::Builder::from_archive(archive_stream);
+    // Sign with the restored builder (reuse the same signer from above)
+    std::ifstream source2(fixture_path("A.jpg"), std::ios::binary);
+    ASSERT_TRUE(source2.is_open());
+    std::stringstream dest_archive(std::ios::in | std::ios::out | std::ios::binary);
+    EXPECT_NO_THROW({
+        builder2.sign("image/jpeg", source2, dest_archive, signer);
+    });
+    // Verify manifest structure is preserved
+    dest_archive.seekg(0);
+    auto reader_archive = c2pa::Reader(c2pa::Context::create(), "image/jpeg", dest_archive);
+    auto json_archive = json::parse(reader_archive.json());
+    EXPECT_TRUE(json_archive.contains("active_manifest"));
+
+    // Verify that the archive round-trip manifest HAS a thumbnail
+    // (because from_archive() uses default settings which enable thumbnails)
+    std::string active_archive = json_archive["active_manifest"];
+    EXPECT_TRUE(json_archive["manifests"][active_archive].contains("thumbnail"))
+        << "Archive round-trip (default context on Builder) should generate thumbnail with default settings";
+}

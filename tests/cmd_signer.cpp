@@ -10,38 +10,70 @@
 // specific language governing permissions and limitations under
 // each license.
 
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
-#include <stdlib.h>
+#include <stdexcept>
 #include <vector>
+#include <unistd.h>
 
-/// @brief Implementation of the command line signer function
-std::vector<unsigned char> cmd_signer(const std::vector<unsigned char> &data)
+/// @brief Implementation of the command line signer function.
+/// Hardened: uses mkstemp for secure temp files (S4), checks system() return (S1),
+/// accepts raw pointer+size to avoid unnecessary vector copy (P1).
+std::vector<unsigned char> cmd_signer(const uint8_t *data, size_t len)
 {
-    if (data.empty())
+    if (data == nullptr || len == 0)
     {
-        throw std::runtime_error("Signature data is empty");
+        throw std::runtime_error("Signature data is empty or null");
     }
 
-    std::ofstream source("build/cpp_data.bin", std::ios::binary);
-    if (!source)
+    // Create secure temp files instead of predictable paths (S4)
+    char data_template[] = "build/cpp_data_XXXXXX";
+    char sig_template[] = "build/cpp_sig_XXXXXX";
+
+    int data_fd = mkstemp(data_template);
+    if (data_fd < 0)
     {
-        throw std::runtime_error("Failed to open temp signing file");
+        throw std::runtime_error("Failed to create temp data file");
     }
-    source.write(reinterpret_cast<const char *>(data.data()), data.size());
 
-    // sign the temp file by calling openssl in a shell
-    system("openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out build/c_signature.sig build/c_data.bin");
+    ssize_t written = write(data_fd, data, len);
+    close(data_fd);
+    if (written < 0 || static_cast<size_t>(written) != len)
+    {
+        unlink(data_template);
+        throw std::runtime_error("Failed to write data to temp file");
+    }
 
-    std::vector<uint8_t> signature;
+    // Build the openssl command with temp file paths
+    char cmd[512];
+    std::snprintf(cmd, sizeof(cmd),
+        "openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out %s %s",
+        sig_template, data_template);
+
+    // Sign the temp file (S1: check return value)
+    int sys_ret = std::system(cmd);
+    unlink(data_template);  // Clean up data temp file immediately
+    if (sys_ret != 0)
+    {
+        unlink(sig_template);
+        throw std::runtime_error("openssl signing command failed");
+    }
 
     // Read the signature back into the output vector
-    std::ifstream signature_file("build/c_signature.sig", std::ios::binary);
+    std::ifstream signature_file(sig_template, std::ios::binary);
     if (!signature_file)
     {
+        unlink(sig_template);
         throw std::runtime_error("Failed to open signature file");
     }
 
-    signature = std::vector<uint8_t>((std::istreambuf_iterator<char>(signature_file)), std::istreambuf_iterator<char>());
+    std::vector<uint8_t> signature(
+        (std::istreambuf_iterator<char>(signature_file)),
+        std::istreambuf_iterator<char>());
+    signature_file.close();
+    unlink(sig_template);  // Clean up signature temp file
 
     return signature;
 }

@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <unistd.h>
 
 #include  <c2pa.h>
 
@@ -29,14 +29,25 @@ char *load_file(const char *filename)
         // Determine file size
         fseek(fp, 0L, SEEK_END);
         file_size = ftell(fp);
+        if (file_size < 0) {
+            fprintf(stderr, "FAILED: ftell error for file %s\n", filename);
+            fclose(fp);
+            exit(1);
+        }
         rewind(fp);
 
         // Allocate buffer
-        buffer = (char *)malloc(file_size + 1);
+        buffer = (char *)malloc((size_t)file_size + 1);
         if (buffer != NULL)
         {
-            // Read file into buffer
-            fread(buffer, 1, file_size, fp);
+            // Read file into buffer and verify all bytes were read
+            size_t bytes_read = fread(buffer, 1, (size_t)file_size, fp);
+            if (bytes_read != (size_t)file_size) {
+                fprintf(stderr, "FAILED: short read for file %s (expected %ld, got %zu)\n", filename, file_size, bytes_read);
+                free(buffer);
+                fclose(fp);
+                exit(1);
+            }
             buffer[file_size] = '\0'; // Add null terminator
         }
         fclose(fp);
@@ -143,8 +154,15 @@ void assert_int(const char *what, int result)
     printf("PASSED: %s\n", what);
 }
 
-// Function to find the value associated with a key in a JSON string
+// Function to find the value associated with a key in a JSON string.
+// Hardened: validates all inputs, uses size_t for lengths, checks malloc results,
+// and bounds-checks all pointer arithmetic.
 char* findValueByKey(const char* json, const char* key) {
+    if (json == NULL || key == NULL) {
+        return NULL;
+    }
+
+    const char* json_end = json + strlen(json);
     const char* keyStart = strstr(json, key);
 
     if (keyStart == NULL) {
@@ -152,73 +170,131 @@ char* findValueByKey(const char* json, const char* key) {
     }
 
     const char* valueStart = strchr(keyStart, ':');
-    if (valueStart == NULL) {
+    if (valueStart == NULL || valueStart >= json_end) {
         return NULL;  // Malformed JSON
     }
 
-    // Move past the ':' and whitespace
+    // Move past the ':' and whitespace, with bounds checking
     valueStart++;
-    while (*valueStart == ' ' || *valueStart == '\t' || *valueStart == '\n' || *valueStart == '\r') {
+    while (valueStart < json_end &&
+           (*valueStart == ' ' || *valueStart == '\t' || *valueStart == '\n' || *valueStart == '\r')) {
         valueStart++;
+    }
+
+    if (valueStart >= json_end) {
+        return NULL;  // Ran past end of string
     }
 
     if (*valueStart == '"') {
         // String value
         const char* valueEnd = strchr(valueStart + 1, '"');
-        if (valueEnd == NULL) {
+        if (valueEnd == NULL || valueEnd >= json_end) {
             return NULL;  // Malformed JSON
         }
-        int valueLength = valueEnd - valueStart - 1;
+        size_t valueLength = (size_t)(valueEnd - valueStart - 1);
         char* result = (char*)malloc(valueLength + 1);
-        strncpy(result, valueStart + 1, valueLength);
+        if (result == NULL) {
+            return NULL;  // Allocation failed
+        }
+        memcpy(result, valueStart + 1, valueLength);
         result[valueLength] = '\0';
         return result;
     } else {
         // Numeric or other value
         const char* valueEnd = valueStart;
-        while (*valueEnd != ',' && *valueEnd != '}' && *valueEnd != ']' && *valueEnd != '\0') {
+        while (valueEnd < json_end && *valueEnd != ',' && *valueEnd != '}' && *valueEnd != ']' && *valueEnd != '\0') {
             valueEnd++;
         }
-        int valueLength = valueEnd - valueStart;
+        size_t valueLength = (size_t)(valueEnd - valueStart);
         char* result = (char*)malloc(valueLength + 1);
-        strncpy(result, valueStart, valueLength);
+        if (result == NULL) {
+            return NULL;  // Allocation failed
+        }
+        memcpy(result, valueStart, valueLength);
         result[valueLength] = '\0';
         return result;
     }
 }
 
 // Signer callback
+// Hardened: uses mkstemp for secure temp files, checks all return values (S1, S3, S4).
 intptr_t signer_callback(const void* context, const unsigned char *data, uintptr_t len, unsigned char *signature, uintptr_t sig_max_len) {
-    uint64_t data_len= (uint64_t) len;
-    // printf("signer callback: data = %p, len = %ld\n", data, data_len);
-    // write data to be signed to a temp file
-    int result = save_file("build/c_data.bin", data, data_len);
-    if (result < 0) {
-        printf("signing failed");
+    // Validate inputs
+    if (data == NULL || len == 0 || signature == NULL || sig_max_len == 0) {
+        fprintf(stderr, "signer_callback: invalid arguments (data=%p, len=%zu, sig=%p, max=%zu)\n",
+                (const void*)data, (size_t)len, (void*)signature, (size_t)sig_max_len);
         return -1;
     }
+    uint64_t data_len= (uint64_t) len;
+
+    // Create secure temp files instead of using predictable hardcoded paths (S4)
+    char data_template[] = "build/c_data_XXXXXX";
+    char sig_template[] = "build/c_sig_XXXXXX";
+    int data_fd = mkstemp(data_template);
+    if (data_fd < 0) {
+        fprintf(stderr, "signer_callback: failed to create temp data file\n");
+        return -1;
+    }
+
+    // Write data to the secure temp file
+    ssize_t written = write(data_fd, data, data_len);
+    close(data_fd);
+    if (written < 0 || (uint64_t)written != data_len) {
+        fprintf(stderr, "signer_callback: failed to write data to temp file\n");
+        unlink(data_template);
+        return -1;
+    }
+
     if (context != NULL && strncmp((const char *)context,"testing context", 16)) {
         printf("signer callback unexpected context %s\n", (const char *) context);
-    }    
-    // sign the temp file by calling openssl in a shell
-    system("openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out build/c_signature.sig build/c_data.bin");
+    }
 
-    // read the signature file
-    FILE* result_file = fopen("build/c_signature.sig", "rb");
+    // Build the openssl command with temp file paths
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd),
+        "openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out %s %s",
+        sig_template, data_template);
+
+    // Sign the temp file by calling openssl in a shell (S1: check return value)
+    int sys_ret = system(cmd);
+    unlink(data_template);  // Clean up data temp file immediately
+    if (sys_ret != 0) {
+        fprintf(stderr, "signer_callback: openssl command failed with status %d\n", sys_ret);
+        unlink(sig_template);
+        return -1;
+    }
+
+    // Read the signature file
+    FILE* result_file = fopen(sig_template, "rb");
     if (result_file == NULL) {
-        printf("signing failed");
+        fprintf(stderr, "signer_callback: failed to open signature file\n");
+        unlink(sig_template);
         return -1;
     }
     fseek(result_file, 0L, SEEK_END);
     long sig_len = ftell(result_file);
+    if (sig_len < 0) {
+        fprintf(stderr, "signer_callback: ftell failed on signature file\n");
+        fclose(result_file);
+        unlink(sig_template);
+        return -1;
+    }
     rewind(result_file);
 
     if (sig_len > (long) sig_max_len) {
-        printf("signing failed");
+        fprintf(stderr, "signer_callback: signature too large (%ld > %zu)\n", sig_len, (size_t)sig_max_len);
+        fclose(result_file);
+        unlink(sig_template);
         return -1;
     }
-    fread(signature, 1, sig_len, result_file);
+    size_t bytes_read = fread(signature, 1, (size_t)sig_len, result_file);
     fclose(result_file);
+    unlink(sig_template);  // Clean up signature temp file
+
+    if (bytes_read != (size_t)sig_len) {
+        fprintf(stderr, "signer_callback: short read on signature file (expected %ld, got %zu)\n", sig_len, bytes_read);
+        return -1;
+    }
     return sig_len;
 }
 

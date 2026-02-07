@@ -571,10 +571,12 @@ namespace c2pa
     };
 
     /// @brief  Signer Callback function type.
-    /// @param  data the data to sign.
+    /// @param  data pointer to the data to sign.
+    /// @param  len length of the data in bytes.
     /// @return the signature as a vector of bytes.
     /// @details This function type is used to create a callback function for signing.
-    using SignerFunc = std::vector<unsigned char>(const std::vector<unsigned char> &);
+    ///          Accepts raw pointer+size to avoid unnecessary vector copies.
+    using SignerFunc = std::vector<unsigned char>(const uint8_t *data, size_t len);
 
     /// @brief  Signer class for creating a signer.
     /// @details This class is used to create a signer from a signing algorithm, certificate, and TSA URI.

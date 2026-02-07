@@ -66,8 +66,9 @@ function(setup_c2pa_runtime_deps target_name)
     endif()
 endfunction()
 
-# C++ tests
+# C++ tests (exclude perf-checks which has its own target)
 file(GLOB CPP_TESTS "*.test.cpp")
+list(FILTER CPP_TESTS EXCLUDE REGEX "perf-checks\\.test\\.cpp$")
 add_executable(c2pa_c_tests ${CPP_TESTS})
 target_link_libraries(c2pa_c_tests PRIVATE c2pa_cpp gtest_main)
 target_include_directories(c2pa_c_tests PRIVATE ${nlohmann_json_SOURCE_DIR}/include)
@@ -78,6 +79,19 @@ if(MSVC)
     target_compile_options(c2pa_c_tests PRIVATE /wd4996)
 endif()
 setup_c2pa_runtime_deps(c2pa_c_tests)
+
+# Performance timing tests (separate target for `make perf-test`)
+# Temporarily commented out - perf-checks.test.cpp not in this branch
+# add_executable(c2pa_perf_tests perf-checks.test.cpp)
+# target_link_libraries(c2pa_perf_tests PRIVATE c2pa_cpp gtest_main)
+# target_include_directories(c2pa_perf_tests PRIVATE ${nlohmann_json_SOURCE_DIR}/include)
+# if(NOT MSVC)
+#     target_compile_options(c2pa_perf_tests PRIVATE -Wno-deprecated-declarations)
+# endif()
+# if(MSVC)
+#     target_compile_options(c2pa_perf_tests PRIVATE /wd4996)
+# endif()
+# setup_c2pa_runtime_deps(c2pa_perf_tests)
 
 include(GoogleTest)
 
@@ -118,6 +132,28 @@ elseif(UNIX)
         ENVIRONMENT "LD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH};LSAN_OPTIONS=suppressions=${LSAN_SUPPRESSIONS_FILE}"
     )
 endif()
+
+# Performance tests (separate CTest target)
+# Temporarily commented out - perf-checks.test.cpp not in this branch
+# if(WIN32)
+#     add_test(NAME perf_tests COMMAND c2pa_perf_tests.exe)
+# else()
+#     add_test(NAME perf_tests COMMAND c2pa_perf_tests)
+# endif()
+#
+# set_tests_properties(perf_tests PROPERTIES
+#     WORKING_DIRECTORY "${c2pa-c_BINARY_DIR}/tests"
+# )
+#
+# if(APPLE)
+#     set_tests_properties(perf_tests PROPERTIES
+#         ENVIRONMENT "DYLD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{DYLD_LIBRARY_PATH}"
+#     )
+# elseif(UNIX)
+#     set_tests_properties(perf_tests PROPERTIES
+#         ENVIRONMENT "LD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH};LSAN_OPTIONS=suppressions=${LSAN_SUPPRESSIONS_FILE}"
+#     )
+# endif()
 
 # C tests
 add_executable(ctest test.c)
