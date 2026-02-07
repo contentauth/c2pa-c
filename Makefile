@@ -64,6 +64,17 @@ else
 	LD_LIBRARY_PATH=$(RELEASE_BUILD_DIR)/tests:$$LD_LIBRARY_PATH ./$(RELEASE_BUILD_DIR)/tests/c2pa_c_tests
 endif
 
+# Test with coverage reporting
+test-coverage: clean
+	cmake -S . -B build/coverage -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DENABLE_COVERAGE=ON $(CMAKE_OPTS)
+	cmake --build build/coverage
+	cd build/coverage && ctest --output-on-failure
+	@echo "Generating coverage report..."
+	@lcov --capture --directory build/coverage --output-file build/coverage/coverage.info --ignore-errors mismatch,inconsistent,unsupported,format 2>&1 | grep -E "^(Capturing|geninfo|Found|Using|Recording|Writing|Scanning|Finished|Summary coverage rate:|  (source files|lines|functions)|Filter|Message summary:|  [0-9]+ (warning|error|ignore) message)" | grep -v "WARNING:" || true
+	@lcov --remove build/coverage/coverage.info '/usr/*' '*/googletest/*' '*/json-src/*' '*/c2pa_prebuilt-src/*' '*/tests/*' --output-file build/coverage/coverage_filtered.info --ignore-errors unused,mismatch,inconsistent,format 2>&1 | grep -E "^(Removing|Deleted|Writing|Summary coverage rate:|  (source files|lines|functions))" | grep -v "Excluding" || true
+	@genhtml build/coverage/coverage_filtered.info --output-directory build/coverage/html --ignore-errors inconsistent,corrupt,unsupported,format,category 2>&1 | grep -E "^(Reading|Found|Generating|Processing|Overall coverage rate:|  (source files|lines|functions))" || true
+	@echo "HTML report: build/coverage/html/index.html"
+
 # Demo targets
 demo: release
 	cmake --build $(RELEASE_BUILD_DIR) --target demo
@@ -75,7 +86,7 @@ training: release
 
 examples: training demo
 
-.PHONY: all debug release cmake test test-release test-san test-c test-cpp demo training examples clean
+.PHONY: all debug release cmake test test-release test-san test-c test-cpp test-coverage demo training examples clean
 
 # Build C API docs with Doxygen
 docs:

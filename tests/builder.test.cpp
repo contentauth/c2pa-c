@@ -2334,14 +2334,7 @@ TEST(Builder, ArchiveRoundTripSettingsBehavior)
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
 
     // Create context with settings that disable thumbnail generation
-    std::string settings_json = R"({
-          "version": 1,
-          "builder": {
-              "thumbnail": {
-                  "enabled": false
-              }
-          }
-      })";
+    auto settings_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("settings/test_settings_no_thumbnail.json"));
     auto context_no_thumbnail = c2pa::Context::from_json(settings_json);
 
     // Verify the setting works when set on builder with context (baseline)
@@ -2397,14 +2390,7 @@ TEST(Builder, ArchiveRoundTripSettingsBehaviorRestoredCOntext)
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
 
     // Create context with settings that disable thumbnail generation
-    std::string settings_json = R"({
-          "version": 1,
-          "builder": {
-              "thumbnail": {
-                  "enabled": false
-              }
-          }
-      })";
+    auto settings_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("settings/test_settings_no_thumbnail.json"));
     auto context_no_thumbnail = c2pa::Context::from_json(settings_json);
 
     // Verify the setting works when set on builder with context (baseline)

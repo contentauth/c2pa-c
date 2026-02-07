@@ -39,6 +39,7 @@ std::vector<std::string> c_mime_types_to_vector(const char* const* mime_types, u
   std::vector<std::string> result;
   if (mime_types == nullptr) { return result; }
 
+  result.reserve(count);
   for(uintptr_t i = 0; i < count; i++) {
     result.emplace_back(mime_types[i]);
   }
