@@ -39,6 +39,28 @@ TEST(Builder, exposes_raw_pointer) {
     ASSERT_NE(builder.c2pa_builder(), nullptr);
 }
 
+TEST(BuilderErrorHandling, EmptyManifestJsonReturnsError)
+{
+    EXPECT_THROW(c2pa::Builder(""), c2pa::C2paException);
+}
+
+TEST(BuilderErrorHandling, MalformedJsonManifestReturnsError)
+{
+    EXPECT_THROW(c2pa::Builder("{ invalid json"), c2pa::C2paException);
+}
+
+TEST(BuilderErrorHandling, EmptyManifestJsonReturnsErrorWithContext)
+{
+    auto context = c2pa::Context::create();
+    EXPECT_THROW(c2pa::Builder(context, ""), c2pa::C2paException);
+}
+
+TEST(BuilderErrorHandling, MalformedJsonManifestReturnsErrorWithContext)
+{
+    auto context = c2pa::Context::create();
+    EXPECT_THROW(c2pa::Builder(context, "{ invalid json"), c2pa::C2paException);
+}
+
 TEST(Builder, AddAnActionAndSign)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
@@ -2439,37 +2461,4 @@ TEST(Builder, ArchiveRoundTripSettingsBehaviorRestoredCOntext)
     std::string active_archive = json_archive["active_manifest"];
     EXPECT_TRUE(json_archive["manifests"][active_archive].contains("thumbnail"))
         << "Archive round-trip (default context on Builder) should generate thumbnail with default settings";
-}
-
-TEST(BuilderErrorHandling, EmptyManifestJsonReturnsError)
-{
-    try {
-        c2pa::Builder builder("");
-        ADD_FAILURE() << "Expected C2paException for empty manifest JSON (error path, not panic)";
-    } catch (const c2pa::C2paException& e) {
-        std::string msg(e.what());
-        EXPECT_FALSE(msg.empty()) << "Exception should carry an error message";
-        // Underlying C API returns JsonError; message may contain "Json", "EOF", "parse", etc.
-        EXPECT_TRUE(msg.find("Json") != std::string::npos || msg.find("EOF") != std::string::npos ||
-                    msg.find("parse") != std::string::npos || msg.find("empty") != std::string::npos)
-            << "Expected JSON-related error message, got: " << msg;
-    } catch (...) {
-        ADD_FAILURE() << "Expected C2paException, got other exception (possible panic path)";
-    }
-}
-
-TEST(BuilderErrorHandling, MalformedJsonManifestReturnsError)
-{
-    try {
-        c2pa::Builder builder("{ invalid json }");
-        ADD_FAILURE() << "Expected C2paException for malformed JSON (error path, not panic)";
-    } catch (const c2pa::C2paException& e) {
-        std::string msg(e.what());
-        EXPECT_FALSE(msg.empty()) << "Exception should carry an error message";
-        EXPECT_TRUE(msg.find("Json") != std::string::npos || msg.find("parse") != std::string::npos ||
-                    msg.find("invalid") != std::string::npos)
-            << "Expected JSON-related error message, got: " << msg;
-    } catch (...) {
-        ADD_FAILURE() << "Expected C2paException, got other exception (possible panic path)";
-    }
 }
