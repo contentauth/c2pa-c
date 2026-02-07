@@ -308,3 +308,54 @@ TEST(Reader, ReaderFromIStreamWithContext)
     ASSERT_NO_THROW(json_result = reader.json());
     ASSERT_FALSE(json_result.empty());
 }
+
+// ============================================================================
+// Reader Error Handling
+// ============================================================================
+
+TEST(ReaderErrorHandling, EmptyFileReturnsError)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path empty_file = current_dir / "../tests/fixtures/.empty_error_handling_test";
+    {
+        std::ofstream f(empty_file, std::ios::binary);
+        ASSERT_TRUE(f) << "Failed to create empty test file";
+    }
+    EXPECT_THROW(
+        {
+            c2pa::Reader reader(empty_file);
+        },
+        c2pa::C2paException);
+    std::filesystem::remove(empty_file);
+}
+
+TEST(ReaderErrorHandling, TruncatedFileReturnsError)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path truncated_file = current_dir / "../tests/fixtures/.truncated_error_handling_test";
+    {
+        std::ofstream f(truncated_file, std::ios::binary);
+        ASSERT_TRUE(f);
+        f.write("\xff\xd8\xff", 3);
+    }
+    EXPECT_THROW(
+        {
+            c2pa::Reader reader(truncated_file);
+        },
+        c2pa::C2paException);
+    std::filesystem::remove(truncated_file);
+}
+
+TEST(ReaderErrorHandling, UnsupportedMimeTypeReturnsError)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+    ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
+    std::ifstream stream(test_file, std::ios::binary);
+    ASSERT_TRUE(stream);
+    EXPECT_THROW(
+        {
+            c2pa::Reader reader("application/x-unsupported-c2pa-test", stream);
+        },
+        c2pa::C2paException);
+}

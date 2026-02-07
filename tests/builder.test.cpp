@@ -2440,3 +2440,40 @@ TEST(Builder, ArchiveRoundTripSettingsBehaviorRestoredCOntext)
     EXPECT_TRUE(json_archive["manifests"][active_archive].contains("thumbnail"))
         << "Archive round-trip (default context on Builder) should generate thumbnail with default settings";
 }
+
+// ============================================================================
+// Builder Error Handling (error returned from C API, no panic)
+// ============================================================================
+
+TEST(BuilderErrorHandling, EmptyManifestJsonReturnsError)
+{
+    try {
+        c2pa::Builder builder("");
+        ADD_FAILURE() << "Expected C2paException for empty manifest JSON (error path, not panic)";
+    } catch (const c2pa::C2paException& e) {
+        std::string msg(e.what());
+        EXPECT_FALSE(msg.empty()) << "Exception should carry an error message";
+        // Underlying C API returns JsonError; message may contain "Json", "EOF", "parse", etc.
+        EXPECT_TRUE(msg.find("Json") != std::string::npos || msg.find("EOF") != std::string::npos ||
+                    msg.find("parse") != std::string::npos || msg.find("empty") != std::string::npos)
+            << "Expected JSON-related error message, got: " << msg;
+    } catch (...) {
+        ADD_FAILURE() << "Expected C2paException, got other exception (possible panic path)";
+    }
+}
+
+TEST(BuilderErrorHandling, MalformedJsonManifestReturnsError)
+{
+    try {
+        c2pa::Builder builder("{ invalid json }");
+        ADD_FAILURE() << "Expected C2paException for malformed JSON (error path, not panic)";
+    } catch (const c2pa::C2paException& e) {
+        std::string msg(e.what());
+        EXPECT_FALSE(msg.empty()) << "Exception should carry an error message";
+        EXPECT_TRUE(msg.find("Json") != std::string::npos || msg.find("parse") != std::string::npos ||
+                    msg.find("invalid") != std::string::npos)
+            << "Expected JSON-related error message, got: " << msg;
+    } catch (...) {
+        ADD_FAILURE() << "Expected C2paException, got other exception (possible panic path)";
+    }
+}
