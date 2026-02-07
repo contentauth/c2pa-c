@@ -2441,10 +2441,6 @@ TEST(Builder, ArchiveRoundTripSettingsBehaviorRestoredCOntext)
         << "Archive round-trip (default context on Builder) should generate thumbnail with default settings";
 }
 
-// ============================================================================
-// Builder Error Handling (error returned from C API, no panic)
-// ============================================================================
-
 TEST(BuilderErrorHandling, EmptyManifestJsonReturnsError)
 {
     try {
