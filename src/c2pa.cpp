@@ -710,7 +710,11 @@ inline std::string c_string_to_string(T* c_result) {
         : reader_context(nullptr)
     {
         // Create owned stream that will live as long as the Reader
-        owned_stream = detail::open_file_binary<std::ifstream>(source_path);
+        owned_stream = std::make_unique<std::ifstream>(source_path, std::ios::binary);
+        if (!owned_stream->is_open()) {
+            throw std::system_error(errno, std::system_category(), "Failed to open file: " + source_path.string());
+        }
+
         std::string extension = detail::extract_file_extension(source_path);
 
         // CppIStream stores reference to owned_stream, which lives as long as Reader

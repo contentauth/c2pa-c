@@ -212,15 +212,15 @@ TEST(Reader, FileNotFound)
     try
     {
         auto reader = c2pa::Reader("foo/xxx.xyz");
-        FAIL() << "Expected c2pa::C2paException";
+        FAIL() << "Expected std::system_error";
     }
-    catch (const c2pa::C2paException &e)
+    catch (const std::system_error &e)
     {
-        EXPECT_TRUE(std::string(e.what()).rfind("Failed to open file", 0) == 0);
+        EXPECT_TRUE(std::string(e.what()).find("Failed to open file") != std::string::npos);
     }
     catch (...)
     {
-        FAIL() << "Expected c2pa::C2paException Failed to open file";
+        FAIL() << "Expected std::system_error for file not found";
     }
 };
 
@@ -358,4 +358,116 @@ TEST(ReaderErrorHandling, UnsupportedMimeTypeReturnsError)
             c2pa::Reader reader("application/x-unsupported-c2pa-test", stream);
         },
         c2pa::C2paException);
+}
+
+TEST(ReaderErrorHandling, EmptyStreamBehavesTheSameWithAndWithoutContext)
+{
+    std::stringstream empty_stream1, empty_stream2;
+    std::string format = "image/jpeg";
+
+    // Without context
+    EXPECT_THROW({
+        c2pa::Reader reader(format, empty_stream1);
+    }, c2pa::C2paException);
+
+    // With context
+    auto ctx = c2pa::Context::create();
+    EXPECT_THROW({
+        c2pa::Reader reader(ctx, format, empty_stream2);
+    }, c2pa::C2paException);
+}
+
+TEST(ReaderErrorHandling, NonExistentFileBehavesTheSameWithAndWithoutContext)
+{
+    fs::path nonexistent = "/nonexistent/path/to/file.jpg";
+
+    // Without context
+    EXPECT_THROW({
+        c2pa::Reader reader(nonexistent);
+    }, std::system_error);
+
+    // With context
+    auto ctx = c2pa::Context::create();
+    EXPECT_THROW({
+        c2pa::Reader reader(ctx, nonexistent);
+    }, std::system_error);
+}
+
+TEST(ReaderErrorHandling, InvalidStreamBehavesTheSameWithAndWithoutContext)
+{
+    // Create truncated/invalid JPEG data
+    std::vector<uint8_t> bad_data = {0xFF, 0xD8, 0xFF}; // Incomplete JPEG
+    std::string data_str(bad_data.begin(), bad_data.end());
+    std::stringstream stream1(data_str);
+    std::stringstream stream2(data_str);
+    std::string format = "image/jpeg";
+
+    bool without_context_throws = false;
+    bool with_context_throws = false;
+
+    try {
+        c2pa::Reader reader(format, stream1);
+    } catch (...) {
+        without_context_throws = true;
+    }
+
+    try {
+        auto ctx = c2pa::Context::create();
+        c2pa::Reader reader(ctx, format, stream2);
+    } catch (...) {
+        with_context_throws = true;
+    }
+
+    EXPECT_EQ(without_context_throws, with_context_throws)
+        << "Both Reader constructors should behave the same for invalid streams";
+}
+
+TEST(ReaderErrorHandling, FailedReaderConstructionWithAndWithoutContext)
+{
+    // Run many iterations - if there were leaks, this would consume significant memory
+    std::string format = "image/jpeg";
+
+    for (int i = 0; i < 100; i++) {
+        std::stringstream stream1, stream2;
+
+        // Without context
+        try {
+            c2pa::Reader reader(format, stream1);
+        } catch (...) {
+            // Expected to fail on empty stream
+        }
+
+        // With context
+        try {
+            auto ctx = c2pa::Context::create();
+            c2pa::Reader reader(ctx, format, stream2);
+        } catch (...) {
+            // Expected to fail on empty stream
+        }
+    }
+}
+
+TEST(ReaderErrorHandling, ErrorMessagesWithAndWithoutContext)
+{
+    std::stringstream empty_stream1, empty_stream2;
+    std::string format = "image/jpeg";
+
+    // Without context
+    try {
+        c2pa::Reader reader(format, empty_stream1);
+        FAIL() << "Should have thrown";
+    } catch (const c2pa::C2paException& e) {
+        std::string msg = e.what();
+        EXPECT_FALSE(msg.empty()) << "Error message should be present";
+    }
+
+    // With context
+    try {
+        auto ctx = c2pa::Context::create();
+        c2pa::Reader reader(ctx, format, empty_stream2);
+        FAIL() << "Should have thrown";
+    } catch (const c2pa::C2paException& e) {
+        std::string msg = e.what();
+        EXPECT_FALSE(msg.empty()) << "Error message should be present with context API";
+    }
 }

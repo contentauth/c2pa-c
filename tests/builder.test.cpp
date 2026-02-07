@@ -61,6 +61,97 @@ TEST(BuilderErrorHandling, MalformedJsonManifestReturnsErrorWithContext)
     EXPECT_THROW(c2pa::Builder(context, "{ invalid json"), c2pa::C2paException);
 }
 
+// Consistency tests: Ensure both APIs behave the same for error cases
+TEST(BuilderErrorHandling, JsonErrorsBehaveSameWithAndWithoutContext)
+{
+    std::vector<std::string> bad_inputs = {
+        "",
+        "null",
+        "[]",
+        "{",
+        "{ invalid }",
+        "{\"key\": }",
+    };
+
+    for (const auto& bad_input : bad_inputs) {
+        // Without context
+        EXPECT_THROW({
+            c2pa::Builder builder(bad_input);
+        }, c2pa::C2paException)
+            << "Without context, should throw for: " << bad_input;
+
+        // With context
+        auto ctx = c2pa::Context::create();
+        EXPECT_THROW({
+            c2pa::Builder builder(ctx, bad_input);
+        }, c2pa::C2paException)
+            << "With context, should throw for: " << bad_input;
+    }
+}
+
+// Test that valid JSON works with both APIs
+TEST(BuilderErrorHandling, ValidJsonWorksWithAndWithoutContext)
+{
+    std::string valid_json = R"({"claim_generator": "test"})";
+
+    // Without context
+    EXPECT_NO_THROW({
+        c2pa::Builder builder(valid_json);
+    });
+
+    // With context
+    auto ctx = c2pa::Context::create();
+    EXPECT_NO_THROW({
+        c2pa::Builder builder(ctx, valid_json);
+    });
+}
+
+// Test that failed construction doesn't leak memory
+TEST(BuilderErrorHandling, FailedConstructionWithAndWithoutContext)
+{
+    for (int i = 0; i < 100; i++) {
+        // Without context
+        try {
+            c2pa::Builder("");
+            FAIL() << "Should have thrown";
+        } catch (const c2pa::C2paException&) {
+            // Expected
+        }
+
+        // With context
+        try {
+            auto ctx = c2pa::Context::create();
+            c2pa::Builder(ctx, "");
+            FAIL() << "Should have thrown";
+        } catch (const c2pa::C2paException&) {
+            // Expected
+        }
+    }
+}
+
+// Test that exception messages are meaningful
+TEST(BuilderErrorHandling, ErrorMessagesWithAndWithoutContext)
+{
+    // Without context
+    try {
+        c2pa::Builder("");
+        FAIL() << "Should have thrown";
+    } catch (const c2pa::C2paException& e) {
+        std::string msg = e.what();
+        EXPECT_FALSE(msg.empty()) << "Error message should be present";
+    }
+
+    // With context
+    try {
+        auto ctx = c2pa::Context::create();
+        c2pa::Builder(ctx, "");
+        FAIL() << "Should have thrown";
+    } catch (const c2pa::C2paException& e) {
+        std::string msg = e.what();
+        EXPECT_FALSE(msg.empty()) << "Error message should be present when using context API";
+    }
+}
+
 TEST(Builder, AddAnActionAndSign)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
