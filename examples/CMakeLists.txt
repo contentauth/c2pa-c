@@ -63,7 +63,3 @@ if(MSVC)
     target_compile_options(demo PRIVATE /wd4996)
 endif()
 setup_c2pa_runtime_deps(demo)
-
-add_executable(context_demo context_demo.cpp)
-target_link_libraries(context_demo PRIVATE nlohmann_json::nlohmann_json c2pa_cpp)
-setup_c2pa_runtime_deps(context_demo)

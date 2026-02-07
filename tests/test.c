@@ -20,7 +20,7 @@
 
 // TODO-TMN: Update with context APIs
 // TODO-TMN: Turn this into a simple main example too!
-// TODO-TMN: move in folder app-examples/c-apis
+// TODO-TMN: move in folder app-test/c-apis
 
 int main(void)
 {
