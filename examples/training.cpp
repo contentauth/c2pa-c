@@ -61,7 +61,7 @@ int main()
     fs::path manifest_path = project_root / "tests/fixtures/training.json";
     fs::path certs_path = project_root / "tests/fixtures/es256_certs.pem";
     fs::path image_path = project_root / "tests/fixtures/A.jpg";
-    fs::path output_path = project_root / "build/example/training.jpg";
+    fs::path output_path = project_root / "build/examples/training.jpg";
 
     cout << "The C2pa library version is " << c2pa::version() << endl;
     cout << "RUNNING EXAMPLE training.cpp " << endl;

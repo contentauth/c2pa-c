@@ -6,13 +6,14 @@ To use this library, include the header file in your code as follows:
 #include "c2pa.hpp"
 ```
 
-## Read and validate an istream 
+## Read and validate an istream
 
 Use the `Reader` constructor to read C2PA data from a stream. This constructor examines the specified stream for C2PA data in the given format and its return value is a Reader that can be used to extract more information. Exceptions are thrown on errors.
 
 ```cpp
   auto reader = c2pa::Reader(<"FORMAT">, <"STREAM">);
 ```
+
 The parameters are:
 
 - `<FORMAT>`- A MIME string format for the stream; must be one of the [supported file formats](supported-formats.md).
@@ -42,12 +43,12 @@ The manifest JSON string defines the C2PA manifest to add to the file.
 A sample JSON manifest is provided in [tests/fixtures/training.json](https://github.com/contentauth/c2pa-c/blob/main/tests/fixtures/training.json).
 
 For example:
+
 ```cpp
 const std::string manifest_json = R"{
-    "claim_generator": "c2pa_c_test/0.1",
     "claim_generator_info": [
       {
-        "name": "c2pa-c test",
+        "name": "c2pa-cpp test",
         "version": "0.1"
       }
     ],
@@ -67,6 +68,14 @@ const std::string manifest_json = R"{
  };
 ```
 
+## Using settings
+
+The behavior of the SDK cn be configured through various [settings](https://github.com/contentauth/c2pa-rs/blob/main/docs/settings.md#property-reference). SDK settings can be loaded from JSON or TOML files, as well as valid JSON strings directly in the code.
+
+SDK settings are set on the `Context` objects used by the Builder and Reader objects.
+
+NOTE: If you don't specify a value for a property, then the SDK will use the default value. If you specify a value of null, then the property will be set to null, not the default.
+
 ## Creating a Builder
 
 Use the `Builder` constructor to create a `Builder` instance.
@@ -85,13 +94,15 @@ For example:
 
 ## Creating a Signer
 
-For testing you can create a signer using any supported algorithm by with Signer constructor.
+For testing you can create a signer using any supported algorithm by a Signer constructor. For the list of supported signing algorithms, see [Creating and using an X.509 certificate](https://opensource.contentauthenticity.org/docs/c2patool/x_509).
+
 There are multiple forms of constructors. But in this example we show how to create a signer with
 a public and private key.
 
 ```cpp
   Signer signer = Signer("<SIGNING_ALG>", "<PUBLIC_CERTS>",  "<PRIVATE_KEY>", "<TIMESTAMP_URL>");
 ```
+
 The parameters are:
 - `<SIGNING_ALG>`- The `C2paSigningAlg` from `c2pa.h` associated with the signing function.
 - `<PUBLIC_CERTS>`- A buffer containing the public cert chain in PEM format.
@@ -99,22 +110,28 @@ The parameters are:
 - `<TIMESTAMP_URL>`- An optional parameter containing a URL to a public Time Stamp Authority service.
 
 For example:
+
 ```cpp
 Signer signer = c2pa::Signer("Es256", certs, private_key, "http://timestamp.digicert.com");
 ```
 
+**WARNING**: Do not access a private key and certificate directly like this in production  because it's not secure. Instead use a hardware security module (HSM) and optionally a Key Management Service (KMS) to access the key; for example as show in the [C2PA Python Example](https://github.com/contentauth/c2pa-python-example).
+
 ## Signing and embedding a manifest
+
+A media file may contain many manifests in a manifest store. The `active_manifest` property in the manifest store identifies the most recently-added manifest.  For a comprehensive reference to the JSON manifest structure, see the [CAI manifest store reference](https://opensource.contentauthenticity.org/docs/manifest/manifest-ref).
 
 ```cpp
   auto manifest_data = builder.sign(image_path, output_path, signer);
 ```
 
 The parameters are:
+
 - `<SOURCE_ASSET>`- A file path or an istream referencing the asset to sign.
 - `<OUTPUT_ASSET>`- A file path or an iostream referencing the asset to generate.
 - `<SIGNER>` - A `Signer` instance.
 
-For example: 
+For example:
 ```cpp
   auto manifest_data = builder.sign("source_asset.jpg", "output_asset.jpg", signer);
 ```
@@ -123,9 +140,13 @@ For example:
 
 The C++ library can validate [CAWG identity assertions](https://cawg.io/identity/).
 
+## On trust configuration
+
+TBD
+
 ## More examples
 
-The simple C++ example in [`examples/training.cpp`](https://github.com/contentauth/c2pa-c/blob/main/examples/training.cpp) uses the [JSON for Modern C++](https://json.nlohmann.me/) library class.
+The C++ example in [`examples/training.cpp`](https://github.com/contentauth/c2pa-c/blob/main/examples/training.cpp) uses the [JSON for Modern C++](https://json.nlohmann.me/) library class.
 
 Build and run the example by entering this `make` command:
 
@@ -135,4 +156,4 @@ make examples
 
 This example adds the manifest [`tests/fixtures/training.json`](https://github.com/contentauth/c2pa-c/blob/main/tests/fixtures/training.json) to the image file [`tests/fixtures/A.jpg`](https://github.com/contentauth/c2pa-c/blob/main/tests/fixtures/A.jpg) using the sample private key and certificate in the [`tests/fixtures`](https://github.com/contentauth/c2pa-c/tree/main/tests/fixtures) directory.
 
-The example displays some text to standard out that summarizes whether AI training is allowed based on the specified manifest and then saves the resulting image file with attached manifest to `build/example/training.jpg`.
+The example displays some text to standard out that summarizes whether AI training is allowed based on the specified manifest and then saves the resulting image file with attached manifest to `build/examples/training.jpg`.

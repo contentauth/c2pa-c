@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include "../include/c2pa.h"
+#include <c2pa.h>
 
 intptr_t reader(StreamContext *context, uint8_t *data, intptr_t len)
 {
@@ -92,7 +92,9 @@ C2paStream *create_file_stream(FILE *file)
 
 void release_stream(C2paStream *stream)
 {
-    c2pa_release_stream(stream);
+    if (stream != NULL) {
+        c2pa_release_stream(stream);
+    }
 }
 
 C2paStream *open_file_stream(const char *path, const char *mode)
@@ -108,6 +110,9 @@ C2paStream *open_file_stream(const char *path, const char *mode)
 
 int close_file_stream(C2paStream *stream)
 {
+    if (stream == NULL) {
+        return -1;
+    }
     FILE *file = (FILE *)stream->context;
     int result = fclose(file);
     c2pa_release_stream(stream);

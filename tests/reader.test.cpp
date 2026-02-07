@@ -16,6 +16,8 @@
 #include <filesystem>
 #include <fstream>
 
+#include "test_utils.hpp"
+
 using nlohmann::json;
 namespace fs = std::filesystem;
 
@@ -205,43 +207,20 @@ TEST(Reader, HasManifestUtf8Path) {
     EXPECT_TRUE(reader.is_embedded());
 }
 
-/* remove this until we resolve CAWG Identity testing
-TEST(Reader, FileWithCawgIdentityManifest)
-{
-    fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path test_file = current_dir / "../tests/fixtures/C_with_CAWG_data.jpg";
-
-    // read the new manifest and display the JSON
-    auto reader = c2pa::Reader(test_file);
-    auto manifest_store_string = reader.json();
-    //printf("Manifest Store JSON: %s\n", manifest_store_string.c_str());
-    auto manifest_store_json = json::parse(manifest_store_string);
-    auto active_manifest_label = manifest_store_json["active_manifest"];
-    auto active_manifest = manifest_store_json["manifests"][active_manifest_label];
-    EXPECT_EQ(active_manifest["assertions"][1]["label"], "cawg.identity");
-    // verify that the CAWG assertion was decoded into json correctly
-    EXPECT_EQ(active_manifest["assertions"][1]["data"]["verifiedIdentities"][0]["type"], "cawg.social_media");
-
-    EXPECT_EQ(manifest_store_json["validation_state"], "Valid");
-    // verify that we successfully validated the CAWG assertion
-    EXPECT_EQ(manifest_store_json["validation_results"]["activeManifest"]["success"][8]["code"], "cawg.ica.credential_valid");
-};
-*/
-
 TEST(Reader, FileNotFound)
 {
     try
     {
         auto reader = c2pa::Reader("foo/xxx.xyz");
-        FAIL() << "Expected c2pa::C2paException";
+        FAIL() << "Expected std::system_error";
     }
-    catch (const c2pa::C2paException &e)
+    catch (const std::system_error &e)
     {
-        EXPECT_TRUE(std::string(e.what()).rfind("Failed to open file", 0) == 0);
+        EXPECT_TRUE(std::string(e.what()).find("Failed to open file") != std::string::npos);
     }
     catch (...)
     {
-        FAIL() << "Expected c2pa::C2paException Failed to open file";
+        FAIL() << "Expected std::system_error for file not found";
     }
 };
 
@@ -261,3 +240,233 @@ TEST(Reader, StreamClosed)
         auto reader = c2pa::Reader("image/jpeg", file_stream);
     }, c2pa::C2paException);
 };
+
+TEST(Reader, ReadManifestWithTrustConfiguredTomlSettings)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path signed_image_path = current_dir / "../tests/fixtures/for_trusted_read.jpg";
+
+    // Trust is based on a chain of trusted certificates. When signing, we may need to know
+    // if the ingredients are trusted at time of signing, so we benefit from having a context
+    // already configured with that trust to use with our Builder and Reader.
+    fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_example.toml";
+    auto settings = c2pa_test::read_text_file(settings_path);
+    auto trusted_context = c2pa::Context::from_toml(settings);
+
+    // When reading, the Reader also needs to know about trust, to determine the manifest validation state
+    // If there is a valid trust chain, the manifest will be in validation_state Trusted.
+    auto reader = c2pa::Reader(trusted_context, signed_image_path);
+    std::string read_json_manifest;
+    ASSERT_NO_THROW(read_json_manifest = reader.json());
+    ASSERT_FALSE(read_json_manifest.empty());
+
+    json parsed_manifest_json = json::parse(read_json_manifest);
+
+    ASSERT_TRUE(parsed_manifest_json["validation_state"] == "Trusted");
+}
+
+TEST(Reader, ReadManifestWithTrustConfiguredJsonSettings)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path signed_image_path = current_dir / "../tests/fixtures/for_trusted_read.jpg";
+
+    // Trust is based on a chain of trusted certificates. When signing, we may need to know
+    // if the ingredients are trusted at time of signing, so we benefit from having a context
+    // already configured with that trust to use with our Builder and Reader.
+    fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_example.json";
+    auto settings = c2pa_test::read_text_file(settings_path);
+    auto trusted_context = c2pa::Context::from_json(settings);
+
+    // When reading, the Reader also needs to know about trust, to determine the manifest validation state
+    // If there is a valid trust chain, the manifest will be in validation_state Trusted.
+    auto reader = c2pa::Reader(trusted_context, signed_image_path);
+    std::string read_json_manifest;
+    ASSERT_NO_THROW(read_json_manifest = reader.json());
+    ASSERT_FALSE(read_json_manifest.empty());
+
+    json parsed_manifest_json = json::parse(read_json_manifest);
+
+    ASSERT_TRUE(parsed_manifest_json["validation_state"] == "Trusted");
+}
+
+TEST(Reader, ReaderFromIStreamWithContext)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path signed_path = current_dir / "../tests/fixtures/sample1_signed.wav";
+
+    if (!std::filesystem::exists(signed_path))
+    {
+        GTEST_SKIP() << "Fixture not found: " << signed_path;
+    }
+
+    auto context = c2pa::Context::create();
+    std::ifstream stream(signed_path, std::ios::binary);
+    ASSERT_TRUE(stream) << "Failed to open " << signed_path;
+
+    c2pa::Reader reader(context, "audio/wav", stream);
+    std::string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+    ASSERT_FALSE(json_result.empty());
+}
+
+// ============================================================================
+// Reader Error Handling
+// ============================================================================
+
+TEST(ReaderErrorHandling, EmptyFileReturnsError)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path empty_file = current_dir / "../tests/fixtures/.empty_error_handling_test";
+    {
+        std::ofstream f(empty_file, std::ios::binary);
+        ASSERT_TRUE(f) << "Failed to create empty test file";
+    }
+    EXPECT_THROW(
+        {
+            c2pa::Reader reader(empty_file);
+        },
+        c2pa::C2paException);
+    std::filesystem::remove(empty_file);
+}
+
+TEST(ReaderErrorHandling, TruncatedFileReturnsError)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path truncated_file = current_dir / "../tests/fixtures/.truncated_error_handling_test";
+    {
+        std::ofstream f(truncated_file, std::ios::binary);
+        ASSERT_TRUE(f);
+        f.write("\xff\xd8\xff", 3);
+    }
+    EXPECT_THROW(
+        {
+            c2pa::Reader reader(truncated_file);
+        },
+        c2pa::C2paException);
+    std::filesystem::remove(truncated_file);
+}
+
+TEST(ReaderErrorHandling, UnsupportedMimeTypeReturnsError)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+    ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
+    std::ifstream stream(test_file, std::ios::binary);
+    ASSERT_TRUE(stream);
+    EXPECT_THROW(
+        {
+            c2pa::Reader reader("application/x-unsupported-c2pa-test", stream);
+        },
+        c2pa::C2paException);
+}
+
+TEST(ReaderErrorHandling, EmptyStreamBehavesTheSameWithAndWithoutContext)
+{
+    std::stringstream empty_stream1, empty_stream2;
+    std::string format = "image/jpeg";
+
+    // Without context
+    EXPECT_THROW({
+        c2pa::Reader reader(format, empty_stream1);
+    }, c2pa::C2paException);
+
+    // With context
+    auto ctx = c2pa::Context::create();
+    EXPECT_THROW({
+        c2pa::Reader reader(ctx, format, empty_stream2);
+    }, c2pa::C2paException);
+}
+
+TEST(ReaderErrorHandling, NonExistentFileBehavesTheSameWithAndWithoutContext)
+{
+    fs::path nonexistent = "/nonexistent/path/to/file.jpg";
+
+    // Without context
+    EXPECT_THROW({
+        c2pa::Reader reader(nonexistent);
+    }, std::system_error);
+
+    // With context
+    auto ctx = c2pa::Context::create();
+    EXPECT_THROW({
+        c2pa::Reader reader(ctx, nonexistent);
+    }, std::system_error);
+}
+
+TEST(ReaderErrorHandling, InvalidStreamBehavesTheSameWithAndWithoutContext)
+{
+    // Create truncated/invalid JPEG data
+    std::vector<uint8_t> bad_data = {0xFF, 0xD8, 0xFF}; // Incomplete JPEG
+    std::string data_str(bad_data.begin(), bad_data.end());
+    std::stringstream stream1(data_str);
+    std::stringstream stream2(data_str);
+    std::string format = "image/jpeg";
+
+    bool without_context_throws = false;
+    bool with_context_throws = false;
+
+    try {
+        c2pa::Reader reader(format, stream1);
+    } catch (...) {
+        without_context_throws = true;
+    }
+
+    try {
+        auto ctx = c2pa::Context::create();
+        c2pa::Reader reader(ctx, format, stream2);
+    } catch (...) {
+        with_context_throws = true;
+    }
+
+    EXPECT_EQ(without_context_throws, with_context_throws)
+        << "Both Reader constructors should behave the same for invalid streams";
+}
+
+TEST(ReaderErrorHandling, FailedReaderConstructionWithAndWithoutContext)
+{
+    std::string format = "image/jpeg";
+
+    for (int i = 0; i < 100; i++) {
+        std::stringstream stream1, stream2;
+
+        // Without context
+        try {
+            c2pa::Reader reader(format, stream1);
+        } catch (...) {
+            // Expected to fail on empty stream
+        }
+
+        // With context
+        try {
+            auto ctx = c2pa::Context::create();
+            c2pa::Reader reader(ctx, format, stream2);
+        } catch (...) {
+            // Expected to fail on empty stream
+        }
+    }
+}
+
+TEST(ReaderErrorHandling, ErrorMessagesWithAndWithoutContext)
+{
+    std::stringstream empty_stream1, empty_stream2;
+    std::string format = "image/jpeg";
+
+    // Without context
+    try {
+        c2pa::Reader reader(format, empty_stream1);
+        FAIL() << "Should have thrown";
+    } catch (const c2pa::C2paException& e) {
+        std::string msg = e.what();
+        EXPECT_FALSE(msg.empty()) << "Error message should be present";
+    }
+
+    // With context
+    try {
+        auto ctx = c2pa::Context::create();
+        c2pa::Reader reader(ctx, format, empty_stream2);
+        FAIL() << "Should have thrown";
+    } catch (const c2pa::C2paException& e) {
+        std::string msg = e.what();
+        EXPECT_FALSE(msg.empty()) << "Error message should be present with context API";
+    }
+}

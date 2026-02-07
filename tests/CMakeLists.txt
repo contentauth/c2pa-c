@@ -71,6 +71,12 @@ file(GLOB CPP_TESTS "*.test.cpp")
 add_executable(c2pa_c_tests ${CPP_TESTS})
 target_link_libraries(c2pa_c_tests PRIVATE c2pa_cpp gtest_main)
 target_include_directories(c2pa_c_tests PRIVATE ${nlohmann_json_SOURCE_DIR}/include)
+if(NOT MSVC)
+    target_compile_options(c2pa_c_tests PRIVATE -Wno-deprecated-declarations)
+endif()
+if(MSVC)
+    target_compile_options(c2pa_c_tests PRIVATE /wd4996)
+endif()
 setup_c2pa_runtime_deps(c2pa_c_tests)
 
 include(GoogleTest)
@@ -100,14 +106,27 @@ set_tests_properties(cpp_tests PROPERTIES
 )
 
 # Set platform-specific environment
-if(UNIX AND NOT WIN32)
+# On Linux with sanitizers, also set LSAN_OPTIONS to suppress known Tokio runtime
+# initialization leaks inside the prebuilt libc2pa_c Rust library.
+set(LSAN_SUPPRESSIONS_FILE "${c2pa-c_SOURCE_DIR}/ci-cd/lsan_suppressions.txt")
+if(APPLE)
     set_tests_properties(cpp_tests PROPERTIES
-        ENVIRONMENT "LD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH}"
+        ENVIRONMENT "DYLD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{DYLD_LIBRARY_PATH}"
+    )
+elseif(UNIX)
+    set_tests_properties(cpp_tests PROPERTIES
+        ENVIRONMENT "LD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH};LSAN_OPTIONS=suppressions=${LSAN_SUPPRESSIONS_FILE}"
     )
 endif()
 
 # C tests
 add_executable(ctest test.c)
+
+# If building from source, ensure ctest waits for the Rust build to complete
+if(C2PA_BUILD_FROM_SOURCE AND TARGET build_c2pa_c)
+    add_dependencies(ctest build_c2pa_c)
+endif()
+
 if(WIN32)
     # On Windows, link to the import library (.lib file)
     target_link_libraries(ctest PRIVATE "${C2PA_PREBUILT_INCLUDE_DIR}/../lib/c2pa_c.dll.lib")
@@ -138,6 +157,16 @@ setup_c2pa_runtime_deps(ctest)
 add_test(NAME c_test COMMAND ctest)
 set_tests_properties(c_test PROPERTIES
     WORKING_DIRECTORY "${c2pa-c_SOURCE_DIR}"
-    ENVIRONMENT "LD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH}"
 )
+
+# Set platform-specific environment for C test
+if(APPLE)
+    set_tests_properties(c_test PROPERTIES
+        ENVIRONMENT "DYLD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{DYLD_LIBRARY_PATH}"
+    )
+elseif(UNIX)
+    set_tests_properties(c_test PROPERTIES
+        ENVIRONMENT "LD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH};LSAN_OPTIONS=suppressions=${LSAN_SUPPRESSIONS_FILE}"
+    )
+endif()
 

@@ -69,10 +69,14 @@ if(C2PA_BUILD_FROM_SOURCE)
     set(C2PA_RUST_BUILD_DIR "${CMAKE_BINARY_DIR}/c2pa_rust_build")
     file(MAKE_DIRECTORY "${C2PA_RUST_BUILD_DIR}")
 
+    # Find cargo executable
+    find_program(CARGO_EXECUTABLE cargo PATHS "$ENV{HOME}/.cargo/bin" REQUIRED)
+    message(STATUS "Found cargo at: ${CARGO_EXECUTABLE}")
+
     # Build the Rust c2pa_c_ffi library
     add_custom_command(
         OUTPUT "${C2PA_RUST_BUILD_DIR}/${C2PA_LIB_NAME}"
-        COMMAND cargo build --release --package c2pa-c-ffi
+        COMMAND ${CARGO_EXECUTABLE} build --release --package c2pa-c-ffi --no-default-features --features "rust_native_crypto, file_io"
         COMMAND ${CMAKE_COMMAND} -E copy
             "${C2PA_RS_PATH}/target/release/${C2PA_LIB_NAME}"
             "${C2PA_RUST_BUILD_DIR}/${C2PA_LIB_NAME}"
@@ -168,12 +172,10 @@ if(MSVC)
         /sdl
         /guard:cf
         /GS
-        /DYNAMICBASE
-        /NXCOMPAT)
+        /DYNAMICBASE)
 
     target_link_options(c2pa_cpp PRIVATE
         /DYNAMICBASE
-        /NXCOMPAT
         /GUARD:CF
     )
 else()
