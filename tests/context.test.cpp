@@ -10,11 +10,6 @@
 // specific language governing permissions and limitations under
 // each license.
 
-/// @file   api_coverage.test.cpp
-/// @brief  Tests for Context, Settings, Archive, and MIME type APIs.
-/// @details Fills coverage gaps in the Context/Settings API, archive round-trip,
-///          and MIME type support. See plans/04-context-settings-archive-mime.md
-
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <fstream>
