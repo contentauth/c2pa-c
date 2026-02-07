@@ -18,7 +18,7 @@ For the best experience, read the docs on the [CAI Open Source SDK documentation
 
 ## Overview
 
-TBD
+TODO-TMN
 
 ## Using c2pa_cpp
 

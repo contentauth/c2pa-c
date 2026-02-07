@@ -142,7 +142,7 @@ The C++ library can validate [CAWG identity assertions](https://cawg.io/identity
 
 ## On trust configuration
 
-TBD
+TODO-TMN
 
 ## More examples
 
