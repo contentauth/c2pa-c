@@ -15,6 +15,8 @@
 
 #include <vector>
 
+// TODO-TMN: move in folder app-examples/cpp-apis
+
 /// @brief signs the data using openssl and returns the signature
 /// @details This function requires openssl to be installed as a command line tool
 /// @param data std::vector<unsigned char> - the data to be signed

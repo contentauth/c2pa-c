@@ -37,7 +37,7 @@ static std::string load_fixture(const std::string &name)
 }
 
 // Can create a context
-TEST(ContextAPI, ContextCreateReturnsValid)
+TEST(Context, ContextCreateReturnsValid)
 {
     auto context = c2pa::Context::create();
     ASSERT_NE(context, nullptr);
@@ -45,7 +45,7 @@ TEST(ContextAPI, ContextCreateReturnsValid)
 }
 
 // Can create a context using JSON settings
-TEST(ContextAPI, ContextFromJsonValid)
+TEST(Context, ContextFromJsonValid)
 {
     std::string json = R"({"settings": {}})";
     auto context = c2pa::Context::from_json(json);
@@ -54,7 +54,7 @@ TEST(ContextAPI, ContextFromJsonValid)
 }
 
 // Context::from_json() with invalid JSON throws
-TEST(ContextAPI, ContextFromJsonInvalidThrows)
+TEST(Context, ContextFromJsonInvalidThrows)
 {
     EXPECT_THROW(
         { auto context = c2pa::Context::from_json("{bad"); },
@@ -63,7 +63,7 @@ TEST(ContextAPI, ContextFromJsonInvalidThrows)
 }
 
 // Context::from_toml() with valid TOML returns valid context
-TEST(ContextAPI, ContextFromTomlValid)
+TEST(Context, ContextFromTomlValid)
 {
     std::string toml = "[settings]\n";
     auto context = c2pa::Context::from_toml(toml);
@@ -72,7 +72,7 @@ TEST(ContextAPI, ContextFromTomlValid)
 }
 
 // Context::from_toml() with invalid TOML throws
-TEST(ContextAPI, ContextFromTomlInvalidThrows)
+TEST(Context, ContextFromTomlInvalidThrows)
 {
     EXPECT_THROW(
         { auto context = c2pa::Context::from_toml("bad toml [[[]"); },
@@ -81,7 +81,7 @@ TEST(ContextAPI, ContextFromTomlInvalidThrows)
 }
 
 // Default context can be used with a Builder
-TEST(SettingsAPI, SettingsDefaultConstruction)
+TEST(Context, SettingsDefaultConstruction)
 {
     c2pa::Settings settings;
     auto manifest = load_fixture("training.json");
@@ -94,7 +94,7 @@ TEST(SettingsAPI, SettingsDefaultConstruction)
 }
 
 // Can update settings with any valid JSON
-TEST(SettingsAPI, SettingsUpdateJson)
+TEST(Context, SettingsUpdateJson)
 {
     c2pa::Settings settings;
     EXPECT_NO_THROW({
@@ -103,7 +103,7 @@ TEST(SettingsAPI, SettingsUpdateJson)
 }
 
 // ContextBuilder empty build returns default/empty context
-TEST(ContextBuilderAPI, ContextBuilderEmptyBuild)
+TEST(Context, ContextBuilderEmptyBuild)
 {
     auto builder = c2pa::Context::ContextBuilder();
     auto context = builder.create_context();

@@ -18,6 +18,10 @@
 #include "file_stream.h"
 #include "unit_test.h"
 
+// TODO-TMN: Update with context APIs
+// TODO-TMN: Turn this into a simple main example too!
+// TODO-TMN: move in folder app-examples/c-apis
+
 int main(void)
 {
     char *version = c2pa_version();

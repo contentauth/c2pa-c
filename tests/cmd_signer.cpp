@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <vector>
 
+// TODO-TMN: move in folder app-examples/cpp-apis
+
 /// @brief Implementation of the command line signer function
 std::vector<unsigned char> cmd_signer(const std::vector<unsigned char> &data)
 {

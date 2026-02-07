@@ -23,6 +23,10 @@
 
 using namespace std;
 
+// TODO-TMN: Update with context APIs
+// TODO-TMN: Turn this into a simple main example too!
+// TODO-TMN: move in folder app-examples/cpp-apis
+
 // assert that c2pa_str contains substr or exit
 void assert_contains(const char *what, std::string str, const char *substr)
 {
