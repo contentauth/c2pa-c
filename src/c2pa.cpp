@@ -656,7 +656,7 @@ inline std::string c_string_to_string(T* c_result) {
         // Note: c2pa_reader_with_stream always consumes the reader pointer,
         // so the original pointer is invalid after this call regardless of success/error.
         C2paReader* updated = c2pa_reader_with_stream(c2pa_reader, format.c_str(), cpp_stream->c_stream);
-        c2pa_reader = nullptr; // original pointer was consumed
+        c2pa_reader = nullptr;
         if (updated == nullptr) {
             throw C2paException();
         }
@@ -688,7 +688,7 @@ inline std::string c_string_to_string(T* c_result) {
         cpp_stream = std::make_unique<CppIStream>(*owned_stream);
         // Note: c2pa_reader_with_stream always consumes the reader pointer.
         C2paReader* updated = c2pa_reader_with_stream(c2pa_reader, extension.c_str(), cpp_stream->c_stream);
-        c2pa_reader = nullptr; // original pointer was consumed
+        c2pa_reader = nullptr;
         if (updated == nullptr) {
             throw C2paException();
         }
@@ -835,7 +835,7 @@ inline std::string c_string_to_string(T* c_result) {
         // Note: c2pa_builder_with_definition always consumes the builder pointer,
         // so the original pointer is invalid after this call regardless of success/error.
         C2paBuilder* updated = c2pa_builder_with_definition(builder, manifest_json.c_str());
-        builder = nullptr; // original pointer was consumed
+        builder = nullptr;
         if (updated == nullptr) {
             throw C2paException();
         }
@@ -1039,6 +1039,24 @@ inline std::string c_string_to_string(T* c_result) {
     {
         auto path = detail::open_file_binary<std::ifstream>(archive_path);
         return from_archive(*path);
+    }
+
+    /// @brief Load an archive into a Builder instance, replacing its current manifest definition.
+    /// @param archive The input stream to read the archive from.
+    /// @return Reference to this builder for method chaining.
+    /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+    Builder& Builder::load_archive(std::istream &archive)
+    {
+        CppIStream c_archive(archive);
+
+        // c2pa_builder_with_archive consumes the builder pointer and returns a new one
+        C2paBuilder* updated = c2pa_builder_with_archive(builder, c_archive.c_stream);
+        builder = nullptr;
+        if (updated == nullptr) {
+            throw C2paException();
+        }
+        builder = updated;
+        return *this;
     }
 
     /// @brief Write the builder to an archive stream.

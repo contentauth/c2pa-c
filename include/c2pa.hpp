@@ -781,6 +781,13 @@ namespace c2pa
         /// @note Prefer using the streaming APIs if possible
         static Builder from_archive(const std::filesystem::path &archive_path);
 
+        /// @brief Load an archive into this builder, replacing its current manifest definition.
+        /// @param archive The input stream to read the archive from.
+        /// @return Reference to this builder for method chaining.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        /// @note This allows setting a context before loading the archive, preserving context settings.
+        Builder& load_archive(std::istream &archive);
+
         /// @brief Write the builder to an archive stream.
         /// @param dest The output stream to write the archive to.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.

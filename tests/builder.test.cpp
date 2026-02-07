@@ -2553,3 +2553,60 @@ TEST(Builder, ArchiveRoundTripSettingsBehaviorRestoredCOntext)
     EXPECT_TRUE(json_archive["manifests"][active_archive].contains("thumbnail"))
         << "Archive round-trip (default context on Builder) should generate thumbnail with default settings";
 }
+
+
+// Test that demonstrates loading an archive with a custom context
+// This verifies the new load_archive() method preserves context settings
+TEST(Builder, LoadArchiveWithContext)
+{
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+
+    // Create a context with thumbnail generation disabled
+    auto context = c2pa::Context::from_json(R"({"builder": {"thumbnail": {"enabled": false}}})");
+
+    // Create a builder with the custom context
+    auto builder1 = c2pa::Builder(context, manifest);
+
+    // Add an ingredient
+    std::string ingredient_json = R"({"title": "C.jpg Ingredient"})";
+    builder1.add_ingredient(ingredient_json, c2pa_test::get_fixture_path("C.jpg"));
+
+    // Export to archive
+    std::stringstream archive_stream(std::ios::in | std::ios::out | std::ios::binary);
+    EXPECT_NO_THROW({
+        builder1.to_archive(archive_stream);
+    });
+
+    // Create a new builder with a context, then load the archive into it
+    // This preserves the context's settings (thumbnail=false)
+    auto context2 = c2pa::Context::from_json(R"({"builder": {"thumbnail": {"enabled": false}}})");
+
+    archive_stream.seekg(0);
+    c2pa::Builder builder2(context2);  // Create a builder with context
+    EXPECT_NO_THROW({
+        builder2.load_archive(archive_stream);  // Load an archive into the builder
+    });
+
+    // Sign with the restored builder (which has thumbnail=false from context2)
+    auto signer = c2pa_test::create_test_signer();
+
+    std::ifstream source2(c2pa_test::get_fixture_path("A.jpg"), std::ios::binary);
+    ASSERT_TRUE(source2.is_open());
+    std::stringstream dest_stream(std::ios::in | std::ios::out | std::ios::binary);
+    EXPECT_NO_THROW({
+        builder2.sign("image/jpeg", source2, dest_stream, signer);
+    });
+
+    // Verify the signed asset has NO thumbnail (because context2 had thumbnail=false)
+    dest_stream.seekg(0);
+    auto reader = c2pa::Reader(c2pa::Context::create(), "image/jpeg", dest_stream);
+    auto json_result = json::parse(reader.json());
+    EXPECT_TRUE(json_result.contains("active_manifest"));
+
+    std::cout << json_result << std::endl;
+
+    std::string active_manifest = json_result["active_manifest"];
+    EXPECT_FALSE(json_result["manifests"][active_manifest].contains("thumbnail"))
+        << "Builder loaded with custom context should respect thumbnail=false setting";
+}
+

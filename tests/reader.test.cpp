@@ -424,7 +424,6 @@ TEST(ReaderErrorHandling, InvalidStreamBehavesTheSameWithAndWithoutContext)
 
 TEST(ReaderErrorHandling, FailedReaderConstructionWithAndWithoutContext)
 {
-    // Run many iterations - if there were leaks, this would consume significant memory
     std::string format = "image/jpeg";
 
     for (int i = 0; i < 100; i++) {
