@@ -652,11 +652,13 @@ inline std::string c_string_to_string(T* c_result) {
         }
 
         cpp_stream = std::make_unique<CppIStream>(stream);
-        // Update reader with stream
+        // Update reader with stream.
+        // Note: c2pa_reader_with_stream always consumes the reader pointer,
+        // so the original pointer is invalid after this call regardless of success/error.
         C2paReader* updated = c2pa_reader_with_stream(c2pa_reader, format.c_str(), cpp_stream->c_stream);
+        c2pa_reader = nullptr; // original pointer was consumed
         if (updated == nullptr) {
-            detail::safe_c2pa_free(c2pa_reader);
-            throw C2paException("Failed to configure reader with stream");
+            throw C2paException();
         }
         c2pa_reader = updated;
     }
@@ -684,10 +686,11 @@ inline std::string c_string_to_string(T* c_result) {
 
         // CppIStream stores reference to owned_stream, which lives as long as Reader
         cpp_stream = std::make_unique<CppIStream>(*owned_stream);
+        // Note: c2pa_reader_with_stream always consumes the reader pointer.
         C2paReader* updated = c2pa_reader_with_stream(c2pa_reader, extension.c_str(), cpp_stream->c_stream);
+        c2pa_reader = nullptr; // original pointer was consumed
         if (updated == nullptr) {
-            detail::safe_c2pa_free(c2pa_reader);
-            throw C2paException("Failed to configure reader with stream");
+            throw C2paException();
         }
         c2pa_reader = updated;
     }
@@ -824,11 +827,13 @@ inline std::string c_string_to_string(T* c_result) {
             throw C2paException("Failed to create builder from context");
         }
 
-        // Apply the manifest definition to the Builder
+        // Apply the manifest definition to the Builder.
+        // Note: c2pa_builder_with_definition always consumes the builder pointer,
+        // so the original pointer is invalid after this call regardless of success/error.
         C2paBuilder* updated = c2pa_builder_with_definition(builder, manifest_json.c_str());
+        builder = nullptr; // original pointer was consumed
         if (updated == nullptr) {
-            detail::safe_c2pa_free(builder);
-            throw C2paException("Failed to set builder definition");
+            throw C2paException();
         }
         builder = updated;
     }
