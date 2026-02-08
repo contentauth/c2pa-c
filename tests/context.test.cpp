@@ -138,10 +138,6 @@ TEST(Context, ContextBuilderEmptyBuild)
     EXPECT_TRUE(context->has_context());
 }
 
-// ============================================================================
-// Fluent API Variations (Thumbnail Marker Tests)
-// ============================================================================
-
 // Helper function to check if thumbnail is present in signed manifest
 static bool has_thumbnail(const std::string& manifest_json) {
     auto parsed = nlohmann::json::parse(manifest_json);
@@ -317,10 +313,6 @@ TEST_F(ContextTest, WithJsonThenWithSettings) {
     EXPECT_FALSE(has_thumbnail(manifest_json));
 }
 
-// ============================================================================
-// Move Semantics Tests
-// ============================================================================
-
 TEST(Context, ContextBuilderMoveConstructor) {
     auto b1 = c2pa::Context::ContextBuilder();
     auto b2 = std::move(b1);
@@ -379,10 +371,6 @@ TEST(Context, ContextBuilderUseAfterMoveThrows) {
 
     EXPECT_THROW(b1.with_json("{}"), c2pa::C2paException);
 }
-
-// ============================================================================
-// Error Branch Coverage
-// ============================================================================
 
 TEST(Context, UseAfterConsumeThrows) {
     auto builder = c2pa::Context::ContextBuilder();

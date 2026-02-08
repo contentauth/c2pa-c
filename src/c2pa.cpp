@@ -776,8 +776,7 @@ inline std::string c_string_to_string(T* c_result) {
 
     Signer::Signer(SignerFunc *callback, C2paSigningAlg alg, const std::string &sign_cert, const std::string &tsa_uri)
     {
-        // Validate that if tsa_uri is provided, it's not empty
-        // Convert empty strings to nullptr to prevent validation errors from the C library
+        // Validate that if tsa_uri is provided, it's not empty, if empty nullify it
         const char* tsa_uri_ptr = tsa_uri.empty() ? nullptr : tsa_uri.c_str();
 
         // Pass the C++ callback as a context to our static callback wrapper.
@@ -786,8 +785,7 @@ inline std::string c_string_to_string(T* c_result) {
 
     Signer::Signer(const std::string &alg, const std::string &sign_cert, const std::string &private_key, const std::optional<std::string> &tsa_uri)
     {
-        // Validate that if tsa_uri is provided, it's not empty
-        // Convert empty strings to nullopt to prevent validation errors from the C library
+        // Validate that if tsa_uri is provided, it's not empty, if empty nullify it
         const char* tsa_uri_ptr = nullptr;
         if (tsa_uri && !tsa_uri->empty()) {
             tsa_uri_ptr = tsa_uri->c_str();

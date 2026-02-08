@@ -566,10 +566,6 @@ TEST(ReaderErrorHandling, ErrorMessagesWithAndWithoutContext)
     }
 }
 
-// ============================================================================
-// Reader get_resource Tests
-// ============================================================================
-
 TEST_F(ReaderTest, GetResourceToStream) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
