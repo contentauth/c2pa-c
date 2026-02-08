@@ -22,6 +22,36 @@
 
 namespace fs = std::filesystem;
 
+// Test fixture for context tests with automatic cleanup
+class ContextTest : public ::testing::Test {
+protected:
+    std::vector<fs::path> temp_files;
+    bool cleanup_temp_files = true;  // Set to false to keep temp files for debugging
+
+    // Get path for temp context test files in build directory
+    fs::path get_temp_path(const std::string& name) {
+        fs::path current_dir = fs::path(__FILE__).parent_path();
+        fs::path build_dir = current_dir.parent_path() / "build";
+        if (!fs::exists(build_dir)) {
+            fs::create_directories(build_dir);
+        }
+        fs::path temp_path = build_dir / ("context-" + name);
+        temp_files.push_back(temp_path);
+        return temp_path;
+    }
+
+    void TearDown() override {
+        if (cleanup_temp_files) {
+            for (const auto& path : temp_files) {
+                if (fs::exists(path)) {
+                    fs::remove(path);
+                }
+            }
+        }
+        temp_files.clear();
+    }
+};
+
 static fs::path fixture_path(const std::string &name)
 {
     return c2pa_test::get_fixture_path(name);
@@ -120,11 +150,10 @@ static bool has_thumbnail(const std::string& manifest_json) {
 }
 
 // Helper function to sign with context and return manifest JSON
-static std::string sign_with_context(std::shared_ptr<c2pa::IContextProvider> context) {
+static std::string sign_with_context(std::shared_ptr<c2pa::IContextProvider> context, const fs::path& dest_path) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path manifest_path = current_dir / "fixtures/training.json";
     fs::path asset_path = current_dir / "fixtures/A.jpg";
-    fs::path dest_path = current_dir / ".test_context_fluent_api_temp.jpg";
     fs::path cert_path = current_dir / "fixtures/es256_certs.pem";
     fs::path key_path = current_dir / "fixtures/es256_private.key";
 
@@ -140,24 +169,21 @@ static std::string sign_with_context(std::shared_ptr<c2pa::IContextProvider> con
     c2pa::Reader reader(context, dest_path);
     auto result = reader.json();
 
-    // Clean up
-    std::filesystem::remove(dest_path);
-
     return result;
 }
 
-TEST(Context, SetOverridesLastWins) {
+TEST_F(ContextTest, SetOverridesLastWins) {
     c2pa::Settings settings;
     settings.set("builder.thumbnail.enabled", "true");
     settings.set("builder.thumbnail.enabled", "false");
 
     auto context = c2pa::Context::ContextBuilder().with_settings(settings).create_context();
-    auto manifest_json = sign_with_context(context);
+    auto manifest_json = sign_with_context(context, get_temp_path("set_overrides_last_wins.jpg"));
 
     EXPECT_FALSE(has_thumbnail(manifest_json));
 }
 
-TEST(Context, UpdateOverridesSetJson) {
+TEST_F(ContextTest, UpdateOverridesSetJson) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path settings_path = current_dir / "fixtures/settings/test_settings_no_thumbnail.json";
     auto settings_json = c2pa_test::read_text_file(settings_path);
@@ -167,12 +193,12 @@ TEST(Context, UpdateOverridesSetJson) {
     settings.update(settings_json, c2pa::ConfigFormat::JSON);
 
     auto context = c2pa::Context::ContextBuilder().with_settings(settings).create_context();
-    auto manifest_json = sign_with_context(context);
+    auto manifest_json = sign_with_context(context, get_temp_path("update_overrides_set_json.jpg"));
 
     EXPECT_FALSE(has_thumbnail(manifest_json));
 }
 
-TEST(Context, SetOverridesUpdateJson) {
+TEST_F(ContextTest, SetOverridesUpdateJson) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path settings_path = current_dir / "fixtures/settings/test_settings_no_thumbnail.json";
     auto settings_json = c2pa_test::read_text_file(settings_path);
@@ -182,12 +208,12 @@ TEST(Context, SetOverridesUpdateJson) {
     settings.set("builder.thumbnail.enabled", "true");
 
     auto context = c2pa::Context::ContextBuilder().with_settings(settings).create_context();
-    auto manifest_json = sign_with_context(context);
+    auto manifest_json = sign_with_context(context, get_temp_path("set_overrides_update_json.jpg"));
 
     EXPECT_TRUE(has_thumbnail(manifest_json));
 }
 
-TEST(Context, UpdateTomlThenUpdateJson) {
+TEST_F(ContextTest, UpdateTomlThenUpdateJson) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path toml_path = current_dir / "fixtures/settings/test_settings_with_thumbnail.toml";
     fs::path json_path = current_dir / "fixtures/settings/test_settings_no_thumbnail.json";
@@ -200,12 +226,12 @@ TEST(Context, UpdateTomlThenUpdateJson) {
     settings.update(settings_json, c2pa::ConfigFormat::JSON);
 
     auto context = c2pa::Context::ContextBuilder().with_settings(settings).create_context();
-    auto manifest_json = sign_with_context(context);
+    auto manifest_json = sign_with_context(context, get_temp_path("update_toml_then_json.jpg"));
 
     EXPECT_FALSE(has_thumbnail(manifest_json));
 }
 
-TEST(Context, UpdateJsonThenUpdateToml) {
+TEST_F(ContextTest, UpdateJsonThenUpdateToml) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path json_path = current_dir / "fixtures/settings/test_settings_no_thumbnail.json";
     fs::path toml_path = current_dir / "fixtures/settings/test_settings_with_thumbnail.toml";
@@ -218,12 +244,12 @@ TEST(Context, UpdateJsonThenUpdateToml) {
     settings.update(settings_toml, "toml");
 
     auto context = c2pa::Context::ContextBuilder().with_settings(settings).create_context();
-    auto manifest_json = sign_with_context(context);
+    auto manifest_json = sign_with_context(context, get_temp_path("update_json_then_toml.jpg"));
 
     EXPECT_TRUE(has_thumbnail(manifest_json));
 }
 
-TEST(Context, WithJsonThenWithToml) {
+TEST_F(ContextTest, WithJsonThenWithToml) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path json_path = current_dir / "fixtures/settings/test_settings_with_thumbnail.json";
     fs::path toml_path = current_dir / "fixtures/settings/test_settings_no_thumbnail.toml";
@@ -236,11 +262,11 @@ TEST(Context, WithJsonThenWithToml) {
         .with_toml(settings_toml)
         .create_context();
 
-    auto manifest_json = sign_with_context(context);
+    auto manifest_json = sign_with_context(context, get_temp_path("with_json_then_toml.jpg"));
     EXPECT_FALSE(has_thumbnail(manifest_json));
 }
 
-TEST(Context, WithTomlThenWithJson) {
+TEST_F(ContextTest, WithTomlThenWithJson) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path toml_path = current_dir / "fixtures/settings/test_settings_no_thumbnail.toml";
     fs::path json_path = current_dir / "fixtures/settings/test_settings_with_thumbnail.json";
@@ -253,11 +279,11 @@ TEST(Context, WithTomlThenWithJson) {
         .with_json(settings_json)
         .create_context();
 
-    auto manifest_json = sign_with_context(context);
+    auto manifest_json = sign_with_context(context, get_temp_path("with_toml_then_json.jpg"));
     EXPECT_TRUE(has_thumbnail(manifest_json));
 }
 
-TEST(Context, WithSettingsThenWithJson) {
+TEST_F(ContextTest, WithSettingsThenWithJson) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path json_path = current_dir / "fixtures/settings/test_settings_no_thumbnail.json";
     auto settings_json = c2pa_test::read_text_file(json_path);
@@ -270,11 +296,11 @@ TEST(Context, WithSettingsThenWithJson) {
         .with_json(settings_json)
         .create_context();
 
-    auto manifest_json = sign_with_context(context);
+    auto manifest_json = sign_with_context(context, get_temp_path("with_settings_then_json.jpg"));
     EXPECT_FALSE(has_thumbnail(manifest_json));
 }
 
-TEST(Context, WithJsonThenWithSettings) {
+TEST_F(ContextTest, WithJsonThenWithSettings) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path json_path = current_dir / "fixtures/settings/test_settings_with_thumbnail.json";
     auto settings_json = c2pa_test::read_text_file(json_path);
@@ -287,7 +313,7 @@ TEST(Context, WithJsonThenWithSettings) {
         .with_settings(settings)
         .create_context();
 
-    auto manifest_json = sign_with_context(context);
+    auto manifest_json = sign_with_context(context, get_temp_path("with_json_then_settings.jpg"));
     EXPECT_FALSE(has_thumbnail(manifest_json));
 }
 

@@ -21,6 +21,36 @@
 using nlohmann::json;
 namespace fs = std::filesystem;
 
+// Test fixture for reader tests with automatic cleanup
+class ReaderTest : public ::testing::Test {
+protected:
+    std::vector<fs::path> temp_files;
+    bool cleanup_temp_files = true;  // Set to false to keep temp files for debugging
+
+    // Get path for temp reader test files in build directory
+    fs::path get_temp_path(const std::string& name) {
+        fs::path current_dir = fs::path(__FILE__).parent_path();
+        fs::path build_dir = current_dir.parent_path() / "build";
+        if (!fs::exists(build_dir)) {
+            fs::create_directories(build_dir);
+        }
+        fs::path temp_path = build_dir / ("reader-" + name);
+        temp_files.push_back(temp_path);
+        return temp_path;
+    }
+
+    void TearDown() override {
+        if (cleanup_temp_files) {
+            for (const auto& path : temp_files) {
+                if (fs::exists(path)) {
+                    fs::remove(path);
+                }
+            }
+        }
+        temp_files.clear();
+    }
+};
+
 TEST(Reader, SupportedTypes) {
   auto supported_types = c2pa::Reader::supported_mime_types();
   EXPECT_TRUE(std::find(supported_types.begin(), supported_types.end(), "image/jpeg") != supported_types.end());
@@ -382,14 +412,9 @@ TEST(Reader, ReaderFromIStreamWithContext)
     ASSERT_FALSE(json_result.empty());
 }
 
-// ============================================================================
-// Reader Error Handling
-// ============================================================================
-
-TEST(ReaderErrorHandling, EmptyFileReturnsError)
+TEST_F(ReaderTest, EmptyFileReturnsError)
 {
-    fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path empty_file = current_dir / "../tests/fixtures/.empty_error_handling_test";
+    fs::path empty_file = get_temp_path("empty_error_handling_test");
     {
         std::ofstream f(empty_file, std::ios::binary);
         ASSERT_TRUE(f) << "Failed to create empty test file";
@@ -399,13 +424,11 @@ TEST(ReaderErrorHandling, EmptyFileReturnsError)
             c2pa::Reader reader(empty_file);
         },
         c2pa::C2paException);
-    std::filesystem::remove(empty_file);
 }
 
-TEST(ReaderErrorHandling, TruncatedFileReturnsError)
+TEST_F(ReaderTest, TruncatedFileReturnsError)
 {
-    fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path truncated_file = current_dir / "../tests/fixtures/.truncated_error_handling_test";
+    fs::path truncated_file = get_temp_path("truncated_error_handling_test");
     {
         std::ofstream f(truncated_file, std::ios::binary);
         ASSERT_TRUE(f);
@@ -416,7 +439,6 @@ TEST(ReaderErrorHandling, TruncatedFileReturnsError)
             c2pa::Reader reader(truncated_file);
         },
         c2pa::C2paException);
-    std::filesystem::remove(truncated_file);
 }
 
 TEST(ReaderErrorHandling, UnsupportedMimeTypeReturnsError)
@@ -569,10 +591,10 @@ TEST(Reader, GetResourceToStream) {
     EXPECT_FALSE(output.str().empty());
 }
 
-TEST(Reader, GetResourceToFilePath) {
+TEST_F(ReaderTest, GetResourceToFilePath) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
-    fs::path output_file = current_dir / "../tests/.thumbnail_test_output.jpg";
+    fs::path output_file = get_temp_path("thumbnail_test_output.jpg");
 
     c2pa::Reader reader(test_file);
     auto manifest_json = reader.json();
@@ -589,9 +611,6 @@ TEST(Reader, GetResourceToFilePath) {
     EXPECT_GT(byte_count, 0);
     EXPECT_TRUE(fs::exists(output_file));
     EXPECT_GT(fs::file_size(output_file), 0);
-
-    // Clean up
-    fs::remove(output_file);
 }
 
 TEST(Reader, GetResourceInvalidUriThrows) {

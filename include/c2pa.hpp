@@ -73,6 +73,12 @@ namespace c2pa
         return -1;
     }
 
+    /// @brief Known mimetypes for C2PA operations
+    namespace C2paMimeType {
+        /// @brief MIME type for C2PA binary archive format (working store)
+        constexpr const char* BinaryArchive = "application/c2pa";
+    }
+
     /// @brief Enum for settings/configuration format
     enum class ConfigFormat {
         JSON,
@@ -736,6 +742,19 @@ namespace c2pa
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
         /// @note Prefer using the streaming APIs if possible
         void add_ingredient(const std::string &ingredient_json, const std::filesystem::path &source_path);
+
+        /// @brief Add an archive (working store) as an ingredient to the builder.
+        /// @param ingredient_json  Any fields of the ingredient you want to define (e.g. title, relationship).
+        /// @param archive The input stream to read the archive from.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        void add_ingredient_from_binary_archive(const std::string &ingredient_json, std::istream &archive);
+
+        /// @brief Add an archive (working store) as an ingredient to the builder.
+        /// @param ingredient_json  Any fields of the ingredient you want to define (e.g. title, relationship).
+        /// @param archive_path The path to the archive file.
+        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
+        /// @note Prefer using the streaming APIs if possible
+        void add_ingredient_from_binary_archive(const std::string &ingredient_json, const std::filesystem::path &archive_path);
 
         /// @brief Add an action to the manifest the Builder is constructing.
         /// @param action_json JSON std::string containing the action data.
