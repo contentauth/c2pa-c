@@ -10,12 +10,6 @@
 // specific language governing permissions and limitations under
 // each license.
 
-/// @brief  Tests for data-hashed embeddable signing APIs
-/// This file tests the three-step data-hashed embeddable workflow:
-///   1. data_hashed_placeholder(): Creates a placeholder manifest
-///   2. sign_data_hashed_embeddable(): Signs the manifest with hash
-///   3. format_embeddable(): Converts raw JUMBF to format-specific bytes.
-
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
@@ -538,7 +532,7 @@ TEST(Embeddable, ArchiveRoundTripWithContextCJpg) {
     std::string result_json = reader.json();
     EXPECT_FALSE(has_thumbnail(result_json));
 
-    // Clean up temp files (keep C_signed_from_archive.jpg as requested)
+    // Clean up temp files
     fs::remove(archive_path);
     fs::remove(temp_asset);
 }
@@ -685,7 +679,7 @@ TEST(Embeddable, ArchiveWithIngredientCJpg) {
     fs::remove(archive_path);
 }
 
-// Verify different formats, here JPEG and PNG
+// Verify different formats
 TEST(Embeddable, MultipleFormats) {
     auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
     auto signer = c2pa_test::create_test_signer();
@@ -740,8 +734,8 @@ TEST(Embeddable, MultipleFormats) {
     }
 }
 
-// Embedding when giving format
-TEST(Embeddable, DirectJpegFormat) {
+// Direct embedding when giving format
+TEST(Embeddable, DirectEmbeddingWithFormat) {
     // This test demonstrates that when you sign with format="image/jpeg",
     // the output is already embeddable: no need for format_embeddable()!
     // Whereas...
