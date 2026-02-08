@@ -89,7 +89,7 @@ TEST_P(StreamWithManifestTests, StreamWithManifest) {
     test_stream_with_manifest(filename, mime_type, expected_content);
 }
 
-TEST(Reader, MultipleReadersSameFile)
+TEST_F(ReaderTest, MultipleReadersSameFile)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
@@ -124,7 +124,7 @@ TEST(Reader, MultipleReadersSameFile)
     EXPECT_TRUE(manifest3.find("C.jpg") != std::string::npos);
 };
 
-TEST(Reader, MultipleReadersSameFileUsingContext)
+TEST_F(ReaderTest, MultipleReadersSameFileUsingContext)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
@@ -162,7 +162,7 @@ TEST(Reader, MultipleReadersSameFileUsingContext)
     EXPECT_TRUE(manifest3.find("C.jpg") != std::string::npos);
 };
 
-TEST(Reader, VideoStreamWithManifestUsingExtension) {
+TEST_F(ReaderTest, VideoStreamWithManifestUsingExtension) {
   fs::path current_dir = fs::path(__FILE__).parent_path();
   fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / "video1.mp4";
   ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
@@ -176,7 +176,7 @@ TEST(Reader, VideoStreamWithManifestUsingExtension) {
   EXPECT_TRUE(manifest_store_json.find("My Title") != std::string::npos);
 };
 
-TEST(Reader, VideoStreamWithManifestUsingExtensionUsingContext) {
+TEST_F(ReaderTest, VideoStreamWithManifestUsingExtensionUsingContext) {
   fs::path current_dir = fs::path(__FILE__).parent_path();
   fs::path test_file = current_dir.parent_path() / "tests" / "fixtures" / "video1.mp4";
   ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
@@ -222,7 +222,7 @@ TEST_P(FileWithManifestTests, FileWithManifest) {
     test_file_with_manifest(filename, expected_content);
 }
 
-TEST(Reader, ImageFileWithManifestMultipleCalls)
+TEST_F(ReaderTest, ImageFileWithManifestMultipleCalls)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
@@ -239,7 +239,7 @@ TEST(Reader, ImageFileWithManifestMultipleCalls)
     EXPECT_TRUE(manifest_store_json_3.find("C.jpg") != std::string::npos);
 };
 
-TEST(Reader, FileNoManifest)
+TEST_F(ReaderTest, FileNoManifest)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/A.jpg";
@@ -275,7 +275,7 @@ TEST_P(RemoteUrlTests, IsEmbeddedTest) {
     EXPECT_EQ(reader.is_embedded(), !expected_is_remote);
 }
 
-TEST(Reader, HasManifestUtf8Path) {
+TEST_F(ReaderTest, HasManifestUtf8Path) {
     auto current_dir = fs::path(__FILE__).parent_path();
     #ifdef _WIN32
       auto test_file = current_dir.parent_path() / "tests" / "fixtures" / L"CÖÄ_.jpg";
@@ -291,7 +291,7 @@ TEST(Reader, HasManifestUtf8Path) {
     EXPECT_TRUE(reader.is_embedded());
 }
 
-TEST(Reader, HasManifestUtf8PathUsingContext) {
+TEST_F(ReaderTest, HasManifestUtf8PathUsingContext) {
     auto current_dir = fs::path(__FILE__).parent_path();
     #ifdef _WIN32
       auto test_file = current_dir.parent_path() / "tests" / "fixtures" / L"CÖÄ_.jpg";
@@ -310,7 +310,7 @@ TEST(Reader, HasManifestUtf8PathUsingContext) {
     EXPECT_TRUE(reader.is_embedded());
 }
 
-TEST(Reader, FileNotFound)
+TEST_F(ReaderTest, FileNotFound)
 {
     try
     {
@@ -327,7 +327,7 @@ TEST(Reader, FileNotFound)
     }
 };
 
-TEST(Reader, StreamClosed)
+TEST_F(ReaderTest, StreamClosed)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
@@ -344,7 +344,7 @@ TEST(Reader, StreamClosed)
     }, c2pa::C2paException);
 };
 
-TEST(Reader, ReadManifestWithTrustConfiguredTomlSettings)
+TEST_F(ReaderTest, ReadManifestWithTrustConfiguredTomlSettings)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path signed_image_path = current_dir / "../tests/fixtures/for_trusted_read.jpg";
@@ -368,7 +368,7 @@ TEST(Reader, ReadManifestWithTrustConfiguredTomlSettings)
     ASSERT_TRUE(parsed_manifest_json["validation_state"] == "Trusted");
 }
 
-TEST(Reader, ReadManifestWithTrustConfiguredJsonSettings)
+TEST_F(ReaderTest, ReadManifestWithTrustConfiguredJsonSettings)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path signed_image_path = current_dir / "../tests/fixtures/for_trusted_read.jpg";
@@ -392,7 +392,7 @@ TEST(Reader, ReadManifestWithTrustConfiguredJsonSettings)
     ASSERT_TRUE(parsed_manifest_json["validation_state"] == "Trusted");
 }
 
-TEST(Reader, ReaderFromIStreamWithContext)
+TEST_F(ReaderTest, ReaderFromIStreamWithContext)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path signed_path = current_dir / "../tests/fixtures/sample1_signed.wav";
@@ -570,7 +570,7 @@ TEST(ReaderErrorHandling, ErrorMessagesWithAndWithoutContext)
 // Reader get_resource Tests
 // ============================================================================
 
-TEST(Reader, GetResourceToStream) {
+TEST_F(ReaderTest, GetResourceToStream) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
 
@@ -613,7 +613,7 @@ TEST_F(ReaderTest, GetResourceToFilePath) {
     EXPECT_GT(fs::file_size(output_file), 0);
 }
 
-TEST(Reader, GetResourceInvalidUriThrows) {
+TEST_F(ReaderTest, GetResourceInvalidUriThrows) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
 
@@ -623,7 +623,7 @@ TEST(Reader, GetResourceInvalidUriThrows) {
     EXPECT_THROW(reader.get_resource("nonexistent_uri", output), c2pa::C2paException);
 }
 
-TEST(Reader, GetResourceWithInvalidUri) {
+TEST_F(ReaderTest, GetResourceWithInvalidUri) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
 
