@@ -119,7 +119,7 @@ Note: the ContextBuilder is consumed after calling `create_context()`. For singl
 
 #### Using a Context
 
-Contexts are passed by reference to Builder and Reader constructors. The context must remain valid for the lifetime of the Builder or Reader:
+Contexts are passed by reference to Builder and Reader constructors. The context is used only at construction; the implementation copies context state into the reader/builder, so the context does not need to outlive them.
 
 ```cpp
 c2pa::Context context;

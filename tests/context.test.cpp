@@ -431,3 +431,16 @@ TEST_F(ContextTest, ContextBuilderWithJsonSettingsFileChaining) {
     auto manifest_json = sign_with_context(context, get_temp_path("with_json_settings_file_chained.jpg"));
     EXPECT_FALSE(has_thumbnail(manifest_json));
 }
+
+// Context is copied at construction, Reader still works after context goes out of scope
+TEST_F(ContextTest, ReaderWorksAfterContextOutOfScope) {
+    fs::path signed_path = get_temp_path("reader_after_context_scope.jpg");
+    std::unique_ptr<c2pa::Reader> reader;
+    {
+        c2pa::Context context;
+        sign_with_context(context, signed_path);
+        reader = std::make_unique<c2pa::Reader>(context, signed_path);
+    }
+    // context is out of scope, implementation copies context state so reader still works
+    EXPECT_NO_THROW(reader->json());
+}
