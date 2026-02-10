@@ -106,7 +106,6 @@ namespace c2pa
     /// @brief Interface for types that can provide C2PA context functionality.
     /// @details This interface can be implemented by external libraries to provide
     ///          custom context implementations (e.g. AdobeContext wrappers).
-    ///          Copy is deleted; move is defaulted.
     ///
     /// @par Implementation Requirements for has_context()
     /// The has_context() method exists to support implementations that may have:
@@ -116,8 +115,8 @@ namespace c2pa
     ///
     /// @par Why Both c_context() and has_context()?
     /// While c_context() can return nullptr, has_context() provides:
-    /// 1. A clear boolean check without pointer inspection (yes/no answer)
-    /// 2. Forward compatibility for implementations with complex context lifecycles
+    /// 1. A boolean check without pointer inspection (yes/no answer for intialization)
+    /// 2. Forward compatibility for implementations with complex context lifecycles (lazy load)
     ///
     /// @par Impact on Reader and Builder
     /// Reader and Builder constructors validate that a provider both exists and
@@ -130,17 +129,6 @@ namespace c2pa
     /// The built-in Context class always returns true from has_context() after
     /// successful construction, as it validates the context pointer in its constructor.
     /// External implementations may have different invariants.
-    ///
-    /// Example external implementation:
-    /// @code
-    /// class MyContext : public c2pa::IContextProvider {
-    /// public:
-    ///     C2paContext* c_context() const noexcept override { return my_context_; }
-    ///     bool has_context() const noexcept override { return my_context_ != nullptr; }
-    /// private:
-    ///     C2paContext* my_context_;
-    /// };
-    /// @endcode
     class C2PA_CPP_API IContextProvider {
     public:
         virtual ~IContextProvider() noexcept = default;
