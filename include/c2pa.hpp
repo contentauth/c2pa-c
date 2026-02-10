@@ -240,8 +240,8 @@ namespace c2pa
     ///              .create_context();
     ///          @endcode
     ///
-    ///          When passed to Builder or Reader, the context is taken by reference
-    ///          and must outlive the Builder/Reader instance.
+    ///          Builder and Reader take the context by reference (IContextProvider&).
+    ///          The context object must outlive the Builder or Reader instance.
     class C2PA_CPP_API Context : public IContextProvider {
     public:
         /// @brief ContextBuilder for creating customized Context instances.
@@ -503,23 +503,19 @@ namespace c2pa
         /// @param context Context provider to use for this reader (must outlive Reader).
         /// @param format The mime format of the stream.
         /// @param stream The input stream to read from.
-        /// @throws C2pa::C2paException if context->has_context() returns false,
+        /// @throws C2pa::C2paException if context.has_context() returns false,
         ///         or for other errors encountered by the C2PA library.
-        /// @note The constructor validates that has_context() returns true before using
-        ///       c_context(). This ensures external IContextProvider implementations are
-        ///       in a valid state.
-        /// @note The context must remain valid for the lifetime of this Reader.
+        /// @note The constructor validates that context.has_context() before using
+        ///       context.c_context(). The context must remain valid for the lifetime of this Reader.
         Reader(IContextProvider& context, const std::string &format, std::istream &stream);
 
         /// @brief Create a Reader from a context and file path.
         /// @param context Context provider to use for this reader (must outlive Reader).
         /// @param source_path the path to the file to read.
-        /// @throws C2pa::C2paException if context->has_context() returns false,
+        /// @throws C2pa::C2paException if context.has_context() returns false,
         ///         or for other errors encountered by the C2PA library.
-        /// @note The constructor validates that has_context() returns true before using
-        ///       c_context(). This ensures external IContextProvider implementations are
-        ///       in a valid state.
-        /// @note The context must remain valid for the lifetime of this Reader.
+        /// @note The constructor validates that context.has_context() before using
+        ///       context.c_context(). The context must remain valid for the lifetime of this Reader.
         /// @note Prefer using the streaming APIs if possible
         Reader(IContextProvider& context, const std::filesystem::path &source_path);
 
@@ -528,16 +524,16 @@ namespace c2pa
         /// @param format The mime format of the stream.
         /// @param stream The input stream to read from.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        /// @deprecated Use Reader(ContextProviderPtr, format, stream) instead.
-        [[deprecated("Use Reader(ContextProviderPtr, format, stream) instead")]]
+        /// @deprecated Use Reader(IContextProvider& context, format, stream) instead.
+        [[deprecated("Use Reader(IContextProvider& context, format, stream) instead")]]
         Reader(const std::string &format, std::istream &stream);
 
         /// @brief Create a Reader from a file path (will use global settings if any loaded).
         /// @param source_path The path to the file to read.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        /// @deprecated Use Reader(ContextProviderPtr, source_path) instead.
+        /// @deprecated Use Reader(IContextProvider& context, source_path) instead.
         /// @note Prefer using the streaming APIs if possible
-        [[deprecated("Use Reader(ContextProviderPtr, source_path) instead")]]
+        [[deprecated("Use Reader(IContextProvider& context, source_path) instead")]]
         Reader(const std::filesystem::path &source_path);
 
         // Non-copyable
@@ -692,30 +688,26 @@ namespace c2pa
     public:
         /// @brief Create a Builder from a context with an empty manifest.
         /// @param context Context provider to use for this builder (must outlive Builder).
-        /// @throws C2pa::C2paException if context->has_context() returns false,
+        /// @throws C2pa::C2paException if context.has_context() returns false,
         ///         or for other errors encountered by the C2PA library.
-        /// @note The constructor validates that has_context() returns true before using
-        ///       c_context(). This ensures external IContextProvider implementations are
-        ///       in a valid state.
-        /// @note The context must remain valid for the lifetime of this Builder.
+        /// @note The constructor validates that context.has_context() before using
+        ///       context.c_context(). The context must remain valid for the lifetime of this Builder.
         explicit Builder(IContextProvider& context);
 
         /// @brief Create a Builder from a context and manifest JSON string.
         /// @param context Context provider to use for this builder (must outlive Builder).
         /// @param manifest_json The manifest JSON string.
-        /// @throws C2pa::C2paException if context->has_context() returns false,
+        /// @throws C2pa::C2paException if context.has_context() returns false,
         ///         or for other errors encountered by the C2PA library.
-        /// @note The constructor validates that has_context() returns true before using
-        ///       c_context(). This ensures external IContextProvider implementations are
-        ///       in a valid state.
-        /// @note The context must remain valid for the lifetime of this Builder.
+        /// @note The constructor validates that context.has_context() before using
+        ///       context.c_context(). The context must remain valid for the lifetime of this Builder.
         Builder(IContextProvider& context, const std::string &manifest_json);
 
         /// @brief Create a Builder from a manifest JSON std::string (will use global settings if any loaded).
         /// @param manifest_json The manifest JSON string.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        /// @deprecated Use Builder(ContextProviderPtr, manifest_json) instead.
-        [[deprecated("Use Builder(ContextProviderPtr, manifest_json) instead")]]
+        /// @deprecated Use Builder(IContextProvider& context, manifest_json) instead.
+        [[deprecated("Use Builder(IContextProvider& context, manifest_json) instead")]]
         Builder(const std::string &manifest_json);
 
         // Non-copyable

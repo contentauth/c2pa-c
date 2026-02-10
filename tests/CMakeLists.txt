@@ -8,10 +8,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
-# ============================================================================
 # Platform-specific configuration variables
-# ============================================================================
-
 # Environment variables for test runtime
 set(LSAN_SUPPRESSIONS_FILE "${c2pa-c_SOURCE_DIR}/ci-cd/lsan_suppressions.txt")
 
@@ -23,16 +20,13 @@ elseif(UNIX)
     set(TEST_LIBRARY_PATH_VALUE "${c2pa-c_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH};LSAN_OPTIONS=suppressions=${LSAN_SUPPRESSIONS_FILE}")
 endif()
 
-# ============================================================================
 # Utility functions
-# ============================================================================
-
 # Function to configure platform-specific test environment
 function(setup_test_environment test_name working_dir)
     set_tests_properties(${test_name} PROPERTIES
         WORKING_DIRECTORY "${working_dir}"
     )
-    
+
     # Set platform-specific library path environment
     if(DEFINED TEST_LIBRARY_PATH_VAR)
         set_tests_properties(${test_name} PROPERTIES
@@ -78,21 +72,21 @@ function(setup_c2pa_runtime_deps target_name)
         else()
             set(RPATH_VALUE "$ORIGIN")
         endif()
-        
+
         set_target_properties(${target_name} PROPERTIES
             BUILD_RPATH "${RPATH_VALUE}"
             INSTALL_RPATH "${RPATH_VALUE}"
             BUILD_WITH_INSTALL_RPATH TRUE
             SKIP_BUILD_RPATH FALSE
         )
-        
+
         # On Linux, clear any automatic RPATH from linked libraries
         if(NOT APPLE)
             set_target_properties(${target_name} PROPERTIES
                 LINK_WHAT_YOU_USE FALSE
             )
         endif()
-        
+
         # Force override any inherited RPATH
         set_property(TARGET ${target_name} PROPERTY BUILD_RPATH "${RPATH_VALUE}")
         set_property(TARGET ${target_name} PROPERTY INSTALL_RPATH "${RPATH_VALUE}")
