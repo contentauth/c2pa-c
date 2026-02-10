@@ -477,20 +477,33 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         return with_settings(Settings(json, "json"));
     }
 
+    Context::ContextBuilder& Context::ContextBuilder::with_json_settings_file(const std::filesystem::path& settings_path) {
+        if (!is_valid()) {
+            throw C2paException("ContextBuilder is invalid (moved from)");
+        }
+
+        // Open the file and read its content
+        auto file = detail::open_file_binary<std::ifstream>(settings_path);
+        std::string json_content((std::istreambuf_iterator<char>(*file)), std::istreambuf_iterator<char>());
+
+        // Use the existing with_json method
+        return with_json(json_content);
+    }
+
     Context Context::ContextBuilder::create_context() {
         if (!is_valid()) {
             throw C2paException("ContextBuilder is invalid (moved from)");
         }
-        
+
         // The C API consumes the builder on build
         C2paContext* ctx = c2pa_context_builder_build(context_builder);
         if (!ctx) {
             throw C2paException("Failed to build context");
         }
-        
+
         // Builder is consumed by the C API
         context_builder = nullptr;
-        
+
         return Context(ctx);
     }
 

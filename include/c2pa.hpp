@@ -279,6 +279,12 @@ namespace c2pa
             /// @throws C2paException if JSON is invalid.
             ContextBuilder& with_json(const std::string& json);
 
+            /// @brief Configure settings from a JSON settings file.
+            /// @param settings_path Full path to the JSON settings file.
+            /// @return Reference to this ContextBuilder for method chaining.
+            /// @throws C2paException if file cannot be read or JSON is invalid.
+            ContextBuilder& with_json_settings_file(const std::filesystem::path& settings_path);
+
             /// @brief Create a Context from the current builder configuration.
             /// @return A new Context instance.
             /// @throws C2paException if context creation fails.

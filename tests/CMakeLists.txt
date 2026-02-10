@@ -8,6 +8,39 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
+# ============================================================================
+# Platform-specific configuration variables
+# ============================================================================
+
+# Environment variables for test runtime
+set(LSAN_SUPPRESSIONS_FILE "${c2pa-c_SOURCE_DIR}/ci-cd/lsan_suppressions.txt")
+
+if(APPLE)
+    set(TEST_LIBRARY_PATH_VAR "DYLD_LIBRARY_PATH")
+    set(TEST_LIBRARY_PATH_VALUE "${c2pa-c_BINARY_DIR}/tests:$ENV{DYLD_LIBRARY_PATH}")
+elseif(UNIX)
+    set(TEST_LIBRARY_PATH_VAR "LD_LIBRARY_PATH")
+    set(TEST_LIBRARY_PATH_VALUE "${c2pa-c_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH};LSAN_OPTIONS=suppressions=${LSAN_SUPPRESSIONS_FILE}")
+endif()
+
+# ============================================================================
+# Utility functions
+# ============================================================================
+
+# Function to configure platform-specific test environment
+function(setup_test_environment test_name working_dir)
+    set_tests_properties(${test_name} PROPERTIES
+        WORKING_DIRECTORY "${working_dir}"
+    )
+    
+    # Set platform-specific library path environment
+    if(DEFINED TEST_LIBRARY_PATH_VAR)
+        set_tests_properties(${test_name} PROPERTIES
+            ENVIRONMENT "${TEST_LIBRARY_PATH_VAR}=${TEST_LIBRARY_PATH_VALUE}"
+        )
+    endif()
+endfunction()
+
 # Function to setup runtime dependencies for any target
 function(setup_c2pa_runtime_deps target_name)
     # Copy shared library to executable directory on all platforms
@@ -37,32 +70,32 @@ function(setup_c2pa_runtime_deps target_name)
         endif()
     endif()
 
-    # On Linux, set RPATH to look in the executable's directory
-    if(UNIX AND NOT APPLE)
+    # On Unix systems (Linux/macOS), set RPATH to look in the executable's directory
+    if(UNIX)
+        # Platform-specific RPATH syntax
+        if(APPLE)
+            set(RPATH_VALUE "@executable_path")
+        else()
+            set(RPATH_VALUE "$ORIGIN")
+        endif()
+        
         set_target_properties(${target_name} PROPERTIES
-            BUILD_RPATH "$ORIGIN"
-            INSTALL_RPATH "$ORIGIN"
-            BUILD_WITH_INSTALL_RPATH TRUE
-            SKIP_BUILD_RPATH FALSE
-            # Clear any automatic RPATH from linked libraries
-            LINK_WHAT_YOU_USE FALSE
-        )
-        # Force override any inherited RPATH
-        set_property(TARGET ${target_name} PROPERTY BUILD_RPATH "$ORIGIN")
-        set_property(TARGET ${target_name} PROPERTY INSTALL_RPATH "$ORIGIN")
-    endif()
-
-    # On macOS, override the RPATH to remove hardcoded paths
-    if(APPLE)
-        set_target_properties(${target_name} PROPERTIES
-            BUILD_RPATH "@executable_path"
-            INSTALL_RPATH "@executable_path"
+            BUILD_RPATH "${RPATH_VALUE}"
+            INSTALL_RPATH "${RPATH_VALUE}"
             BUILD_WITH_INSTALL_RPATH TRUE
             SKIP_BUILD_RPATH FALSE
         )
+        
+        # On Linux, clear any automatic RPATH from linked libraries
+        if(NOT APPLE)
+            set_target_properties(${target_name} PROPERTIES
+                LINK_WHAT_YOU_USE FALSE
+            )
+        endif()
+        
         # Force override any inherited RPATH
-        set_property(TARGET ${target_name} PROPERTY BUILD_RPATH "@executable_path")
-        set_property(TARGET ${target_name} PROPERTY INSTALL_RPATH "@executable_path")
+        set_property(TARGET ${target_name} PROPERTY BUILD_RPATH "${RPATH_VALUE}")
+        set_property(TARGET ${target_name} PROPERTY INSTALL_RPATH "${RPATH_VALUE}")
     endif()
 endfunction()
 
@@ -104,23 +137,8 @@ else()
     add_test(NAME cpp_tests COMMAND c2pa_c_tests)
 endif()
 
-set_tests_properties(cpp_tests PROPERTIES
-    WORKING_DIRECTORY "${c2pa-c_BINARY_DIR}/tests"
-)
-
-# Set platform-specific environment
-# On Linux with sanitizers, also set LSAN_OPTIONS to suppress known Tokio runtime
-# initialization leaks inside the prebuilt libc2pa_c Rust library.
-set(LSAN_SUPPRESSIONS_FILE "${c2pa-c_SOURCE_DIR}/ci-cd/lsan_suppressions.txt")
-if(APPLE)
-    set_tests_properties(cpp_tests PROPERTIES
-        ENVIRONMENT "DYLD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{DYLD_LIBRARY_PATH}"
-    )
-elseif(UNIX)
-    set_tests_properties(cpp_tests PROPERTIES
-        ENVIRONMENT "LD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH};LSAN_OPTIONS=suppressions=${LSAN_SUPPRESSIONS_FILE}"
-    )
-endif()
+# Set platform-specific environment and working directory
+setup_test_environment(cpp_tests "${c2pa-c_BINARY_DIR}/tests")
 
 # C tests
 add_executable(ctest c-app-test/test.c)
@@ -161,18 +179,6 @@ setup_c2pa_runtime_deps(ctest)
 
 # Register tests with CTest
 add_test(NAME c_test COMMAND ctest)
-set_tests_properties(c_test PROPERTIES
-    WORKING_DIRECTORY "${c2pa-c_SOURCE_DIR}"
-)
-
-# Set platform-specific environment for C test
-if(APPLE)
-    set_tests_properties(c_test PROPERTIES
-        ENVIRONMENT "DYLD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{DYLD_LIBRARY_PATH}"
-    )
-elseif(UNIX)
-    set_tests_properties(c_test PROPERTIES
-        ENVIRONMENT "LD_LIBRARY_PATH=${c2pa-c_BINARY_DIR}/tests:$ENV{LD_LIBRARY_PATH};LSAN_OPTIONS=suppressions=${LSAN_SUPPRESSIONS_FILE}"
-    )
-endif()
+# Set platform-specific environment and working directory
+setup_test_environment(c_test "${c2pa-c_SOURCE_DIR}")
 

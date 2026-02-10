@@ -76,6 +76,7 @@ else
 endif
 
 # Test with coverage reporting
+# THis verifies necessary tooling for coverage check is also installed
 test-coverage: clean
 	cmake -S . -B build/coverage -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DENABLE_COVERAGE=ON $(CMAKE_OPTS)
 	cmake --build build/coverage
