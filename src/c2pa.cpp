@@ -315,13 +315,13 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
 
     Settings::Settings() : settings_ptr(c2pa_settings_new()) {
         if (!settings_ptr) {
-            throw C2paException("Failed to create settings");
+            throw C2paException("Failed to create Settings");
         }
     }
 
     Settings::Settings(const std::string& data, const std::string& format) : settings_ptr(c2pa_settings_new()) {
         if (!settings_ptr) {
-            throw C2paException("Failed to create settings");
+            throw C2paException("Failed to create Settings");
         }
         if (c2pa_settings_update_from_string(settings_ptr, data.c_str(), format.c_str()) != 0) {
             c2pa_free(settings_ptr);
@@ -351,7 +351,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
 
     Settings& Settings::set(const std::string& path, const std::string& json_value) {
         if (!settings_ptr) {
-            throw C2paException("Settings object is invalid (moved from)");
+            throw C2paException("Settings object is invalid");
         }
         if (c2pa_settings_set_value(settings_ptr, path.c_str(), json_value.c_str()) != 0) {
             throw C2paException();
@@ -361,7 +361,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
 
     Settings& Settings::update(const std::string& data, const std::string& format) {
         if (!settings_ptr) {
-            throw C2paException("Settings object is invalid (moved from)");
+            throw C2paException("Settings object is invalid");
         }
         if (c2pa_settings_update_from_string(settings_ptr, data.c_str(), format.c_str()) != 0) {
             throw C2paException();
@@ -383,17 +383,17 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
 
     Context::Context() : context(c2pa_context_new()) {
         if (!context) {
-            throw C2paException("Failed to create context");
+            throw C2paException("Failed to create Context");
         }
     }
 
     Context::Context(const Settings& settings) : context(nullptr) {
         if (!settings.is_valid()) {
-            throw C2paException("Settings object is invalid (moved from)");
+            throw C2paException("Settings object is invalid");
         }
         auto builder = c2pa_context_builder_new();
         if (!builder) {
-            throw C2paException("Failed to create context builder");
+            throw C2paException("Failed to create Context builder");
         }
         if (c2pa_context_builder_set_settings(builder, settings.c_settings()) != 0) {
             c2pa_free(builder);
@@ -441,7 +441,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
 
     Context::ContextBuilder::ContextBuilder() : context_builder(c2pa_context_builder_new()) {
         if (!context_builder) {
-            throw C2paException("Failed to create context builder");
+            throw C2paException("Failed to create Context builder");
         }
     }
 
@@ -474,7 +474,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
             throw C2paException("ContextBuilder is invalid (moved from)");
         }
         if (!settings.is_valid()) {
-            throw C2paException("Settings object is invalid (moved from)");
+            throw C2paException("Settings object is invalid");
         }
         if (c2pa_context_builder_set_settings(context_builder, settings.c_settings()) != 0) {
             throw C2paException();
@@ -696,7 +696,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         : c2pa_reader(nullptr)
     {
         if (!context.has_context()) {
-            throw C2paException("Invalid context provider");
+            throw C2paException("Invalid Context provider IContextProvider");
         }
 
         c2pa_reader = c2pa_reader_from_context(context.c_context());
@@ -720,7 +720,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         : c2pa_reader(nullptr)
     {
         if (!context.has_context()) {
-            throw C2paException("Invalid context provider");
+            throw C2paException("Invalid Context provider IContextProvider");
         }
 
         c2pa_reader = c2pa_reader_from_context(context.c_context());
@@ -870,7 +870,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         : builder(nullptr)
     {
         if (!context.has_context()) {
-            throw C2paException("Invalid context provider");
+            throw C2paException("Invalid Context provider IContextProvider");
         }
 
         builder = c2pa_builder_from_context(context.c_context());
@@ -883,7 +883,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         : builder(nullptr)
     {
         if (!context.has_context()) {
-            throw C2paException("Invalid context provider");
+            throw C2paException("Invalid Context provider IContextProvider");
         }
 
         builder = c2pa_builder_from_context(context.c_context());

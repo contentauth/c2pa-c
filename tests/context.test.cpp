@@ -119,6 +119,54 @@ TEST(Context, ContextBuilderEmptyBuild)
     EXPECT_TRUE(context.has_context());
 }
 
+// Context move constructor transfers ownership, moved-from has no context
+TEST(Context, MoveConstructor)
+{
+    auto original = c2pa::Context::ContextBuilder().create_context();
+    ASSERT_TRUE(original.has_context());
+
+    c2pa::Context moved_to(std::move(original));
+    EXPECT_TRUE(moved_to.has_context());
+    EXPECT_FALSE(original.has_context());
+
+    // Moved-to context is usable
+    auto manifest = load_fixture("training.json");
+    EXPECT_NO_THROW({
+        c2pa::Builder builder(moved_to, manifest);
+    });
+}
+
+// Context move assignment transfers ownership
+TEST(Context, MoveAssignment)
+{
+    auto a = c2pa::Context::ContextBuilder().create_context();
+    auto b = c2pa::Context::ContextBuilder().create_context();
+    ASSERT_TRUE(a.has_context());
+    ASSERT_TRUE(b.has_context());
+
+    a = std::move(b);
+    EXPECT_TRUE(a.has_context());
+    EXPECT_FALSE(b.has_context());
+}
+
+// Context move assignment frees existing context when overwriting
+TEST(Context, MoveAssignmentOverwrites)
+{
+    auto a = c2pa::Context::ContextBuilder().create_context();
+    auto b = c2pa::Context::ContextBuilder().create_context();
+    ASSERT_TRUE(a.has_context());
+    ASSERT_TRUE(b.has_context());
+
+    a = std::move(b);
+    EXPECT_TRUE(a.has_context());
+    EXPECT_FALSE(b.has_context());
+    // Use a to ensure the adopted context works (no double-free of old a)
+    auto manifest = load_fixture("training.json");
+    EXPECT_NO_THROW({
+        c2pa::Builder builder(a, manifest);
+    });
+}
+
 // Helper function to check if thumbnail is present in signed manifest
 static bool has_thumbnail(const std::string& manifest_json) {
     auto parsed = nlohmann::json::parse(manifest_json);
