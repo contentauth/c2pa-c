@@ -72,12 +72,12 @@ intptr_t signer_passthrough(const void *context, const unsigned char *data, uint
     // todo pass exceptions to Rust error handling
     (void)e;
     // printf("Error: signer_passthrough - %s\n", e.what());
-    return -1;
+    return static_cast<intptr_t>(c2pa::OperationResult::Error);
   }
   catch (...)
   {
     // printf("Error: signer_passthrough - unknown C2paException\n");
-    return -1;
+    return static_cast<intptr_t>(c2pa::OperationResult::Error);
   }
 }
 
@@ -482,11 +482,9 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
             throw C2paException("ContextBuilder is invalid (moved from)");
         }
 
-        // Open the file and read its content
         auto file = detail::open_file_binary<std::ifstream>(settings_path);
         std::string json_content((std::istreambuf_iterator<char>(*file)), std::istreambuf_iterator<char>());
 
-        // Use the existing with_json method
         return with_json(json_content);
     }
 
@@ -683,13 +681,13 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     /// Reader class for reading manifests
 
     Reader::Reader(IContextProvider& context, const std::string &format, std::istream &stream)
-        : c2pa_reader(nullptr), reader_context(&context)
+        : c2pa_reader(nullptr)
     {
-        if (!reader_context->has_context()) {
+        if (!context.has_context()) {
             throw C2paException("Invalid context provider");
         }
 
-        c2pa_reader = c2pa_reader_from_context(reader_context->c_context());
+        c2pa_reader = c2pa_reader_from_context(context.c_context());
         if (c2pa_reader == nullptr) {
             throw C2paException("Failed to create reader from context");
         }
@@ -707,13 +705,13 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     }
 
     Reader::Reader(IContextProvider& context, const std::filesystem::path &source_path)
-        : c2pa_reader(nullptr), reader_context(&context)
+        : c2pa_reader(nullptr)
     {
-        if (!reader_context->has_context()) {
+        if (!context.has_context()) {
             throw C2paException("Invalid context provider");
         }
 
-        c2pa_reader = c2pa_reader_from_context(reader_context->c_context());
+        c2pa_reader = c2pa_reader_from_context(context.c_context());
         if (c2pa_reader == nullptr) {
             throw C2paException("Failed to create reader from context");
         }
@@ -739,7 +737,6 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     }
 
     Reader::Reader(const std::string &format, std::istream &stream)
-        : reader_context(nullptr)
     {
         cpp_stream = std::make_unique<CppIStream>(stream);
         c2pa_reader = c2pa_reader_from_stream(format.c_str(), cpp_stream->c_stream);
@@ -750,7 +747,6 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     }
 
     Reader::Reader(const std::filesystem::path &source_path)
-        : reader_context(nullptr)
     {
         // Create owned stream that will live as long as the Reader
         owned_stream = std::make_unique<std::ifstream>(source_path, std::ios::binary);
@@ -859,27 +855,26 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     /// @brief  Builder class for creating a manifest implementation.
 
     Builder::Builder(IContextProvider& context)
-        : builder(nullptr), builder_context(&context)
+        : builder(nullptr)
     {
-        if (!builder_context->has_context()) {
+        if (!context.has_context()) {
             throw C2paException("Invalid context provider");
         }
 
-        builder = c2pa_builder_from_context(builder_context->c_context());
+        builder = c2pa_builder_from_context(context.c_context());
         if (builder == nullptr) {
             throw C2paException("Failed to create builder from context");
         }
     }
 
     Builder::Builder(IContextProvider& context, const std::string &manifest_json)
-        : builder(nullptr), builder_context(&context)
+        : builder(nullptr)
     {
-        if (!builder_context->has_context()) {
+        if (!context.has_context()) {
             throw C2paException("Invalid context provider");
         }
 
-        // This creates the Builder using the context, eg. propagates settings
-        builder = c2pa_builder_from_context(builder_context->c_context());
+        builder = c2pa_builder_from_context(context.c_context());
         if (builder == nullptr) {
             throw C2paException("Failed to create builder from context");
         }
@@ -896,7 +891,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     }
 
     Builder::Builder(const std::string &manifest_json)
-        : builder(nullptr), builder_context(nullptr)
+        : builder(nullptr)
     {
         builder = c2pa_builder_from_json(manifest_json.c_str());
         if (builder == nullptr)
@@ -909,7 +904,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     /// @param archive  The input stream to read the archive from.
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     Builder::Builder(std::istream &archive)
-        : builder(nullptr), builder_context(nullptr)
+        : builder(nullptr)
     {
         CppIStream c_archive(archive);
         builder = c2pa_builder_from_archive(c_archive.c_stream);

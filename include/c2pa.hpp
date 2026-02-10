@@ -69,9 +69,10 @@ namespace c2pa
     };
 
     /// @brief Set errno from StreamError and return error sentinel.
+    /// @return OperationResult::Error (-1) for use as C API error return.
     inline int stream_error_return(StreamError e) noexcept {
         errno = static_cast<int>(e);
-        return -1;
+        return static_cast<int>(OperationResult::Error);
     }
 
     /// @brief Known mimetypes for C2PA operations
@@ -338,8 +339,6 @@ namespace c2pa
 
     private:
         C2paContext* context;
-
-        friend class Builder;
     };
 
     /// Returns the version of the C2pa library.
@@ -401,7 +400,6 @@ namespace c2pa
         C2paStream *c_stream;
         template <typename IStream>
         explicit CppIStream(IStream &istream) {
-            // TODO Review the static assert here
             static_assert(std::is_base_of<std::istream, IStream>::value,
                       "Stream must be derived from std::istream");
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&istream), reader, seeker, writer, flusher);
@@ -434,7 +432,6 @@ namespace c2pa
         C2paStream *c_stream;
         template <typename OStream>
         explicit CppOStream(OStream &ostream) {
-            // TODO Review the static assert here
             static_assert(std::is_base_of<std::ostream, OStream>::value, "Stream must be derived from std::ostream");
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&ostream), reader, seeker, writer, flusher);
             if (c_stream == nullptr) {
@@ -464,7 +461,6 @@ namespace c2pa
         C2paStream *c_stream;
         template <typename IOStream>
         CppIOStream(IOStream &iostream) {
-            // TODO Review the static assert here
             static_assert(std::is_base_of<std::iostream, IOStream>::value, "Stream must be derived from std::iostream");
             c_stream = c2pa_create_stream(reinterpret_cast<StreamContext *>(&iostream), reader, seeker, writer, flusher);
             if (c_stream == nullptr) {
@@ -496,7 +492,6 @@ namespace c2pa
         C2paReader *c2pa_reader;
         std::unique_ptr<std::ifstream> owned_stream;       // Owns file stream when created from path
         std::unique_ptr<CppIStream> cpp_stream;            // Wraps stream for C API; destroyed before owned_stream
-        IContextProvider* reader_context;  // Pointer to context (user must ensure it outlives Reader)
 
     public:
         /// @brief Create a Reader from a context and stream.
@@ -544,10 +539,8 @@ namespace c2pa
         Reader(Reader&& other) noexcept
             : c2pa_reader(other.c2pa_reader),
               owned_stream(std::move(other.owned_stream)),
-              cpp_stream(std::move(other.cpp_stream)),
-              reader_context(other.reader_context) {
+              cpp_stream(std::move(other.cpp_stream)) {
             other.c2pa_reader = nullptr;
-            other.reader_context = nullptr;
         }
         Reader& operator=(Reader&& other) noexcept {
             if (this != &other) {
@@ -557,20 +550,12 @@ namespace c2pa
                 c2pa_reader = other.c2pa_reader;
                 owned_stream = std::move(other.owned_stream);
                 cpp_stream = std::move(other.cpp_stream);
-                reader_context = other.reader_context;
                 other.c2pa_reader = nullptr;
-                other.reader_context = nullptr;
             }
             return *this;
         }
 
         ~Reader();
-
-        /// @brief Get the context associated with this Reader.
-        /// @return Pointer to the context, or nullptr if using legacy/context-free API.
-        [[nodiscard]] inline IContextProvider* context() const noexcept {
-            return reader_context;
-        }
 
         /// @brief Returns if the reader was created from an embedded manifest.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.
@@ -659,8 +644,7 @@ namespace c2pa
         }
         Signer& operator=(Signer&& other) noexcept {
             if (this != &other) {
-                if (signer != nullptr)
-                    c2pa_free(signer);
+                c2pa_free(signer);
                 signer = other.signer;
                 other.signer = nullptr;
             }
@@ -683,7 +667,6 @@ namespace c2pa
     {
     private:
         C2paBuilder *builder;
-        IContextProvider* builder_context;  // Pointer to context (user must ensure it outlives Builder)
 
     public:
         /// @brief Create a Builder from a context with an empty manifest.
@@ -715,29 +698,20 @@ namespace c2pa
         Builder& operator=(const Builder&) = delete;
 
         // Move semantics
-        Builder(Builder&& other) noexcept : builder(other.builder), builder_context(other.builder_context) {
+        Builder(Builder&& other) noexcept : builder(other.builder) {
             other.builder = nullptr;
-            other.builder_context = nullptr;
         }
         Builder& operator=(Builder&& other) noexcept {
             if (this != &other) {
                 if (builder != nullptr)
                     c2pa_free(builder);
                 builder = other.builder;
-                builder_context = other.builder_context;
                 other.builder = nullptr;
-                other.builder_context = nullptr;
             }
             return *this;
         }
 
         ~Builder();
-
-        /// @brief Get the context associated with this Builder.
-        /// @return Pointer to the context, or nullptr if using legacy/context-free API.
-        [[nodiscard]] inline IContextProvider* context() const noexcept {
-            return builder_context;
-        }
 
         /// @brief  Get the underlying C2paBuilder pointer.
         /// @return Pointer managed by this wrapper.
