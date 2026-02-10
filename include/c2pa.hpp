@@ -107,6 +107,13 @@ namespace c2pa
     /// @details This interface can be implemented by external libraries to provide
     ///          custom context implementations (e.g. AdobeContext wrappers).
     ///
+    /// @par Move semantics
+    /// Move construction and move assignment are defaulted. After move, the moved-from
+    /// object is left in a valid but unspecified state: has_context() may be false and
+    /// c_context() may return nullptr. Implementations that own a C2paContext* (e.g. Context)
+    /// must set the source's handle to nullptr on move to avoid double-free; callers must
+    /// not use a moved-from provider without checking has_context() first.
+    ///
     /// @par Implementation Requirements for has_context()
     /// The has_context() method exists to support implementations that may have:
     /// - Optional or lazy context initialization
@@ -160,6 +167,11 @@ namespace c2pa
     ///          via set() and update() methods. Once passed to Context::ContextBuilder,
     ///          the settings are copied into the context and the Settings
     ///          object can be reused or discarded.
+    ///
+    /// @par Validity
+    /// Settings uses is_valid() to indicate whether the object holds a valid underlying
+    /// C settings handle. After move-from, is_valid() is false. set(), update(), and callers
+    /// passing this object to the C API must ensure is_valid() is true or check before use.
     class C2PA_CPP_API Settings {
     public:
         /// @brief Create default settings.
@@ -181,6 +193,11 @@ namespace c2pa
 
         ~Settings() noexcept;
 
+        /// @brief Check if this Settings object is valid (holds a C settings handle).
+        /// @return true if the object can be used (set, update, c_settings, or passed to Context/ContextBuilder).
+        /// @return false if moved-from (or otherwise invalid). Callers must check before use.
+        [[nodiscard]] bool is_valid() const noexcept;
+
         /// @brief Set a single configuration value by path.
         /// @param path Dot-separated path to the setting (e.g., "verify.verify_after_sign").
         /// @param json_value JSON-encoded value to set.
@@ -191,7 +208,7 @@ namespace c2pa
         /// @brief Merge configuration from a JSON string (latest configuration wins).
         /// @param data Configuration data in JSON format.
         /// @return Reference to this Settings for method chaining.
-        /// @throws C2paException if parsing fails.
+        /// @throws C2paException if parsing fails, or if this object is invalid.
         /// @note This is the recommended overload when configuration is JSON.
         Settings& update(const std::string& data) { return update(data, "json"); }
 
@@ -199,15 +216,16 @@ namespace c2pa
         /// @param data Configuration data in JSON or TOML format.
         /// @param format Format of the data ("json" or "toml").
         /// @return Reference to this Settings for method chaining.
-        /// @throws C2paException if parsing fails.
+        /// @throws C2paException if parsing fails, or if this object is invalid.
         Settings& update(const std::string& data, const std::string& format);
 
         /// @brief Get the raw C FFI settings pointer.
-        /// @return Pointer to C2paSettings, or nullptr if not initialized.
+        /// @return Pointer to C2paSettings when is_valid() is true; nullptr when invalid.
+        /// @note Callers passing this to the C API should check is_valid() first and treat nullptr as invalid.
         [[nodiscard]] C2paSettings* c_settings() const noexcept;
 
     private:
-        C2paSettings* settings_;
+        C2paSettings* settings_ptr;
     };
 
     /// @brief C2PA context implementing IContextProvider.
@@ -254,12 +272,13 @@ namespace c2pa
 
             /// @brief Check if the builder is in a valid state.
             /// @return true if the builder can be used, false if moved from.
+            /// @note Validity: Settings and ContextBuilder use is_valid(); Context uses has_context().
             [[nodiscard]] bool is_valid() const noexcept;
 
             /// @brief Configure with Settings object.
-            /// @param settings Settings to use (will be copied into the context).
+            /// @param settings Settings to use (will be copied into the context). Must be valid (is_valid() true).
             /// @return Reference to this ContextBuilder for method chaining.
-            /// @throws C2paException if settings are invalid.
+            /// @throws C2paException if settings are invalid or settings.is_valid() is false.
             ContextBuilder& with_settings(const Settings& settings);
 
             /// @brief Configure settings with JSON string.
@@ -290,8 +309,8 @@ namespace c2pa
         Context();
 
         /// @brief Create a Context configured with a Settings object.
-        /// @param settings Settings configuration to apply.
-        /// @throws C2paException if settings are invalid or context creation fails.
+        /// @param settings Settings configuration to apply. Must be valid (settings.is_valid() true).
+        /// @throws C2paException if settings are invalid, settings.is_valid() is false, or context creation fails.
         explicit Context(const Settings& settings);
 
         /// @brief Create a Context configured with a JSON string.
@@ -309,15 +328,14 @@ namespace c2pa
 
         // IContextProvider implementation
         /// @brief Get the underlying C2PA context pointer.
-        /// @return Non-null C2paContext pointer (validated at construction).
+        /// @return C2paContext pointer when has_context() is true; nullptr when moved-from (has_context() false).
+        /// @note Callers must check has_context() before using the result; do not pass nullptr to the C API.
         [[nodiscard]] C2paContext* c_context() const noexcept override;
 
-        /// @brief Check if this Context has a valid context.
-        /// @return Always returns true for successfully constructed Context objects.
-        /// @note The Context constructor validates that the context pointer is non-null,
-        ///       so this method always returns true for any Context instance that exists.
-        ///       This method exists to fulfill the IContextProvider contract and support
-        ///       external implementations that may have different lifecycle requirements.
+        /// @brief Check if this Context has a valid context (validity check for context-like types).
+        /// @return true when the object holds a valid C context; false when moved-from.
+        /// @note Context and IContextProvider use has_context() for validity; Settings and ContextBuilder use is_valid().
+        ///       After move, has_context() is false and c_context() returns nullptr.
         [[nodiscard]] bool has_context() const noexcept override;
 
         /// @brief Internal constructor from raw FFI pointer (prefer public constructors).

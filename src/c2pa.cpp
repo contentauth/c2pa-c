@@ -313,58 +313,64 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
 
     // Settings Implementation
 
-    Settings::Settings() : settings_(c2pa_settings_new()) {
-        if (!settings_) {
+    Settings::Settings() : settings_ptr(c2pa_settings_new()) {
+        if (!settings_ptr) {
             throw C2paException("Failed to create settings");
         }
     }
 
-    Settings::Settings(const std::string& data, const std::string& format) : settings_(c2pa_settings_new()) {
-        if (!settings_) {
+    Settings::Settings(const std::string& data, const std::string& format) : settings_ptr(c2pa_settings_new()) {
+        if (!settings_ptr) {
             throw C2paException("Failed to create settings");
         }
-        if (c2pa_settings_update_from_string(settings_, data.c_str(), format.c_str()) != 0) {
-            c2pa_free(settings_);
+        if (c2pa_settings_update_from_string(settings_ptr, data.c_str(), format.c_str()) != 0) {
+            c2pa_free(settings_ptr);
             throw C2paException();
         }
     }
 
     Settings::Settings(Settings&& other) noexcept
-        : settings_(std::exchange(other.settings_, nullptr)) {
+        : settings_ptr(std::exchange(other.settings_ptr, nullptr)) {
     }
 
     Settings& Settings::operator=(Settings&& other) noexcept {
         if (this != &other) {
-            if (settings_) {
-                c2pa_free(settings_);
-            }
-            settings_ = std::exchange(other.settings_, nullptr);
+            c2pa_free(settings_ptr);
+            settings_ptr = std::exchange(other.settings_ptr, nullptr);
         }
         return *this;
     }
 
     Settings::~Settings() noexcept {
-        if (settings_) {
-            c2pa_free(settings_);
-        }
+        c2pa_free(settings_ptr);
+    }
+
+    bool Settings::is_valid() const noexcept {
+        return settings_ptr != nullptr;
     }
 
     Settings& Settings::set(const std::string& path, const std::string& json_value) {
-        if (c2pa_settings_set_value(settings_, path.c_str(), json_value.c_str()) != 0) {
+        if (!settings_ptr) {
+            throw C2paException("Settings object is invalid (moved from)");
+        }
+        if (c2pa_settings_set_value(settings_ptr, path.c_str(), json_value.c_str()) != 0) {
             throw C2paException();
         }
         return *this;
     }
 
     Settings& Settings::update(const std::string& data, const std::string& format) {
-        if (c2pa_settings_update_from_string(settings_, data.c_str(), format.c_str()) != 0) {
+        if (!settings_ptr) {
+            throw C2paException("Settings object is invalid (moved from)");
+        }
+        if (c2pa_settings_update_from_string(settings_ptr, data.c_str(), format.c_str()) != 0) {
             throw C2paException();
         }
         return *this;
     }
 
     C2paSettings* Settings::c_settings() const noexcept {
-        return settings_;
+        return settings_ptr;
     }
 
     // Context Implementation
@@ -382,6 +388,9 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     }
 
     Context::Context(const Settings& settings) : context(nullptr) {
+        if (!settings.is_valid()) {
+            throw C2paException("Settings object is invalid (moved from)");
+        }
         auto builder = c2pa_context_builder_new();
         if (!builder) {
             throw C2paException("Failed to create context builder");
@@ -463,6 +472,9 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     Context::ContextBuilder& Context::ContextBuilder::with_settings(const Settings& settings) {
         if (!is_valid()) {
             throw C2paException("ContextBuilder is invalid (moved from)");
+        }
+        if (!settings.is_valid()) {
+            throw C2paException("Settings object is invalid (moved from)");
         }
         if (c2pa_context_builder_set_settings(context_builder, settings.c_settings()) != 0) {
             throw C2paException();
@@ -768,7 +780,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     Reader::~Reader()
     {
         c2pa_free(c2pa_reader);
-        // cpp_stream and owned_stream are automatically cleaned up by unique_ptr
+        // cpp_stream and owned_stream are cleaned up by unique_ptr
     }
 
     std::string Reader::json() const
