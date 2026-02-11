@@ -75,12 +75,6 @@ namespace c2pa
         return static_cast<int>(OperationResult::Error);
     }
 
-    /// @brief Known mimetypes for C2PA operations
-    namespace C2paMimeType {
-        /// @brief MIME type for C2PA binary archive format (working store)
-        constexpr const char* BinaryArchive = "application/c2pa";
-    }
-
     /// C2paException class for C2pa errors.
     /// This class is used to throw exceptions for errors encountered by the C2pa library via c2pa_error().
     class C2PA_CPP_API C2paException : public std::exception
