@@ -431,7 +431,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         return context;
     }
 
-    bool Context::has_context() const noexcept {
+    bool Context::is_valid() const noexcept {
         return context != nullptr;
     }
 
@@ -696,7 +696,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     Reader::Reader(IContextProvider& context, const std::string &format, std::istream &stream)
         : c2pa_reader(nullptr)
     {
-        if (!context.has_context()) {
+        if (!context.is_valid()) {
             throw C2paException("Invalid Context provider IContextProvider");
         }
 
@@ -720,7 +720,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     Reader::Reader(IContextProvider& context, const std::filesystem::path &source_path)
         : c2pa_reader(nullptr)
     {
-        if (!context.has_context()) {
+        if (!context.is_valid()) {
             throw C2paException("Invalid Context provider IContextProvider");
         }
 
@@ -870,7 +870,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     Builder::Builder(IContextProvider& context)
         : builder(nullptr)
     {
-        if (!context.has_context()) {
+        if (!context.is_valid()) {
             throw C2paException("Invalid Context provider IContextProvider");
         }
 
@@ -883,7 +883,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     Builder::Builder(IContextProvider& context, const std::string &manifest_json)
         : builder(nullptr)
     {
-        if (!context.has_context()) {
+        if (!context.is_valid()) {
             throw C2paException("Invalid Context provider IContextProvider");
         }
 

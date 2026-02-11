@@ -112,31 +112,31 @@ namespace c2pa
     ///
     /// @par Move semantics
     /// Move construction and move assignment are defaulted. After move, the moved-from
-    /// object is left in a valid but unspecified state: has_context() may be false and
+    /// object is left in a valid but unspecified state: is_valid() may be false and
     /// c_context() may return nullptr. Implementations that own a C2paContext* (e.g. Context)
     /// must set the source's handle to nullptr on move to avoid double-free; callers must
-    /// not use a moved-from provider without checking has_context() first.
+    /// not use a moved-from provider without checking is_valid() first.
     ///
-    /// @par Implementation Requirements for has_context()
-    /// The has_context() method exists to support implementations that may have:
+    /// @par Implementation Requirements for is_valid()
+    /// The is_valid() method exists to support implementations that may have:
     /// - Optional or lazy context initialization
     /// - Contexts that can be invalidated or moved
     /// - A "no context" state as part of their lifecycle
     ///
-    /// @par Why Both c_context() and has_context()?
-    /// While c_context() can return nullptr, has_context() provides:
+    /// @par Why Both c_context() and is_valid()?
+    /// While c_context() can return nullptr, is_valid() provides:
     /// 1. A boolean check without pointer inspection (yes/no answer for intialization)
     /// 2. Forward compatibility for implementations with complex context lifecycles (lazy load)
     ///
     /// @par Impact on Reader and Builder
     /// Reader and Builder constructors validate that a provider both exists and
-    /// has_context() returns true before using c_context(). This ensures that:
+    /// is_valid() returns true before using c_context(). This ensures that:
     /// - External implementations cannot be used in an uninitialized state
     /// - A consistent validation pattern exists across all context-using classes
     /// - Errors are caught early at construction time rather than during operations
     ///
     /// @par Standard Context Implementation
-    /// The built-in Context class always returns true from has_context() after
+    /// The built-in Context class always returns true from is_valid() after
     /// successful construction, as it validates the context pointer in its constructor.
     /// External implementations may have different invariants.
     class C2PA_CPP_API IContextProvider {
@@ -153,8 +153,8 @@ namespace c2pa
         /// @note For standard Context objects, this always returns true after construction.
         ///       External implementations may return false to indicate uninitialized or
         ///       invalidated state. Reader and Builder constructors check this before use.
-        /// @warning Implementations must ensure has_context() == true implies c_context() != nullptr.
-        [[nodiscard]] virtual bool has_context() const noexcept = 0;
+        /// @warning Implementations must ensure is_valid() == true implies c_context() != nullptr.
+        [[nodiscard]] virtual bool is_valid() const noexcept = 0;
 
     protected:
         IContextProvider() = default;
@@ -273,7 +273,6 @@ namespace c2pa
 
             /// @brief Check if the builder is in a valid state.
             /// @return true if the builder can be used, false if moved from.
-            /// @note Validity: Settings and ContextBuilder use is_valid(); Context uses has_context().
             [[nodiscard]] bool is_valid() const noexcept;
 
             /// @brief Configure with Settings object.
@@ -329,15 +328,14 @@ namespace c2pa
 
         // IContextProvider implementation
         /// @brief Get the underlying C2PA context pointer.
-        /// @return C2paContext pointer when has_context() is true; nullptr when moved-from (has_context() false).
-        /// @note Callers must check has_context() before using the result; do not pass nullptr to the C API.
+        /// @return C2paContext pointer when is_valid() is true; nullptr when moved-from (is_valid() false).
+        /// @note Callers must check is_valid() before using the result; do not pass nullptr to the C API.
         [[nodiscard]] C2paContext* c_context() const noexcept override;
 
         /// @brief Check if this Context has a valid context (validity check for context-like types).
         /// @return true when the object holds a valid C context; false when moved-from.
-        /// @note Context and IContextProvider use has_context() for validity; Settings and ContextBuilder use is_valid().
-        ///       After move, has_context() is false and c_context() returns nullptr.
-        [[nodiscard]] bool has_context() const noexcept override;
+        /// @note After move, is_valid() is false and c_context() returns nullptr.
+        [[nodiscard]] bool is_valid() const noexcept override;
 
         /// @brief Internal constructor from raw FFI pointer (prefer public constructors).
         /// @param ctx Raw C2paContext pointer — Context takes ownership.
@@ -505,14 +503,14 @@ namespace c2pa
         /// @param context Context provider; used at construction to configure settings
         /// @param format The mime format of the stream.
         /// @param stream The input stream to read from.
-        /// @throws C2pa::C2paException if context.has_context() returns false,
+        /// @throws C2pa::C2paException if context.is_valid() returns false,
         ///         or for other errors encountered by the C2PA library.
         Reader(IContextProvider& context, const std::string &format, std::istream &stream);
 
         /// @brief Create a Reader from a context and file path.
         /// @param context Context provider; used at construction only to configure settings.
         /// @param source_path the path to the file to read.
-        /// @throws C2pa::C2paException if context.has_context() returns false,
+        /// @throws C2pa::C2paException if context.is_valid() returns false,
         ///         or for other errors encountered by the C2PA library.
         /// @note Prefer using the streaming APIs if possible
         Reader(IContextProvider& context, const std::filesystem::path &source_path);
@@ -674,14 +672,14 @@ namespace c2pa
     public:
         /// @brief Create a Builder from a context with an empty manifest.
         /// @param context Context provider; used at construction to configure settings.
-        /// @throws C2pa::C2paException if context.has_context() returns false,
+        /// @throws C2pa::C2paException if context.is_valid() returns false,
         ///         or for other errors encountered by the C2PA library.
         explicit Builder(IContextProvider& context);
 
         /// @brief Create a Builder from a context and manifest JSON string.
         /// @param context Context provider; used at construction to configure settings.
         /// @param manifest_json The manifest JSON string.
-        /// @throws C2pa::C2paException if context.has_context() returns false,
+        /// @throws C2pa::C2paException if context.is_valid() returns false,
         ///         or for other errors encountered by the C2PA library.
         Builder(IContextProvider& context, const std::string &manifest_json);
 

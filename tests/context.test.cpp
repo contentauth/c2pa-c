@@ -67,7 +67,7 @@ TEST(Context, ContextFromJsonValid)
 {
     std::string json = R"({"settings": {}})";
     c2pa::Context context(json);
-    EXPECT_TRUE(context.has_context());
+    EXPECT_TRUE(context.is_valid());
 }
 
 // Can create a context using Settings object
@@ -76,7 +76,7 @@ TEST(Context, ContextFromSettingsValid)
     c2pa::Settings settings;
     settings.set("builder.thumbnail.enabled", "false");
     c2pa::Context context(settings);
-    EXPECT_TRUE(context.has_context());
+    EXPECT_TRUE(context.is_valid());
 }
 
 // Context with invalid JSON throws
@@ -116,18 +116,18 @@ TEST(Context, ContextBuilderEmptyBuild)
     auto builder = c2pa::Context::ContextBuilder();
     auto context = builder.create_context();
 
-    EXPECT_TRUE(context.has_context());
+    EXPECT_TRUE(context.is_valid());
 }
 
 // Context move constructor transfers ownership, moved-from has no context
 TEST(Context, MoveConstructor)
 {
     auto original = c2pa::Context::ContextBuilder().create_context();
-    ASSERT_TRUE(original.has_context());
+    ASSERT_TRUE(original.is_valid());
 
     c2pa::Context moved_to(std::move(original));
-    EXPECT_TRUE(moved_to.has_context());
-    EXPECT_FALSE(original.has_context());
+    EXPECT_TRUE(moved_to.is_valid());
+    EXPECT_FALSE(original.is_valid());
 
     // Moved-to context is usable
     auto manifest = load_fixture("training.json");
@@ -141,12 +141,12 @@ TEST(Context, MoveAssignment)
 {
     auto a = c2pa::Context::ContextBuilder().create_context();
     auto b = c2pa::Context::ContextBuilder().create_context();
-    ASSERT_TRUE(a.has_context());
-    ASSERT_TRUE(b.has_context());
+    ASSERT_TRUE(a.is_valid());
+    ASSERT_TRUE(b.is_valid());
 
     a = std::move(b);
-    EXPECT_TRUE(a.has_context());
-    EXPECT_FALSE(b.has_context());
+    EXPECT_TRUE(a.is_valid());
+    EXPECT_FALSE(b.is_valid());
 }
 
 // Context move assignment frees existing context when overwriting
@@ -154,12 +154,12 @@ TEST(Context, MoveAssignmentOverwrites)
 {
     auto a = c2pa::Context::ContextBuilder().create_context();
     auto b = c2pa::Context::ContextBuilder().create_context();
-    ASSERT_TRUE(a.has_context());
-    ASSERT_TRUE(b.has_context());
+    ASSERT_TRUE(a.is_valid());
+    ASSERT_TRUE(b.is_valid());
 
     a = std::move(b);
-    EXPECT_TRUE(a.has_context());
-    EXPECT_FALSE(b.has_context());
+    EXPECT_TRUE(a.is_valid());
+    EXPECT_FALSE(b.is_valid());
     // Use a to ensure the adopted context works (no double-free of old a)
     auto manifest = load_fixture("training.json");
     EXPECT_NO_THROW({
@@ -176,15 +176,10 @@ static bool has_thumbnail(const std::string& manifest_json) {
 
 // Helper function to sign with context and return manifest JSON
 static std::string sign_with_context(c2pa::IContextProvider& context, const fs::path& dest_path) {
-    fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path manifest_path = current_dir / "fixtures/training.json";
-    fs::path asset_path = current_dir / "fixtures/A.jpg";
-    fs::path cert_path = current_dir / "fixtures/es256_certs.pem";
-    fs::path key_path = current_dir / "fixtures/es256_private.key";
-
-    auto manifest = c2pa_test::read_text_file(manifest_path);
-    auto certs = c2pa_test::read_text_file(cert_path);
-    auto private_key = c2pa_test::read_text_file(key_path);
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto certs = c2pa_test::read_text_file(c2pa_test::get_fixture_path("es256_certs.pem"));
+    auto private_key = c2pa_test::read_text_file(c2pa_test::get_fixture_path("es256_private.key"));
+    auto asset_path = c2pa_test::get_fixture_path("A.jpg");
 
     c2pa::Builder builder(context, manifest);
     c2pa::Signer signer("es256", certs, private_key);
@@ -209,9 +204,7 @@ TEST_F(ContextTest, SetOverridesLastWins) {
 }
 
 TEST_F(ContextTest, UpdateOverridesSetJson) {
-    fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path settings_path = current_dir / "fixtures/settings/test_settings_no_thumbnail.json";
-    auto settings_json = c2pa_test::read_text_file(settings_path);
+    auto settings_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("settings/test_settings_no_thumbnail.json"));
 
     c2pa::Settings settings;
     settings.set("builder.thumbnail.enabled", "true");
@@ -224,9 +217,7 @@ TEST_F(ContextTest, UpdateOverridesSetJson) {
 }
 
 TEST_F(ContextTest, SetOverridesUpdateJson) {
-    fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path settings_path = current_dir / "fixtures/settings/test_settings_no_thumbnail.json";
-    auto settings_json = c2pa_test::read_text_file(settings_path);
+    auto settings_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("settings/test_settings_no_thumbnail.json"));
 
     c2pa::Settings settings;
     settings.update(settings_json, "json");
@@ -239,9 +230,7 @@ TEST_F(ContextTest, SetOverridesUpdateJson) {
 }
 
 TEST_F(ContextTest, WithSettingsThenWithJson) {
-    fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path json_path = current_dir / "fixtures/settings/test_settings_no_thumbnail.json";
-    auto settings_json = c2pa_test::read_text_file(json_path);
+    auto settings_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("settings/test_settings_no_thumbnail.json"));
 
     c2pa::Settings settings;
     settings.set("builder.thumbnail.enabled", "true");
@@ -256,9 +245,7 @@ TEST_F(ContextTest, WithSettingsThenWithJson) {
 }
 
 TEST_F(ContextTest, WithJsonThenWithSettings) {
-    fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path json_path = current_dir / "fixtures/settings/test_settings_with_thumbnail.json";
-    auto settings_json = c2pa_test::read_text_file(json_path);
+    auto settings_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("settings/test_settings_with_thumbnail.json"));
 
     c2pa::Settings settings;
     settings.set("builder.thumbnail.enabled", "false");
@@ -280,7 +267,7 @@ TEST(Context, ContextBuilderMoveConstructor) {
     EXPECT_TRUE(b2.is_valid());
 
     auto context = b2.create_context();
-    EXPECT_TRUE(context.has_context());
+    EXPECT_TRUE(context.is_valid());
 }
 
 TEST(Context, ContextBuilderMoveAssignment) {
@@ -293,7 +280,7 @@ TEST(Context, ContextBuilderMoveAssignment) {
     EXPECT_TRUE(b1.is_valid());
 
     auto context = b1.create_context();
-    EXPECT_TRUE(context.has_context());
+    EXPECT_TRUE(context.is_valid());
 }
 
 TEST(Context, SettingsMoveConstructor) {
@@ -306,7 +293,7 @@ TEST(Context, SettingsMoveConstructor) {
 
     // Verify s2 is functional
     auto context = c2pa::Context::ContextBuilder().with_settings(s2).create_context();
-    EXPECT_TRUE(context.has_context());
+    EXPECT_TRUE(context.is_valid());
 }
 
 TEST(Context, SettingsMoveAssignment) {
@@ -349,7 +336,7 @@ TEST(Context, DoubleConsumeThrows) {
 // Default constructor creates a valid context
 TEST(Context, DirectConstructDefault) {
     c2pa::Context context;
-    EXPECT_TRUE(context.has_context());
+    EXPECT_TRUE(context.is_valid());
     EXPECT_NE(context.c_context(), nullptr);
 }
 
@@ -359,7 +346,7 @@ TEST(Context, DirectConstructWithSettings) {
     settings.set("builder.thumbnail.enabled", "false");
 
     c2pa::Context context(settings);
-    EXPECT_TRUE(context.has_context());
+    EXPECT_TRUE(context.is_valid());
 }
 
 // Default constructor can be used with Builder
@@ -443,8 +430,7 @@ TEST_F(ContextTest, DirectConstructSettingsEnableThumbnailSignVerify) {
 
 // Test with_json_settings_file method: loads settings from file path
 TEST_F(ContextTest, ContextBuilderWithJsonSettingsFile) {
-    fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path settings_path = current_dir / "fixtures/settings/test_settings_no_thumbnail.json";
+    auto settings_path = c2pa_test::get_fixture_path("settings/test_settings_no_thumbnail.json");
 
     auto context = c2pa::Context::ContextBuilder()
         .with_json_settings_file(settings_path)
@@ -464,8 +450,7 @@ TEST(Context, ContextBuilderWithJsonSettingsFileInvalidPath) {
 
 // Test with_json_settings_file can be chained with other methods
 TEST_F(ContextTest, ContextBuilderWithJsonSettingsFileChaining) {
-    fs::path current_dir = fs::path(__FILE__).parent_path();
-    fs::path settings_path = current_dir / "fixtures/settings/test_settings_with_thumbnail.json";
+    auto settings_path = c2pa_test::get_fixture_path("settings/test_settings_with_thumbnail.json");
 
     // File enables thumbnail, then we disable it with set()
     c2pa::Settings override_settings;
