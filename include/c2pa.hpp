@@ -763,21 +763,6 @@ namespace c2pa
         /// @note Prefer using the streaming APIs if possible
         void add_ingredient(const std::string &ingredient_json, const std::filesystem::path &source_path);
 
-        /// @brief Add an archive as an ingredient to the builder.
-        ///        This method is a wrapper for add_ingredient(ingredient_json, C2paMimeType::BinaryArchive, archive);
-        /// @param ingredient_json  Any fields of the ingredient you want to define (e.g. title, relationship).
-        /// @param archive The input stream to read the archive from.
-        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        void from_ingredient_archive(const std::string &ingredient_json, std::istream &archive);
-
-        /// @brief Add an archive (working store) as an ingredient to the builder.
-        ///        This method is a wrapper for add_ingredient(ingredient_json, C2paMimeType::BinaryArchive, archive);
-        /// @param ingredient_json  Any fields of the ingredient you want to define (e.g. title, relationship).
-        /// @param archive_path The path to the archive file.
-        /// @throws C2pa::C2paException for errors encountered by the C2PA library.
-        /// @note Prefer using the streaming APIs if possible
-        void from_ingredient_archive(const std::string &ingredient_json, const std::filesystem::path &archive_path);
-
         /// @brief Add an action to the manifest the Builder is constructing.
         /// @param action_json JSON std::string containing the action data.
         /// @throws C2pa::C2paException for errors encountered by the C2PA library.

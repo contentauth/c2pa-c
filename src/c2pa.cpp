@@ -1004,17 +1004,6 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         add_ingredient(ingredient_json, format.c_str(), *stream);
     }
 
-    void Builder::from_ingredient_archive(const std::string &ingredient_json, std::istream &archive)
-    {
-        add_ingredient(ingredient_json, C2paMimeType::BinaryArchive, archive);
-    }
-
-    void Builder::from_ingredient_archive(const std::string &ingredient_json, const std::filesystem::path &archive_path)
-    {
-        auto stream = detail::open_file_binary<std::ifstream>(archive_path);
-        from_ingredient_archive(ingredient_json, *stream);
-    }
-
     void Builder::add_action(const std::string &action_json)
     {
         int result = c2pa_builder_add_action(builder, action_json.c_str());
