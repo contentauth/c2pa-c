@@ -399,6 +399,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
             c2pa_free(builder);
             throw C2paException();
         }
+        // The C API consumes the builder on build
         context = c2pa_context_builder_build(builder);
         if (!context) {
             throw C2paException("Failed to build context");

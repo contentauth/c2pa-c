@@ -161,8 +161,6 @@ namespace c2pa
 
         IContextProvider(const IContextProvider&) = delete;
         IContextProvider& operator=(const IContextProvider&) = delete;
-        IContextProvider(IContextProvider&&) = default;
-        IContextProvider& operator=(IContextProvider&&) = default;
     };
 
     /// @brief (C2PA SDK) Settings configuration object for creating contexts.
