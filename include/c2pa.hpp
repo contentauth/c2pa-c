@@ -41,7 +41,7 @@
 #include <optional>
 #include <memory>
 
-#include <c2pa.h>
+#include "c2pa.h"
 
 // NOOP for now, can use later to define static library
 #define C2PA_CPP_API
