@@ -174,11 +174,11 @@ else()
     endif()
 endif()
 
-# ---------------------------------------------------------------------------
+# -----
 # Amalgamation: generate a single, complete, compilable c2pa.cpp at build time.
 # Parts are concatenated into one file so downstream users can
 # compile it with only c2pa.hpp in the include path.
-# ---------------------------------------------------------------------------
+# -----
 set(C2PA_CPP_PARTS
     c2pa_core.cpp
     c2pa_context.cpp
