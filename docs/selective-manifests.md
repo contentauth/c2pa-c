@@ -222,14 +222,14 @@ A usage example of archives is building an **ingredients catalog**: a collection
 ```mermaid
 flowchart TD
     subgraph Catalog["Ingredients Catalog (archived)"]
-        A1["Archive: photos.c2pa\n(ingredients from photo shoot)"]
-        A2["Archive: graphics.c2pa\n(ingredients from design assets)"]
-        A3["Archive: audio.c2pa\n(ingredients from audio tracks)"]
+        A1["Archive: photos.c2pa (ingredients from photo shoot)"]
+        A2["Archive: graphics.c2pa (ingredients from design assets)"]
+        A3["Archive: audio.c2pa (ingredients from audio tracks)"]
     end
     subgraph Build["Final Builder"]
         direction TB
-        SEL["Pick and choose ingredients\nfrom any archive in the catalog"]
-        FB["New Builder with\nselected ingredients only"]
+        SEL["Pick and choose ingredients from any archive in the catalog"]
+        FB["New Builder with selected ingredients only"]
     end
     A1 -->|"select photo_1, photo_3"| SEL
     A2 -->|"select logo"| SEL
