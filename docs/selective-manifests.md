@@ -214,7 +214,6 @@ flowchart TD
 | **Purpose**                        | Persist a work-in-progress `Builder` so it can be resumed or signed later                    | Carry the provenance history of a source asset so it can be embedded as an ingredient in a new manifest |
 | **Created by**                     | `builder.to_archive(stream)`                                                                 | Extracted from a signed asset's `manifest_data` via `Reader`                                           |
 | **Read with**                      | `Builder::from_archive(stream)` or `builder.with_archive(stream)`                            | Passed to `builder.add_resource(id, stream)` alongside ingredient JSON                                 |
-                                                                                                   |
 
 ### The ingredients catalog pattern
 
@@ -468,21 +467,6 @@ flowchart TD
     end
 ```
 
-## Recording removal actions
-
-When content is filtered, it is good practice to record what was done using C2PA actions. This maintains the provenance chain and documents the edit history.
-
-The following action types are defined in [Section 18.14 of the C2PA Technical Specification](https://spec.c2pa.org/specifications/specifications/2.3/specs/C2PA_Specification.html#_actions) and are relevant to filtering and removal operations:
-
-| Action           | When to use                                                                                                                                                     |
-|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `c2pa.edited`    | General editing that changed the asset content                                                                                                                  |
-| `c2pa.redacted`  | An assertion was redacted (removed) from an ingredient's manifest. See [Section 6.8](https://spec.c2pa.org/specifications/specifications/2.3/specs/C2PA_Specification.html#_redaction) and [Section 18.14.4.7](https://spec.c2pa.org/specifications/specifications/2.3/specs/C2PA_Specification.html#_actions) of the spec |
-
-Note: Redaction in C2PA has a specific meaning: it is the process of permanently removing assertions from a manifest when an asset is used as an ingredient (see [Section 6.8](https://spec.c2pa.org/specifications/specifications/2.3/specs/C2PA_Specification.html#_redaction)). The `c2pa.redacted` action records that such a redaction took place. Consult the [full actions table in the specification](https://spec.c2pa.org/specifications/specifications/2.3/specs/C2PA_Specification.html#_actions) for the complete list of defined actions.
-
----
-
 ## Q&A: Builder, Reader, or both?
 
 This section answers common questions about when to use each API and how they work together. See the [decision tree](#quick-reference-decision-tree) at the end for a visual summary.
@@ -602,8 +586,8 @@ When you create a new manifest, the chain is preserved once you add the original
 
 ```mermaid
 flowchart RL
-    C[Filtered\nmanifest] -->|ingredient| B[Edited\nmanifest]
-    B -->|ingredient| A[Original\nmanifest]
+    C[Filtered \n manifest] -->|ingredient| B[Edited \n manifest]
+    B -->|ingredient| A[Original \n manifest]
 ```
 
 If you **don't** add the original as an ingredient, the chain is broken -- the new manifest has no link to the original. This might be intentional (starting fresh) or a mistake (losing provenance).
@@ -613,13 +597,12 @@ If you **don't** add the original as an ingredient, the chain is broken -- the n
 ```mermaid
 flowchart TD
     Q1{Need to read an\nexisting manifest?}
-    Q1 -->|No| USE_B[Use Builder alone\nnew manifest from scratch]
-    Q1 -->|Yes| Q2{Need to create a\nnew/modified manifest?}
-    Q2 -->|No| USE_R[Use Reader alone\ninspect/extract only]
+    Q1 -->|No| USE_B[Use Builder alone \n new manifest from scratch]
+    Q1 -->|Yes| Q2{Need to create a \n new/modified manifest?}
+    Q2 -->|No| USE_R[Use Reader alone \n inspect/extract only]
     Q2 -->|Yes| USE_BR[Use both Reader + Builder]
     USE_BR --> Q3{What to keep?}
-    Q3 -->|Everything| P1["add_ingredient()\nwith original asset"]
-    Q3 -->|Some parts| P2["Read JSON, filter,\ncreate new Builder"]
-    Q3 -->|Nothing| P3["New Builder alone\nfresh manifest"]
-    Q1 -->|Strip all C2PA?| STRIP["Copy asset without signing\nno Reader or Builder needed"]
+    Q3 -->|Everything| P1["add_ingredient() \n with original asset"]
+    Q3 -->|Some parts| P2["Read JSON, filter, \n create new Builder"]
+    Q3 -->|Nothing| P3["New Builder alone \n fresh manifest"]
 ```
