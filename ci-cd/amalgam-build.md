@@ -30,8 +30,6 @@ graph TD
     A -.->|"plain C usage"| C
 ```
 
----
-
 ## Tools
 
 The following tools are required to build the project.
@@ -100,7 +98,7 @@ flowchart LR
 
 **Prebuilt mode** (the default) downloads a platform-specific ZIP archive from the
 [c2pa-rs GitHub Releases](https://github.com/contentauth/c2pa-rs/releases) page.
-For example, the current version downloads from the
+For example, at time of writing, the current version downloads from the
 [c2pa-v0.75.21 release assets](https://github.com/contentauth/c2pa-rs/releases/tag/c2pa-v0.75.21).
 The ZIP contains `lib/libc2pa_c.{dylib,so,dll}` and `include/c2pa.h`.
 
@@ -111,7 +109,7 @@ Enable it with:
 make debug C2PA_BUILD_FROM_SOURCE=ON C2PA_RS_PATH=/path/to/c2pa-rs
 ```
 
-The Cargo command used is:
+The Cargo command used to build is:
 
 ```bash
 cargo build --release --package c2pa-c-ffi --no-default-features --features "rust_native_crypto, file_io"
@@ -134,12 +132,7 @@ make test-san
 
 # Run a single test
 make run-single-test TEST=BuilderTest.SignFile
-
-# Generate Doxygen API docs
-make docs
 ```
-
----
 
 ## Build artifacts
 
@@ -160,13 +153,11 @@ The shared library `libc2pa_c` is copied into each executable's directory at bui
 RPATH is set to `@executable_path` (macOS) or `$ORIGIN` (Linux) so executables find
 the shared library at runtime without needing `LD_LIBRARY_PATH`.
 
----
-
-## Integrating into your project
+## Integrating into a project
 
 ### Option 1: CMake subdirectory
 
-Add this project as a subdirectory in your CMakeLists.txt:
+Add this project as a subdirectory in the CMakeLists.txt:
 
 ```cmake
 add_subdirectory(path/to/c2pa-c)
@@ -185,7 +176,7 @@ cmake --build build/release
 cmake --install build/release
 ```
 
-Then in your project:
+Then in the project:
 
 ```cmake
 find_package(c2pa_cpp REQUIRED)
@@ -195,13 +186,13 @@ target_link_libraries(your_target PRIVATE c2pa_cpp::c2pa_cpp)
 ### Option 3: Manual integration
 
 1. Build this project with `make release`.
-2. Copy these files into your project:
+2. Copy these files into the project:
    - `include/c2pa.hpp` -- the C++ header
    - `build/release/_deps/c2pa_prebuilt-src/include/c2pa.h` -- the C FFI header
    - `build/release/src/libc2pa_cpp.a` (or `c2pa_cpp.lib`) -- the static C++ library
    - `build/release/tests/libc2pa_c.dylib` (or `.so` or `.dll`) -- the Rust shared library
 3. Add the include paths and link against both libraries.
-4. Ensure `libc2pa_c` is in the same directory as your executable or on the library search path.
+4. Ensure `libc2pa_c` is in the same directory as the built executable or on the library search path.
 
 ### Runtime requirement
 
@@ -209,8 +200,6 @@ The shared library `libc2pa_c.{dylib,so,dll}` must be discoverable at runtime.
 The build system sets RPATH to `@executable_path` (macOS) or `$ORIGIN` (Linux),
 so placing the shared library next to your executable should be sufficient.
 On Windows, place `c2pa_c.dll` next to your `.exe`.
-
----
 
 ## Build limitations
 
@@ -221,24 +210,15 @@ On Windows, place `c2pa_c.dll` next to your `.exe`.
 - **CMake 3.27+ required.** Older CMake versions will not work. The `FetchContent` usage
   and certain policies depend on this version.
 
-- **Source builds are only tested on Linux.** Building from source with
-  `C2PA_BUILD_FROM_SOURCE=ON` has only been validated on Linux. macOS and Windows source
+- **Source builds are only tested on macOS.** Building from source with
+  `C2PA_BUILD_FROM_SOURCE=ON` has only been validated on macOS. Linux and Windows source
   builds may require additional troubleshooting with the Rust toolchain.
 
 - **MinGW ABI warning.** On Windows, using MinGW with the MSVC-compiled prebuilt DLL
   may cause ABI compatibility issues. Use the MSVC compiler on Windows.
 
-- **Prebuilt platform coverage.** Prebuilt binaries are available for:
-  - macOS: x86_64, aarch64 (Apple Silicon)
-  - Linux: x86_64, aarch64 (glibc-based)
-  - Windows: x86_64 (MSVC)
-
-  Other platforms (musl, FreeBSD, 32-bit) require building from source.
-
 - **glibc version dependency.** The prebuilt Linux binaries target a specific glibc version.
   If your system has an older glibc, use `C2PA_BUILD_FROM_SOURCE=ON`.
-
----
 
 ## Q&A
 
@@ -283,4 +263,5 @@ The application will fail to load with a dynamic linker error. On macOS you will
 libraries: libc2pa_c.so: cannot open shared object file`. On Windows: a missing DLL dialog.
 
 Ensure the shared library is in the same directory as your executable, or set
-`DYLD_LIBRARY_PATH` (macOS), `LD_LIBRARY_PATH` (Linux), or `PATH` (Windows).
+`DYLD_LIBRARY_PATH` (macOS), `LD_LIBRARY_PATH` (Linux), or `PATH` (Windows) so that
+the library can be found at runtime.
