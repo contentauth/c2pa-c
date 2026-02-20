@@ -31,7 +31,7 @@ A **working store** is a `Builder` object, an editable, in-progress manifest tha
 
 A **C2PA archive** is the serialized bytes of a working store saved to a file or stream (typically a `.c2pa` file). It uses the standard JUMBF `application/c2pa` format.
 
-**KCharacteristics:**
+**Characteristics:**
 
 - Portable serialization of a working store (Builder)
 - Should be saved via `Builder::to_archive()` and restored via `Builder::from_archive()` to restore the full working store and continue working on it
