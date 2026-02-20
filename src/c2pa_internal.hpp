@@ -25,7 +25,7 @@
 #include <vector>
 #include <memory>
 
-#include <c2pa.h>
+#include "c2pa.h"
 #include "c2pa.hpp"
 
 namespace c2pa {
