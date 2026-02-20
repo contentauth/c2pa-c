@@ -1,12 +1,12 @@
 # Selective manifest construction with Builder and Reader
 
-This guide explains how to use `Builder` and `Reader` together to selectively construct manifests, keeping only the parts you need and leaving out the rest. This process is best described as **filtering**: you read an existing manifest, choose which elements to retain, and build a new manifest containing only those elements.
+`Builder` and `Reader` can be used together to selectively construct manifests, keeping only the parts needed and leaving out the rest. This process is best described as **filtering**: read an existing manifest, choose which elements to retain, and build a new manifest containing only those elements.
 
 A C2PA manifest is a signed data structure attached to an asset (such as an image or video) that records provenance information: who created it, what tools were used, what edits were made, and what source assets (ingredients) contributed to it. A manifest contains **assertions** (statements about the asset), **ingredients** (references to source assets), and binary resources like **thumbnails**.
 
-Since both `Reader` and `Builder` are **read-only by design** (there is no `remove()` method on either), the way to "remove" content is to **read what exists, filter what is needed, and create a new `Builder` with only that information**. Every filtering operation produces a new `Builder` instance.
+Since both `Reader` and `Builder` are **read-only by design** (there is no `remove()` method on either), the way to "remove" content is to **read what exists, filter what is needed, and create a new `Builder` with only that information** ("re-build"). THis process produces a new `Builder` instance.
 
-> **Important**: Filtering always creates a new `Builder`. The original signed asset and its manifest are never modified. The `Reader` extracts data without side effects, and the `Builder` constructs a new manifest from scratch.
+> **Important**: Filtering always creates a new `Builder`. The original signed asset and its manifest are never modified. The `Reader` extracts data without side effects, and the `Builder` constructs a new manifest.
 
 ## Core concept
 
@@ -21,13 +21,14 @@ flowchart LR
 The fundamental workflow is:
 
 1. **Read** the existing manifest with `Reader` to get JSON and binary resources
-2. **Filter** the parts you want to keep (parse the JSON, select elements)
+2. **Filter** the parts to keep (parse the JSON, select elements)
 3. **Create a new `Builder`** with only the filtered parts
 4. **Sign** the new `Builder` into the output asset
 
 ## Reading an existing manifest
 
-Use `Reader` to extract the manifest store JSON and any binary resources (thumbnails, manifest data). The `Reader` does not modify the source asset in any way.
+Use `Reader` to extract the manifest store JSON and any binary resources (thumbnails, manifest data).
+The `Reader` does not modify the source asset in any way.
 
 ```cpp
 c2pa::Context context;
@@ -62,35 +63,11 @@ reader.get_resource(thumbnail_id, fs::path("thumbnail.jpg"));
 
 ## Filtering into a new Builder
 
-Each pattern below creates a **new `Builder`** from filtered data. The original asset is untouched.
+Each pattern below creates a **new `Builder`** from filtered data. The original asset (and its manifest store) remains as is.
 
-When transferring ingredients between a `Reader` and a new `Builder`, remember that both the JSON metadata and the associated binary resources (thumbnails, manifest data) must be transferred. The JSON contains identifiers that reference binary resources; those identifiers must match what you register with `builder.add_resource()`.
+When rebuilding by transferring ingredients between a `Reader` and a **new** `Builder`, remember that both the JSON metadata and the associated binary resources (thumbnails, manifest data) must be transferred. The JSON contains identifiers that reference binary resources. Those identifiers must match what you register with `builder.add_resource()`.
 
 ### Pattern 1: Keep only specific ingredients
-
-```mermaid
-flowchart TD
-    subgraph Original["Original Manifest via Reader"]
-        IA[Ingredient A]
-        IB[Ingredient B]
-        IC[Ingredient C]
-    end
-    subgraph New["New Builder"]
-        NA[Ingredient A]
-        NC[Ingredient C]
-    end
-    subgraph Resources["Binary Resources"]
-        TA["thumbnail_A"] --> NA
-        TC["thumbnail_C"] --> NC
-        MA["manifest_data_A"] --> NA
-        MC["manifest_data_C"] --> NC
-    end
-    IA -- keep --> NA
-    IB -. skip .-> X((dropped))
-    IC -- keep --> NC
-    style IB fill:#f99,stroke:#c00
-    style X fill:#f99,stroke:#c00
-```
 
 ```cpp
 c2pa::Context context;
@@ -162,9 +139,9 @@ builder.sign(source_path, output_path, signer);
 
 ### Pattern 3: Start fresh and preserve provenance
 
-Sometimes you want to discard all existing assertions and ingredients but still maintain a link to the original asset in the provenance chain. This is done by creating a new `Builder` with a clean manifest definition and adding the original signed asset as an ingredient using `add_ingredient()`.
+Sometimes all existing assertions and ingredients may need to be discarded but the provenance chain should be maintained nevertheless. This is done by creating a new `Builder` with a clean manifest definition and adding the original signed asset as an ingredient using `add_ingredient()`.
 
-The key insight is that `add_ingredient()` does not copy the original's assertions into the new manifest. Instead, it stores the original's entire manifest store as opaque binary data (`manifest_data`) inside the ingredient record. This means:
+The function `add_ingredient()` does not copy the original's assertions into the new manifest. Instead, it stores the original's entire manifest store as opaque binary data (`manifest_data`) inside the ingredient record. This means:
 
 - The new manifest has its own, independent set of assertions (which can be empty)
 - The original's full manifest is preserved inside the ingredient, so validators can inspect the full provenance history
@@ -180,7 +157,7 @@ flowchart TD
         NA["Assertions: (empty or new)"]
         NI["Ingredient: original.jpg\n(contains full original manifest as binary data)"]
     end
-    Original -->|"add_ingredient(parentOf)"| NI
+    Original -->|"add_ingredient()"| NI
     NI -.->|"validators can trace back"| Original
 
     style NA fill:#efe,stroke:#090
@@ -205,7 +182,7 @@ builder.sign(source_path, output_path, signer);
 
 ## Working with archives
 
-A `Builder` represents a **working store**: a manifest that is being assembled but has not yet been signed. Archives serialize this working store (definition + resources) to a `.c2pa` binary format, allowing you to save, transfer, or resume the work later.
+A `Builder` represents a **working store**: a manifest that is being assembled but has not yet been signed. Archives serialize this working store (definition + resources) to a `.c2pa` binary format, allowing to save, transfer, or resume the work later.
 
 There are two distinct types of archives to understand:
 
@@ -219,6 +196,10 @@ flowchart TD
         B2["Purpose: defer signing\nto another process or machine"]
         B3["Not yet signed"]
     end
+```
+
+```mermaid
+flowchart TD
     subgraph IA["Ingredient Archive"]
         direction TB
         I1["Extracted manifest store\nfrom a signed asset"]
@@ -233,12 +214,11 @@ flowchart TD
 | **Purpose**                        | Persist a work-in-progress `Builder` so it can be resumed or signed later                    | Carry the provenance history of a source asset so it can be embedded as an ingredient in a new manifest |
 | **Created by**                     | `builder.to_archive(stream)`                                                                 | Extracted from a signed asset's `manifest_data` via `Reader`                                           |
 | **Read with**                      | `Builder::from_archive(stream)` or `builder.with_archive(stream)`                            | Passed to `builder.add_resource(id, stream)` alongside ingredient JSON                                 |
-| **Signed?**                        | No, not yet signed                                                                           | Yes, contains valid signatures from the original asset                                                 |
-| **Requires verification disabled** | Yes, when reading with `Reader` (`verify_after_reading: false`)                              | No                                                                                                     |
+                                                                                                   |
 
 ### The ingredients catalog pattern
 
-A powerful use of archives is building an **ingredients catalog**: a collection of archived ingredients that you can pick and choose from when constructing a final manifest. Each archive in the catalog holds ingredients from a different source, and at build time you select only the ones you need.
+A usage example of archives is building an **ingredients catalog**: a collection of archived ingredients that can be picked and choosen from when constructing a final manifest. Each archive in the catalog holds ingredients from a different source, and at build time select only the ones you need.
 
 ```mermaid
 flowchart TD
@@ -311,7 +291,7 @@ builder.sign(source_path, output_path, signer);
 
 ### Extracting ingredients from a builder archive
 
-You can read a builder archive with `Reader` to filter its contents without modifying the original archive. The filtering produces a new `Builder`:
+A builder archive can be read with `Reader` to filter its contents without modifying the original archive. The filtering produces a new `Builder`:
 
 ```mermaid
 flowchart TD
@@ -322,10 +302,7 @@ flowchart TD
 ```
 
 ```cpp
-// Disable verification (archives contain unsigned working stores)
-c2pa::Context archive_ctx(R"({"verify": {"verify_after_reading": false}})");
-
-// Read the archive -- this does not modify the archive
+// Read the archive. This does not modify the archive
 archive_stream.seekg(0);
 c2pa::Reader reader(archive_ctx, "application/c2pa", archive_stream);
 auto parsed = json::parse(reader.json());
@@ -361,9 +338,9 @@ builder.sign(source_path, output_path, signer);
 
 ### Merging multiple working stores
 
-In some cases you may need to merge ingredients from multiple working stores (builder archives) into a single `Builder`. This should be a **fallback strategy** -- the recommended practice is to maintain a single active working store and reuse it by adding ingredients incrementally. Merging is available as a backup when you end up with multiple working stores that need to be consolidated.
+In some cases you may need to merge ingredients from multiple working stores (builder archives) into a single `Builder`. This should be a **fallback strategy** as the recommended practice is to maintain a single active working store and reuse it by adding ingredients incrementally. Merging is available as a backup when you end up with multiple working stores that need to be consolidated.
 
-When merging from multiple sources, resource identifier URIs can collide. Rename them with a suffix to avoid conflicts:
+When merging from multiple sources, resource identifier URIs can collide. One way to avoid collisions is to rename them with a suffix to avoid conflicts:
 
 ```mermaid
 flowchart TD
@@ -426,7 +403,7 @@ builder.sign(source_path, output_path, signer);
 
 ## Controlling manifest embedding
 
-By default, `sign()` embeds the manifest directly inside the output asset file. This section covers how to change that behavior.
+By default, `sign()` embeds the manifest directly inside the output asset file.
 
 ### Remove the manifest from the asset entirely
 
@@ -493,27 +470,16 @@ flowchart TD
 
 ## Recording removal actions
 
-When you filter content, it is good practice to record what was done using C2PA actions. This maintains the provenance chain and documents the edit history:
-
-```cpp
-builder.add_action(R"({
-    "action": "c2pa.filtered",
-    "parameters": {
-        "name": "Content filter"
-    },
-    "description": "Filtered selected ingredients and assertions"
-})");
-```
+When content is filtered, it is good practice to record what was done using C2PA actions. This maintains the provenance chain and documents the edit history.
 
 The following action types are defined in [Section 18.14 of the C2PA Technical Specification](https://spec.c2pa.org/specifications/specifications/2.3/specs/C2PA_Specification.html#_actions) and are relevant to filtering and removal operations:
 
 | Action           | When to use                                                                                                                                                     |
 |------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `c2pa.filtered`  | A filter was applied to the content                                                                                                                             |
 | `c2pa.edited`    | General editing that changed the asset content                                                                                                                  |
 | `c2pa.redacted`  | An assertion was redacted (removed) from an ingredient's manifest. See [Section 6.8](https://spec.c2pa.org/specifications/specifications/2.3/specs/C2PA_Specification.html#_redaction) and [Section 18.14.4.7](https://spec.c2pa.org/specifications/specifications/2.3/specs/C2PA_Specification.html#_actions) of the spec |
 
-Note: Redaction in C2PA has a specific meaning -- it is the process of permanently removing assertions from a manifest when an asset is used as an ingredient (see [Section 6.8](https://spec.c2pa.org/specifications/specifications/2.3/specs/C2PA_Specification.html#_redaction)). The `c2pa.redacted` action records that such a redaction took place. Consult the [full actions table in the specification](https://spec.c2pa.org/specifications/specifications/2.3/specs/C2PA_Specification.html#_actions) for the complete list of defined actions.
+Note: Redaction in C2PA has a specific meaning: it is the process of permanently removing assertions from a manifest when an asset is used as an ingredient (see [Section 6.8](https://spec.c2pa.org/specifications/specifications/2.3/specs/C2PA_Specification.html#_redaction)). The `c2pa.redacted` action records that such a redaction took place. Consult the [full actions table in the specification](https://spec.c2pa.org/specifications/specifications/2.3/specs/C2PA_Specification.html#_actions) for the complete list of defined actions.
 
 ---
 
