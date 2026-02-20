@@ -15,16 +15,12 @@ This is the amalgam build of the C++ bindings for the C2PA SDK. It wraps a Rust-
 in idiomatic C++17, providing a complete project that can read, create, and sign
 C2PA manifests from C++ (and plain C) applications.
 
-The project version is **0.13.0**. It targets the Rust library version **c2pa-v0.75.21**.
-
----
-
 ## Architecture
 
-The build produces a three-layer stack. Your application links against the C++ library
+The build produces a three-layer stack. Applications link against the C++ library
 (`c2pa_cpp`, built as a static archive by default), which in turn depends on the Rust
-shared library (`libc2pa_c`) at runtime. You may also link `libc2pa_c` directly if you
-are using the plain C API without the C++ wrapper.
+shared library (`libc2pa_c`) at runtime. An application may also link `libc2pa_c` directly if 
+using the plain C API without the C++ wrapper.
 
 ```mermaid
 graph TD
@@ -78,8 +74,6 @@ Only needed for `make docs`.
 
 - **macOS:** `brew install doxygen`
 - **Ubuntu/Debian:** `sudo apt install doxygen`
-
----
 
 ## How the build works
 
