@@ -155,7 +155,7 @@ flowchart TD
     end
     subgraph NewBuilder["New Builder"]
         NA["Assertions: (empty or new)"]
-        NI["Ingredient: original.jpg\n(contains full original manifest as binary data)"]
+        NI["Ingredient: original.jpg (contains full original manifest as binary data)"]
     end
     Original -->|"add_ingredient()"| NI
     NI -.->|"validators can trace back"| Original
@@ -192,8 +192,8 @@ There are two distinct types of archives to understand:
 flowchart TD
     subgraph BA["Builder Archive"]
         direction TB
-        B1["Serialized Builder state\n(manifest definition + all resources)"]
-        B2["Purpose: defer signing\nto another process or machine"]
+        B1["Serialized Builder state (manifest definition + all resources)"]
+        B2["Purpose: defer signing to another process or machine"]
         B3["Not yet signed"]
     end
 ```
@@ -202,9 +202,9 @@ flowchart TD
 flowchart TD
     subgraph IA["Ingredient Archive"]
         direction TB
-        I1["Extracted manifest store\nfrom a signed asset"]
-        I2["Purpose: carry provenance\nof a source asset"]
-        I3["Contains real signatures\nfrom the original asset"]
+        I1["Extracted manifest store from a signed asset"]
+        I2["Purpose: carry provenance of a source asset"]
+        I3["Contains real signatures from the original asset"]
     end
 ```
 
@@ -294,8 +294,8 @@ A builder archive can be read with `Reader` to filter its contents without modif
 
 ```mermaid
 flowchart TD
-    B1[Builder\nunsigned] -->|to_archive| AR[Archive\n.c2pa]
-    AR -->|"Reader(application/c2pa, stream)\nfiltering, not modifying the archive"| JSON[JSON + binary resources]
+    B1[Builder unsigned] -->|to_archive| AR[Archive.c2pa]
+    AR -->|"Reader(application/c2pa, stream) filtering, not modifying the archive"| JSON[JSON + binary resources]
     JSON -->|"filter + create new Builder"| B2[New Builder]
     B2 -->|sign| OUT[Output Asset]
 ```
@@ -354,7 +354,7 @@ flowchart TD
     NB -->|sign| OUT[Signed Output Asset]
     style IY fill:#ff9,stroke:#cc0
 
-    NOTE["Prefer maintaining a single working store.\nMerge only as a fallback."]
+    NOTE["Prefer maintaining a single working store. Merge only as a fallback."]
     style NOTE fill:#ffd,stroke:#cc0,stroke-dasharray: 5 5
 ```
 
@@ -451,7 +451,7 @@ flowchart TD
         FI --> F1[Pick ingredients to keep]
         FI --> F2[Pick assertions to keep]
         FI --> F3[Extract resource IDs for kept items]
-        F1 & F2 & F3 --> FM[Build new manifest JSON\nwith only filtered items]
+        F1 & F2 & F3 --> FM[Build new manifest JSON with only filtered items]
     end
 
     subgraph Step3["Step 3: BUILD new Builder"]
@@ -463,7 +463,7 @@ flowchart TD
 
     subgraph Step4["Step 4: SIGN"]
         AA --> SIGN["builder.sign(source, output, signer)"]
-        SIGN --> OUT[Output asset with new manifest\ncontaining only filtered content]
+        SIGN --> OUT[Output asset with new manifest containing only filtered content]
     end
 ```
 
@@ -548,8 +548,8 @@ This creates a new manifest with the original as an ingredient, documenting that
 
 | Approach | What it does | When to use |
 |----------|-------------|-------------|
-| `add_ingredient(json, path)` | Reads the source asset, extracts its manifest store automatically, generates a thumbnail | Adding a signed asset as an ingredient -- the library handles everything |
-| Inject via `with_definition()` + `add_resource()` | You provide the ingredient JSON and all binary resources manually | Reconstructing from an archive or merging from multiple readers, where you already have the data extracted |
+| `add_ingredient(json, path)` | Reads the source asset, extracts its manifest store automatically, generates a thumbnail | Adding a signed asset as an ingredient; the library handles everything |
+| Inject via `with_definition()` + `add_resource()` | When providing the ingredient JSON and all binary resources manually | Reconstructing from an archive or merging from multiple readers, where you already have the data extracted |
 
 ### When should I use archives?
 
@@ -586,8 +586,8 @@ When you create a new manifest, the chain is preserved once you add the original
 
 ```mermaid
 flowchart RL
-    C[Filtered \n manifest] -->|ingredient| B[Edited \n manifest]
-    B -->|ingredient| A[Original \n manifest]
+    C[Filtered manifest] -->|ingredient| B[Edited manifest]
+    B -->|ingredient| A[Original manifest]
 ```
 
 If you **don't** add the original as an ingredient, the chain is broken -- the new manifest has no link to the original. This might be intentional (starting fresh) or a mistake (losing provenance).
@@ -597,12 +597,12 @@ If you **don't** add the original as an ingredient, the chain is broken -- the n
 ```mermaid
 flowchart TD
     Q1{Need to read an\nexisting manifest?}
-    Q1 -->|No| USE_B[Use Builder alone \n new manifest from scratch]
-    Q1 -->|Yes| Q2{Need to create a \n new/modified manifest?}
-    Q2 -->|No| USE_R[Use Reader alone \n inspect/extract only]
+    Q1 -->|No| USE_B[Use Builder alone new manifest from scratch]
+    Q1 -->|Yes| Q2{Need to create a new/modified manifest?}
+    Q2 -->|No| USE_R[Use Reader alone inspect/extract only]
     Q2 -->|Yes| USE_BR[Use both Reader + Builder]
     USE_BR --> Q3{What to keep?}
-    Q3 -->|Everything| P1["add_ingredient() \n with original asset"]
-    Q3 -->|Some parts| P2["Read JSON, filter, \n create new Builder"]
-    Q3 -->|Nothing| P3["New Builder alone \n fresh manifest"]
+    Q3 -->|Everything| P1["add_ingredient() with original asset"]
+    Q3 -->|Some parts| P2["Read JSON, filter, create new Builder"]
+    Q3 -->|Nothing| P3["New Builder alone fresh manifest"]
 ```
