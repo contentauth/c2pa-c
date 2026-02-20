@@ -344,12 +344,12 @@ When merging from multiple sources, resource identifier URIs can collide. One wa
 ```mermaid
 flowchart TD
     subgraph WS1["Working Store A"]
-        IX[Ingredient X\nthumb: T1]
+        IX[Ingredient X thumb: T1]
     end
     subgraph WS2["Working Store B"]
-        IY[Ingredient Y\nthumb: T1]
+        IY[Ingredient Y thumb: T1]
     end
-    IX -->|"keep as T1"| NB[New Builder\nmerged]
+    IX -->|"keep as T1"| NB[New Builder (merged)]
     IY -->|"rename to T1__1"| NB
     NB -->|sign| OUT[Signed Output Asset]
     style IY fill:#ff9,stroke:#cc0
