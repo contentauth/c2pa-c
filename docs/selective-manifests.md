@@ -1,10 +1,14 @@
 # Selective manifest construction with Builder and Reader
 
-`Builder` and `Reader` can be used together to selectively construct manifests, keeping only the parts needed and leaving out the rest. This process is best described as **filtering**: read an existing manifest, choose which elements to retain, and build a new manifest containing only those elements.
+You can use `Builder` and `Reader` together to selectively construct manifests, keeping only the parts needed and leaving out the rest. This process is best described as *filtering*:
+
+1. Read an existing manifest.
+1. Choose which elements to retain.
+1. Build a new manifest containing only those elements.
 
 A C2PA manifest is a signed data structure attached to an asset (such as an image or video) that records provenance information: who created it, what tools were used, what edits were made, and what source assets (ingredients) contributed to it. A manifest contains **assertions** (statements about the asset), **ingredients** (references to source assets), and binary resources like **thumbnails**.
 
-Since both `Reader` and `Builder` are **read-only by design** (there is no `remove()` method on either), the way to "remove" content is to **read what exists, filter what is needed, and create a new `Builder` with only that information** ("re-build"). THis process produces a new `Builder` instance.
+Since both `Reader` and `Builder` are **read-only by design** (there is no `remove()` method on either), the way to "remove" content is to **read what exists, filter what is needed, and create a new `Builder` with only that information** ("re-build"). This process produces a new `Builder` instance.
 
 > **Important**: Filtering always creates a new `Builder`. The original signed asset and its manifest are never modified. The `Reader` extracts data without side effects, and the `Builder` constructs a new manifest.
 
@@ -182,7 +186,7 @@ builder.sign(source_path, output_path, signer);
 
 ## Working with archives
 
-A `Builder` represents a **working store**: a manifest that is being assembled but has not yet been signed. Archives serialize this working store (definition + resources) to a `.c2pa` binary format, allowing to save, transfer, or resume the work later.
+A `Builder` represents a **working store**: a manifest that is being assembled but has not yet been signed. Archives serialize this working store (definition + resources) to a `.c2pa` binary format, allowing you to save, transfer, or resume the work later.
 
 There are two distinct types of archives to understand:
 
@@ -217,7 +221,7 @@ flowchart TD
 
 ### The ingredients catalog pattern
 
-A usage example of archives is building an **ingredients catalog**: a collection of archived ingredients that can be picked and choosen from when constructing a final manifest. Each archive in the catalog holds ingredients from a different source, and at build time select only the ones you need.
+A usage example of archives is building an **ingredients catalog**: a collection of archived ingredients that can be picked and chosen from when constructing a final manifest. Each archive in the catalog holds ingredients from a different source, and at build time select only the ones you need.
 
 ```mermaid
 flowchart TD
@@ -339,7 +343,7 @@ builder.sign(source_path, output_path, signer);
 
 In some cases you may need to merge ingredients from multiple working stores (builder archives) into a single `Builder`. This should be a **fallback strategy** as the recommended practice is to maintain a single active working store and reuse it by adding ingredients incrementally. Merging is available as a backup when you end up with multiple working stores that need to be consolidated.
 
-When merging from multiple sources, resource identifier URIs can collide. One way to avoid collisions is to rename them with a suffix to avoid conflicts:
+When merging from multiple sources, resource identifier URIs can collide. One way to avoid collisions is to rename identifiers with a unique suffix:
 
 ```mermaid
 flowchart TD
