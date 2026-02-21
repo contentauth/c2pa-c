@@ -35,14 +35,15 @@ protected:
     std::vector<fs::path> temp_dirs;
     bool cleanup_temp_files = true;  // Set to false to keep temp files for debugging
 
-    // Get path for temp builder test files in build directory
-    fs::path get_temp_path(const std::string& name) {
+    // Get path for temp builder test files in build directory.
+    // Accepts fs::path to correctly handle non-ASCII names on all platforms.
+    fs::path get_temp_path(const fs::path& name) {
         fs::path current_dir = fs::path(__FILE__).parent_path();
         fs::path build_dir = current_dir.parent_path() / "build";
         if (!fs::exists(build_dir)) {
             fs::create_directories(build_dir);
         }
-        fs::path temp_path = build_dir / ("builder-" + name);
+        fs::path temp_path = build_dir / (fs::path("builder-") += name);
         temp_files.push_back(temp_path);
         return temp_path;
     }
@@ -3773,17 +3774,6 @@ TEST_F(BuilderTest, ExtractIngredientsFromArchives) {
   c2pa::load_settings(R"({"verify": {"verify_after_reading": true}})", "json");
 }
 
-// Regression tests for non-ASCII (Unicode) paths (GitHub issue #156 / PR #160).
-//
-// On Windows with a non-UTF-8 system locale, converting a std::filesystem::path
-// to std::string via u8string() and then passing that std::string to std::fstream
-// fails because fstream interprets std::string as the system ANSI codepage, not
-// UTF-8. The fix is to pass std::filesystem::path directly to fstream, which
-// uses wide-string (UTF-16) internally on Windows.
-//
-// The fixture "CÖÄ_.jpg" contains non-ASCII characters and exercises every
-// code path that calls open_file_binary.
-
 TEST_F(BuilderTest, NonAsciiSourcePathForSign)
 {
     auto source_path = c2pa_test::get_fixture_path(u8"CÖÄ_.jpg");
@@ -3850,10 +3840,15 @@ TEST_F(BuilderTest, NonAsciiPathForAddResource)
 
 TEST_F(BuilderTest, NonAsciiPathForReaderGetResource)
 {
-    // Sign a file that embeds a thumbnail resource, then extract it to a non-ASCII path
     auto source_path = c2pa_test::get_fixture_path("A.jpg");
     auto signed_path = get_temp_path("signed_for_get_resource.jpg");
-    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    // Use a manifest with an explicit thumbnail resource declaration so the
+    // resource is embedded in the signed output and can be retrieved via get_resource.
+    const std::string manifest = R"({
+        "claim_generator_info": [{"name": "c2pa-c test NonAsciiPathForReaderGetResource", "version": "0.1.0"}],
+        "thumbnail": {"format": "image/jpeg", "identifier": "thumbnail"},
+        "assertions": [{"label": "c2pa.actions", "data": {"actions": [{"action": "c2pa.created"}]}}]
+    })";
     auto signer = c2pa_test::create_test_signer();
     {
         auto builder = c2pa::Builder(manifest);
@@ -3862,9 +3857,13 @@ TEST_F(BuilderTest, NonAsciiPathForReaderGetResource)
     }
     ASSERT_TRUE(fs::exists(signed_path));
 
+    // Parse the reader JSON to find the actual embedded thumbnail identifier.
     auto reader = c2pa::Reader(signed_path);
+    auto manifest_json = json::parse(reader.json());
+    std::string active = manifest_json["active_manifest"];
+    std::string thumbnail_id = manifest_json["manifests"][active]["thumbnail"]["identifier"];
+
     auto output_resource_path = get_temp_path(u8"resource-CÖÄ_.jpg");
-    ASSERT_NO_THROW(reader.get_resource("thumbnail", output_resource_path))
-        << "Reader::get_resource should write to non-ASCII destination path without throwing";
+    ASSERT_NO_THROW(reader.get_resource(thumbnail_id, output_resource_path));
     EXPECT_TRUE(fs::exists(output_resource_path));
 }

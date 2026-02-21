@@ -224,14 +224,6 @@ intptr_t stream_flusher(StreamContext* context) {
     });
 }
 
-/// @brief Converts a path to a std::string in utf-8 format
-inline std::string path_to_string(const std::filesystem::path &source_path)
-{
-    // Use u8string to ensure UTF-8 encoding across platforms. We have to convert
-    // to std::string manually because std::string doesn't have a constructor accepting u8String until C++20.
-    auto u8_str = source_path.u8string();
-    return std::string(u8_str.begin(), u8_str.end());
-}
 
 /// @brief Open a binary file stream with error handling
 /// @tparam StreamType std::ifstream or std::ofstream
@@ -548,11 +540,14 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         const char* dir_ptr = nullptr;
         std::string dir_str;
         if (data_dir.has_value()) {
-            dir_str = detail::path_to_string(data_dir.value());
+            auto u = data_dir.value().u8string();
+            dir_str = std::string(u.begin(), u.end());
             dir_ptr = dir_str.c_str();
         }
 
-        char *result = c2pa_read_file(detail::path_to_string(source_path).c_str(), dir_ptr);
+        auto src_u8 = source_path.u8string();
+        std::string src_str(src_u8.begin(), src_u8.end());
+        char *result = c2pa_read_file(src_str.c_str(), dir_ptr);
 
         if (result == nullptr)
         {
@@ -576,9 +571,11 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     [[deprecated("Use stream APIs instead: add_ingredient on the Builder")]]
     std::string read_ingredient_file(const std::filesystem::path &source_path, const std::filesystem::path &data_dir)
     {
+        auto src_u8 = source_path.u8string();
+        auto dir_u8 = data_dir.u8string();
         return detail::c_string_to_string(
-            c2pa_read_ingredient_file(detail::path_to_string(source_path).c_str(),
-                                     detail::path_to_string(data_dir).c_str()));
+            c2pa_read_ingredient_file(std::string(src_u8.begin(), src_u8.end()).c_str(),
+                                     std::string(dir_u8.begin(), dir_u8.end()).c_str()));
     }
 
     /// Adds the manifest and signs a file.
@@ -595,9 +592,17 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
                    c2pa::SignerInfo *signer_info,
                    const std::optional<std::filesystem::path> data_dir)
     {
-        auto dir = data_dir.has_value() ? detail::path_to_string(data_dir.value()) : std::string();
+        auto src_u8 = source_path.u8string();
+        auto dst_u8 = dest_path.u8string();
+        std::string src_str(src_u8.begin(), src_u8.end());
+        std::string dst_str(dst_u8.begin(), dst_u8.end());
+        std::string dir_str;
+        if (data_dir.has_value()) {
+            auto u = data_dir.value().u8string();
+            dir_str = std::string(u.begin(), u.end());
+        }
 
-        char *result = c2pa_sign_file(detail::path_to_string(source_path).c_str(), detail::path_to_string(dest_path).c_str(), manifest, signer_info, dir.c_str());
+        char *result = c2pa_sign_file(src_str.c_str(), dst_str.c_str(), manifest, signer_info, dir_str.c_str());
         if (result == nullptr)
         {
             throw c2pa::C2paException();
