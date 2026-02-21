@@ -27,15 +27,14 @@ protected:
     std::vector<fs::path> temp_files;
     bool cleanup_temp_files = true;  // Set to false to keep temp files for debugging
 
-    // Get path for temp reader test files in build directory.
-    // Accepts fs::path to correctly handle non-ASCII names on all platforms.
-    fs::path get_temp_path(const fs::path& name) {
+    // Get path for temp reader test files in build directory
+    fs::path get_temp_path(const std::string& name) {
         fs::path current_dir = fs::path(__FILE__).parent_path();
         fs::path build_dir = current_dir.parent_path() / "build";
         if (!fs::exists(build_dir)) {
             fs::create_directories(build_dir);
         }
-        fs::path temp_path = build_dir / (fs::path("reader-") += name);
+        fs::path temp_path = build_dir / ("reader-" + name);
         temp_files.push_back(temp_path);
         return temp_path;
     }
@@ -277,15 +276,13 @@ TEST_P(RemoteUrlTests, IsEmbeddedTest) {
 }
 
 TEST_F(ReaderTest, HasManifestUtf8Path) {
-    // Create a signed JPEG at a non-ASCII temp path rather than relying on
-    // the fixture file checking out correctly on all platforms (e.g. Windows).
-    auto test_file = get_temp_path(u8"CÖÄ_-øæå.jpg");
-    {
-        auto signer = c2pa_test::create_test_signer();
-        auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-        auto builder = c2pa::Builder(manifest);
-        builder.sign(c2pa_test::get_fixture_path("A.jpg"), test_file, signer);
-    }
+    auto current_dir = fs::path(__FILE__).parent_path();
+    #ifdef _WIN32
+      auto test_file = current_dir.parent_path() / "tests" / "fixtures" / L"CÖÄ_.jpg";
+    #else
+      auto test_file = current_dir.parent_path() / "tests" / "fixtures" / "CÖÄ_.jpg";
+    #endif
+    ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
 
     std::ifstream stream(test_file, std::ios::binary);
     auto reader = c2pa::Reader("image/jpeg", stream);
@@ -295,15 +292,13 @@ TEST_F(ReaderTest, HasManifestUtf8Path) {
 }
 
 TEST_F(ReaderTest, HasManifestUtf8PathUsingContext) {
-    // Create a signed JPEG at a non-ASCII temp path rather than relying on
-    // the fixture file checking out correctly on all platforms (e.g. Windows).
-    auto test_file = get_temp_path(u8"CÖÄ_-øæå_context.jpg");
-    {
-        auto signer = c2pa_test::create_test_signer();
-        auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-        auto builder = c2pa::Builder(manifest);
-        builder.sign(c2pa_test::get_fixture_path("A.jpg"), test_file, signer);
-    }
+    auto current_dir = fs::path(__FILE__).parent_path();
+    #ifdef _WIN32
+      auto test_file = current_dir.parent_path() / "tests" / "fixtures" / L"CÖÄ_.jpg";
+    #else
+      auto test_file = current_dir.parent_path() / "tests" / "fixtures" / "CÖÄ_.jpg";
+    #endif
+    ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
 
     std::ifstream stream(test_file, std::ios::binary);
 

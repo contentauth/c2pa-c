@@ -3794,7 +3794,7 @@ TEST_F(BuilderTest, NonAsciiSourcePathForSign)
 TEST_F(BuilderTest, NonAsciiDestPathForSign)
 {
     auto source_path = c2pa_test::get_fixture_path("A.jpg");
-    auto output_path = get_temp_path(u8"output-CÖÄ_.jpg");
+    auto output_path = get_temp_path(u8"output-CÖÄ_-øæå.jpg");
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
     auto signer = c2pa_test::create_test_signer();
     auto builder = c2pa::Builder(manifest);
@@ -3871,7 +3871,7 @@ TEST_F(BuilderTest, NonAsciiPathForReaderGetResource)
     std::string active = manifest_json["active_manifest"];
     std::string thumbnail_id = manifest_json["manifests"][active]["thumbnail"]["identifier"];
 
-    auto output_resource_path = get_temp_path(u8"resource-CÖÄ_.jpg");
+    auto output_resource_path = get_temp_path(u8"resource-CÖÄ_-øæå.jpg");
     ASSERT_NO_THROW(reader.get_resource(thumbnail_id, output_resource_path));
     EXPECT_TRUE(fs::exists(output_resource_path));
 }
