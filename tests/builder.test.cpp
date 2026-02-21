@@ -36,7 +36,6 @@ protected:
     bool cleanup_temp_files = true;  // Set to false to keep temp files for debugging
 
     // Get path for temp builder test files in build directory.
-    // Accepts fs::path to correctly handle non-ASCII names on all platforms.
     fs::path get_temp_path(const fs::path& name) {
         fs::path current_dir = fs::path(__FILE__).parent_path();
         fs::path build_dir = current_dir.parent_path() / "build";
