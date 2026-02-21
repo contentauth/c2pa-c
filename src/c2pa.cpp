@@ -714,7 +714,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
 
         c2pa_reader = c2pa_reader_from_context(context.c_context());
         if (c2pa_reader == nullptr) {
-            throw C2paException("Failed to create Reader from context");
+            throw C2paException("Failed to create reader from context");
         }
 
         cpp_stream = std::make_unique<CppIStream>(stream);
@@ -738,7 +738,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
 
         c2pa_reader = c2pa_reader_from_context(context.c_context());
         if (c2pa_reader == nullptr) {
-            throw C2paException("Failed to create Reader from context");
+            throw C2paException("Failed to create reader from context");
         }
 
         // Create owned stream that will live as long as the Reader
@@ -892,7 +892,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
 
         builder = c2pa_builder_from_context(context.c_context());
         if (builder == nullptr) {
-            throw C2paException("Failed to create Builder from context");
+            throw C2paException("Failed to create builder from context");
         }
     }
 
@@ -905,7 +905,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
 
         builder = c2pa_builder_from_context(context.c_context());
         if (builder == nullptr) {
-            throw C2paException("Failed to create Builder from context");
+            throw C2paException("Failed to create builder from context");
         }
 
         // Apply the manifest definition to the Builder.
