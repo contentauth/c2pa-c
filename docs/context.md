@@ -1,13 +1,13 @@
 # Using Context to configure the SDK
 
-Use the `Context` class to configure the SDK. A `Context` object contains the SDK configuration and settings used by `Reader` and `Builder`.
+Use the `Context` class configure how `Reader` and `Builder` and other aspects of the SDK operate.
 
 ## What is Context?
 
 Context encapsulates SDK configuration:
 
-- **Settings**: Verification options, `Builder` behavior, trust anchors, thumbnail configuration, and more. See [settings.md](settings.md) for complete details.
-- **Signer configuration**: Optional signer credentials and settings that can be stored in the Context for reuse.
+- **Settings**: Verification options, [`Builder` behavior](#using-context-with-builder),  [`Reader` trust configuration](#using-context-with-reader), thumbnail configuration, and more. See [Using settings](settings.md) for complete details.
+- [**Signer configuration**](#configuring-a-signer): Optional signer credentials and settings that can be stored in the Context for reuse.
 - **State isolation**: Each `Context` is independent, allowing different configurations to coexist in the same application.
 
 ### Why use Context?
@@ -34,7 +34,7 @@ There are several ways to create a `Context`, depending on your needs:
 
 ### Using SDK default settings
 
-The simplest approach is using SDK default settings.
+The simplest approach is using [SDK default settings](settings.md#default-configuration).
 
 **When to use:** For quick prototyping, or when you're happy with default behavior (verification enabled, thumbnails enabled at 1024px, and so on).
 
@@ -108,34 +108,6 @@ auto context = c2pa::Context::ContextBuilder()
 
 > [!IMPORTANT]
 > Later configuration overrides earlier configuration. In the example above, if `overrides.json` sets `builder.thumbnail.enabled` to `false`, it will override the `true` value from `base_settings`.
-
-Example of trust configuration in a settings file:
-
-```json
-{
-  "version": 1,
-  "trust": {
-    "user_anchors": "-----BEGIN CERTIFICATE-----\nMIICEzCCA...\n-----END CERTIFICATE-----",
-    "trust_config": "1.3.6.1.4.1.311.76.59.1.9\n1.3.6.1.4.1.62558.2.1"
-  }
-}
-```
-
-**PEM format requirements:**
-
-- Use literal `\n` characters (as two-character strings) in JSON for line breaks.
-- Include the full certificate chain if needed.
-- Concatenate multiple certificates into a single string.
-
-Then load the file in your application as follows:
-
-```cpp
-auto context = c2pa::Context::ContextBuilder()
-    .with_json_settings_file("dev_trust_config.json")
-    .create_context();
-
-c2pa::Reader reader(context, "signed_asset.jpg");
-```
 
 **ContextBuilder methods**
 
@@ -217,10 +189,20 @@ For the full list of settings and defaults, see [Configuring settings](settings.
 
 `Reader` uses the `Context` to control how manifests are validated and how remote resources are handled. The `Context` affects:
 
-- **Verification behavior**: Whether to verify after reading, check trust, fetch remote manifests, etc.
-- **Trust configuration**: Which certificates to trust when validating signatures.
-- **Network access**: Whether to fetch remote manifests or OCSP responses.
+- **Verification behavior**: Whether to verify after reading, check trust, and so on.
+- [**Trust configuration**](#trust-configuration): Which certificates to trust when validating signatures.
+- [**Network access**](#configure-offline-operation): Whether to fetch remote manifests or OCSP responses.
 - **Performance**: Memory thresholds and other core settings.
+
+> [!IMPORTANT]
+> `Context` is used only at construction. `Reader` copies the configuration it needs internally, so the `Context` object does not need to outlive the `Reader`. This means you can safely use temporary point-in-time contexts; for example, as shown below.
+
+```cpp
+c2pa::Reader reader(
+    c2pa::Context(R"({"verify": {"remote_manifest_fetch": false}})"),
+    "image.jpg"
+);
+```
 
 ### Reading from a file
 
@@ -247,10 +229,41 @@ c2pa::Reader reader(context, "image/jpeg", stream);
 std::cout << reader.json() << std::endl;
 ```
 
-### Different Contexts objects for different validation needs
+### Trust configuration
+
+Example of trust configuration in a settings file:
+
+```json
+{
+  "version": 1,
+  "trust": {
+    "user_anchors": "-----BEGIN CERTIFICATE-----\nMIICEzCCA...\n-----END CERTIFICATE-----",
+    "trust_config": "1.3.6.1.4.1.311.76.59.1.9\n1.3.6.1.4.1.62558.2.1"
+  }
+}
+```
+
+**PEM format requirements:**
+
+- Use literal `\n` characters (as two-character strings) in JSON for line breaks.
+- Include the full certificate chain if needed.
+- Concatenate multiple certificates into a single string.
+
+Then load the file in your application as follows:
 
 ```cpp
-// Full validation context (all verification features enabled)
+auto context = c2pa::Context::ContextBuilder()
+    .with_json_settings_file("dev_trust_config.json")
+    .create_context();
+
+c2pa::Reader reader(context, "signed_asset.jpg");
+```
+
+### Configure full validation
+
+To configure full validation, with all verification features enabled:
+
+```cpp
 c2pa::Context full_validation_context(R"({
   "verify": {
     "verify_after_reading": true,
@@ -260,7 +273,16 @@ c2pa::Context full_validation_context(R"({
   }
 })");
 
-// Offline context (no network access)
+c2pa::Reader online_reader(full_validation_context, "asset.jpg");
+```
+
+For more information, see [Settings - Verify](settings.md#verify).
+
+### Configure offline operation 
+
+To configure `Reader` to work with no network access:
+
+```cpp
 c2pa::Context offline_context(R"({
   "verify": {
     "remote_manifest_fetch": false,
@@ -268,20 +290,11 @@ c2pa::Context offline_context(R"({
   }
 })");
 
-// Use different contexts for different purposes
-c2pa::Reader online_reader(full_validation_context, "asset.jpg");
 c2pa::Reader offline_reader(offline_context, "local_asset.jpg");
 ```
 
-> [!IMPORTANT]
-> The Context is used only at construction. `Reader` copies the configuration it needs internally, so the `Context` object does not need to outlive the `Reader`. This means you can safely use temporary point-in-time contexts; for example, as shown below.
+For more information, see [Settings - Offline or air-gapped environments](settings.md#offline-or-air-gapped-environments). 
 
-```cpp
-c2pa::Reader reader(
-    c2pa::Context(R"({"verify": {"remote_manifest_fetch": false}})"),
-    "image.jpg"
-);
-```
 
 ## Using Context with Builder
 

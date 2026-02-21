@@ -1,16 +1,15 @@
-# Configuring SDK settings
+# Using settings
 
-You can configure SDK settings using a JSON configuration that controls many aspects of the library's behavior. This JSON definition works the same across languages (Rust, C/C++, and other language bindings like Python).
+You can configure SDK settings using a JSON format that controls many aspects of the library's behavior.
+The settings JSON format is the same across all languages in the SDK (Rust, C/C++, Python, and so on).
 
 This document describes how to use settings in C++. The Settings schema is the same as the [Rust library](https://github.com/contentauth/c2pa-rs); for the complete JSON schema, see the [Settings reference](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/).
-
-**IMPORTANT:** If you don't specify a value for a property, the SDK uses the default value. If you specify a value of `null`, the property is explicitly set to `null`, not the default. This distinction is important when you want to override a default behavior.
 
 ## Using settings with Context
 
 The recommended approach is to pass settings to a `Context` object and then use the `Context` with `Reader` and `Builder`. This gives you explicit, isolated configuration with no global or thread-local state. For details on creating and using contexts see [Using Context to configure the SDK](context.md).
 
-**Legacy approach:** The deprecated `c2pa::load_settings(data, format)` sets thread-local settings. Don't use that approach; instead pass a `Context` (with settings) to `Reader` and `Builder` instead: See [Using Context with Reader](context.md#using-context-with-reader) and [Using Context with Builder](context.md#using-context-with-builder).
+**Legacy approach:** The deprecated `c2pa::load_settings(data, format)` sets thread-local settings. Don't use that approach; instead pass a `Context` (with settings) to `Reader` and `Builder`: See [Using Context with Reader](context.md#using-context-with-reader) and [Using Context with Builder](context.md#using-context-with-builder).
 
 ## Settings API
 
@@ -50,7 +49,7 @@ The Settings JSON has this top-level structure:
 
 ### Settings format
 
-Settings can be provided in **JSON** or **TOML**. Use `Settings(data, format)` with `"json"` or `"toml"`, or pass JSON to `Context(json_string)` / `ContextBuilder::with_json()`. JSON is preferred for settings in the C++ SDK.
+Settings can be provided in **JSON** or **TOML**. Use `Settings(data, format)` with `"json"` or `"toml"`, or pass JSON to `Context(json_string)` or `ContextBuilder::with_json()`. JSON is preferred for settings in the C++ SDK.
 
 ```cpp
 // JSON
@@ -160,12 +159,10 @@ For a complete reference to all the Settings properties, see the [SDK object ref
 
 The top-level `version` property must be `1`. All other properties are optional.
 
-If a property value is:
-
-- **Unspecified**, the SDK uses its default value.
-- **Set to `null`**, the property is `null`, not the default.
-
 For Boolean values, use JSON Booleans `true` and `false`, not the strings `"true"` and `"false"`.
+
+> [!IMPORTANT]
+> If you don't specify a value for a property, the SDK uses the default value. If you specify a value of `null`, the property is explicitly set to `null`, not the default. This distinction is important when you want to override a default behavior.
 
 ### Trust configuration
 
@@ -264,7 +261,7 @@ By default, the following `verify` properties are `true`, which enables verifica
 > [!WARNING]
 > Disabling verification options (changing `true` to `false`) can make verification non-compliant with the C2PA specification. Only modify these settings in controlled environments or when you have specific requirements.
 
-### Offline or air-gapped environments
+#### Offline or air-gapped environments
 
 Set `remote_manifest_fetch` and `ocsp_fetch` to `false` to disable network-dependent verification features:
 
@@ -364,10 +361,13 @@ For examples of configuring thumbnails for mobile bandwidth or disabling them fo
 | `builder.intent` | object | Claim intent: `{"Create": "digitalCapture"}`, `{"Edit": null}`, or `{"Update": null}`. Describes the purpose of the claim. | `null` |
 | `builder.generate_c2pa_archive` | Boolean | Generate content in C2PA archive format. Keep enabled for standard C2PA compliance. | `true` |
 
-##### Setting intent for different workflows
+##### Setting Builder intent 
+
+You can use `Context` to set `Builder` intent for different workflows.
+
+For example, for original digital capture (photos from camera):
 
 ```cpp
-// For original digital capture (photos from camera)
 c2pa::Context camera_context(R"({
     "version": 1,
     "builder": {
@@ -375,8 +375,11 @@ c2pa::Context camera_context(R"({
         "claim_generator_info": {"name": "Camera App", "version": "1.0"}
     }
 })");
+```
 
-// For editing existing content
+Or for for editing existing content:
+
+```cpp
 c2pa::Context editor_context(R"({
     "version": 1,
     "builder": {
@@ -386,7 +389,7 @@ c2pa::Context editor_context(R"({
 })");
 ```
 
-### signer
+### Signer
 
 The [`signer` properties](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#signersettings) configure the primary C2PA signer configuration. Set it to `null` if you provide the signer at runtime, or configure as either a **local** or **remote** signer in settings.
 
@@ -426,7 +429,7 @@ For information on all `signer.remote` properties, see [singer.remote](https://o
 
 The remote signing service receives a POST request with the data to sign and must return the signature in the expected format.
 
-**Example: Remote signer**
+For example:
 
 ```cpp
 c2pa::Context context(R"({
