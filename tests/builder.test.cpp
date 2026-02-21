@@ -3772,3 +3772,99 @@ TEST_F(BuilderTest, ExtractIngredientsFromArchives) {
   // Reset settings
   c2pa::load_settings(R"({"verify": {"verify_after_reading": true}})", "json");
 }
+
+// Regression tests for non-ASCII (Unicode) paths (GitHub issue #156 / PR #160).
+//
+// On Windows with a non-UTF-8 system locale, converting a std::filesystem::path
+// to std::string via u8string() and then passing that std::string to std::fstream
+// fails because fstream interprets std::string as the system ANSI codepage, not
+// UTF-8. The fix is to pass std::filesystem::path directly to fstream, which
+// uses wide-string (UTF-16) internally on Windows.
+//
+// The fixture "CÖÄ_.jpg" contains non-ASCII characters and exercises every
+// code path that calls open_file_binary.
+
+TEST_F(BuilderTest, NonAsciiSourcePathForSign)
+{
+    auto source_path = c2pa_test::get_fixture_path(u8"CÖÄ_.jpg");
+    auto output_path = get_temp_path(u8"non_ascii_sign_output.jpg");
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto signer = c2pa_test::create_test_signer();
+    auto builder = c2pa::Builder(manifest);
+
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(source_path, output_path, signer))
+        << "Builder::sign should open non-ASCII source path without throwing";
+    EXPECT_FALSE(manifest_data.empty());
+    EXPECT_TRUE(fs::exists(output_path));
+}
+
+TEST_F(BuilderTest, NonAsciiDestPathForSign)
+{
+    auto source_path = c2pa_test::get_fixture_path("A.jpg");
+    auto output_path = get_temp_path(u8"output-CÖÄ_.jpg");
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto signer = c2pa_test::create_test_signer();
+    auto builder = c2pa::Builder(manifest);
+
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(source_path, output_path, signer))
+        << "Builder::sign should open non-ASCII destination path without throwing";
+    EXPECT_FALSE(manifest_data.empty());
+    EXPECT_TRUE(fs::exists(output_path));
+}
+
+TEST_F(BuilderTest, NonAsciiPathForAddIngredient)
+{
+    auto ingredient_path = c2pa_test::get_fixture_path(u8"CÖÄ_.jpg");
+    auto source_path = c2pa_test::get_fixture_path("A.jpg");
+    auto output_path = get_temp_path("non_ascii_ingredient_output.jpg");
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto signer = c2pa_test::create_test_signer();
+    auto builder = c2pa::Builder(manifest);
+
+    ASSERT_NO_THROW(builder.add_ingredient("{\"title\":\"Non-ASCII Ingredient\"}", ingredient_path))
+        << "Builder::add_ingredient should open non-ASCII path without throwing";
+
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(source_path, output_path, signer));
+    EXPECT_FALSE(manifest_data.empty());
+}
+
+TEST_F(BuilderTest, NonAsciiPathForAddResource)
+{
+    auto resource_path = c2pa_test::get_fixture_path(u8"CÖÄ_.jpg");
+    auto source_path = c2pa_test::get_fixture_path("A.jpg");
+    auto output_path = get_temp_path("non_ascii_resource_output.jpg");
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto signer = c2pa_test::create_test_signer();
+    auto builder = c2pa::Builder(manifest);
+
+    ASSERT_NO_THROW(builder.add_resource("thumbnail", resource_path))
+        << "Builder::add_resource should open non-ASCII path without throwing";
+
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(source_path, output_path, signer));
+    EXPECT_FALSE(manifest_data.empty());
+}
+
+TEST_F(BuilderTest, NonAsciiPathForReaderGetResource)
+{
+    // Sign a file that embeds a thumbnail resource, then extract it to a non-ASCII path
+    auto source_path = c2pa_test::get_fixture_path("A.jpg");
+    auto signed_path = get_temp_path("signed_for_get_resource.jpg");
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto signer = c2pa_test::create_test_signer();
+    {
+        auto builder = c2pa::Builder(manifest);
+        builder.add_resource("thumbnail", source_path);
+        builder.sign(source_path, signed_path, signer);
+    }
+    ASSERT_TRUE(fs::exists(signed_path));
+
+    auto reader = c2pa::Reader(signed_path);
+    auto output_resource_path = get_temp_path(u8"resource-CÖÄ_.jpg");
+    ASSERT_NO_THROW(reader.get_resource("thumbnail", output_resource_path))
+        << "Reader::get_resource should write to non-ASCII destination path without throwing";
+    EXPECT_TRUE(fs::exists(output_resource_path));
+}

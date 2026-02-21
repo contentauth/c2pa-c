@@ -240,13 +240,12 @@ inline std::string path_to_string(const std::filesystem::path &source_path)
 template<typename StreamType>
 inline std::unique_ptr<StreamType> open_file_binary(const std::filesystem::path &path)
 {
-    auto path_str = path_to_string(path);
     auto stream = std::make_unique<StreamType>(
-        path_str,
+        path,
         std::ios_base::binary
     );
     if (!stream->is_open()) {
-        throw C2paException("Failed to open file: " + path_str);
+        throw C2paException("Failed to open file: " + path.string());
     }
     return stream;
 }
