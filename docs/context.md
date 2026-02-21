@@ -1,12 +1,12 @@
 # Using Context to configure the SDK
 
-Use the `Context` class configure how `Reader` and `Builder` and other aspects of the SDK operate.
+Use the `Context` class to configure how `Reader`, `Builder`, and other aspects of the SDK operate.
 
 ## What is Context?
 
 Context encapsulates SDK configuration:
 
-- **Settings**: Verification options, [`Builder` behavior](#using-context-with-builder),  [`Reader` trust configuration](#using-context-with-reader), thumbnail configuration, and more. See [Using settings](settings.md) for complete details.
+- **Settings**: Verification options, [`Builder` behavior](#configuring-builder), [`Reader` trust configuration](#configuring-reader), thumbnail configuration, and more. See [Using settings](settings.md) for complete details.
 - [**Signer configuration**](#configuring-a-signer): Optional signer credentials and settings that can be stored in the Context for reuse.
 - **State isolation**: Each `Context` is independent, allowing different configurations to coexist in the same application.
 
@@ -15,7 +15,7 @@ Context encapsulates SDK configuration:
 `Context` is better than deprecated global/thread-local `Settings` because it:
 
 - **Makes dependencies explicit**: Configuration is passed directly to `Reader` and `Builder`, not hidden in global state.
-- **Enables multiple configurations**: Run different configurations simultaneously: For example, one for development with test certificates, another for production with strict validation.
+- **Enables multiple configurations**: Run different configurations simultaneously. For example, one for development with test certificates, another for production with strict validation.
 - **Eliminates thread-local state**: Each `Reader` and `Builder` gets its configuration from the `Context` you pass, avoiding subtle bugs from shared state.
 - **Simplifies testing**: Create isolated configurations for tests without worrying about cleanup or interference between them.
 - **Improves code clarity**: Reading `Builder(context, manifest)` immediately shows that configuration is being used.
@@ -80,7 +80,7 @@ settings.update(R"({
 c2pa::Context context(settings);
 ```
 
-### Using ContextBuilder 
+### Using ContextBuilder
 
 You can combine multiple configuration sources by using `Context::ContextBuilder`.
 
@@ -185,13 +185,13 @@ auto context = c2pa::Context::ContextBuilder()
 
 For the full list of settings and defaults, see [Configuring settings](settings.md).
 
-## Using Context with Reader
+## Configuring Reader
 
-`Reader` uses the `Context` to control how manifests are validated and how remote resources are handled. The `Context` affects:
+Use `Context` to control how `Reader` validates manifests and handles remote resources, including:
 
 - **Verification behavior**: Whether to verify after reading, check trust, and so on.
 - [**Trust configuration**](#trust-configuration): Which certificates to trust when validating signatures.
-- [**Network access**](#configure-offline-operation): Whether to fetch remote manifests or OCSP responses.
+- [**Network access**](#offline-operation): Whether to fetch remote manifests or OCSP responses.
 - **Performance**: Memory thresholds and other core settings.
 
 > [!IMPORTANT]
@@ -259,7 +259,7 @@ auto context = c2pa::Context::ContextBuilder()
 c2pa::Reader reader(context, "signed_asset.jpg");
 ```
 
-### Configure full validation
+### Full validation
 
 To configure full validation, with all verification features enabled:
 
@@ -278,7 +278,7 @@ c2pa::Reader online_reader(full_validation_context, "asset.jpg");
 
 For more information, see [Settings - Verify](settings.md#verify).
 
-### Configure offline operation 
+### Offline operation
 
 To configure `Reader` to work with no network access:
 
@@ -293,10 +293,10 @@ c2pa::Context offline_context(R"({
 c2pa::Reader offline_reader(offline_context, "local_asset.jpg");
 ```
 
-For more information, see [Settings - Offline or air-gapped environments](settings.md#offline-or-air-gapped-environments). 
+For more information, see [Settings - Offline or air-gapped environments](settings.md#offline-or-air-gapped-environments).
 
 
-## Using Context with Builder
+## Configuring Builder
 
 `Builder` uses `Context` to control how to create and sign C2PA manifests. The `Context` affects:
 
@@ -419,7 +419,7 @@ The `Context` continues to control verification and builder options. The signer 
 
 ## Context lifetime and usage
 
-Understanding how `Context` works is important for correct usage.
+Understand how `Context` works to use it properly.
 
 ### Context ownership and lifecycle
 
@@ -440,7 +440,7 @@ c2pa::Reader reader(context, "image.jpg");
 
 ### Multiple contexts for different purposes
 
-Use different `Context` objectss when you need different settings; for example, for development vs. production, or different trust configurations:
+Use different `Context` objects when you need different settings; for example, for development vs. production, or different trust configurations:
 
 ```cpp
 c2pa::Context dev_context(dev_settings);

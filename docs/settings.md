@@ -7,9 +7,9 @@ This document describes how to use settings in C++. The Settings schema is the s
 
 ## Using settings with Context
 
-The recommended approach is to pass settings to a `Context` object and then use the `Context` with `Reader` and `Builder`. This gives you explicit, isolated configuration with no global or thread-local state. For details on creating and using contexts see [Using Context to configure the SDK](context.md).
+The recommended approach is to pass settings to a `Context` object and then use the `Context` with `Reader` and `Builder`. This gives you explicit, isolated configuration with no global or thread-local state. For details on creating and using contexts, see [Using Context to configure the SDK](context.md).
 
-**Legacy approach:** The deprecated `c2pa::load_settings(data, format)` sets thread-local settings. Don't use that approach; instead pass a `Context` (with settings) to `Reader` and `Builder`: See [Using Context with Reader](context.md#using-context-with-reader) and [Using Context with Builder](context.md#using-context-with-builder).
+**Legacy approach:** The deprecated `c2pa::load_settings(data, format)` sets thread-local settings. Don't use that approach; instead pass a `Context` (with settings) to `Reader` and `Builder`. See [Using Context with Reader](context.md#using-context-with-reader) and [Using Context with Builder](context.md#using-context-with-builder).
 
 ## Settings API
 
@@ -142,18 +142,18 @@ The settings JSON schema&mdash;including the complete default configuration with
 }
 ```
 
-## Overview of Settings 
+## Overview of Settings
 
-For a complete reference to all the Settings properties, see the [SDK object reference - Settings](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema).  
+For a complete reference to all the Settings properties, see the [SDK object reference - Settings](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema).
 
 | Property | Description |
 |----------|-------------|
 | `version` | Settings format version (integer). The default and only supported value is 1. |
 | [`builder`](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema#buildersettings) | Configuration for [Builder](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html). |
-| [`cawg_trust`](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema#trust) | Configuration CAWG trust lists. |
+| [`cawg_trust`](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema#trust) | Configuration for CAWG trust lists. |
 | [`cawg_x509_signer`](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema#signersettings) | Configuration for the CAWG x.509 signer. |
 | [`core`](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema#core) | Configuration for core features. |
-| [`signer`](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema#signersettings) | Configuration for the base [C2PA signer](https://contentauth.github.io/c2pa-c/d3/da1/classc2pa_1_1Signer.html) |
+| [`signer`](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema#signersettings) | Configuration for the base [C2PA signer](https://contentauth.github.io/c2pa-c/d3/da1/classc2pa_1_1Signer.html). |
 | [`trust`](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema#trust) | Configuration for C2PA trust lists. |
 | [`verify`](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema#verify) | Configuration for verification (validation). |
 
@@ -181,7 +181,7 @@ The [`trust` properties](https://opensource.contentauthenticity.org/docs/manifes
 
 When using self-signed certificates or custom certificate authorities during development, you need to configure trust settings so the SDK can validate your test signatures.
 
-#### Using `user_anchors` 
+#### Using `user_anchors`
 
 For development, you can add your test root CA to the trusted anchors without replacing the SDK's default trust store.
 For example:
@@ -226,14 +226,14 @@ c2pa::Reader reader(context, "signed_asset.jpg");
 
 ### CAWG trust configuration
 
-The `cawg_trust` properties configure CAWG (Creator Assertions Working Group) validation of identity assertions in C2PA manifests.  The `cawg_trust` object has the same properties as [`trust`](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#trust).
+The `cawg_trust` properties configure CAWG (Creator Assertions Working Group) validation of identity assertions in C2PA manifests. The `cawg_trust` object has the same properties as [`trust`](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#trust).
 
 > [!NOTE]
 > CAWG trust settings are only used when processing identity assertions with X.509 certificates. If your workflow doesn't use CAWG identity assertions, these settings have no effect.
 
 ### Core
 
-The [`core` properties](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#core) specifies core SDK behavior and performance tuning options.
+The [`core` properties](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#core) specify core SDK behavior and performance tuning options.
 
 Use cases:
 
@@ -242,11 +242,11 @@ Use cases:
 
 ### Verify
 
-The [`verify` properties](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#verify) specifies how the SDK validates C2PA manifests. These settings affect both reading existing manifests and verifying newly signed content.
+The [`verify` properties](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#verify) specify how the SDK validates C2PA manifests. These settings affect both reading existing manifests and verifying newly signed content.
 
 Common use cases include:
 
-- [Offline environments](#offline-environments).
+- [Offline or air-gapped environments](#offline-or-air-gapped-environments).
 - [Fast development iteration](#fast-development-iteration) with verification disabled.
 - [Strict validation](#strict-validation) for certification or compliance testing.
 
@@ -279,9 +279,9 @@ c2pa::Reader reader(context, "signed_asset.jpg");
 
 See also [Using Context with Reader](context.md#using-context-with-reader).
 
-#### Fast development iteration 
+#### Fast development iteration
 
-During active development, you disable verification for faster iteration:
+During active development, you can disable verification for faster iteration:
 
 ```cpp
 // WARNING: Only use during development, not in production!
@@ -361,7 +361,7 @@ For examples of configuring thumbnails for mobile bandwidth or disabling them fo
 | `builder.intent` | object | Claim intent: `{"Create": "digitalCapture"}`, `{"Edit": null}`, or `{"Update": null}`. Describes the purpose of the claim. | `null` |
 | `builder.generate_c2pa_archive` | Boolean | Generate content in C2PA archive format. Keep enabled for standard C2PA compliance. | `true` |
 
-##### Setting Builder intent 
+##### Setting Builder intent
 
 You can use `Context` to set `Builder` intent for different workflows.
 
@@ -377,7 +377,7 @@ c2pa::Context camera_context(R"({
 })");
 ```
 
-Or for for editing existing content:
+Or for editing existing content:
 
 ```cpp
 c2pa::Context editor_context(R"({
@@ -399,7 +399,7 @@ The [`signer` properties](https://opensource.contentauthenticity.org/docs/manife
 #### Local signer
 
 Use a local signer when you have direct access to the private key and certificate.
-For information on all `signer.local` properties, see [singer.local](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#signerlocal) in the SDK object reference.
+For information on all `signer.local` properties, see [signer.local](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#signerlocal) in the SDK object reference.
 
 **Example: Local signer with ES256**
 
@@ -425,7 +425,7 @@ builder.sign(source_path, dest_path);
 #### Remote signer
 
 Use a remote signer when the private key is stored on a secure signing service (HSM, cloud KMS, and so on).
-For information on all `signer.remote` properties, see [singer.remote](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#signerremote) in the SDK object reference.
+For information on all `signer.remote` properties, see [signer.remote](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#signerremote) in the SDK object reference.
 
 The remote signing service receives a POST request with the data to sign and must return the signature in the expected format.
 
