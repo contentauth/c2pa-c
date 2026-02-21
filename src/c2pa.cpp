@@ -876,7 +876,6 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     {
         int64_t result = c2pa_signer_reserve_size(signer);
         if (result < 0) {
-            // underlying native code sets error message
             throw C2paException();
         }
         return static_cast<uintptr_t>(result);
