@@ -608,9 +608,6 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
                    c2pa::SignerInfo *signer_info,
                    const std::optional<std::filesystem::path> data_dir)
     {
-        if (manifest == nullptr) {
-            throw C2paException("manifest must not be null");
-        }
         auto dir = data_dir.has_value() ? detail::path_to_string(data_dir.value()) : std::string();
 
         char *result = c2pa_sign_file(detail::path_to_string(source_path).c_str(), detail::path_to_string(dest_path).c_str(), manifest, signer_info, dir.c_str());
