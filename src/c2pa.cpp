@@ -496,6 +496,18 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         }
 
         auto file = detail::open_file_binary<std::ifstream>(settings_path);
+
+        file->seekg(0, std::ios::end);
+        auto file_size = file->tellg();
+        file->seekg(0, std::ios::beg);
+        constexpr std::streamoff max_settings_size = 2 * 1024 * 1024; // 2 MB
+        if (file_size < 0) {
+            throw C2paException("Settings file is not readable");
+        }
+        if (file_size > max_settings_size) {
+            throw C2paException("Settings file is too large (>2MB)");
+        }
+
         std::string json_content((std::istreambuf_iterator<char>(*file)), std::istreambuf_iterator<char>());
 
         return with_json(json_content);
@@ -596,6 +608,9 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
                    c2pa::SignerInfo *signer_info,
                    const std::optional<std::filesystem::path> data_dir)
     {
+        if (manifest == nullptr) {
+            throw c2pa::C2paException("manifest must not be null");
+        }
         auto dir = data_dir.has_value() ? detail::path_to_string(data_dir.value()) : std::string();
 
         char *result = c2pa_sign_file(detail::path_to_string(source_path).c_str(), detail::path_to_string(dest_path).c_str(), manifest, signer_info, dir.c_str());
@@ -862,7 +877,11 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     /// @brief  Get the size to reserve for a signature for this signer.
     uintptr_t Signer::reserve_size()
     {
-        return c2pa_signer_reserve_size(signer);
+        int64_t result = c2pa_signer_reserve_size(signer);
+        if (result < 0) {
+            throw C2paException();
+        }
+        return static_cast<uintptr_t>(result);
     }
 
     /// @brief  Builder class for creating a manifest implementation.
