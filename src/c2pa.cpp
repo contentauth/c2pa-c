@@ -210,8 +210,13 @@ intptr_t stream_op(StreamContext* context, Op op) {
 template<typename Stream>
 intptr_t stream_writer(StreamContext* context, const uint8_t* buffer, intptr_t size) {
     return stream_op<Stream>(context, [buffer, size](Stream* s) {
+        auto before = s->tellp();
         s->write(reinterpret_cast<const char*>(buffer), size);
-        return size;
+        auto after = s->tellp();
+        if (before < 0 || after < 0) {
+            return size; // non-seekable stream, fall back to requested size
+        }
+        return static_cast<intptr_t>(after - before);
     });
 }
 
@@ -500,12 +505,12 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         file->seekg(0, std::ios::end);
         auto file_size = file->tellg();
         file->seekg(0, std::ios::beg);
-        constexpr std::streamoff max_settings_size = 2 * 1024 * 1024; // 2 MB
         if (file_size < 0) {
             throw C2paException("Settings file is not readable");
         }
+        constexpr std::streamoff max_settings_size = 1024 * 1024; // 1 MB max, similar to c2pa-rs
         if (file_size > max_settings_size) {
-            throw C2paException("Settings file is too large (>2MB)");
+            throw C2paException("Settings file is too large (>1MB)");
         }
 
         std::string json_content((std::istreambuf_iterator<char>(*file)), std::istreambuf_iterator<char>());
@@ -609,7 +614,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
                    const std::optional<std::filesystem::path> data_dir)
     {
         if (manifest == nullptr) {
-            throw c2pa::C2paException("manifest must not be null");
+            throw c2pa::C2paException("manifest can not be null");
         }
         auto dir = data_dir.has_value() ? detail::path_to_string(data_dir.value()) : std::string();
 

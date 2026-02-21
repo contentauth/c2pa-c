@@ -740,7 +740,7 @@ namespace c2pa
         /// @param c_signer The C2paSigner pointer (must be non-null).
         Signer(C2paSigner *c_signer) : signer(c_signer) {
             if (!c_signer) {
-                throw C2paException("Signer pointer must not be null");
+                throw C2paException("Signer can not be null");
             }
         }
 
