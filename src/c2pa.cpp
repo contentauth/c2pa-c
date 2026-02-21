@@ -478,7 +478,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
             throw C2paException("Settings object is invalid");
         }
         if (c2pa_context_builder_set_settings(context_builder, settings.c_settings()) != 0) {
-            throw C2paException();
+            throw C2paException("Failed to configure Builder with contextual Settings");
         }
         return *this;
     }
@@ -717,7 +717,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
 
         c2pa_reader = c2pa_reader_from_context(context.c_context());
         if (c2pa_reader == nullptr) {
-            throw C2paException("Failed to create reader from context");
+            throw C2paException("Failed to create Reader from context");
         }
 
         cpp_stream = std::make_unique<CppIStream>(stream);
@@ -741,7 +741,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
 
         c2pa_reader = c2pa_reader_from_context(context.c_context());
         if (c2pa_reader == nullptr) {
-            throw C2paException("Failed to create reader from context");
+            throw C2paException("Failed to create Reader from context");
         }
 
         // Create owned stream that will live as long as the Reader
@@ -830,7 +830,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         int64_t result = c2pa_reader_resource_to_stream(c2pa_reader, uri.c_str(), output_stream.c_stream);
         if (result < 0)
         {
-            throw C2paException();
+            throw C2paException("Failed to retrieve resource");
         }
         return result;
     }
@@ -879,7 +879,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     {
         int64_t result = c2pa_signer_reserve_size(signer);
         if (result < 0) {
-            throw C2paException();
+            throw C2paException("Failed to get reserve size");
         }
         return static_cast<uintptr_t>(result);
     }
@@ -895,7 +895,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
 
         builder = c2pa_builder_from_context(context.c_context());
         if (builder == nullptr) {
-            throw C2paException("Failed to create builder from context");
+            throw C2paException("Failed to create Builder from context");
         }
     }
 
@@ -908,7 +908,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
 
         builder = c2pa_builder_from_context(context.c_context());
         if (builder == nullptr) {
-            throw C2paException("Failed to create builder from context");
+            throw C2paException("Failed to create Builder from context");
         }
 
         // Apply the manifest definition to the Builder.
@@ -917,7 +917,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         C2paBuilder* updated = c2pa_builder_with_definition(builder, manifest_json.c_str());
         builder = nullptr;
         if (updated == nullptr) {
-            throw C2paException();
+            throw C2paException("Failed to create Builder with manifest definition");
         }
         builder = updated;
     }
@@ -928,7 +928,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         builder = c2pa_builder_from_json(manifest_json.c_str());
         if (builder == nullptr)
         {
-            throw C2paException();
+            throw C2paException("Failed to create Builder with JSON manifest");
         }
     }
 
@@ -942,7 +942,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         builder = c2pa_builder_from_archive(c_archive.c_stream);
         if (builder == nullptr)
         {
-            throw C2paException();
+            throw C2paException("Coult load Builder from provided archive");
         }
     }
 
@@ -977,7 +977,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         C2paBuilder* updated = c2pa_builder_with_definition(builder, manifest_json.c_str());
         builder = nullptr;
         if (updated == nullptr) {
-            throw C2paException("Failed to set builder definition");
+            throw C2paException("Failed to set Builder definition");
         }
         builder = updated;
         return *this;
