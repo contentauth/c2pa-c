@@ -3777,7 +3777,7 @@ TEST_F(BuilderTest, NonAsciiSourcePathForSign)
 {
     // Copy A.jpg to a temp path with a non-ASCII name rather than relying on
     // the fixture file checking out correctly on all platforms (e.g. Windows).
-    auto source_path = get_temp_path(u8"source-CÖÄ_.jpg");
+    auto source_path = get_temp_path(u8"source-CÖÄ_-øæå.jpg");
     fs::copy_file(c2pa_test::get_fixture_path("A.jpg"), source_path, fs::copy_options::overwrite_existing);
     auto output_path = get_temp_path(u8"non_ascii_sign_output.jpg");
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
@@ -3810,7 +3810,7 @@ TEST_F(BuilderTest, NonAsciiPathForAddIngredient)
 {
     // Copy A.jpg to a temp path with a non-ASCII name rather than relying on
     // the fixture file checking out correctly on all platforms (e.g. Windows).
-    auto ingredient_path = get_temp_path(u8"ingredient-CÖÄ_.jpg");
+    auto ingredient_path = get_temp_path(u8"ingredient-CÖÄ_-øæå.jpg");
     fs::copy_file(c2pa_test::get_fixture_path("A.jpg"), ingredient_path, fs::copy_options::overwrite_existing);
     auto source_path = c2pa_test::get_fixture_path("A.jpg");
     auto output_path = get_temp_path("non_ascii_ingredient_output.jpg");
@@ -3830,7 +3830,7 @@ TEST_F(BuilderTest, NonAsciiPathForAddResource)
 {
     // Copy A.jpg to a temp path with a non-ASCII name rather than relying on
     // the fixture file checking out correctly on all platforms (e.g. Windows).
-    auto resource_path = get_temp_path(u8"resource-CÖÄ_.jpg");
+    auto resource_path = get_temp_path(u8"resource-CÖÄ_-øæå.jpg");
     fs::copy_file(c2pa_test::get_fixture_path("A.jpg"), resource_path, fs::copy_options::overwrite_existing);
     auto source_path = c2pa_test::get_fixture_path("A.jpg");
     auto output_path = get_temp_path("non_ascii_resource_output.jpg");

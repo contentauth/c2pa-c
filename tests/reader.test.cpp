@@ -279,7 +279,7 @@ TEST_P(RemoteUrlTests, IsEmbeddedTest) {
 TEST_F(ReaderTest, HasManifestUtf8Path) {
     // Create a signed JPEG at a non-ASCII temp path rather than relying on
     // the fixture file checking out correctly on all platforms (e.g. Windows).
-    auto test_file = get_temp_path(u8"CÖÄ_.jpg");
+    auto test_file = get_temp_path(u8"CÖÄ_-øæå.jpg");
     {
         auto signer = c2pa_test::create_test_signer();
         auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
@@ -297,7 +297,7 @@ TEST_F(ReaderTest, HasManifestUtf8Path) {
 TEST_F(ReaderTest, HasManifestUtf8PathUsingContext) {
     // Create a signed JPEG at a non-ASCII temp path rather than relying on
     // the fixture file checking out correctly on all platforms (e.g. Windows).
-    auto test_file = get_temp_path(u8"CÖÄ_context.jpg");
+    auto test_file = get_temp_path(u8"CÖÄ_-øæå_context.jpg");
     {
         auto signer = c2pa_test::create_test_signer();
         auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
