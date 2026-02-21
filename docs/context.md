@@ -92,6 +92,8 @@ Use **ContextBuilder** when you want to:
 
 **Don't use ContextBuilder** if you have a single configuration source. In this case, [direct construction from a Settings object](#from-a-settings-object) using `c2pa::Context context(settings)` is simpler and more readable.
 
+For example:
+
 ```cpp
 c2pa::Settings base_settings;
 base_settings.set("builder.thumbnail.enabled", "true");
@@ -107,7 +109,35 @@ auto context = c2pa::Context::ContextBuilder()
 > [!IMPORTANT]
 > Later configuration overrides earlier configuration. In the example above, if `overrides.json` sets `builder.thumbnail.enabled` to `false`, it will override the `true` value from `base_settings`.
 
-**ContextBuilder methods:**
+Example of trust configuration in a settings file:
+
+```json
+{
+  "version": 1,
+  "trust": {
+    "user_anchors": "-----BEGIN CERTIFICATE-----\nMIICEzCCA...\n-----END CERTIFICATE-----",
+    "trust_config": "1.3.6.1.4.1.311.76.59.1.9\n1.3.6.1.4.1.62558.2.1"
+  }
+}
+```
+
+**PEM format requirements:**
+
+- Use literal `\n` characters (as two-character strings) in JSON for line breaks.
+- Include the full certificate chain if needed.
+- Concatenate multiple certificates into a single string.
+
+Then load the file in your application as follows:
+
+```cpp
+auto context = c2pa::Context::ContextBuilder()
+    .with_json_settings_file("dev_trust_config.json")
+    .create_context();
+
+c2pa::Reader reader(context, "signed_asset.jpg");
+```
+
+**ContextBuilder methods**
 
 | Method | Description |
 |--------|-------------|
@@ -264,7 +294,11 @@ c2pa::Reader reader(
 - **Verification after signing**: Whether to validate the manifest immediately after signing.
 - **Signer configuration** (optional): Credentials can be stored in settings for reuse.
 
-### Basic builder usage with Context
+
+> [!IMPORTANT]
+> The `Context` is used only when constructing the `Builder`. The `Builder` copies the configuration it needs internally, so the `Context` object does not need to outlive the `Builder`.
+
+### Basic use
 
 ```cpp
 c2pa::Context context(R"({
@@ -310,14 +344,28 @@ c2pa::Context mobile_thumbnails(R"({
 })");
 ```
 
-> [!IMPORTANT]
-> The `Context` is used only when constructing the `Builder`. The `Builder` copies the configuration it needs internally, so the `Context` object does not need to outlive the `Builder`.
-
 ## Configuring a signer
+
+The `signer` field in settings can specify:
+- A **local signer** — certificate and key (paths or PEM strings):
+  - `signer.local.alg` — e.g. `"ps256"`, `"es256"`, `"ed25519"`.
+  - `signer.local.sign_cert` — certificate file path or PEM string.
+  - `signer.local.private_key` — key file path or PEM string.
+  - `signer.local.tsa_url` — optional TSA URL.
+- A **remote signer** — A POST endpoint that receives data to sign and returns the signature:
+  - `signer.remote.url` — signing service URL.
+  - `signer.remote.alg`, `signer.remote.sign_cert`, `signer.remote.tsa_url`.
+
+See [SignerSettings object reference](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#signersettings) for the full property reference.
+
+You can configure a signer:
+
+- [From JSON Settings](#from-settings)
+- [Explicitly in code](#explicit-signer)
 
 ### From Settings
 
-Put signer configuration in your JSON or `Settings`, then create a context and use it with `Builder`:
+Put signer configuration in your JSON or `Settings`:
 
 ```json
 {
@@ -332,6 +380,8 @@ Put signer configuration in your JSON or `Settings`, then create a context and u
 }
 ```
 
+Then create a `Context` and use it with `Builder`; for example:
+
 ```cpp
 c2pa::Context context(settings_json_or_path);
 c2pa::Builder builder(context, manifest_json);
@@ -342,7 +392,7 @@ builder.sign(source_path, dest_path, signer);
 
 In the C++ API you typically create a `c2pa::Signer` explicitly and pass it to `Builder::sign()`. Settings in the `Context` still control verification, thumbnails, and other builder behavior.
 
-### Explicit Signer
+### Explicit signer
 
 For full programmatic control, create a `Signer` and pass it to `Builder::sign()`:
 
@@ -352,25 +402,7 @@ c2pa::Builder builder(context, manifest_json);
 builder.sign(source_path, dest_path, signer);
 ```
 
-The context continues to control verification and builder options. The signer is used only for the cryptographic signature.
-
-### Signer configuration in settings
-
-The `signer` field in settings can be:
-
-**Local signer** — certificate and key (paths or PEM strings):
-
-- `signer.local.alg` — e.g. `"ps256"`, `"es256"`, `"ed25519"`.
-- `signer.local.sign_cert` — certificate file path or PEM string.
-- `signer.local.private_key` — key file path or PEM string.
-- `signer.local.tsa_url` — optional TSA URL.
-
-**Remote signer** — POST endpoint that receives data to sign and returns the signature:
-
-- `signer.remote.url` — signing service URL.
-- `signer.remote.alg`, `signer.remote.sign_cert`, `signer.remote.tsa_url`.
-
-See [settings.md](settings.md) for the full property reference.
+The `Context` continues to control verification and builder options. The signer is used only for the cryptographic signature.
 
 ## Context lifetime and usage
 
