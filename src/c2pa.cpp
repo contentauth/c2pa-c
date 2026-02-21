@@ -830,7 +830,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         int64_t result = c2pa_reader_resource_to_stream(c2pa_reader, uri.c_str(), output_stream.c_stream);
         if (result < 0)
         {
-            throw C2paException("Failed to retrieve resource");
+            throw C2paException();
         }
         return result;
     }
@@ -917,7 +917,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         C2paBuilder* updated = c2pa_builder_with_definition(builder, manifest_json.c_str());
         builder = nullptr;
         if (updated == nullptr) {
-            throw C2paException("Failed to create Builder with manifest definition");
+            throw C2paException();
         }
         builder = updated;
     }
@@ -928,7 +928,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         builder = c2pa_builder_from_json(manifest_json.c_str());
         if (builder == nullptr)
         {
-            throw C2paException("Failed to create Builder with JSON manifest");
+            throw C2paException();
         }
     }
 
@@ -942,7 +942,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         builder = c2pa_builder_from_archive(c_archive.c_stream);
         if (builder == nullptr)
         {
-            throw C2paException("Coult load Builder from provided archive");
+            throw C2paException();
         }
     }
 
