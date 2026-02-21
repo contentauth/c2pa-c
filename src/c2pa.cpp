@@ -478,7 +478,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
             throw C2paException("Settings object is invalid");
         }
         if (c2pa_context_builder_set_settings(context_builder, settings.c_settings()) != 0) {
-            throw C2paException("Failed to configure Builder with contextual Settings");
+            throw C2paException();
         }
         return *this;
     }
