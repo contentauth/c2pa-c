@@ -974,7 +974,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         C2paBuilder* updated = c2pa_builder_with_definition(builder, manifest_json.c_str());
         builder = nullptr;
         if (updated == nullptr) {
-            throw C2paException("Failed to set Builder definition");
+            throw C2paException("Failed to set builder definition");
         }
         builder = updated;
         return *this;
