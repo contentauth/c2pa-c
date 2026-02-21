@@ -210,13 +210,8 @@ intptr_t stream_op(StreamContext* context, Op op) {
 template<typename Stream>
 intptr_t stream_writer(StreamContext* context, const uint8_t* buffer, intptr_t size) {
     return stream_op<Stream>(context, [buffer, size](Stream* s) {
-        auto before = s->tellp();
         s->write(reinterpret_cast<const char*>(buffer), size);
-        auto after = s->tellp();
-        if (before < 0 || after < 0) {
-            return size; // non-seekable stream, fall back to requested size
-        }
-        return static_cast<intptr_t>(after - before);
+        return size;
     });
 }
 
@@ -614,7 +609,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
                    const std::optional<std::filesystem::path> data_dir)
     {
         if (manifest == nullptr) {
-            throw c2pa::C2paException("manifest can not be null");
+            throw C2paException("manifest must not be null");
         }
         auto dir = data_dir.has_value() ? detail::path_to_string(data_dir.value()) : std::string();
 
