@@ -1,16 +1,16 @@
 # Selective manifest construction with Builder and Reader
 
-You can use `Builder` and `Reader` together to selectively construct manifests, keeping only the parts needed and leaving out the rest. This process is best described as *filtering*:
+`Builder` and `Reader` can be used together to selectively construct manifests, keeping only the parts needed and leaving out the rest. This is usfeul in the case where not all ingredients on a working store should be added (e.g. in the case where ingredient assets are not visible). This process is best described as filtering, or rebuilding a working store:
 
 1. Read an existing manifest.
 1. Choose which elements to retain.
 1. Build a new manifest containing only those elements.
 
-A C2PA manifest is a signed data structure attached to an asset (such as an image or video) that records provenance information: who created it, what tools were used, what edits were made, and what source assets (ingredients) contributed to it. A manifest contains **assertions** (statements about the asset), **ingredients** (references to source assets), and binary resources like **thumbnails**.
+A C2PA manifest is a signed data structure attached to an asset (such as an image or video) that records provenance information: who created it, what tools were used, what edits were made, and what source assets (ingredients) contributed to it. A manifest contains assertions (statements about the asset), ingredients (references to other assets used to create the signed asset), and binary resources (like thumbnails).
 
-Since both `Reader` and `Builder` are **read-only by design** (there is no `remove()` method on either), the way to "remove" content is to **read what exists, filter what is needed, and create a new `Builder` with only that information** ("re-build"). This process produces a new `Builder` instance.
+Since both `Reader` and `Builder` are **read-only by design** (there is no `remove()` method on either), the way to "remove" content is to **read what exists, filter out what is needed, and create a new `Builder` with only that information added back on the new Builder**. This process produces a new `Builder` instance ("rebuild").
 
-> **Important**: Filtering always creates a new `Builder`. The original signed asset and its manifest are never modified. The `Reader` extracts data without side effects, and the `Builder` constructs a new manifest.
+> **Important**: This process always creates a new `Builder`. The original signed asset and its manifest are never modified, neither is the starting working store. The `Reader` extracts data without side effects, and the `Builder` constructs a new manifest based on extracted data.
 
 ## Core concept
 
@@ -25,8 +25,8 @@ flowchart LR
 The fundamental workflow is:
 
 1. **Read** the existing manifest with `Reader` to get JSON and binary resources
-2. **Filter** the parts to keep (parse the JSON, select elements)
-3. **Create a new `Builder`** with only the filtered parts
+2. **Identify and filter** the parts to keep (parse the JSON, select and gather elements)
+3. **Create a new `Builder`** with only the selected parts based on the applied filtering rules
 4. **Sign** the new `Builder` into the output asset
 
 ## Reading an existing manifest
@@ -42,7 +42,7 @@ c2pa::Reader reader(context, "image/jpeg", source_stream);
 std::string store_json = reader.json();
 auto parsed = json::parse(store_json);
 
-// Identify the active manifest
+// Identify the active manifest, which is the current/latest manifest
 std::string active = parsed["active_manifest"];
 auto manifest = parsed["manifests"][active];
 
@@ -67,11 +67,11 @@ reader.get_resource(thumbnail_id, fs::path("thumbnail.jpg"));
 
 ## Filtering into a new Builder
 
-Each pattern below creates a **new `Builder`** from filtered data. The original asset (and its manifest store) remains as is.
+Each example below creates a **new `Builder`** from filtered data. The original asset (and its manifest store) remains as is.
 
 When rebuilding by transferring ingredients between a `Reader` and a **new** `Builder`, remember that both the JSON metadata and the associated binary resources (thumbnails, manifest data) must be transferred. The JSON contains identifiers that reference binary resources. Those identifiers must match what you register with `builder.add_resource()`.
 
-### Pattern 1: Keep only specific ingredients
+### Example 1: Keep only specific ingredients
 
 ```cpp
 c2pa::Context context;
@@ -118,7 +118,7 @@ for (auto& ingredient : kept_ingredients) {
 builder.sign(source_path, output_path, signer);
 ```
 
-### Pattern 2: Keep only specific assertions
+### Example 2: Keep only specific assertions
 
 ```cpp
 auto assertions = parsed["manifests"][active]["assertions"];
@@ -141,13 +141,13 @@ c2pa::Builder builder(context, new_manifest.dump());
 builder.sign(source_path, output_path, signer);
 ```
 
-### Pattern 3: Start fresh and preserve provenance
+### Example 3: Start fresh and preserve provenance
 
-Sometimes all existing assertions and ingredients may need to be discarded but the provenance chain should be maintained nevertheless. This is done by creating a new `Builder` with a clean manifest definition and adding the original signed asset as an ingredient using `add_ingredient()`.
+Sometimes all existing assertions and ingredients may need to be discarded but the provenance chain should be maintained nevertheless. This is done by creating a new `Builder` with a new manifest definition and adding the original signed asset as an ingredient using `add_ingredient()`.
 
-The function `add_ingredient()` does not copy the original's assertions into the new manifest. Instead, it stores the original's entire manifest store as opaque binary data (`manifest_data`) inside the ingredient record. This means:
+The function `add_ingredient()` does not copy the original's assertions into the new manifest. Instead, it stores the original's entire manifest store as opaque binary data inside the ingredient record. This means:
 
-- The new manifest has its own, independent set of assertions (which can be empty)
+- The new manifest has its own, independent set of assertions
 - The original's full manifest is preserved inside the ingredient, so validators can inspect the full provenance history
 - The provenance chain is unbroken: anyone reading the new asset can follow the ingredient link back to the original
 
@@ -169,7 +169,7 @@ flowchart TD
 ```
 
 ```cpp
-// Create a new Builder with a clean definition
+// Create a new Builder with a new definition
 c2pa::Builder builder(context);
 builder.with_definition(R"({
     "claim_generator_info": [{"name": "c2pa-cpp-docs", "version": "0.1.0"}],
@@ -186,9 +186,9 @@ builder.sign(source_path, output_path, signer);
 
 ## Working with archives
 
-A `Builder` represents a **working store**: a manifest that is being assembled but has not yet been signed. Archives serialize this working store (definition + resources) to a `.c2pa` binary format, allowing you to save, transfer, or resume the work later.
+A `Builder` represents a **working store**: a manifest that is being assembled but has not yet been signed. Archives serialize this working store (definition + resources) to a `.c2pa` binary format, allowing to save, transfer, or resume the work later.
 
-There are two distinct types of archives to understand:
+There are two distinct types of archives, sharing the same binary format but being conceptually different: builder archives (working stores archives) and ingredient archives.
 
 ### Builder archives vs. ingredient archives
 
@@ -221,7 +221,7 @@ flowchart TD
 
 ### The ingredients catalog pattern
 
-A usage example of archives is building an **ingredients catalog**: a collection of archived ingredients that can be picked and chosen from when constructing a final manifest. Each archive in the catalog holds ingredients from a different source, and at build time select only the ones you need.
+A usage example of ingredient archives is building an **ingredients catalog**: a collection of archived ingredients (with 1 ingredient per archive) that can be picked and chosen from when constructing a final manifest. Each archive in the catalog holds ingredients, and at build time select only the ones you need.
 
 ```mermaid
 flowchart TD
@@ -294,7 +294,7 @@ builder.sign(source_path, output_path, signer);
 
 ### Extracting ingredients from a builder archive
 
-A builder archive can be read with `Reader` to filter its contents without modifying the original archive. The filtering produces a new `Builder`:
+A Builder archive (or working store archive) can be read with `Reader` to filter its contents without modifying the original archive and use the selected filtered content to create a **new** Builder. This produces a new `Builder`:
 
 ```mermaid
 flowchart TD
@@ -341,7 +341,7 @@ builder.sign(source_path, output_path, signer);
 
 ### Merging multiple working stores
 
-In some cases you may need to merge ingredients from multiple working stores (builder archives) into a single `Builder`. This should be a **fallback strategy** as the recommended practice is to maintain a single active working store and reuse it by adding ingredients incrementally. Merging is available as a backup when you end up with multiple working stores that need to be consolidated.
+In some cases you may need to merge ingredients from multiple working stores (builder archives) or multiple working stores into a single `Builder`. This should be a **fallback strategy** as the recommended practice is to maintain a **single** active working store and reuse it by adding ingredients incrementally (which is where having archived ingredients catalogs can be helpful). Merging is available as a backup when you end up with multiple working stores that need to be consolidated.
 
 When merging from multiple sources, resource identifier URIs can collide. One way to avoid collisions is to rename identifiers with a unique suffix:
 
@@ -473,7 +473,7 @@ flowchart TD
 
 ## Q&A: Builder, Reader, or both?
 
-This section answers common questions about when to use each API and how they work together. See the [decision tree](#quick-reference-decision-tree) at the end for a visual summary.
+This section answers questions about when to use each API and how they work together.
 
 ### When should I use a `Reader`?
 
@@ -533,21 +533,6 @@ c2pa::Builder builder(context, kept.dump());
 builder.sign(source, output, signer);
 ```
 
-### How do I "strip" all C2PA data from an asset?
-
-**Simply copy the asset without signing it.** If you need to produce a clean file, some formats may retain embedded JUMBF boxes. The safest approach is to re-encode the asset or use format-specific tools to strip metadata.
-
-Alternatively, if you want to maintain provenance but start fresh:
-
-```cpp
-c2pa::Builder builder(context, minimal_manifest_json);
-builder.add_ingredient(R"({"title": "original.jpg", "relationship": "parentOf"})",
-                       original_path);
-builder.sign(source, output, signer);
-```
-
-This creates a new manifest with the original as an ingredient, documenting that the asset came from the original while carrying forward none of its assertions.
-
 ### What is the difference between `add_ingredient()` and injecting ingredient JSON via `with_definition()`?
 
 | Approach | What it does | When to use |
@@ -582,7 +567,7 @@ builder.sign(source, output, signer);
 
 ### Can I modify a manifest in place?
 
-**No.** C2PA manifests are cryptographically signed. Any modification invalidates the signature. The only way to "modify" a manifest is to create a new `Builder` with the changes you want and sign it. This is by design -- it ensures the integrity of the provenance chain.
+**No.** C2PA manifests are cryptographically signed. Any modification invalidates the signature. The only way to "modify" a manifest is to create a new `Builder` with the changes you want and sign it. This is by design: it ensures the integrity of the provenance chain.
 
 ### What happens to the provenance chain when I rebuild?
 
@@ -594,7 +579,7 @@ flowchart RL
     B -->|ingredient| A[Original manifest]
 ```
 
-If you **don't** add the original as an ingredient, the chain is broken -- the new manifest has no link to the original. This might be intentional (starting fresh) or a mistake (losing provenance).
+If you don't add the original as an ingredient, the provenance chain is broken: the new manifest has no link to the original. This might be intentional (starting fresh) or a mistake (losing provenance).
 
 ### Quick reference decision tree
 
