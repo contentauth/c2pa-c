@@ -353,7 +353,7 @@ flowchart TD
     subgraph WS2["Working Store B"]
         IY[Ingredient Y thumb: T1]
     end
-    IX -->|"keep as T1"| NB[New Builder (merged)]
+    IX -->|"keep as T1"| NB[New Builder]
     IY -->|"rename to T1__1"| NB
     NB -->|sign| OUT[Signed Output Asset]
     style IY fill:#ff9,stroke:#cc0
