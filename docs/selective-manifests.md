@@ -247,7 +247,9 @@ flowchart TD
 
 ```cpp
 // Read from a catalog of archived ingredients
-c2pa::Context archive_ctx(R"({"verify": {"verify_after_reading": false}})");
+// verify_after_reading is not needed for newer versions of the SDK
+// c2pa::Context archive_ctx(R"({"verify": {"verify_after_reading": false}})");
+c2pa::Context archive_ctx(R"<<your settings, if any>>");
 
 // Open one archive from the catalog
 archive_stream.seekg(0);
@@ -419,7 +421,7 @@ flowchart LR
     end
 
     subgraph NoEmbed["With set_no_embed()"]
-        B1[Output Asset\nimage data only] ~~~ B2[Manifest bytes\nstore as sidecar\nor upload to server]
+        B1[Output Asset] ~~~ B2[Manifest bytes with store as sidecar or uploaded to server]
     end
 ```
 
