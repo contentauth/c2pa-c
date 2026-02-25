@@ -414,7 +414,9 @@ builder.sign("source.jpg", "signed.jpg", signer);
 
 ## Working with ingredients
 
-Ingredients represent source materials used to create an asset, preserving the provenance chain. Ingredients themselves can be turned into ingredient archives (`.c2pa`). Ingredient archives are a serialized Builder with only and exactly 1 ingredient: the Builder = the ingredient data. Therefore, once archived, it contains only an ingredient "prepared" to be added to other Builders which act as working stores.
+Ingredients represent source materials used to create an asset, preserving the provenance chain. Ingredients themselves can be turned into ingredient archives (`.c2pa`).
+
+Ingredient archives are a serialized Builder with only and exactly 1 ingredient, nothing else than that ingredient: the Builder = the ingredient data. Therefore, once archived with only 1 ingredient, that Builder archive is an ingredient archive. Such ingredient archives can be used as ingredient to other working stores in turn.
 
 ### Adding ingredients to a working store
 
@@ -471,7 +473,7 @@ builder.add_ingredient(ingredient_json, "base_layer.png");
 
 ## C2PA archives (saving and restoring working stores)
 
-A **C2PA archive** is a serialized working store (Builder object) saved to a file or stream. The default format is the **C2PA JUMBF binary format** (`application/c2pa`), which is the standard way to save and restore working stores.
+A **.c2pa archive** is a serialized working store (Builder object) saved to a file (or stream). The default binary format is the **C2PA JUMBF binary format** (`application/c2pa`), which is the standard way to save and restore working stores.
 
 ### Why use C2PA archives?
 
@@ -482,7 +484,7 @@ A **C2PA archive** is a serialized working store (Builder object) saved to a fil
 
 ### Archive format
 
-The default format is **C2PA JUMBF binary format**.
+The default format is **C2PA JUMBF binary format** (application/c2pa).
 
 ### Saving a working store to archive
 
@@ -505,6 +507,8 @@ if (archive_stream.is_open()) {
 
 std::cout << "Working store saved to archive" << std::endl;
 ```
+
+A Builder containing **only one ingredient and only the ingredient data** is an ingredient archive (no other ingredient, no other actions). Ingredient archives can be added directly as ingredient to other working stores too.
 
 ### Restoring a working store from archive
 
