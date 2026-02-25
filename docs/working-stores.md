@@ -414,7 +414,7 @@ builder.sign("source.jpg", "signed.jpg", signer);
 
 ## Working with ingredients
 
-Ingredients represent source materials used to create an asset, preserving the provenance chain.
+Ingredients represent source materials used to create an asset, preserving the provenance chain. Ingredients themselves can be turned into ingredient archives (`.c2pa`). Ingredient archives are a serialized Builder with only and exactly 1 ingredient: the Builder = the ingredient data. Therefore, once archived, it contains only an ingredient "prepared" to be added to other Builders which act as working stores.
 
 ### Adding ingredients to a working store
 
@@ -437,7 +437,14 @@ std::ifstream ingredient_stream("source.jpg", std::ios::binary);
 builder.add_ingredient(ingredient_json, "image/jpeg", ingredient_stream);
 ingredient_stream.close();
 
-// Sign - ingredients become part of the manifest store
+// An ingredient can also be added from an ingredient archive,
+// for instance if the original file is not available anymore, but you
+// have an archived ingredient (1 ingredient per archive) at hand.
+// The JSON parameter would then override what was in the archive and would be used for
+// The ingredient added to the working store.
+// builder.add_ingredient(ingredient_json, "applciation/c2pa", ingredient archive);
+
+// Sign: ingredients become part of the manifest store
 builder.sign("new_asset.jpg", "signed_asset.jpg", signer);
 ```
 
