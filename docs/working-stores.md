@@ -1,41 +1,51 @@
 # Working stores and manifest stores
 
-## Terminology
+## Introduction
+
+You need to understand these basic terms before using the SDK.
+
+
+| Object | Description | Where it is | Primary API |
+|--------|-------------|-------------|-------------|
+| [**Manifest store**](#manifest-store) | Final signed provenance data | Embedded in asset or remotely in cloud | [`Reader`](https://contentauth.github.io/c2pa-c/d9/dbb/classc2pa_1_1Reader.html) class |
+| [**Working store**](#working-store) | Editable in-progress manifest | `Builder` object | [`Builder`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html) class |
+| [**Archive**](#archive) | Serialized working store | `.c2pa` file/stream | [`to_archive()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a68074eac71b7fc57d338019220101db3), [`from_archive()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a913c64f6b5ec978322ef0edc89e407b3) |
 
 ### Manifest store
 
-A **manifest store** is the final C2PA data structure that gets embedded in (or attached to) a signed asset. It contains one or more manifests with each their provenance data and cryptographic signatures.
+A _manifest store_ is the final C2PA data structure that's embedded in (or attached to) a signed asset. It contains one or more manifests that contain provenance data and cryptographic signatures.
 
 **Characteristics:**
 
-- Final, immutable signed data embedded in or attached to an asset
-- Contains one or more manifests (identified by URIs)
-- Has one and exactly one `active_manifest` property pointing to the most recent manifest
-- Readable via a `Reader` object
+- Final, immutable signed data embedded in or attached to an asset.
+- Contains one or more manifests (identified by URIs).
+- Has exactly one `active_manifest` property pointing to the most recent manifest.
+- Read it by using a `Reader` object.
 
 **Example:** When you open a signed JPEG file, the C2PA data embedded in it is the manifest store.
 
 ### Working store
 
-A **working store** is a `Builder` object, an editable, in-progress manifest that has not yet been signed and bound to an asset. Think of it as a manifest in progress, or a manifest being built.
+A _working store_ is a `Builder` object representing an editable, in-progress manifest that has not yet been signed and bound to an asset. Think of it as a manifest in progress, or a manifest being built.
 
 **Characteristics:**
 
-- Editable, mutable state in memory (a Builder object)
-- Contains claims, ingredients, and assertions that can be modified
-- Can be saved to a C2PA archive (`.c2pa` JUMBF binary format) for later use
+- Editable, mutable state in memory (a Builder object).
+- Contains claims, ingredients, and assertions that can be modified.
+- Can be saved to a C2PA archive (`.c2pa` JUMBF binary format) for later use.
 
 **Example:** When you create a `Builder` object and add assertions to it, you're dealing with a working store, as it is an "in progress" manifest being built.
 
-### C2PA archive
+### Archive
 
-A **C2PA archive** is the serialized bytes of a working store saved to a file or stream (typically a `.c2pa` file). It uses the standard JUMBF `application/c2pa` format.
+A _C2PA archive_ (or just _archive_) contains the serialized bytes of a working store saved to a file or stream (typically a `.c2pa` file). It uses the standard JUMBF `application/c2pa` format.
 
 **Characteristics:**
 
-- Portable serialization of a working store (Builder)
-- Should be saved via `Builder::to_archive()` and restored via `Builder::from_archive()` to restore the full working store and continue working on it
-- Useful for separating manifest preparation ("work in progress") from final signing
+- Portable serialization of a working store (Builder).
+- Save an archive by using [`Builder::to_archive()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a68074eac71b7fc57d338019220101db3) and restore a full working store from an archive by using [`Builder::from_archive()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a913c64f6b5ec978322ef0edc89e407b3).
+- Useful for separating manifest preparation ("work in progress") from final signing.
+
 
 ### Overview diagram
 
@@ -45,12 +55,6 @@ graph TD
     A -->|to_archive| C[C2PA Archive<br/>.c2pa file]
     C -->|from_archive| A
 ```
-
-| Term | What it is | Where it lives | Primary API |
-|------|------------|----------------|-------------|
-| **Working store** | Editable in-progress manifest | `Builder` object | `Builder` class |
-| **C2PA archive** | Serialized working store | `.c2pa` file/stream | `to_archive()`, `from_archive()` |
-| **Manifest store** | Final signed provenance data | Embedded in asset or remotely in cloud | `Reader` class |
 
 ## Reading manifest stores from assets
 
@@ -215,7 +219,7 @@ auto builder = c2pa::Builder(context, manifest_json);
 
 ### Creating a Signer
 
-For testing, create a signer with certificates and private key:
+For testing, create a [`Signer`](https://contentauth.github.io/c2pa-c/d3/da1/classc2pa_1_1Signer.html) with certificates and private key:
 
 ```cpp
 #include <fstream>
@@ -335,11 +339,11 @@ int main() {
 
 ## Working with resources
 
-Resources are binary assets referenced by manifest assertions, such as thumbnails or ingredient thumbnails.
+_Resources_ are binary assets referenced by manifest assertions, such as thumbnails or ingredient thumbnails.
 
 ### Understanding resource identifiers
 
-When you add a resource to a working store (Builder), you assign it an identifier string. The SDK will automatically convert this to a proper JUMBF URI when the manifest store is created during signing.
+When you add a resource to a working store (Builder), you assign it an identifier string. When the manifest store is created during signing, the SDK automatically converts this to a proper JUMBF URI.
 
 **Resource identifier workflow:**
 
@@ -350,9 +354,9 @@ graph LR
     C --> D[Manifest Store<br/>in asset]
 ```
 
-1. **During manifest creation**: You use a string identifier (e.g., `"thumbnail"`, `"thumbnail1"`)
-2. **During signing**: The SDK converts these to JUMBF URIs (e.g., `"self#jumbf=c2pa.assertions/c2pa.thumbnail.claim.jpeg"`)
-3. **After signing**: The manifest store contains the full JUMBF URI that you use to extract the resource
+1. **During manifest creation**: You use a string identifier (e.g., `"thumbnail"`, `"thumbnail1"`).
+2. **During signing**: The SDK converts these to JUMBF URIs (e.g., `"self#jumbf=c2pa.assertions/c2pa.thumbnail.claim.jpeg"`).
+3. **After signing**: The manifest store contains the full JUMBF URI that you use to extract the resource.
 
 ### Extracting resources from a manifest store
 
