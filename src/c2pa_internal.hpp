@@ -187,15 +187,6 @@ intptr_t stream_flusher(StreamContext* context) {
     });
 }
 
-/// @brief Converts a path to a std::string in utf-8 format
-inline std::string path_to_string(const std::filesystem::path &source_path)
-{
-    // Use u8string to ensure UTF-8 encoding across platforms. We have to convert
-    // to std::string manually because std::string doesn't have a constructor accepting u8String until C++20.
-    auto u8_str = source_path.u8string();
-    return std::string(u8_str.begin(), u8_str.end());
-}
-
 /// @brief Open a binary file stream with error handling
 /// @tparam StreamType std::ifstream or std::ofstream
 /// @param path Path to the file
@@ -203,13 +194,12 @@ inline std::string path_to_string(const std::filesystem::path &source_path)
 template<typename StreamType>
 inline std::unique_ptr<StreamType> open_file_binary(const std::filesystem::path &path)
 {
-    auto path_str = path_to_string(path);
     auto stream = std::make_unique<StreamType>(
-        path_str,
+        path,
         std::ios_base::binary
     );
     if (!stream->is_open()) {
-        throw C2paException("Failed to open file: " + path_str);
+        throw C2paException("Failed to open file: " + path.string());
     }
     return stream;
 }

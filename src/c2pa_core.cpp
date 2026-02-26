@@ -71,11 +71,14 @@ namespace c2pa
         const char* dir_ptr = nullptr;
         std::string dir_str;
         if (data_dir.has_value()) {
-            dir_str = detail::path_to_string(data_dir.value());
+            auto u = data_dir.value().u8string();
+            dir_str = std::string(u.begin(), u.end());
             dir_ptr = dir_str.c_str();
         }
 
-        char *result = c2pa_read_file(detail::path_to_string(source_path).c_str(), dir_ptr);
+        auto src_u8 = source_path.u8string();
+        std::string src_str(src_u8.begin(), src_u8.end());
+        char *result = c2pa_read_file(src_str.c_str(), dir_ptr);
 
         if (result == nullptr)
         {
@@ -99,9 +102,11 @@ namespace c2pa
     [[deprecated("Use stream APIs instead: add_ingredient on the Builder")]]
     std::string read_ingredient_file(const std::filesystem::path &source_path, const std::filesystem::path &data_dir)
     {
+        auto src_u8 = source_path.u8string();
+        auto dir_u8 = data_dir.u8string();
         return detail::c_string_to_string(
-            c2pa_read_ingredient_file(detail::path_to_string(source_path).c_str(),
-                                     detail::path_to_string(data_dir).c_str()));
+            c2pa_read_ingredient_file(std::string(src_u8.begin(), src_u8.end()).c_str(),
+                                     std::string(dir_u8.begin(), dir_u8.end()).c_str()));
     }
 
     /// Adds the manifest and signs a file.
@@ -118,9 +123,17 @@ namespace c2pa
                    c2pa::SignerInfo *signer_info,
                    const std::optional<std::filesystem::path> data_dir)
     {
-        auto dir = data_dir.has_value() ? detail::path_to_string(data_dir.value()) : std::string();
+        auto src_u8 = source_path.u8string();
+        auto dst_u8 = dest_path.u8string();
+        std::string src_str(src_u8.begin(), src_u8.end());
+        std::string dst_str(dst_u8.begin(), dst_u8.end());
+        std::string dir_str;
+        if (data_dir.has_value()) {
+            auto u = data_dir.value().u8string();
+            dir_str = std::string(u.begin(), u.end());
+        }
 
-        char *result = c2pa_sign_file(detail::path_to_string(source_path).c_str(), detail::path_to_string(dest_path).c_str(), manifest, signer_info, dir.c_str());
+        char *result = c2pa_sign_file(src_str.c_str(), dst_str.c_str(), manifest, signer_info, dir_str.c_str());
         if (result == nullptr)
         {
             throw c2pa::C2paException();
