@@ -188,13 +188,6 @@ builder.sign(source_path, output_path, signer);
 
 Actions record what was done to an asset (e.g. color adjustments, cropping, placing content). Use `builder.add_action()` to add actions to a working store.
 
-```mermaid
-flowchart LR
-    B[Builder] -->|"add_action({...})"| B
-    B -->|"add_action({...})"| B
-    B -->|sign| OUT[Signed Asset with actions assertion]
-```
-
 ```cpp
 builder.add_action(R"({
     "action": "c2pa.color_adjustments",
@@ -436,26 +429,6 @@ A **builder archive** (also called a working store archive) is a serialized snap
 An **ingredient archive** contains the manifest store data from an asset that was added as an ingredient.
 
 The key difference: a builder archive is a work-in-progress (unsigned). An ingredient archive carries the provenance history of a source asset to reuse as ingredient in other working stores.
-
-```mermaid
-flowchart TD
-    subgraph BA["Builder Archive (working store archive)"]
-        direction TB
-        B1["Serialized Builder state (manifest definition + all resources)"]
-        B2["Purpose: defer signing to another process or machine"]
-        B3["Not yet signed"]
-    end
-```
-
-```mermaid
-flowchart TD
-    subgraph IA["Ingredient Archive"]
-        direction TB
-        I1["Extracted manifest store from a signed asset"]
-        I2["Purpose: carry provenance of a source asset"]
-        I3["Contains real signatures from the original asset"]
-    end
-```
 
 ### The ingredients catalog pattern
 
@@ -703,23 +676,6 @@ In some cases it may be necessary to merge ingredients from multiple working sto
 
 When merging from multiple sources, resource identifier URIs can collide. One way to avoid collisions is to rename identifiers with a unique suffix:
 
-```mermaid
-flowchart TD
-    subgraph WS1["Working Store A"]
-        IX[Ingredient X thumb: T1]
-    end
-    subgraph WS2["Working Store B"]
-        IY[Ingredient Y thumb: T1]
-    end
-    IX -->|"keep as T1"| NB[New Builder]
-    IY -->|"rename to T1__1"| NB
-    NB -->|sign| OUT[Signed Output Asset]
-    style IY fill:#ff9,stroke:#cc0
-
-    NOTE["Prefer maintaining a single working store. Merge only as a fallback."]
-    style NOTE fill:#ffd,stroke:#cc0,stroke-dasharray: 5 5
-```
-
 ```cpp
 // Track used resource IDs to detect collisions
 std::set<std::string> used_ids;
@@ -887,10 +843,10 @@ Since there is no `remove()` method, the way to remove actions is to **read, pic
 
 ```mermaid
 flowchart TD
-    SA["Signed Asset\n3 actions: opened, placed, filtered"] -->|Reader| JSON[Parse JSON]
+    SA["Signed Asset with 3 actions: opened, placed, filtered"] -->|Reader| JSON[Parse JSON]
     JSON -->|"Keep only opened + placed"| FILT[Filtered actions]
     FILT -->|"New Builder with 2 actions"| NB[New Builder]
-    NB -->|sign| OUT["New Asset\n2 actions: opened, placed"]
+    NB -->|sign| OUT["New with 2 actions only: opened, placed"]
 ```
 
 ### Basic action filtering
@@ -955,26 +911,7 @@ The `c2pa.placed` action references a `componentOf` ingredient that was composit
 
 - If keeping `c2pa.placed`, keep the ingredient it references
 - If the ingredient is dropped, also drop the `c2pa.placed` action
-- `c2pa.placed` is not required -- it can safely be removed
-
-```mermaid
-flowchart TD
-    subgraph Read["Read from signed asset"]
-        A1["c2pa.opened (REQUIRED)\ningredients: [{url: .../c2pa.ingredient.v3}]"]
-        A2["c2pa.placed\ningredients: [{url: .../c2pa.ingredient.v3__1}]"]
-        A3["c2pa.color_adjustments (no ingredient link)"]
-        I1["Ingredient: original.jpg\nlabel: c2pa.ingredient.v3\nrelationship: parentOf"]
-        I2["Ingredient: overlay.png\nlabel: c2pa.ingredient.v3__1\nrelationship: componentOf"]
-    end
-    subgraph Rules["Filtering rules"]
-        R1["c2pa.opened → MUST keep + MUST keep its parentOf ingredient"]
-        R2["c2pa.placed → optional, but if kept, keep its componentOf ingredient"]
-        R3["c2pa.color_adjustments → optional, no ingredient dependency"]
-    end
-    A1 --> R1
-    A2 --> R2
-    A3 --> R3
-```
+- If `c2pa.placed` is not required: it can safely be removed (and the ingredient it references, if it is the only reference)
 
 #### Full example: filtering with linked ingredients
 
@@ -1064,7 +1001,7 @@ for (auto& ingredient : kept_ingredients) {
 builder.sign(source_path, output_path, signer);
 ```
 
-> **Remember:** When copying ingredient JSON objects from a reader, they keep their `label` field. Since the action URLs reference ingredients by label, the links resolve correctly as long as ingredients are not renamed or reindexed. If ingredients are re-added via `add_ingredient()` (which generates new labels), the action URLs will also need to be updated.
+> **Note:** When copying ingredient JSON objects from a reader, they keep their `label` field. Since the action URLs reference ingredients by label, the links resolve correctly as long as ingredients are not renamed or reindexed. If ingredients are re-added via `add_ingredient()` (which generates new labels), the action URLs will also need to be updated.
 
 ## Controlling manifest embedding
 
@@ -1234,23 +1171,15 @@ builder.sign(source, output, signer);
 
 **No.** C2PA manifests are cryptographically signed. Any modification invalidates the signature. The only way to "modify" a manifest is to create a new `Builder` with the desired changes and sign it. This is by design: it ensures the integrity of the provenance chain.
 
-### What happens to the provenance chain when I rebuild?
+### What happens to the provenance chain when rebuilding a working store?
 
-When creating a new manifest, the chain is preserved once the original asset is added as an ingredient. The ingredient carries the original's manifest data, so validators can trace the full history:
-
-```mermaid
-flowchart RL
-    C[Filtered manifest] -->|ingredient| B[Edited manifest]
-    B -->|ingredient| A[Original manifest]
-```
-
-If the original is not added as an ingredient, the provenance chain is broken: the new manifest has no link to the original. This might be intentional (starting fresh) or a mistake (losing provenance).
+When creating a new manifest, the chain is preserved once the original asset is added as an ingredient. The ingredient carries the original's manifest data, so validators can trace the full history. If the original is not added as an ingredient, the provenance chain is broken: the new manifest has no link to the original. This might be intentional (starting fresh) or a mistake (losing provenance).
 
 ### Quick reference decision tree
 
 ```mermaid
 flowchart TD
-    Q1{Need to read an\nexisting manifest?}
+    Q1{Need to read an existing manifest?}
     Q1 -->|No| USE_B[Use Builder alone new manifest from scratch]
     Q1 -->|Yes| Q2{Need to create a new/modified manifest?}
     Q2 -->|No| USE_R[Use Reader alone inspect/extract only]
