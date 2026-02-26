@@ -1,19 +1,36 @@
 # Working stores and manifest stores
 
-## Introduction
-
-You need to understand these basic terms before using the SDK.
-
+This table summarizes the fundamental entities that you work with when using the CAI SDK.
 
 | Object | Description | Where it is | Primary API |
 |--------|-------------|-------------|-------------|
 | [**Manifest store**](#manifest-store) | Final signed provenance data | Embedded in asset or remotely in cloud | [`Reader`](https://contentauth.github.io/c2pa-c/d9/dbb/classc2pa_1_1Reader.html) class |
 | [**Working store**](#working-store) | Editable in-progress manifest | `Builder` object | [`Builder`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html) class |
-| [**Archive**](#archive) | Serialized working store | `.c2pa` file/stream | [`to_archive()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a68074eac71b7fc57d338019220101db3), [`from_archive()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a913c64f6b5ec978322ef0edc89e407b3) |
+| [**Archive**](#archive) | Serialized working store | `.c2pa` file/stream | [`Builder::to_archive()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a68074eac71b7fc57d338019220101db3)<br/> [`Builder::from_archive()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a913c64f6b5ec978322ef0edc89e407b3) |
+| [**Resources**](#working-with-resources) | Binary assets referenced by manifest assertions, such as thumbnails or ingredient thumbnails. | In asset manifest. | [`Builder::add_resource()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a45bf6fc8163b0194b334aa21f73f8476) <br/> [`Reader::get_resource`](https://contentauth.github.io/c2pa-c/d9/dbb/classc2pa_1_1Reader.html#a308939c990cab98bf8435c699bc96096) |
+| [**Ingredients**](#working-with-ingredients) | Source materials used to create an asset, preserving the provenance chain. | In asset manifest. | [`builder.add_ingredient`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a49407f9604a53b5b68bcfa699cba05f5)
+
+This diagram summarizes the relationships among these entities.
+
+```mermaid
+graph TD
+    subgraph MS["Manifest Store"]
+        subgraph M1["Manifests"]
+            R1[Resources]
+            I1[Ingredients]
+        end
+    end
+
+    A[Working Store<br/>Builder object] -->|sign| MS
+    A -->|to_archive| C[C2PA Archive<br/>.c2pa file]
+    C -->|from_archive| A
+```
+
+## Key entities
 
 ### Manifest store
 
-A _manifest store_ is the final C2PA data structure that's embedded in (or attached to) a signed asset. It contains one or more manifests that contain provenance data and cryptographic signatures.
+A _manifest store_ is the data structure that's embedded in (or attached to) a signed asset. It contains one or more manifests that contain provenance data and cryptographic signatures.
 
 **Characteristics:**
 
@@ -23,6 +40,11 @@ A _manifest store_ is the final C2PA data structure that's embedded in (or attac
 - Read it by using a `Reader` object.
 
 **Example:** When you open a signed JPEG file, the C2PA data embedded in it is the manifest store.
+
+For more information, see:
+- [Reading manifest stores from assets](#reading-manifest-stores-from-assets)
+- [Creating and signing manifests](#creating-and-signing-manifests)
+- [Embedded vs external manifests](#embedded-vs-external-manifests)
 
 ### Working store
 
@@ -36,6 +58,8 @@ A _working store_ is a `Builder` object representing an editable, in-progress ma
 
 **Example:** When you create a `Builder` object and add assertions to it, you're dealing with a working store, as it is an "in progress" manifest being built.
 
+For more information, see [Using Working stores](#using-working-stores).
+
 ### Archive
 
 A _C2PA archive_ (or just _archive_) contains the serialized bytes of a working store saved to a file or stream (typically a `.c2pa` file). It uses the standard JUMBF `application/c2pa` format.
@@ -46,15 +70,7 @@ A _C2PA archive_ (or just _archive_) contains the serialized bytes of a working 
 - Save an archive by using [`Builder::to_archive()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a68074eac71b7fc57d338019220101db3) and restore a full working store from an archive by using [`Builder::from_archive()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a913c64f6b5ec978322ef0edc89e407b3).
 - Useful for separating manifest preparation ("work in progress") from final signing.
 
-
-### Overview diagram
-
-```mermaid
-graph TD
-    A[Working Store<br/>Builder object] -->|sign| B[Manifest Store]
-    A -->|to_archive| C[C2PA Archive<br/>.c2pa file]
-    C -->|from_archive| A
-```
+For more information, see [Working with archives](#working-with-archives)
 
 ## Reading manifest stores from assets
 
@@ -129,7 +145,7 @@ if (reader.is_embedded()) {
 }
 ```
 
-## Working stores (Builder objects)
+## Using working stores
 
 A **working store** is represented by a `Builder` object. It contains "live" manifest data as you add information to it.
 
@@ -292,7 +308,9 @@ if (source.is_open() && output.is_open()) {
 }
 ```
 
-### Complete example: create, sign, and read
+### Complete example
+
+This code combines the above examples to create, sign, and read a manifest.
 
 ```cpp
 #include <c2pa.hpp>
@@ -475,17 +493,16 @@ const std::string ingredient_json = R"({
 builder.add_ingredient(ingredient_json, "base_layer.png");
 ```
 
-## C2PA archives (saving and restoring working stores)
+## Working with archives 
 
-A *archive* (C2PA archive) is a serialized working store (`Builder` object) saved to a file or stream. 
-### Why use C2PA archives?
+A *archive* (C2PA archive) is a serialized working store (`Builder` object) saved to a file or stream.
 
-- **Save work-in-progress**: Persist a working store between sessions
-- **Separate creation from signing**: Prepare manifests on one machine, sign on another
-- **Share manifests**: Transfer working stores between systems
-- **Offline preparation**: Build manifests offline, sign them later
+Using archives provides these advantages:
 
-### Format
+- **Save work-in-progress**: Persist a working store between sessions.
+- **Separate creation from signing**: Prepare manifests on one machine, sign on another.
+- **Share manifests**: Transfer working stores between systems.
+- **Offline preparation**: Build manifests offline, sign them later.
 
 The default binary format of an archive is the **C2PA JUMBF binary format** (`application/c2pa`), which is the standard way to save and restore working stores.
 
