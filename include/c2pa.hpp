@@ -40,6 +40,7 @@
 #include <vector>
 #include <optional>
 #include <memory>
+#include <utility>
 
 #include "c2pa.h"
 
