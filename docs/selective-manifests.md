@@ -780,14 +780,19 @@ The `Reader` returns a manifest store, which is a dictionary of manifests. But c
 ```mermaid
 flowchart TD
     subgraph Store["Manifest Store"]
-        M1["Active Manifest\n- assertions (including c2pa.actions.v2),  ingredients"]
-        M2["Ingredient A's manifest with its own c2pa.actions.v2 and its own ingredients"]
-        M3["Ingredient B's manifest with its own c2pa.actions.v2"]
+        M1["Active Manifest\n- assertions (including c2pa.actions.v2)\n- ingredients"]
+        M2["Ingredient A's manifest\n- its own c2pa.actions.v2\n- its own ingredients"]
+        M3["Ingredient B's manifest\n- its own c2pa.actions.v2"]
     end
     M1 -->|"ingredient A has manifest_data"| M2
     M1 -->|"ingredient B has manifest_data"| M3
+    M1 -.-|"ingredient C has no manifest_data"| M5["Ingredient C\n(unsigned asset, no provenance)"]
     M2 -->|"may have its own ingredients..."| M4["...deeper in the tree"]
+
+    style M5 fill:#eee,stroke:#999,stroke-dasharray: 5 5
 ```
+
+Not every ingredient has provenance. An unsigned asset added as an ingredient will have a `title`, `format`, and `relationship`, but no `manifest_data` and no entry in the `"manifests"` dictionary. It appears in the `"ingredients"` array but has no `"active_manifest"` field.
 
 The `reader.json()` returns all manifests in a flattened `"manifests"` dictionary, keyed by their label (a URN like `contentauth:urn:uuid:...`). The `"active_manifest"` key indicates which one is the top of the tree.
 

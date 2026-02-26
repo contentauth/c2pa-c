@@ -4517,6 +4517,8 @@ TEST_F(BuilderTest, CustomParamsInActions)
         << "Custom params on c2pa.created should survive signing";
     EXPECT_TRUE(found_placed_params)
         << "Custom params on c2pa.placed should survive signing";
+}
+
 TEST_F(BuilderTest, NonAsciiSourcePathForSign)
 {
     // Copy A.jpg to a temp path with a non-ASCII name rather than relying on
