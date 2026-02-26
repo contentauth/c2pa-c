@@ -779,10 +779,10 @@ The `Reader` returns a manifest store, which is a dictionary of manifests. But c
 
 ```mermaid
 flowchart TD
-    subgraph Store["Manifest Store (flat dictionary)"]
-        M1["Active Manifest\n- assertions (including c2pa.actions.v2)\n- ingredients"]
-        M2["Ingredient A's manifest\n- its own c2pa.actions.v2\n- its own ingredients"]
-        M3["Ingredient B's manifest\n- its own c2pa.actions.v2"]
+    subgraph Store["Manifest Store"]
+        M1["Active Manifest\n- assertions (including c2pa.actions.v2),  ingredients"]
+        M2["Ingredient A's manifest with its own c2pa.actions.v2 and its own ingredients"]
+        M3["Ingredient B's manifest with its own c2pa.actions.v2"]
     end
     M1 -->|"ingredient A has manifest_data"| M2
     M1 -->|"ingredient B has manifest_data"| M3
