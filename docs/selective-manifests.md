@@ -833,6 +833,11 @@ for (auto& ingredient : active_manifest["ingredients"]) {
 
             // And its own ingredients (deeper in the tree)...
         }
+    } else {
+        // This ingredient has no manifest of its own (it was an unsigned asset).
+        // It still has a title, format, and relationship, but no manifest_data,
+        // no actions, and no deeper provenance chain.
+        std::cout << "  (no content credentials)" << std::endl;
     }
 }
 ```
@@ -1052,11 +1057,10 @@ flowchart TD
     subgraph Step2["Step 2: FILTER"]
         RD --> FI[Parse JSON]
         FI --> F1[Pick ingredients to keep]
-        FI --> F2[Pick assertions to keep]
         FI --> F3[Pick actions to keep]
         FI --> F4[Ensure kept actions' ingredients are also kept]
         FI --> F5["Ensure c2pa.created/opened is still the first action"]
-        F1 & F2 & F3 & F4 & F5 --> FM[Build new manifest JSON with only filtered items]
+        F1 & F3 & F4 & F5 --> FM[Build new manifest JSON with only filtered items]
     end
 
     subgraph Step3["Step 3: BUILD new Builder"]
@@ -1139,8 +1143,8 @@ builder.sign(source, output, signer);
 
 | Approach | What it does | When to use |
 |----------|-------------|-------------|
-| `add_ingredient(json, path)` | Reads the source asset, extracts its manifest store automatically, generates a thumbnail | Adding a signed asset as an ingredient; the library handles everything |
-| Inject via `with_definition()` + `add_resource()` | When providing the ingredient JSON and all binary resources manually | Reconstructing from an archive or merging from multiple readers, where the data has already been extracted |
+| `add_ingredient(json, path)` | Reads the source (a signed asset, an unsigned file, or a `.c2pa` archive), extracts its manifest store automatically, generates a thumbnail | Adding an ingredient where the library should handle extraction. Works with ingredient catalog archives too: pass the archive path and the library extracts the manifest data |
+| Inject via `with_definition()` + `add_resource()` | Accepts the ingredient JSON and all binary resources provided manually | Reconstructing from a reader or merging from multiple readers, where the data has already been extracted |
 
 ### When to use archives
 
@@ -1179,13 +1183,13 @@ When creating a new manifest, the chain is preserved once the original asset is 
 
 ```mermaid
 flowchart TD
-    Q1{Need to read an existing manifest?}
-    Q1 -->|No| USE_B[Use Builder alone new manifest from scratch]
-    Q1 -->|Yes| Q2{Need to create a new/modified manifest?}
-    Q2 -->|No| USE_R[Use Reader alone inspect/extract only]
+    Q1{Need to read an\nexisting manifest?}
+    Q1 -->|No| USE_B["Use Builder alone\n(new manifest from scratch)"]
+    Q1 -->|Yes| Q2{Need to create a\nnew/modified manifest?}
+    Q2 -->|No| USE_R["Use Reader alone\n(inspect/extract only)"]
     Q2 -->|Yes| USE_BR[Use both Reader + Builder]
-    USE_BR --> Q3{What to keep?}
-    Q3 -->|Everything| P1["add_ingredient() with original asset"]
-    Q3 -->|Some parts| P2["Read JSON, filter, create new Builder"]
-    Q3 -->|Nothing| P3["New Builder alone fresh manifest"]
+    USE_BR --> Q3{What to keep from\nthe existing manifest?}
+    Q3 -->|Everything| P1["add_ingredient() with original asset\nor archive path"]
+    Q3 -->|Some parts| P2["1. Read: reader.json() + get_resource()\n2. Filter: pick ingredients & actions to keep\n3. Build: new Builder with filtered JSON\n4. Transfer: .add_resource for kept binaries\n5. Sign: builder.sign()"]
+    Q3 -->|Nothing| P3["New Builder alone\n(fresh manifest, no prior provenance)"]
 ```
