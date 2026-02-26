@@ -378,44 +378,24 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         }
     }
 
-    Context::Context(const Settings& settings) : context(nullptr) {
-        if (!settings.is_valid()) {
-            throw C2paException("Settings object is invalid");
-        }
-        auto builder = c2pa_context_builder_new();
-        if (!builder) {
-            throw C2paException("Failed to create Context builder");
-        }
-        if (c2pa_context_builder_set_settings(builder, settings.c_settings()) != 0) {
-            c2pa_free(builder);
-            throw C2paException();
-        }
-        // The C API consumes the builder on build
-        context = c2pa_context_builder_build(builder);
-        if (!context) {
-            throw C2paException("Failed to build context");
-        }
+    Context::Context(const Settings& settings)
+        : Context(ContextBuilder().with_settings(settings).create_context()) {
     }
 
-    Context::Context(Context&& other) noexcept : context(other.context) {
-        other.context = nullptr;
+    Context::Context(Context&& other) noexcept
+        : context(std::exchange(other.context, nullptr)) {
     }
 
     Context& Context::operator=(Context&& other) noexcept {
         if (this != &other) {
-            if (context) {
-                c2pa_free(context);
-            }
-            context = other.context;
-            other.context = nullptr;
+            c2pa_free(context);
+            context = std::exchange(other.context, nullptr);
         }
         return *this;
     }
 
     Context::~Context() noexcept {
-        if (context) {
-            c2pa_free(context);
-        }
+        c2pa_free(context);
     }
 
     C2paContext* Context::c_context() const noexcept {
@@ -443,18 +423,14 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
 
     Context::ContextBuilder& Context::ContextBuilder::operator=(ContextBuilder&& other) noexcept {
         if (this != &other) {
-            if (context_builder) {
-                c2pa_free(context_builder);
-            }
+            c2pa_free(context_builder);
             context_builder = std::exchange(other.context_builder, nullptr);
         }
         return *this;
     }
 
     Context::ContextBuilder::~ContextBuilder() noexcept {
-        if (context_builder) {
-            c2pa_free(context_builder);
-        }
+        c2pa_free(context_builder);
     }
 
     bool Context::ContextBuilder::is_valid() const noexcept {
@@ -497,7 +473,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
             throw C2paException("ContextBuilder is invalid (moved from)");
         }
 
-        // The C API consumes the builder on build
+        // The C API consumes the context builder on build
         C2paContext* ctx = c2pa_context_builder_build(context_builder);
         if (!ctx) {
             throw C2paException("Failed to build context");
