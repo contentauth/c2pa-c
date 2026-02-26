@@ -591,8 +591,8 @@ An example workflow is to build up a working store with multiple ingredients, ar
 ```mermaid
 flowchart TD
     subgraph Step1["Step 1: Build a working store with ingredients"]
-        B1[Builder] -->|"add_ingredient(A.jpg)"| B1
-        B1 -->|"add_ingredient(B.jpg)"| B1
+        IA["add_ingredient(A.jpg)"] --> B1[Builder]
+        IB["add_ingredient(B.jpg)"] --> B1
         B1 -->|"to_archive()"| AR["archive.c2pa"]
     end
     subgraph Step2["Step 2: Extract ingredients from archive"]
@@ -1183,13 +1183,13 @@ When creating a new manifest, the chain is preserved once the original asset is 
 
 ```mermaid
 flowchart TD
-    Q1{Need to read an\nexisting manifest?}
-    Q1 -->|No| USE_B["Use Builder alone\n(new manifest from scratch)"]
-    Q1 -->|Yes| Q2{Need to create a\nnew/modified manifest?}
-    Q2 -->|No| USE_R["Use Reader alone\n(inspect/extract only)"]
+    Q1{Need to read an existing manifest?}
+    Q1 -->|No| USE_B["Use Builder alone (new manifest from scratch)"]
+    Q1 -->|Yes| Q2{Need to create a new/modified manifest?}
+    Q2 -->|No| USE_R["Use Reader alone (inspect/extract only)"]
     Q2 -->|Yes| USE_BR[Use both Reader + Builder]
-    USE_BR --> Q3{What to keep from\nthe existing manifest?}
-    Q3 -->|Everything| P1["add_ingredient() with original asset\nor archive path"]
-    Q3 -->|Some parts| P2["1. Read: reader.json() + get_resource()\n2. Filter: pick ingredients & actions to keep\n3. Build: new Builder with filtered JSON\n4. Transfer: .add_resource for kept binaries\n5. Sign: builder.sign()"]
-    Q3 -->|Nothing| P3["New Builder alone\n(fresh manifest, no prior provenance)"]
+    USE_BR --> Q3{What to keep from the existing manifest?}
+    Q3 -->|Everything| P1["add_ingredient() with original asset or archive path"]
+    Q3 -->|Some parts| P2["1. Read: reader.json() + get_resource() 2. Filter: pick ingredients & actions to keep 3. Build: new Builder with filtered JSON 4. Transfer: .add_resource for kept binaries 5. Sign: builder.sign()"]
+    Q3 -->|Nothing| P3["New Builder alone (fresh manifest, no prior provenance)"]
 ```
