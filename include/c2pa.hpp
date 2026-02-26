@@ -738,7 +738,11 @@ namespace c2pa
 
         /// @brief Create a signer from a Signer pointer and take ownership of that pointer.
         /// @param c_signer The C2paSigner pointer (must be non-null).
-        Signer(C2paSigner *c_signer) : signer(c_signer) {}
+        Signer(C2paSigner *c_signer) : signer(c_signer) {
+            if (!c_signer) {
+                throw C2paException("Signer can not be null");
+            }
+        }
 
         /// @brief Create a Signer from signing credentials.
         /// @param alg Signing algorithm name (e.g., "ps256", "es256").
