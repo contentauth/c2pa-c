@@ -40,6 +40,7 @@
 #include <vector>
 #include <optional>
 #include <memory>
+#include <utility>
 
 #include "c2pa.h"
 
@@ -638,21 +639,17 @@ namespace c2pa
         Reader& operator=(const Reader&) = delete;
 
         Reader(Reader&& other) noexcept
-            : c2pa_reader(other.c2pa_reader),
+            : c2pa_reader(std::exchange(other.c2pa_reader, nullptr)),
               owned_stream(std::move(other.owned_stream)),
               cpp_stream(std::move(other.cpp_stream)) {
-            other.c2pa_reader = nullptr;
         }
 
         Reader& operator=(Reader&& other) noexcept {
             if (this != &other) {
-                if (c2pa_reader != nullptr) {
-                    c2pa_free(c2pa_reader);
-                }
-                c2pa_reader = other.c2pa_reader;
+                c2pa_free(c2pa_reader);
+                c2pa_reader = std::exchange(other.c2pa_reader, nullptr);
                 owned_stream = std::move(other.owned_stream);
                 cpp_stream = std::move(other.cpp_stream);
-                other.c2pa_reader = nullptr;
             }
             return *this;
         }
@@ -758,15 +755,13 @@ namespace c2pa
 
         /// @brief Move constructor.
         /// @param other Signer to move from.
-        Signer(Signer&& other) noexcept : signer(other.signer) {
-            other.signer = nullptr;
+        Signer(Signer&& other) noexcept : signer(std::exchange(other.signer, nullptr)) {
         }
 
         Signer& operator=(Signer&& other) noexcept {
             if (this != &other) {
                 c2pa_free(signer);
-                signer = other.signer;
-                other.signer = nullptr;
+                signer = std::exchange(other.signer, nullptr);
             }
             return *this;
         }
@@ -814,16 +809,13 @@ namespace c2pa
 
         Builder& operator=(const Builder&) = delete;
 
-        Builder(Builder&& other) noexcept : builder(other.builder) {
-            other.builder = nullptr;
+        Builder(Builder&& other) noexcept : builder(std::exchange(other.builder, nullptr)) {
         }
 
         Builder& operator=(Builder&& other) noexcept {
             if (this != &other) {
-                if (builder != nullptr)
-                    c2pa_free(builder);
-                builder = other.builder;
-                other.builder = nullptr;
+                c2pa_free(builder);
+                builder = std::exchange(other.builder, nullptr);
             }
             return *this;
         }
