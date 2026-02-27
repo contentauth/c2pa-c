@@ -1,14 +1,16 @@
 # Selective manifest construction with Builder and Reader
 
-`Builder` and `Reader` can be used together to selectively construct manifests, keeping only the parts needed and leaving out the rest. This is useful in the case where not all ingredients on a working store should be added (e.g. in the case where ingredient assets are not visible). This process is best described as filtering, or rebuilding a working store:
+`Builder` and `Reader` can be used together to selectively construct manifests, keeping only the parts needed and leaving out the rest. This is useful in the case where not all ingredients on a working store should be added (e.g. in the case where ingredient assets are not visible). 
+
+This process is best described as *filtering*, or *rebuilding* a working store, and consists of these steps:
 
 1. Read an existing manifest.
-1. Choose which elements to retain.
-1. Build a new manifest containing only those elements.
+2. Choose which elements to retain.
+3. Build a new manifest containing only those elements.
 
-A C2PA manifest is a signed data structure attached to an asset (such as an image or video) that records provenance information: who created it, what tools were used, what edits were made, and what source assets (ingredients) contributed to it. A manifest contains assertions (statements about the asset), ingredients (references to other assets used to create the signed asset), and binary resources (like thumbnails).
+A manifest is a signed data structure attached to an asset that records provenance information and what source assets (ingredients) contributed to it. A manifest contains assertions (statements about the asset), ingredients (references to other assets used to create the signed asset), and binary resources (like thumbnails).
 
-Since both `Reader` and `Builder` are **read-only by design** (there is no `remove()` method on either), the way to "remove" content is to **read what exists, filter out what is needed, and create a new `Builder` with only that information added back on the new Builder**. This process produces a new `Builder` instance ("rebuild").
+Since both `Reader` and `Builder` are **read-only by design** (there is no `remove()` method on either),  to remove  content you must **read what exists, filter out what is needed, and create a new** `Builder` **with only that information added back on the new Builder**. This process produces a new `Builder` instance ("rebuild").
 
 > **Important**: This process always creates a new `Builder`. The original signed asset and its manifest are never modified, neither is the starting working store. The `Reader` extracts data without side effects, and the `Builder` constructs a new manifest based on extracted data.
 
@@ -21,6 +23,8 @@ flowchart LR
     C -->|new Builder| D[New Builder]
     D -->|sign| E[New Asset]
 ```
+
+
 
 The fundamental workflow is:
 
@@ -54,7 +58,7 @@ auto thumbnail_id = manifest["thumbnail"]["identifier"];
 
 ### Extracting binary resources
 
-The JSON returned by `reader.json()` only contains string identifiers (JUMBF URIs) for binary data like thumbnails and ingredient manifest stores. The actual binary content must be extracted separately using `get_resource()`:
+The JSON returned by `reader.json()` only contains string identifiers (JUMBF URIs) for binary data like thumbnails and ingredient manifest stores. Extract the actual binary content by using `get_resource()`:
 
 ```cpp
 // Extract a thumbnail to a stream
@@ -71,7 +75,7 @@ Each example below creates a **new `Builder`** from filtered data. The original 
 
 When rebuilding by transferring ingredients between a `Reader` and a **new** `Builder`, remember that both the JSON metadata and the associated binary resources (thumbnails, manifest data) must be transferred. The JSON contains identifiers that reference binary resources. Those identifiers must match what is registered with `builder.add_resource()`.
 
-### Example 1: Keep only specific ingredients
+### Keep only specific ingredients
 
 ```cpp
 c2pa::Context context;
@@ -118,7 +122,7 @@ for (auto& ingredient : kept_ingredients) {
 builder.sign(source_path, output_path, signer);
 ```
 
-### Example 2: Keep only specific assertions
+### Keep only specific assertions
 
 ```cpp
 auto assertions = parsed["manifests"][active]["assertions"];
@@ -141,7 +145,7 @@ c2pa::Builder builder(context, new_manifest.dump());
 builder.sign(source_path, output_path, signer);
 ```
 
-### Example 3: Start fresh and preserve provenance
+### Start fresh and preserve provenance
 
 Sometimes all existing assertions and ingredients may need to be discarded but the provenance chain should be maintained nevertheless. This is done by creating a new `Builder` with a new manifest definition and adding the original signed asset as an ingredient using `add_ingredient()`.
 
@@ -167,6 +171,8 @@ flowchart TD
     style NA fill:#efe,stroke:#090
     style NI fill:#efe,stroke:#090
 ```
+
+
 
 ```cpp
 // Create a new Builder with a new definition
@@ -203,23 +209,25 @@ builder.add_action(R"({
 
 ### Action JSON fields
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `action` | Yes | Action identifier, e.g. `"c2pa.created"`, `"c2pa.opened"`, `"c2pa.placed"`, `"c2pa.color_adjustments"`, `"c2pa.filtered"` |
-| `parameters` | No | Free-form object with action-specific data (including `ingredientIds` for linking ingredients, for instance) |
-| `description` | No | Human-readable description of what happened |
-| `digitalSourceType` | Sometimes, depending on action | URI describing the digital source type (typically for `c2pa.created`) |
+
+| Field               | Required                       | Description                                                                                                               |
+| ------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `action`            | Yes                            | Action identifier, e.g. `"c2pa.created"`, `"c2pa.opened"`, `"c2pa.placed"`, `"c2pa.color_adjustments"`, `"c2pa.filtered"` |
+| `parameters`        | No                             | Free-form object with action-specific data (including `ingredientIds` for linking ingredients, for instance)              |
+| `description`       | No                             | Human-readable description of what happened                                                                               |
+| `digitalSourceType` | Sometimes, depending on action | URI describing the digital source type (typically for `c2pa.created`)                                                     |
+
 
 ### Linking actions to ingredients
 
-When an action involves a specific ingredient, the ingredient and action need to be linked. This is done using `ingredientIds` in the action's parameters, which references a matching key on the ingredient.
+When an action involves a specific ingredient, the ingredient is linked to the action using `ingredientIds` (in the action's `parameters`), referencing a matching key in the ingredient.
 
 #### How `ingredientIds` resolution works
 
 The SDK matches each value in `ingredientIds` against ingredients using this priority:
 
-1. **`label`** on the ingredient (primary): if set and non-empty, this is used as the linking key
-2. **`instance_id`** on the ingredient (fallback): used when `label` is absent or empty
+1. `label` on the ingredient (primary): if set and non-empty, this is used as the linking key.
+2. `instance_id` on the ingredient (fallback): used when `label` is absent or empty.
 
 #### Linking with `label`
 
@@ -323,9 +331,10 @@ builder.add_ingredient(R"({
 builder.sign(source_path, output_path, signer);
 ```
 
-> **Note:** The labels used for linking in the working store may not be the exact labels that appear in the signed manifest. They are indicators for the SDK to know which ingredient to link with which action. The SDK assigns final labels during signing.
+> [!NOTE]
+> The labels used for linking in the working store may not be the exact labels that appear in the signed manifest. They are indicators for the SDK to know which ingredient to link with which action. The SDK assigns final labels during signing.
 
-#### Linking with `instance_id` (fallback)
+#### Linking with `instance_id`
 
 When no `label` is set on an ingredient, the SDK matches `ingredientIds` against `instance_id`.
 
@@ -367,7 +376,8 @@ builder.add_ingredient(ingredient.dump(), source_photo_path);
 builder.sign(source_path, output_path, signer);
 ```
 
-> Note: The `instance_id` can be read back from the ingredient JSON after signing.
+> [!NOTE]
+> The `instance_id` can be read back from the ingredient JSON after signing.
 
 #### After signing: reading linked ingredients back
 
@@ -403,15 +413,17 @@ for (auto& assertion : manifest["assertions"]) {
 }
 ```
 
-#### `label` vs `instance_id`: when to use which?
+#### `When to use label` vs `instance_id`
 
-| Property | `label` | `instance_id` |
-| -------- | ------- | ------------- |
-| **Who controls it** | Caller (any string) | Caller (any string, or from XMP metadata) |
-| **Priority for linking** | Primary: checked first | Fallback: used when label is absent/empty |
-| **When to use** | JSON-defined manifests where the caller controls the ingredient definition | Programmatic workflows using `read_ingredient_file()` or XMP-based IDs |
-| **Survives signing** | SDK may reassign the actual assertion label | Unchanged |
-| **Stable across rebuilds** | The caller controls the build-time value; the post-signing label may change | Yes, always the same set value |
+
+| Property                   | `label`                                                                     | `instance_id`                                                          |
+| -------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **Who controls it**        | Caller (any string)                                                         | Caller (any string, or from XMP metadata)                              |
+| **Priority for linking**   | Primary: checked first                                                      | Fallback: used when label is absent/empty                              |
+| **When to use**            | JSON-defined manifests where the caller controls the ingredient definition  | Programmatic workflows using `read_ingredient_file()` or XMP-based IDs |
+| **Survives signing**       | SDK may reassign the actual assertion label                                 | Unchanged                                                              |
+| **Stable across rebuilds** | The caller controls the build-time value; the post-signing label may change | Yes, always the same set value                                         |
+
 
 **Use `label`** when defining manifests in JSON.
 **Use `instance_id`** when working programmatically with ingredients whose identity comes from other sources, or when a stable identifier that persists unchanged across rebuilds is needed.
@@ -455,6 +467,8 @@ flowchart TD
     style A3 fill:#eee,stroke:#999
     style X fill:#f99,stroke:#c00
 ```
+
+
 
 ```cpp
 // Read from a catalog of archived ingredients
@@ -582,7 +596,7 @@ for (auto& action : actions) {
 }
 ```
 
-> **Naming convention:** Vendor parameters must use reverse domain notation with period-separated components following the pattern `[a-zA-Z0-9][a-zA-Z0-9_-]*` (e.g., `com.mycompany.tool`, `net.example.session_id`). Some namespaces (eg. `c2pa` or `cawg`) may be reserved.
+> **Naming convention:** Vendor parameters must use reverse domain notation with period-separated components following the pattern `[a-zA-Z0-9][a-zA-Z0-9_-]`* (e.g., `com.mycompany.tool`, `net.example.session_id`). Some namespaces (eg. `c2pa` or `cawg`) may be reserved.
 
 ### Extracting ingredients from a working store into archives
 
@@ -604,6 +618,8 @@ flowchart TD
         B2 -->|sign| OUT[Signed Output]
     end
 ```
+
+
 
 **Step 1:** Build a working store and archive it:
 
@@ -792,6 +808,8 @@ flowchart TD
     style M5 fill:#eee,stroke:#999,stroke-dasharray: 5 5
 ```
 
+
+
 Not every ingredient has provenance. An unsigned asset added as an ingredient will have a `title`, `format`, and `relationship`, but no `manifest_data` and no entry in the `"manifests"` dictionary. It appears in the `"ingredients"` array but has no `"active_manifest"` field.
 
 The `reader.json()` returns all manifests in a flattened `"manifests"` dictionary, keyed by their label (a URN like `contentauth:urn:uuid:...`). The `"active_manifest"` key indicates which one is the top of the tree.
@@ -859,6 +877,8 @@ flowchart TD
     NB -->|sign| OUT["New with 2 actions only: opened, placed"]
 ```
 
+
+
 ### Basic action filtering
 
 When filtering, remember that the first action must remain `c2pa.created` or `c2pa.opened` for the manifest to be valid. If the first action is removed, a new one must be added.
@@ -907,7 +927,7 @@ builder.sign(source_path, output_path, signer);
 
 Some actions reference ingredients (via `parameters.ingredients[].url` after signing). If keeping an action that references an ingredient, **the corresponding ingredient and its binary resources must also be kept**. If an ingredient is dropped, any actions that reference it must also be dropped (or updated).
 
-#### Understanding the `c2pa.opened` action
+#### `c2pa.opened` action
 
 The `c2pa.opened` action is special because it must be the first action and it references the asset that was opened (the `parentOf` ingredient). When filtering:
 
@@ -915,7 +935,7 @@ The `c2pa.opened` action is special because it must be the first action and it r
 - **Keep the ingredient it references**: the `parentOf` ingredient linked via its `parameters.ingredients[].url`
 - Removing the ingredient that `c2pa.opened` points to will make the manifest invalid
 
-#### Understanding the `c2pa.placed` action
+#### `c2pa.placed` action
 
 The `c2pa.placed` action references a `componentOf` ingredient that was composited into the asset. When filtering:
 
@@ -1032,6 +1052,8 @@ flowchart LR
     end
 ```
 
+
+
 ```cpp
 c2pa::Builder builder(context, manifest_json);
 builder.set_no_embed();
@@ -1080,6 +1102,8 @@ flowchart TD
         SIGN --> OUT[Output asset with new manifest containing only filtered content]
     end
 ```
+
+
 
 ## Q&A: Builder, Reader, or both?
 
@@ -1146,10 +1170,12 @@ builder.sign(source, output, signer);
 
 ### What is the difference between `add_ingredient()` and injecting ingredient JSON via `with_definition()`?
 
-| Approach | What it does | When to use |
-|----------|-------------|-------------|
-| `add_ingredient(json, path)` | Reads the source (a signed asset, an unsigned file, or a `.c2pa` archive), extracts its manifest store automatically, generates a thumbnail | Adding an ingredient where the library should handle extraction. Works with ingredient catalog archives too: pass the archive path and the library extracts the manifest data |
-| Inject via `with_definition()` + `add_resource()` | Accepts the ingredient JSON and all binary resources provided manually | Reconstructing from a reader or merging from multiple readers, where the data has already been extracted |
+
+| Approach                                          | What it does                                                                                                                                | When to use                                                                                                                                                                   |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `add_ingredient(json, path)`                      | Reads the source (a signed asset, an unsigned file, or a `.c2pa` archive), extracts its manifest store automatically, generates a thumbnail | Adding an ingredient where the library should handle extraction. Works with ingredient catalog archives too: pass the archive path and the library extracts the manifest data |
+| Inject via `with_definition()` + `add_resource()` | Accepts the ingredient JSON and all binary resources provided manually                                                                      | Reconstructing from a reader or merging from multiple readers, where the data has already been extracted                                                                      |
+
 
 ### When to use archives
 
@@ -1198,3 +1224,6 @@ flowchart TD
     Q3 -->|Some parts| P2["1. Read: reader.json() + get_resource() 2. Filter: pick ingredients & actions to keep 3. Build: new Builder with filtered JSON 4. Transfer: .add_resource for kept binaries 5. Sign: builder.sign()"]
     Q3 -->|Nothing| P3["New Builder alone (fresh manifest, no prior provenance)"]
 ```
+
+
+
