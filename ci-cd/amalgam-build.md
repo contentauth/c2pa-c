@@ -1,26 +1,26 @@
-# c2pa-c amalgam build (vNext)
+# c2pa-c amalgam build
 
 ## Overview
 
 An amalgam build (or amalgamation) is a technique for distributing a library as a
-self-contained, buildable unit. In its simplest form, amalgamation concatenates an
-entire library into a single source file that any project can drop in and compile.
+self-contained, buildable unit. Amalgamation concatenates a library
+into a single source file that any project can drop in and compile.
 The goal is the same here, though the form is different: instead of concatenating
 everything into one file, this amalgam collects the C++ wrapper source, the build
 system, the prebuilt Rust shared library, tests, examples, and CI configuration into
 a single directory tree that can be built with one command (`make test`). Nothing
 outside this tree is required at build time (the Rust library is fetched automatically).
 
-This is the amalgam build of the C++ bindings for the C2PA SDK. It wraps a Rust-compiled shared library (`libc2pa_c`)
-in idiomatic C++17, providing a complete project that can read, create, and sign
+This is the amalgam build of the C++ bindings for the C2PA SDK.
+It wraps a Rust-compiled shared library (`libc2pa_c`) in C++17,
+providing a complete project that can read, create, and sign
 C2PA manifests from C++ (and plain C) applications.
 
 ## Architecture
 
 The build produces a three-layer stack. Applications link against the C++ library
-(`c2pa_cpp`, built as a static archive by default), which in turn depends on the Rust
-shared library (`libc2pa_c`) at runtime. An application may also link `libc2pa_c` directly if 
-using the plain C API without the C++ wrapper.
+(`c2pa_cpp`), which in turn depends on the Rust shared library (`libc2pa_c`) at runtime. 
+An application may also link `libc2pa_c` directly if using the plain C API without the C++ wrapper.
 
 ```mermaid
 graph TD
@@ -224,6 +224,7 @@ On Windows, place `c2pa_c.dll` next to your `.exe`.
 
 ### Why is this called an "amalgam" build?
 
+"Amalgam" because we are mixing different elements into one.
 Amalgamation is a distribution technique where a library is packaged as a self-contained,
 buildable unit. In its classic form, amalgamation concatenates an entire library into a
 single source file that any project can drop in and compile. This project follows the
