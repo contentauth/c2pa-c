@@ -1,6 +1,6 @@
 # FAQs
 
-## When to use a `Reader` vs. `Builder`
+## When do I use `Reader` vs. `Builder`
 
 ## Quick reference decision tree
 
@@ -90,7 +90,7 @@ There are two ways: using `add_ingredient()` and injecting ingredient JSON via `
 
 There are two distinct archive concepts:
 
-- **Builder archives (Working store archives)** (`to_archive` / `from_archive` / `with_archive`) serialize the full `Builder` state (manifest definition, resources, ingredients) so it can be resumed or signed later, possibly on a different machine or in a different process. The archive is not yet signed. Use builder archives when:
+- **Builder archives (working store archives)** (`to_archive` / `from_archive` / `with_archive`) serialize the full `Builder` state (manifest definition, resources, ingredients) so it can be resumed or signed later, possibly on a different machine or in a different process. The archive is not yet signed. Use builder archives when:
     - Signing must happen on a different machine (e.g., an HSM server)
     - Checkpointing work-in-progress before signing
     - Transmitting a `Builder` state across a network boundary
