@@ -1,6 +1,6 @@
-# Selective manifest construction with Builder and Reader
+# Selective manifest construction
 
-`Builder` and `Reader` can be used together to selectively construct manifests—keeping only the parts you need and omitting the rest. This is useful when not all ingredients in a working store should be included (for example, when some ingredient assets are not visible).
+You can use `Builder` and `Reader` together to selectively construct manifests&mdash;keeping only the parts you need and omitting the rest. This is useful when you don't want to include all ingredients in a working store (for example, when some ingredient assets are not visible).
 
 This process is best described as *filtering* or *rebuilding* a working store:
 
@@ -10,9 +10,10 @@ This process is best described as *filtering* or *rebuilding* a working store:
 
 A manifest is a signed data structure attached to an asset that records provenance and which source assets (ingredients) contributed to it. It contains assertions (statements about the asset), ingredients (references to other assets), and references to binary resources (such as thumbnails).
 
-Since both `Reader` and `Builder` are **read-only by design** (neither has a `remove()` method), to exclude content you must **read what exists, filter to keep what you need, and create a new** `Builder` **with only that information**. This produces a new `Builder` instance—a "rebuild."
+Since both `Reader` and `Builder` are **read-only** by design (neither has a `remove()` method), to exclude content you must **read what exists, filter to keep what you need, and create a new** `Builder` **with only that information**. This produces a new `Builder` instance—a "rebuild."
 
-> **Important**: This process always creates a new `Builder`. The original signed asset and its manifest are never modified, neither is the starting working store. The `Reader` extracts data without side effects, and the `Builder` constructs a new manifest based on extracted data.
+> [!IMPORTANT]
+> This process always creates a new `Builder`. The original signed asset and its manifest are never modified, neither is the starting working store. The `Reader` extracts data without side effects, and the `Builder` constructs a new manifest based on extracted data.
 
 ## Core concepts
 
@@ -209,12 +210,12 @@ builder.add_action(R"({
 ### Action JSON fields
 
 
-| Field               | Required                       | Description                                                                                                               |
-| ------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `action`            | Yes                            | Action identifier, e.g. `"c2pa.created"`, `"c2pa.opened"`, `"c2pa.placed"`, `"c2pa.color_adjustments"`, `"c2pa.filtered"` |
-| `parameters`        | No                             | Free-form object with action-specific data (including `ingredientIds` for linking ingredients, for instance)              |
-| `description`       | No                             | Human-readable description of what happened                                                                               |
-| `digitalSourceType` | Sometimes, depending on action | URI describing the digital source type (typically for `c2pa.created`)                                                     |
+| Field | Required | Description |
+| --- | --- | --- |
+| `action` | Yes | Action identifier, e.g. `"c2pa.created"`, `"c2pa.opened"`, `"c2pa.placed"`, `"c2pa.color_adjustments"`, `"c2pa.filtered"` |
+| `parameters` | No | Free-form object with action-specific data (including `ingredientIds` for linking ingredients, for instance) |
+| `description` | No | Human-readable description of what happened |
+| `digitalSourceType` | Sometimes, depending on action | URI describing the digital source type (typically for `c2pa.created`) |
 
 
 ### Linking actions to ingredients
@@ -276,9 +277,12 @@ builder.add_ingredient(ingredient_json, photo_path);
 builder.sign(source_path, output_path, signer);
 ```
 
-##### Multiple ingredients need distinct identifying labels
+##### Linking multiple ingredients
 
-When linking multiple ingredients, each ingredient needs a unique label:
+When linking multiple ingredients, each ingredient needs a unique label.
+
+> [!NOTE]
+> The labels used for linking in the working store may not be the exact labels that appear in the signed manifest. They are indicators for the SDK to know which ingredient to link with which action. The SDK assigns final labels during signing.
 
 ```cpp
 auto manifest_json = R"(
@@ -330,9 +334,6 @@ builder.add_ingredient(R"({
 builder.sign(source_path, output_path, signer);
 ```
 
-> [!NOTE]
-> The labels used for linking in the working store may not be the exact labels that appear in the signed manifest. They are indicators for the SDK to know which ingredient to link with which action. The SDK assigns final labels during signing.
-
 #### Linking with `instance_id`
 
 When no `label` is set on an ingredient, the SDK matches `ingredientIds` against `instance_id`.
@@ -378,7 +379,7 @@ builder.sign(source_path, output_path, signer);
 > [!NOTE]
 > The `instance_id` can be read back from the ingredient JSON after signing.
 
-#### After signing: reading linked ingredients back
+#### Reading linked ingredients
 
 After signing, `ingredientIds` is gone. The action's `parameters.ingredients[]` contains hashed JUMBF URIs pointing to ingredient assertions. To match an action to its ingredient, extract the label from the URL:
 
@@ -414,13 +415,13 @@ for (auto& assertion : manifest["assertions"]) {
 
 #### When to use `label` vs `instance_id`
 
-| Property                   | `label`                                                                     | `instance_id`                                                          |
-| -------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| **Who controls it**        | Caller (any string)                                                         | Caller (any string, or from XMP metadata)                              |
-| **Priority for linking**   | Primary: checked first                                                      | Fallback: used when label is absent/empty                              |
-| **When to use**            | JSON-defined manifests where the caller controls the ingredient definition  | Programmatic workflows using `read_ingredient_file()` or XMP-based IDs |
-| **Survives signing**       | SDK may reassign the actual assertion label                                 | Unchanged                                                              |
-| **Stable across rebuilds** | The caller controls the build-time value; the post-signing label may change | Yes, always the same set value                                         |
+| Property | `label` | `instance_id` |
+| --- | --- | --- |
+| **Who controls it** | Caller (any string) | Caller (any string, or from XMP metadata) |
+| **Priority for linking** | Primary: checked first | Fallback: used when label is absent/empty |
+| **When to use** | JSON-defined manifests where the caller controls the ingredient definition | Programmatic workflows using `read_ingredient_file()` or XMP-based IDs |
+| **Survives signing** | SDK may reassign the actual assertion label | Unchanged |
+| **Stable across rebuilds** | The caller controls the build-time value; the post-signing label may change | Yes, always the same set value |
 
 
 **Use `label`** when defining manifests in JSON.
@@ -515,9 +516,9 @@ for (auto& ingredient : selected) {
 builder.sign(source_path, output_path, signer);
 ```
 
-### Overriding ingredient properties when adding from an archive
+### Overriding ingredient properties 
 
-When adding an ingredient (from an archive or from a file), the JSON passed to `add_ingredient()` can override properties like `title` and `relationship`. This is useful when reusing archived ingredients in a different context:
+When adding an ingredient from an archive or from a file, the JSON passed to `add_ingredient()` can override properties like `title` and `relationship`. This is useful when reusing archived ingredients in a different context:
 
 ```cpp
 // Override title, relationship, and set a custom instance_id for tracking
@@ -594,7 +595,7 @@ for (auto& action : actions) {
 
 > **Naming convention:** Vendor parameters must use reverse domain notation with period-separated components (e.g., `com.mycompany.tool`, `net.example.session_id`). Some namespaces (e.g., `c2pa` or `cawg`) may be reserved.
 
-### Extracting ingredients from a working store into archives
+### Extracting ingredients from a working store
 
 An example workflow is to build up a working store with multiple ingredients, archive it, and then later extract specific ingredients from that archive to use in a new working store.
 
@@ -854,7 +855,7 @@ for (auto& ingredient : active_manifest["ingredients"]) {
 }
 ```
 
-## Filtering actions (keeping some, removing others)
+## Filtering actions 
 
 To remove actions, use the same read–filter–rebuild pattern: **read, pick the ones to keep, create a new Builder**.
 
@@ -932,7 +933,9 @@ The `c2pa.placed` action references a `componentOf` ingredient that was composit
 - If the ingredient is dropped, also drop the `c2pa.placed` action
 - If `c2pa.placed` is not required: it can safely be removed (and the ingredient it references, if it is the only reference)
 
-#### Full example: filtering with linked ingredients
+#### Example
+
+The code below provides an example of filtering with linked ingredients.
 
 ```cpp
 c2pa::Context context;
@@ -1020,7 +1023,8 @@ for (auto& ingredient : kept_ingredients) {
 builder.sign(source_path, output_path, signer);
 ```
 
-> **Note:** When copying ingredient JSON objects from a reader, they keep their `label` field. Since the action URLs reference ingredients by label, the links resolve correctly as long as ingredients are not renamed or reindexed. If ingredients are re-added via `add_ingredient()` (which generates new labels), the action URLs will also need to be updated.
+> [!NOTE]
+> When copying ingredient JSON objects from a reader, they keep their `label` field. Since the action URLs reference ingredients by label, the links resolve correctly as long as ingredients are not renamed or reindexed. If ingredients are re-added via `add_ingredient()` (which generates new labels), the action URLs will also need to be updated.
 
 ## Controlling manifest embedding
 
