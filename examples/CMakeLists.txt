@@ -8,7 +8,7 @@ FetchContent_MakeAvailable(json)
 
 # Function to setup runtime dependencies for any target
 function(setup_c2pa_runtime_deps target_name)
-    # Copy shared library to executable directory on all platforms
+    # Copy C shared library to executable directory on all platforms
     if(DEFINED C2PA_C_LIB)
         add_custom_command(TARGET ${target_name} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -16,6 +16,19 @@ function(setup_c2pa_runtime_deps target_name)
             $<TARGET_FILE_DIR:${target_name}>
             COMMENT "Copying c2pa_c library to ${target_name} directory"
         )
+    endif()
+
+    # When c2pa_cpp is SHARED, copy it next to the executable (same as consumers)
+    if(TARGET c2pa_cpp)
+        get_target_property(c2pa_cpp_type c2pa_cpp TYPE)
+        if(c2pa_cpp_type STREQUAL "SHARED_LIBRARY")
+            add_custom_command(TARGET ${target_name} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    $<TARGET_FILE:c2pa_cpp>
+                    $<TARGET_FILE_DIR:${target_name}>
+                COMMENT "Copying c2pa_cpp library to ${target_name} directory"
+            )
+        endif()
     endif()
 
     # On Linux, set RPATH to look in the executable's directory
@@ -43,9 +56,13 @@ function(setup_c2pa_runtime_deps target_name)
     endif()
 endfunction()
 
-# Example executables
+# Example executables (link to shared c2pa_cpp + C lib, same deployment as consumers)
 add_executable(training training.cpp)
-target_link_libraries(training PRIVATE nlohmann_json::nlohmann_json c2pa_cpp)
+if(WIN32)
+    target_link_libraries(training PRIVATE nlohmann_json::nlohmann_json c2pa_cpp "${C2PA_C_IMPLIB}")
+else()
+    target_link_libraries(training PRIVATE nlohmann_json::nlohmann_json c2pa_cpp "${C2PA_C_LIB}")
+endif()
 if(NOT MSVC)
     target_compile_options(training PRIVATE -Wno-deprecated-declarations)
 endif()
@@ -55,7 +72,11 @@ endif()
 setup_c2pa_runtime_deps(training)
 
 add_executable(demo demo.cpp)
-target_link_libraries(demo PRIVATE nlohmann_json::nlohmann_json c2pa_cpp)
+if(WIN32)
+    target_link_libraries(demo PRIVATE nlohmann_json::nlohmann_json c2pa_cpp "${C2PA_C_IMPLIB}")
+else()
+    target_link_libraries(demo PRIVATE nlohmann_json::nlohmann_json c2pa_cpp "${C2PA_C_LIB}")
+endif()
 if(NOT MSVC)
     target_compile_options(demo PRIVATE -Wno-deprecated-declarations)
 endif()
