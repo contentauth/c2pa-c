@@ -25,10 +25,13 @@ namespace c2pa
     /// This class is used to throw exceptions for errors encountered by the C2PA library via c2pa_error().
 
     C2paException::C2paException()
+        : message_([]{
+            auto result = c2pa_error();
+            std::string msg = result ? std::string(result) : std::string();
+            c2pa_free(result);
+            return msg;
+        }())
     {
-        auto result = c2pa_error();
-        message_ = result ? std::string(result) : std::string();
-        c2pa_free(result);
     }
 
     C2paException::C2paException(std::string message) : message_(std::move(message))

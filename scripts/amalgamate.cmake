@@ -22,7 +22,7 @@ file(STRINGS "${C2PA_CPP_PARTS_FILE}" C2PA_CPP_PARTS)
 list(FILTER C2PA_CPP_PARTS INCLUDE REGEX ".+")
 
 set(HEADER
-"// Copyright 2024 Adobe. All rights reserved.
+"// Copyright 2026 Adobe. All rights reserved.
 // This file is licensed to you under the Apache License,
 // Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 // or the MIT license (http://opensource.org/licenses/MIT),

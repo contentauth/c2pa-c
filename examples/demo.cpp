@@ -85,9 +85,9 @@ int main()
             json &manifest = manifest_store["manifests"][active_manifest];
 
             // scan the assertions for the training-mining assertion
-            string identifer = manifest["thumbnail"]["identifier"];
+            string identifier = manifest["thumbnail"]["identifier"];
 
-            reader.get_resource(identifer, thumbnail_path);
+            reader.get_resource(identifier, thumbnail_path);
 
             cout << "thumbnail written to " << thumbnail_path << endl;
         }
