@@ -1,16 +1,16 @@
 # Selective manifest construction with Builder and Reader
 
-`Builder` and `Reader` can be used together to selectively construct manifests, keeping only the parts needed and leaving out the rest. This is useful in the case where not all ingredients on a working store should be added (e.g. in the case where ingredient assets are not visible). 
+`Builder` and `Reader` can be used together to selectively construct manifests—keeping only the parts you need and omitting the rest. This is useful when not all ingredients in a working store should be included (for example, when some ingredient assets are not visible).
 
-This process is best described as *filtering*, or *rebuilding* a working store, and consists of these steps:
+This process is best described as *filtering* or *rebuilding* a working store:
 
 1. Read an existing manifest.
 2. Choose which elements to retain.
 3. Build a new manifest containing only those elements.
 
-A manifest is a signed data structure attached to an asset that records provenance information and what source assets (ingredients) contributed to it. A manifest contains assertions (statements about the asset), ingredients (references to other assets used to create the signed asset), and binary resources (like thumbnails).
+A manifest is a signed data structure attached to an asset that records provenance and which source assets (ingredients) contributed to it. It contains assertions (statements about the asset), ingredients (references to other assets), and references to binary resources (such as thumbnails).
 
-Since both `Reader` and `Builder` are **read-only by design** (there is no `remove()` method on either),  to remove  content you must **read what exists, filter out what is needed, and create a new** `Builder` **with only that information added back on the new Builder**. This process produces a new `Builder` instance ("rebuild").
+Since both `Reader` and `Builder` are **read-only by design** (neither has a `remove()` method), to exclude content you must **read what exists, filter to keep what you need, and create a new** `Builder` **with only that information**. This produces a new `Builder` instance—a "rebuild."
 
 > **Important**: This process always creates a new `Builder`. The original signed asset and its manifest are never modified, neither is the starting working store. The `Reader` extracts data without side effects, and the `Builder` constructs a new manifest based on extracted data.
 
@@ -35,8 +35,7 @@ The fundamental workflow is:
 
 ## Reading an existing manifest
 
-Use `Reader` to extract the manifest store JSON and any binary resources (thumbnails, manifest data).
-The `Reader` does not modify the source asset in any way.
+Use `Reader` to extract the manifest store JSON and any binary resources (thumbnails, manifest data). The source asset is never modified.
 
 ```cpp
 c2pa::Context context;
@@ -71,9 +70,11 @@ reader.get_resource(thumbnail_id, fs::path("thumbnail.jpg"));
 
 ## Filtering into a new Builder
 
-Each example below creates a **new `Builder`** from filtered data. The original asset (and its manifest store) remains as is.
+Each example below creates a **new `Builder`** from filtered data. The original asset and its manifest store are never modified.
 
-When rebuilding by transferring ingredients between a `Reader` and a **new** `Builder`, remember that both the JSON metadata and the associated binary resources (thumbnails, manifest data) must be transferred. The JSON contains identifiers that reference binary resources. Those identifiers must match what is registered with `builder.add_resource()`.
+When transferring ingredients from a `Reader` to a new `Builder`, you must transfer both the JSON metadata and the associated binary resources (thumbnails, manifest data). The JSON contains identifiers that reference those resources; the same identifiers must be used when calling `builder.add_resource()`.
+
+> **Transferring binary resources:** For each kept ingredient, call `reader.get_resource(id, stream)` for any `thumbnail` or `manifest_data` it contains, then `builder.add_resource(id, stream)` with the same identifier.
 
 ### Keep only specific ingredients
 
@@ -98,23 +99,21 @@ new_manifest["ingredients"] = kept_ingredients;
 
 c2pa::Builder builder(context, new_manifest.dump());
 
-// Transfer binary resources for kept ingredients only
+// Transfer binary resources for kept ingredients (see note above)
 for (auto& ingredient : kept_ingredients) {
-    // Transfer thumbnail
     if (ingredient.contains("thumbnail")) {
-        std::string thumb_id = ingredient["thumbnail"]["identifier"];
-        std::stringstream thumb(std::ios::in | std::ios::out | std::ios::binary);
-        reader.get_resource(thumb_id, thumb);
-        thumb.seekg(0);
-        builder.add_resource(thumb_id, thumb);
+        std::string id = ingredient["thumbnail"]["identifier"];
+        std::stringstream s(std::ios::in | std::ios::out | std::ios::binary);
+        reader.get_resource(id, s);
+        s.seekg(0);
+        builder.add_resource(id, s);
     }
-    // Transfer manifest_data (the ingredient's own C2PA manifest)
     if (ingredient.contains("manifest_data")) {
-        std::string md_id = ingredient["manifest_data"]["identifier"];
-        std::stringstream md(std::ios::in | std::ios::out | std::ios::binary);
-        reader.get_resource(md_id, md);
-        md.seekg(0);
-        builder.add_resource(md_id, md);
+        std::string id = ingredient["manifest_data"]["identifier"];
+        std::stringstream s(std::ios::in | std::ios::out | std::ios::binary);
+        reader.get_resource(id, s);
+        s.seekg(0);
+        builder.add_resource(id, s);
     }
 }
 
@@ -192,7 +191,7 @@ builder.sign(source_path, output_path, signer);
 
 ## Adding actions to a working store
 
-Actions record what was done to an asset (e.g. color adjustments, cropping, placing content). Use `builder.add_action()` to add actions to a working store.
+Actions record what was done to an asset (e.g., color adjustments, cropping, placing content). Use `builder.add_action()` to add them to a working store.
 
 ```cpp
 builder.add_action(R"({
@@ -341,7 +340,7 @@ When no `label` is set on an ingredient, the SDK matches `ingredientIds` against
 ```cpp
 c2pa::Context context;
 
-// instance_id is used as identified for the ingredient to link, and needs to be unique
+// instance_id is used as the linking identifier and must be unique
 std::string instance_id = "xmp:iid:939a4c48-0dff-44ec-8f95-61f52b11618f";
 
 json manifest_json = {
@@ -413,8 +412,7 @@ for (auto& assertion : manifest["assertions"]) {
 }
 ```
 
-#### `When to use label` vs `instance_id`
-
+#### When to use `label` vs `instance_id`
 
 | Property                   | `label`                                                                     | `instance_id`                                                          |
 | -------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
@@ -438,13 +436,13 @@ There are two distinct types of archives, sharing the same binary format but bei
 
 A **builder archive** (also called a working store archive) is a serialized snapshot of a `Builder`. It contains the manifest definition, all resources, and any ingredients that were added. It is created by `builder.to_archive()` and restored with `Builder::from_archive()` or `builder.with_archive()`.
 
-An **ingredient archive** contains the manifest store data from an asset that was added as an ingredient.
+An **ingredient archive** contains the manifest store from an asset that was added as an ingredient.
 
-The key difference: a builder archive is a work-in-progress (unsigned). An ingredient archive carries the provenance history of a source asset to reuse as ingredient in other working stores.
+The key difference: a builder archive is a work-in-progress (unsigned). An ingredient archive carries the provenance history of a source asset for reuse as an ingredient in other working stores.
 
 ### The ingredients catalog pattern
 
-A usage example of ingredient archives is building an **ingredients catalog**: a collection of archived ingredients (with 1 ingredient per archive) that can be picked and chosen from when constructing a final manifest. Each archive in the catalog holds ingredients, and at build time the caller selects only the ones needed.
+An **ingredients catalog** is a collection of archived ingredients that can be selected when constructing a final manifest. Each archive holds ingredients; at build time the caller selects only the ones needed.
 
 ```mermaid
 flowchart TD
@@ -472,9 +470,7 @@ flowchart TD
 
 ```cpp
 // Read from a catalog of archived ingredients
-// verify_after_reading is not needed for newer versions of the SDK
-// c2pa::Context archive_ctx(R"({"verify": {"verify_after_reading": false}})");
-c2pa::Context archive_ctx(R"<<settings, if any>>");
+c2pa::Context archive_ctx;  // Add settings if needed, e.g. verify options
 
 // Open one archive from the catalog
 archive_stream.seekg(0);
@@ -533,11 +529,11 @@ json ingredient_override = {
 builder.add_ingredient(ingredient_override.dump(), signed_asset_path);
 ```
 
-The `title`, `relationship`, and `instance_id` fields in the provided JSON take priority. The library fills in everything else (thumbnail, manifest_data, format) automatically from the source asset. This works with any source: a signed asset, a `.c2pa` archive, or an unsigned file.
+The `title`, `relationship`, and `instance_id` fields in the provided JSON take priority. The library fills in the rest (thumbnail, manifest_data, format) from the source. This works with signed assets, `.c2pa` archives, or unsigned files.
 
 ### Using custom vendor parameters in actions
 
-The C2PA specification allows **vendor-namespaced parameters** on actions using reverse domain notation. These custom parameters survive signing and can be read back, making them useful for tagging actions with IDs that help with filtering.
+The C2PA specification allows **vendor-namespaced parameters** on actions using reverse domain notation. These parameters survive signing and can be read back, useful for tagging actions with IDs that support filtering.
 
 ```cpp
 auto manifest_json = R"(
@@ -596,7 +592,7 @@ for (auto& action : actions) {
 }
 ```
 
-> **Naming convention:** Vendor parameters must use reverse domain notation with period-separated components following the pattern `[a-zA-Z0-9][a-zA-Z0-9_-]`* (e.g., `com.mycompany.tool`, `net.example.session_id`). Some namespaces (eg. `c2pa` or `cawg`) may be reserved.
+> **Naming convention:** Vendor parameters must use reverse domain notation with period-separated components (e.g., `com.mycompany.tool`, `net.example.session_id`). Some namespaces (e.g., `c2pa` or `cawg`) may be reserved.
 
 ### Extracting ingredients from a working store into archives
 
@@ -688,55 +684,70 @@ new_builder.sign(source_path, output_path, signer);
 
 ### Merging multiple working stores
 
-In some cases it may be necessary to merge ingredients from multiple working stores (builder archives) or multiple working stores into a single `Builder`. This should be a **fallback strategy** as the recommended practice is to maintain a **single** active working store and reuse it by adding ingredients incrementally (which is where having archived ingredients catalogs can be helpful). Merging is available as a backup when multiple working stores need to be consolidated.
+In some cases you may need to merge ingredients from multiple working stores (builder archives) into a single `Builder`. This should be a **fallback strategy**—the recommended practice is to maintain a single active working store and add ingredients incrementally (archived ingredient catalogs help with this). Merging is available when multiple working stores must be consolidated.
 
-When merging from multiple sources, resource identifier URIs can collide. One way to avoid collisions is to rename identifiers with a unique suffix:
+When merging from multiple sources, resource identifier URIs can collide. Rename identifiers with a unique suffix when needed. Use two passes: (1) collect ingredients with collision handling, build the manifest, create the builder; (2) re-read each archive and transfer resources (use original ID for `get_resource()`, renamed ID for `add_resource()` when collisions occurred).
 
 ```cpp
-// Track used resource IDs to detect collisions
 std::set<std::string> used_ids;
 int suffix_counter = 0;
-
 json all_ingredients = json::array();
+std::vector<std::pair<std::istream*, size_t>> archive_info;  // (stream, ingredient count)
 
+// Pass 1: Collect ingredients, renaming IDs on collision
 for (auto& archive_stream : archives) {
+    archive_stream.seekg(0);
     c2pa::Reader reader(archive_ctx, "application/c2pa", archive_stream);
     auto parsed = json::parse(reader.json());
-    std::string active = parsed["active_manifest"];
-    auto ingredients = parsed["manifests"][active]["ingredients"];
+    auto ingredients = parsed["manifests"][parsed["active_manifest"]]["ingredients"];
 
     for (auto& ingredient : ingredients) {
-        // Check for thumbnail ID collision
-        if (ingredient.contains("thumbnail")) {
-            std::string id = ingredient["thumbnail"]["identifier"];
+        for (const char* key : {"thumbnail", "manifest_data"}) {
+            if (!ingredient.contains(key)) continue;
+            std::string id = ingredient[key]["identifier"];
             if (used_ids.count(id)) {
-                std::string new_id = id + "__" + std::to_string(++suffix_counter);
-                ingredient["thumbnail"]["identifier"] = new_id;
-                id = new_id;
+                ingredient[key]["identifier"] = id + "__" + std::to_string(++suffix_counter);
             }
-            used_ids.insert(id);
-            // Transfer resource with the (possibly renamed) ID
-            std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
-            reader.get_resource(id, stream);
-            stream.seekg(0);
-            builder.add_resource(id, stream);
+            used_ids.insert(ingredient[key]["identifier"].get<std::string>());
         }
         all_ingredients.push_back(ingredient);
     }
+    archive_info.emplace_back(&archive_stream, ingredients.size());
 }
 
-// Create a single new Builder with all merged ingredients
 json manifest = json::parse(R"({
     "claim_generator_info": [{"name": "an-application", "version": "0.1.0"}]
 })");
 manifest["ingredients"] = all_ingredients;
 c2pa::Builder builder(context, manifest.dump());
+
+// Pass 2: Transfer resources (match by ingredient index)
+size_t idx = 0;
+for (auto& [stream, count] : archive_info) {
+    stream->seekg(0);
+    c2pa::Reader reader(archive_ctx, "application/c2pa", *stream);
+    auto parsed = json::parse(reader.json());
+    auto orig = parsed["manifests"][parsed["active_manifest"]]["ingredients"];
+
+    for (size_t i = 0; i < count; ++i) {
+        auto& o = orig[i];
+        auto& m = all_ingredients[idx++];
+        for (const char* key : {"thumbnail", "manifest_data"}) {
+            if (!o.contains(key)) continue;
+            std::stringstream s(std::ios::in | std::ios::out | std::ios::binary);
+            reader.get_resource(o[key]["identifier"].get<std::string>(), s);
+            s.seekg(0);
+            builder.add_resource(m[key]["identifier"].get<std::string>(), s);
+        }
+    }
+}
+
 builder.sign(source_path, output_path, signer);
 ```
 
 ## Retrieving actions from a working store
 
-Use `Reader` to read actions back from an asset, or an archived Builder. Actions are stored in the `c2pa.actions.v2` assertion inside the manifest.
+Actions are stored in the `c2pa.actions.v2` assertion. Use `Reader` to extract them from a signed asset or an archived Builder.
 
 ### Reading actions
 
@@ -763,35 +774,17 @@ for (auto& assertion : assertions) {
 
 ### Reading actions from an archive
 
-The same approach works for archived Builders. The format parameter `"application/c2pa"` tells the `Reader` to read from an archive stream instead of an asset:
+Use the same approach with format `"application/c2pa"` and an archive stream:
 
 ```cpp
-c2pa::Context context;
-
-// Read from an archive instead of an asset
 std::ifstream archive_file("builder_archive.c2pa", std::ios::binary);
 c2pa::Reader reader(context, "application/c2pa", archive_file);
-auto parsed = json::parse(reader.json());
-std::string active = parsed["active_manifest"];
-auto assertions = parsed["manifests"][active]["assertions"];
-
-// Find the actions assertion -- same as reading from an asset
-for (auto& assertion : assertions) {
-    if (assertion["label"] == "c2pa.actions.v2") {
-        auto actions = assertion["data"]["actions"];
-        for (auto& action : actions) {
-            std::cout << "Action: " << action["action"] << std::endl;
-            if (action.contains("description")) {
-                std::cout << "  Description: " << action["description"] << std::endl;
-            }
-        }
-    }
-}
+// Then parse and iterate assertions as in the example above
 ```
 
 ### Understanding the manifest tree
 
-The `Reader` returns a manifest store, which is a dictionary of manifests. But conceptually, it represents a tree (graph without cycles): each manifest may have ingredients and assertions, and each ingredient can carry its own manifest store (in its `manifest_data` field), which in turn can have its own ingredients, actions, assertions, and so on recursively.
+The `Reader` returns a manifest store—a dictionary of manifests keyed by label (a URN like `contentauth:urn:uuid:...`). Conceptually it forms a tree: each manifest has assertions and ingredients; ingredients with `manifest_data` carry their own manifest store, which can have its own ingredients and assertions recursively. The `active_manifest` key indicates the root.
 
 ```mermaid
 flowchart TD
@@ -810,11 +803,7 @@ flowchart TD
 
 
 
-Not every ingredient has provenance. An unsigned asset added as an ingredient will have a `title`, `format`, and `relationship`, but no `manifest_data` and no entry in the `"manifests"` dictionary. It appears in the `"ingredients"` array but has no `"active_manifest"` field.
-
-The `reader.json()` returns all manifests in a flattened `"manifests"` dictionary, keyed by their label (a URN like `contentauth:urn:uuid:...`). The `"active_manifest"` key indicates which one is the top of the tree.
-
-Each manifest in the tree has its assertions and ingredients. Walking the tree reveals the full provenance chain: what each actor did at each step, including what actions were performed and what ingredients were used.
+Not every ingredient has provenance. An unsigned asset added as an ingredient has `title`, `format`, and `relationship`, but no `manifest_data` and no entry in the `"manifests"` dictionary. Walking the tree reveals the full provenance chain: what each actor did at each step, including actions performed and ingredients used.
 
 **To walk the tree and find actions at each level:**
 
@@ -867,7 +856,7 @@ for (auto& ingredient : active_manifest["ingredients"]) {
 
 ## Filtering actions (keeping some, removing others)
 
-Since there is no `remove()` method, the way to remove actions is to **read, pick the ones to keep, create a new Builder**.
+To remove actions, use the same read–filter–rebuild pattern: **read, pick the ones to keep, create a new Builder**.
 
 ```mermaid
 flowchart TD
