@@ -632,18 +632,22 @@ The `Builder` class offers two `sign()` variants. The one to use depends on how 
 flowchart TD
     A[Need to sign a manifest] --> B{Signer stored in Context?}
 
-    B -- "Yes: signer lives in the Context" --> C["Builder(context, manifest)"]
+    B -- "Signer in Context" --> C["Builder(context, manifest)"]
     C --> D["builder.sign(source, dest)"]
     D --> E[Signer retrieved from Context automatically]
 
-    B -- "No: no signer in the Context" --> F["Create a Signer separately"]
-    F --> G["Create a Builder using Builder(context, manifest) or Builder(manifest)"]
-    G --> H["Provide a Signer when calling builder.sign(source, dest, signer)"]
+    B -- "No signer in Context" --> F["Create a Signer separately"]
+    F --> G{Need other Context settings?}
+    G -- "Yes" --> G1["Builder(context, manifest), where Context provides settings (but not a configured signer)"]
+    G -- "No" --> G2["Builder(manifest) No Context needed"]
+    G1 --> H["builder.sign(source, dest, signer)"]
+    G2 --> H
     H --> I[The Signer passed as argument is used]
 ```
 
 - **Contextual signer** (left path): The `Context` already contains a signer (set via `with_signer()` or settings). The `Builder` is constructed with that context, and `sign()` is called without a `Signer` argument. The signer is retrieved from the context automatically.
-- **Explicit signer** (right path): No signer is stored in the context. A `Signer` object is created separately and passed as an argument to `sign()`. The `Builder` can be constructed with or without a `Context`.
+- **Explicit signer with Context** (right, upper path): The `Context` provides other settings (verification, thumbnails, etc.) but does not contain a signer. A `Signer` is created separately and passed to `sign()`.
+- **Explicit signer without Context** (right, lower path): No `Context` is needed at all. The `Builder` is constructed with just a manifest, and a separately created `Signer` is passed to `sign()`.
 
 If neither path applies (no contextual signer and no explicit signer passed to `sign()`), the call throws `C2paException`.
 
