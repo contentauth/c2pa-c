@@ -498,13 +498,7 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         if (!raw) {
             throw C2paException("Signer is not valid");
         }
-        if (c2pa_context_builder_set_signer(context_builder, raw) != 0) {
-            // Re-wrap in a Signer for RAII cleanup on failure.
-            // Currently set_signer always succeeds, but this guards against
-            // future changes in the Rust API.
-            Signer cleanup(raw);
-            throw C2paException();
-        }
+        c2pa_context_builder_set_signer(context_builder, raw);
         return *this;
     }
 
