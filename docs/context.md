@@ -636,9 +636,9 @@ flowchart TD
     C --> D["builder.sign(source, dest)"]
     D --> E[Signer retrieved from Context automatically]
 
-    B -- "No: no signer in the Context" --> F["Create a Signer separately:\nSigner signer(alg, certs, key)"]
-    F --> G["Builder(context, manifest)\nor Builder(manifest)"]
-    G --> H["builder.sign(source, dest, signer)"]
+    B -- "No: no signer in the Context" --> F["Create a Signer separately"]
+    F --> G["Create a Builder using Builder(context, manifest) or Builder(manifest)"]
+    G --> H["Provide a Signer when calling builder.sign(source, dest, signer)"]
     H --> I[The Signer passed as argument is used]
 ```
 
