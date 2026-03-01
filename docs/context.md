@@ -420,9 +420,9 @@ The `Context` continues to control verification and builder options. The signer 
 
 ### Signer in context
 
-In addition to passing a `Signer` explicitly to `Builder::sign()`, you can store a signer inside the `Context` and use the signerless `Builder::sign()` overloads. This is useful when you want to configure the signer once and reuse it across multiple builders.
+A `Signer` can be passed explicitly to `Builder::sign()` at the time of signing. You can also store a Signer inside a `Context` passed into a Builder. This can be useful to configure a Signer once and reuse it across multiple Builder objects.
 
-A signer stored in the context is **stateless and reusable**. The underlying `sign()` operation uses an immutable reference, so the same signer can be used for multiple signing operations without side effects. Create one context with a signer, then create as many builders as you need from it:
+A Signer stored in the context msut be stateless and reusable. The underlying `sign()` operation uses an immutable reference, so the same Signer can be used for multiple signing operations without side effects. Create one Context with a Signer, then create as many Builder object as you needed:
 
 ```cpp
 auto context = c2pa::Context::ContextBuilder()
@@ -440,14 +440,14 @@ auto data2 = builder2.sign(source2, dest2);
 There are three ways to store a signer in the context:
 
 | Approach | Best for | Signer lifetime |
-| -------- | -------- | --------------- |
-| [Settings-based](#settings-based-signer) | Config-file-driven workflows; no code changes when credentials rotate. | Stored in the `Context`; available to every `Builder` that uses it. |
-| [Programmatic](#programmatic-signer) | Full code control; choosing algorithm and credentials at runtime. | Stored in the `Context`; available to every `Builder` that uses it. |
-| [Callback](#callback-signer) | HSM, KMS, or custom signing logic where keys never leave secure hardware. | Stored in the `Context`; the callback is invoked at signing time. |
+| --- | --- | --- |
+| [Settings-based](#settings-based-signer) | Config-file-driven workflows (configured in Settings file). | Stored in the `Context` and available to every `Builder` that uses that context. |
+| [Programmatic](#programmatic-signer) | Programmatic configuration. | Stored in the `Context` and available to every `Builder` that uses that context. |
+| [Callback](#callback-signer) | Custom signing logic where keys never leave secure locations. | Stored in the `Context`, the callback is invoked at signing time. |
 
 #### Settings-based signer
 
-When signer credentials are included in a settings JSON file, the `Context` will use them automatically. The `Builder` will use the signer from the context when you call `sign()` without a `Signer` argument:
+When signer credentials are included in a settings JSON file, the `Context` will use them automatically to configure a Signer. The `Builder` will use that Signer from the context when calling `sign()` (without a `Signer` argument):
 
 ```cpp
 // Load settings from a JSON file that contains signer credentials.
@@ -457,11 +457,9 @@ auto context = c2pa::Context::ContextBuilder()
 
 c2pa::Builder builder(context, manifest_json);
 
-// Sign using the signer from the context (no Signer parameter).
+// Sign using the signer from the context (no explicit Signer object as parameter).
 auto manifest_bytes = builder.sign(source_path, dest_path);
 ```
-
-<!-- Tested by: BuilderTest.SignFileWithSettingsSigner -->
 
 #### Programmatic signer
 
@@ -481,8 +479,6 @@ c2pa::Builder builder(context, manifest_json);
 auto manifest_bytes = builder.sign(source_path, dest_path);
 ```
 
-<!-- Tested by: BuilderTest.SignFileWithContextSigner -->
-
 A convenience constructor creates a `Context` from both a `Settings` object and a `Signer` in a single call:
 
 ```cpp
@@ -492,8 +488,6 @@ settings.set("builder.thumbnail.enabled", "false");
 c2pa::Signer signer("es256", certs_pem, private_key_pem);
 c2pa::Context context(settings, std::move(signer));
 ```
-
-<!-- Tested by: BuilderTest.SignWithContextSignerAndSettings -->
 
 > [!NOTE]
 > `with_signer()` consumes the `Signer` via move. After the call, the source `Signer` is invalid and must not be reused.
@@ -534,8 +528,6 @@ c2pa::Builder builder(context, manifest_json);
 auto manifest_bytes = builder.sign(source_path, dest_path);
 ```
 
-<!-- Tested by: BuilderTest.SignFileWithCallbackSignerInContext -->
-
 #### Signer priority
 
 When a context contains both a settings-based signer (from JSON) and a programmatic or callback signer (from `with_signer()`), the programmatic signer takes priority. This lets you use a settings file as a default and override it in code when needed.
@@ -553,8 +545,6 @@ c2pa::Builder builder(context, manifest_json);
 // Uses the programmatic ed25519 signer, not the settings es256 signer.
 auto manifest_bytes = builder.sign(source_path, dest_path);
 ```
-
-<!-- Tested by: BuilderTest.ConvenienceCtorProgrammaticOverridesSettings -->
 
 The following diagram shows how the SDK resolves which signer to use at signing time:
 
@@ -663,8 +653,6 @@ auto context = c2pa::Context::ContextBuilder()
 builder.sign(source_path, dest_path);       // OK: uses context signer
 builder.sign(source_path, dest_path, signer); // ERROR: signer was consumed
 ```
-
-<!-- Tested by: Context.WithSignerThrowsOnMovedSigner -->
 
 **A `Builder` constructed without a `Context` has no context signer.** If you create a `Builder` with the legacy `Builder(manifest_json)` constructor (no `Context`), calling the signerless `sign()` will throw because there is no context to retrieve a signer from. Either pass a `Signer` explicitly, or use the `Builder(context, manifest_json)` constructor with a context that has a signer.
 
