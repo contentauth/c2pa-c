@@ -1,0 +1,58 @@
+name: Run with c2pa-rs branch
+
+# C2PA_RS_REF is the branch to use to run
+env:
+  C2PA_RS_REF: main
+
+on:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: "Test (${{ matrix.os }})"
+
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, windows-11-arm, macos-latest, macos-15-intel, ubuntu-latest, ubuntu-22.04, ubuntu-22.04-arm, ubuntu-24.04-arm]
+
+    steps:
+      - name: Checkout c2pa-c
+        uses: actions/checkout@v4
+
+      - name: Checkout c2pa-rs
+        uses: actions/checkout@v4
+        with:
+          repository: contentauth/c2pa-rs
+          ref: ${{ env.C2PA_RS_REF }}
+          path: c2pa-rs
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
+
+      - name: Setup MSVC toolchain on Windows
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Print build configuration
+        run: |
+          echo "c2pa-rs ref: ${{ env.C2PA_RS_REF }}"
+        shell: bash
+
+      - name: Run tests (debug build, from source)
+        env:
+          C2PA_BUILD_FROM_SOURCE: ON
+          C2PA_RS_PATH: ${{ github.workspace }}/c2pa-rs
+        run: make test
+
+      - name: Run tests (debug build, with sanitizers, from source)
+        if: runner.os != 'Windows'
+        env:
+          C2PA_BUILD_FROM_SOURCE: ON
+          C2PA_RS_PATH: ${{ github.workspace }}/c2pa-rs
+        run: make test-san
