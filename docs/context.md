@@ -652,7 +652,7 @@ flowchart TD
 If neither path applies (no contextual signer and no explicit signer passed to `sign()`), the call throws `C2paException`.
 
 > [!NOTE]
-> Providing a `Context` is the preferred API even when the signer is passed explicitly. A `Context` propagates settings (verification policy, thumbnail generation, etc.) to the `Builder` and `Reader`. The `Builder(manifest)` constructor without a `Context` uses default settings only.
+> Providing a `Context` is the preferred API even when the signer is passed explicitly. The `Context` propagates settings (thumbnail generation, etc.) to the `Builder` and `Reader`.
 
 ##### A Signer in a Context is immutable
 
