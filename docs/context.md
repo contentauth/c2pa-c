@@ -443,7 +443,7 @@ There are three ways to store a signer in the context:
 | --- | --- | --- |
 | [Settings-based](#settings-based-signer) | Config-file-driven workflows (configured in Settings file). | Stored in the `Context` and available to every `Builder` that uses that context. |
 | [Programmatic](#programmatic-signer) | Programmatic configuration. | Stored in the `Context` and available to every `Builder` that uses that context. |
-| [Callback](#callback-signer) | Custom signing logic where keys never leave secure locations. | Stored in the `Context`, the callback is invoked at signing time. |
+| [Callback](#callback-signer) | Custom signing logic where keys don't leave secure locations. | Stored in the `Context`, the callback is invoked at signing time. |
 
 #### Settings-based signer
 
@@ -509,7 +509,7 @@ A callback-based `Signer` is created and moved into the context:
 // Callback that delegates signing to your HSM or KMS.
 auto my_signing_callback = [](const std::vector<unsigned char>& data)
     -> std::vector<unsigned char> {
-    // Call your HSM / KMS / custom signer here.
+    // Call the custom signer here.
     return sign_with_hsm(data);
 };
 
@@ -530,7 +530,7 @@ auto manifest_bytes = builder.sign(source_path, dest_path);
 
 #### Signer precedence
 
-When a context contains both a settings-based signer (from JSON) and a signer set explicitly (from `with_signer()`), the programmatic signer takes priority. This allows a settings file to serve as a default while code overrides it when needed.
+When a context contains both a settings-based signer (from JSON) and a signer set explicitly (from `with_signer()`), the signer set explicitly throught the API call takes precedence. This allows a settings file to serve as a default while code overrides it when needed.
 
 ```cpp
 // Settings file contains an es256 signer.
@@ -628,7 +628,7 @@ builder.sign(source_path, dest_path, signer); // ERROR: signer was consumed
 
 Creating a `Builder` with the legacy `Builder(manifest_json)` constructor (no `Context`) and then calling `sign()` without a `Signer` argument throws because there is no context to retrieve a signer from. Either pass a `Signer` explicitly, or use the `Builder(context, manifest_json)` constructor with a context that has a signer.
 
-##### Contextual signer is immutable
+##### A Signer in a Context is immutable
 
 Once `create_context()` is called, the signer is sealed inside the context. There is no `set_signer()` method on `Context`. A different signer requires a new context:
 
