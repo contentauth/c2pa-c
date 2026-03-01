@@ -302,12 +302,11 @@ namespace c2pa
             ContextBuilder& with_json_settings_file(const std::filesystem::path& settings_path);
 
             /// @brief Set a Signer on the context being built.
-            /// @details Moves the signer into the context. After this call the
-            ///          source Signer object is consumed and must not be reused.
-            ///          Works with any Signer type: callback-based or credential-based.
+            /// @details After this call the source Signer object is consumed and must
+            ///          not be reused, as it becomes part to the context and tied to it.
             ///          If settings also contain a signer, the programmatic signer
-            ///          takes priority regardless of call order.
-            /// @param signer Signer to move into the context.
+            ///          set through this API will be used for signing.
+            /// @param signer Signer to put into the context.
             /// @return Reference to this ContextBuilder for method chaining.
             /// @throws C2paException if the builder or signer is invalid.
             ContextBuilder& with_signer(Signer&& signer);
@@ -340,7 +339,9 @@ namespace c2pa
         /// @brief Create a Context with a Settings object and a Signer.
         /// @param settings Settings configuration to apply.
         /// @param signer Signer to move into the context. Consumed after this call.
-        ///        The programmatic signer takes priority over any signer in settings.
+        ///        The programmatic Signer from the signer parameter
+        ///        takes priority over the Signer in settings, so use this API
+        ///        when wanting to explicitly set a Signer (or override the Signer in settings).
         /// @throws C2paException if settings or signer are invalid, or context creation fails.
         Context(const Settings& settings, Signer&& signer);
 
@@ -735,9 +736,14 @@ namespace c2pa
     private:
         C2paSigner *signer;
 
-        /// @brief Release ownership of the underlying pointer.
-        /// @details Returns the raw pointer and nulls the internal member.
-        ///          The caller takes responsibility for freeing the pointer.
+        /// @brief Transfers ownership of the underlying C2paSigner pointer out
+        ///        of this wrapper, without freeing it.
+        /// @details Used by ContextBuilder::with_signer() to pass the raw pointer
+        ///          to c2pa_context_builder_set_signer(), which takes ownership on
+        ///          the Rust side via Box::from_raw. After this call the Signer
+        ///          wrapper holds nullptr and its destructor is a no-op.
+        ///          This is not the same as c2pa_signer_free(), which destroys
+        ///          the signer. Similar to std::unique_ptr::release().
         /// @return Raw C2paSigner pointer, or nullptr if already released.
         C2paSigner* release() noexcept {
             return std::exchange(signer, nullptr);
@@ -940,9 +946,8 @@ namespace c2pa
         std::vector<unsigned char> sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path, Signer &signer);
 
         /// @brief Sign using the signer from the Builder's Context.
-        /// @details The signer may have been set programmatically via
+        /// @details The Signer may have been set programmatically via
         ///          ContextBuilder::with_signer(), or configured in settings JSON.
-        ///          Works with any signer type (callback-based or credential-based).
         ///          If both programmatic and settings signers are present,
         ///          the programmatic signer takes priority.
         /// @param format The mime format of the output.
@@ -955,7 +960,6 @@ namespace c2pa
         /// @brief Sign a file using the signer from the Builder's Context.
         /// @details The signer may have been set programmatically via
         ///          ContextBuilder::with_signer(), or configured in settings JSON.
-        ///          Works with any signer type (callback-based or credential-based).
         ///          If both programmatic and settings signers are present,
         ///          the programmatic signer takes priority.
         /// @param source_path The path to the file to sign.
