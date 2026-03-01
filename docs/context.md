@@ -643,7 +643,7 @@ flowchart TD
     F -- No --> J[Error: no signer available]
 ```
 
-- **Contextual signer path:** The `Builder` is created with a `Context` that already contains a signer (via `with_signer()` or settings). Calling `sign()` without a `Signer` argument retrieves the signer from the context.
+- **Contextual signer path:** The `Builder` is created with a `Context` that already contains a signer (via `with_signer()` or settings). Calling `sign()` without a `Signer` argument retrieves the Signer instance from the context.
 - **Explicit signer path:** A `Signer` is created independently and passed directly to `sign()`. The `Builder` can be constructed with or without a `Context`.
 - **No signer:** If the `Builder` has no context (or the context has no signer) and no `Signer` is passed to `sign()`, the call throws `C2paException`.
 
