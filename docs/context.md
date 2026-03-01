@@ -375,7 +375,7 @@ You can configure a signer:
 
 - [From JSON Settings](#from-settings)
 - [Explicitly in code](#explicit-signer)
-- [In the Context](#signer-in-context) — store a signer in the `Context` so `Builder::sign()` uses it automatically
+- [In the Context](#signer-in-context)
 
 ### From Settings
 
@@ -624,9 +624,28 @@ builder.sign(source_path, dest_path);       // OK: uses contextual signer
 builder.sign(source_path, dest_path, signer); // ERROR: signer was consumed
 ```
 
-##### No contextual signer without a Context
+##### Choosing the right signing API
 
-Creating a `Builder` with the legacy `Builder(manifest_json)` constructor (no `Context`) and then calling `sign()` without a `Signer` argument throws because there is no context to retrieve a signer from. Either pass a `Signer` explicitly, or use the `Builder(context, manifest_json)` constructor with a context that has a signer.
+The `Builder` class offers two `sign()` variants. The right one depends on how the `Builder` was constructed and where the signer lives:
+
+```mermaid
+flowchart TD
+    A[Need to sign a manifest] --> B{Signer stored in Context?}
+    B -- Yes --> C["Builder(context, manifest)"]
+    C --> D["builder.sign(source, dest)"]
+    D --> E[Contextual signer is used automatically]
+
+    B -- No --> F{Signer created separately?}
+    F -- Yes --> G["Builder(context, manifest)\nor Builder(manifest)"]
+    G --> H["builder.sign(source, dest, signer)"]
+    H --> I[Explicitly passed Signer is used]
+
+    F -- No --> J[Error: no signer available]
+```
+
+- **Contextual signer path:** The `Builder` is created with a `Context` that already contains a signer (via `with_signer()` or settings). Calling `sign()` without a `Signer` argument retrieves the signer from the context.
+- **Explicit signer path:** A `Signer` is created independently and passed directly to `sign()`. The `Builder` can be constructed with or without a `Context`.
+- **No signer:** If the `Builder` has no context (or the context has no signer) and no `Signer` is passed to `sign()`, the call throws `C2paException`.
 
 ##### A Signer in a Context is immutable
 
