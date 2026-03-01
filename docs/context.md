@@ -638,8 +638,8 @@ flowchart TD
 
     B -- "No signer in Context" --> F["Create a Signer separately"]
     F --> G{Need other Context settings?}
-    G -- "Yes" --> G1["Builder(context, manifest), where Context provides settings (but not a configured signer)"]
-    G -- "No" --> G2["Builder(manifest) No Context needed"]
+    G -- "Yes (recommended)" --> G1["Builder(context, manifest)\nContext propagates settings"]
+    G -- "No" --> G2["Builder(manifest)\nDefault settings only"]
     G1 --> H["builder.sign(source, dest, signer)"]
     G2 --> H
     H --> I[The Signer passed as argument is used]
@@ -650,6 +650,9 @@ flowchart TD
 - **Explicit signer without Context** (right, lower path): No `Context` is needed at all. The `Builder` is constructed with just a manifest, and a separately created `Signer` is passed to `sign()`.
 
 If neither path applies (no contextual signer and no explicit signer passed to `sign()`), the call throws `C2paException`.
+
+> [!NOTE]
+> Providing a `Context` is the preferred API even when the signer is passed explicitly. A `Context` propagates settings (verification policy, thumbnail generation, etc.) to the `Builder` and `Reader`. The `Builder(manifest)` constructor without a `Context` uses default settings only.
 
 ##### A Signer in a Context is immutable
 
