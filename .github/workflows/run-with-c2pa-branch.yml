@@ -2,7 +2,7 @@ name: Run with c2pa-rs branch
 
 # C2PA_RS_REF is the branch to use to run
 env:
-  C2PA_RS_REF: main
+  C2PA_RS_REF: mathern/contextual-signer
 
 on:
   workflow_dispatch:
