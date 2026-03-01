@@ -461,9 +461,9 @@ c2pa::Builder builder(context, manifest_json);
 auto manifest_bytes = builder.sign(source_path, dest_path);
 ```
 
-#### Programmatic signer
+#### Configuring a Signer
 
-Create a `c2pa::Signer` in code and move it into a `Context` using `ContextBuilder::with_signer()`:
+Signers can still be created entirely in code. A `c2pa::Signer` object can be moved into a `Context` using `ContextBuilder::with_signer()`, so that it becomes available for use in the context.
 
 ```cpp
 c2pa::Signer signer("es256", certs_pem, private_key_pem,
@@ -475,11 +475,11 @@ auto context = c2pa::Context::ContextBuilder()
 
 c2pa::Builder builder(context, manifest_json);
 
-// Sign using the signer from the context.
+// Sign using the signer that was moved into the context
 auto manifest_bytes = builder.sign(source_path, dest_path);
 ```
 
-A convenience constructor creates a `Context` from both a `Settings` object and a `Signer` in a single call:
+A `Context` can be constructed from both a `Settings` object and a `Signer` in a single call:
 
 ```cpp
 c2pa::Settings settings;
@@ -490,7 +490,7 @@ c2pa::Context context(settings, std::move(signer));
 ```
 
 > [!NOTE]
-> `with_signer()` consumes the `Signer` via move. After the call, the source `Signer` is invalid and must not be reused.
+> `with_signer()` consumes the `Signer`. After the call, the source `Signer` is invalid and must not be reused.
 
 #### Callback signer
 
