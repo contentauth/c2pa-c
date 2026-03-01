@@ -624,9 +624,9 @@ builder.sign(source_path, dest_path);       // OK: uses contextual signer
 builder.sign(source_path, dest_path, signer); // ERROR: signer was consumed
 ```
 
-##### Choosing the right signing API
+##### Which signing API to choose?
 
-The `Builder` class offers two `sign()` variants. The right one depends on how the `Builder` was constructed and where the signer lives:
+The `Builder` class offers two `sign()` variants. The one to use depends on how the `Builder` was constructed and where the Signer object lives:
 
 ```mermaid
 flowchart TD
