@@ -422,6 +422,21 @@ The `Context` continues to control verification and builder options. The signer 
 
 In addition to passing a `Signer` explicitly to `Builder::sign()`, you can store a signer inside the `Context` and use the signerless `Builder::sign()` overloads. This is useful when you want to configure the signer once and reuse it across multiple builders.
 
+A signer stored in the context is **stateless and reusable**. The underlying `sign()` operation uses an immutable reference, so the same signer can be used for multiple signing operations without side effects. Create one context with a signer, then create as many builders as you need from it:
+
+```cpp
+auto context = c2pa::Context::ContextBuilder()
+    .with_signer(std::move(signer))
+    .create_context();
+
+// Same context and signer used for multiple independent signing operations.
+auto builder1 = c2pa::Builder(context, manifest1);
+auto data1 = builder1.sign(source1, dest1);
+
+auto builder2 = c2pa::Builder(context, manifest2);
+auto data2 = builder2.sign(source2, dest2);
+```
+
 There are three ways to store a signer in the context:
 
 | Approach | Best for | Signer lifetime |
@@ -554,28 +569,81 @@ flowchart TD
     F -- No --> H[Error: no signer available]
 ```
 
-#### Signing flow
+#### Signing flow (multiple operations)
 
-The following diagram shows the sequence of operations when signing with a context signer:
+The following diagram shows how a single context with a signer supports multiple independent signing operations. The signer is stateless, so each `sign()` call produces the same result as if the signer were freshly created:
 
 ```mermaid
 sequenceDiagram
     participant App
     participant ContextBuilder
     participant Context
-    participant Builder
+    participant Builder1 as Builder (1)
+    participant Builder2 as Builder (2)
     participant Signer
 
     App->>ContextBuilder: with_signer(std::move(signer))
     Note over ContextBuilder: Signer ownership transferred
     App->>ContextBuilder: create_context()
     ContextBuilder->>Context: Build with signer
-    App->>Builder: Builder(context, manifest)
-    App->>Builder: sign(source, dest)
-    Builder->>Context: Retrieve signer
+
+    App->>Builder1: Builder(context, manifest1)
+    App->>Builder1: sign(source1, dest1)
+    Builder1->>Context: Retrieve signer
     Context->>Signer: Sign data
-    Signer-->>Builder: Signature bytes
-    Builder-->>App: Manifest bytes
+    Signer-->>Builder1: Signature bytes
+    Builder1-->>App: Manifest bytes (1)
+
+    App->>Builder2: Builder(context, manifest2)
+    App->>Builder2: sign(source2, dest2)
+    Builder2->>Context: Retrieve signer
+    Context->>Signer: Sign data
+    Signer-->>Builder2: Signature bytes
+    Builder2-->>App: Manifest bytes (2)
+
+    Note over Context,Signer: Signer is stateless. No mutation between calls.
+```
+
+#### Lifecycle
+
+The following diagram shows the lifecycle of the key objects involved in signing with a context signer. The `ContextBuilder` is consumed when `create_context()` is called, but the `Context` and its signer remain alive and reusable:
+
+```mermaid
+stateDiagram-v2
+    [*] --> SignerCreated: Signer("es256", certs, key)
+    SignerCreated --> ContextBuilderHasSigner: with_signer(std::move(signer))
+    note right of ContextBuilderHasSigner: Signer is now invalid
+    ContextBuilderHasSigner --> ContextReady: create_context()
+    note right of ContextReady: ContextBuilder is consumed
+
+    ContextReady --> Signing: Builder(context, manifest)
+    Signing --> Signing: sign() -- signer is reused
+    Signing --> ContextReady: Builder destroyed
+
+    ContextReady --> [*]: Context destroyed
+```
+
+#### Object lifetimes
+
+The following diagram shows the ownership relationships between objects. Solid borders indicate owned objects. The `Context` owns the signer, and builders borrow the context at construction time. Because builders copy the context internally, the original `Context` object does not need to outlive any particular builder:
+
+```mermaid
+flowchart TB
+    subgraph Ownership
+        direction TB
+        CB[ContextBuilder] -- "with_signer(std::move)" --> CTX[Context]
+        CTX -- "owns" --> S[Signer]
+    end
+
+    subgraph Usage ["Reuse (by reference)"]
+        direction TB
+        CTX -- "Builder(context, ...)" --> B1[Builder 1]
+        CTX -- "Builder(context, ...)" --> B2[Builder 2]
+        CTX -- "Reader(context, ...)" --> R1[Reader]
+    end
+
+    B1 -- "sign()" --> S
+    B2 -- "sign()" --> S
 ```
 
 #### Signer gotchas
@@ -599,6 +667,16 @@ builder.sign(source_path, dest_path, signer); // ERROR: signer was consumed
 <!-- Tested by: Context.WithSignerThrowsOnMovedSigner -->
 
 **A `Builder` constructed without a `Context` has no context signer.** If you create a `Builder` with the legacy `Builder(manifest_json)` constructor (no `Context`), calling the signerless `sign()` will throw because there is no context to retrieve a signer from. Either pass a `Signer` explicitly, or use the `Builder(context, manifest_json)` constructor with a context that has a signer.
+
+**A context's signer cannot be changed after construction.** Once `create_context()` is called, the signer is sealed inside the context. There is no `set_signer()` method on `Context`. If you need a different signer, create a new context:
+
+```cpp
+// Need a different signer? Build a new context.
+c2pa::Signer new_signer("ed25519", other_certs, other_key);
+auto new_context = c2pa::Context::ContextBuilder()
+    .with_signer(std::move(new_signer))
+    .create_context();
+```
 
 **Settings-based signers are lazy-initialized.** A signer configured in settings JSON is not created until the first call to `sign()`. If the settings contain invalid credentials (wrong algorithm, malformed PEM), the error will surface at signing time, not at context construction time.
 
