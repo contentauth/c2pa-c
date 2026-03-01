@@ -57,6 +57,7 @@ namespace c2pa
     class Settings;
     class Context;
     class IContextProvider;
+    class Signer;
 
     /// @brief Result codes for C API operations (matches C API return convention).
     enum class OperationResult : int {
@@ -300,6 +301,17 @@ namespace c2pa
             /// @throws C2paException if file cannot be read or JSON is invalid.
             ContextBuilder& with_json_settings_file(const std::filesystem::path& settings_path);
 
+            /// @brief Set a Signer on the context being built.
+            /// @details Moves the signer into the context. After this call the
+            ///          source Signer object is consumed and must not be reused.
+            ///          Works with any Signer type: callback-based or credential-based.
+            ///          If settings also contain a signer, the programmatic signer
+            ///          takes priority regardless of call order.
+            /// @param signer Signer to move into the context.
+            /// @return Reference to this ContextBuilder for method chaining.
+            /// @throws C2paException if the builder or signer is invalid.
+            ContextBuilder& with_signer(Signer&& signer);
+
             /// @brief Create a Context from the current builder configuration.
             /// @return A new Context instance.
             /// @throws C2paException if context creation fails.
@@ -324,6 +336,13 @@ namespace c2pa
         /// @param json JSON configuration string.
         /// @throws C2paException if JSON is invalid or context creation fails.
         explicit Context(const std::string& json);
+
+        /// @brief Create a Context with a Settings object and a Signer.
+        /// @param settings Settings configuration to apply.
+        /// @param signer Signer to move into the context. Consumed after this call.
+        ///        The programmatic signer takes priority over any signer in settings.
+        /// @throws C2paException if settings or signer are invalid, or context creation fails.
+        Context(const Settings& settings, Signer&& signer);
 
         // Non-copyable, moveable
         Context(const Context&) = delete;
@@ -711,8 +730,18 @@ namespace c2pa
     ///          Supports both callback-based and direct signing methods.
     class C2PA_CPP_API Signer
     {
+        friend class Context::ContextBuilder;
+
     private:
         C2paSigner *signer;
+
+        /// @brief Release ownership of the underlying pointer.
+        /// @details Returns the raw pointer and nulls the internal member.
+        ///          The caller takes responsibility for freeing the pointer.
+        /// @return Raw C2paSigner pointer, or nullptr if already released.
+        C2paSigner* release() noexcept {
+            return std::exchange(signer, nullptr);
+        }
 
         /// @brief Validate a TSA URI string.
         /// @param tsa_uri The TSA URI to validate.
@@ -909,6 +938,31 @@ namespace c2pa
         /// @throws C2paException for errors encountered by the C2PA library.
         /// @note Prefer using the streaming APIs if possible.
         std::vector<unsigned char> sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path, Signer &signer);
+
+        /// @brief Sign using the signer from the Builder's Context.
+        /// @details The signer may have been set programmatically via
+        ///          ContextBuilder::with_signer(), or configured in settings JSON.
+        ///          Works with any signer type (callback-based or credential-based).
+        ///          If both programmatic and settings signers are present,
+        ///          the programmatic signer takes priority.
+        /// @param format The mime format of the output.
+        /// @param source The input stream to sign.
+        /// @param dest The I/O stream to write the signed data to.
+        /// @return A vector containing the signed manifest bytes.
+        /// @throws C2paException if the context has no signer or on other errors.
+        std::vector<unsigned char> sign(const std::string &format, std::istream &source, std::iostream &dest);
+
+        /// @brief Sign a file using the signer from the Builder's Context.
+        /// @details The signer may have been set programmatically via
+        ///          ContextBuilder::with_signer(), or configured in settings JSON.
+        ///          Works with any signer type (callback-based or credential-based).
+        ///          If both programmatic and settings signers are present,
+        ///          the programmatic signer takes priority.
+        /// @param source_path The path to the file to sign.
+        /// @param dest_path The path to write the signed file to.
+        /// @return A vector containing the signed manifest bytes.
+        /// @throws C2paException if the context has no signer or on other errors.
+        std::vector<unsigned char> sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path);
 
         /// @brief Create a Builder from an archived Builder stream.
         /// @param archive The input stream to read the archive from.

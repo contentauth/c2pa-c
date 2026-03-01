@@ -477,3 +477,51 @@ TEST_F(ContextTest, ReaderWorksAfterContextOutOfScope) {
     // context is out of scope, implementation copies context state so reader still works
     EXPECT_NO_THROW(reader->json());
 }
+
+// ContextBuilder::with_signer moves a Signer into the context
+TEST(Context, ContextBuilderWithSigner) {
+    auto signer = c2pa_test::create_test_signer();
+    auto context = c2pa::Context::ContextBuilder()
+        .with_signer(std::move(signer))
+        .create_context();
+    EXPECT_TRUE(context.is_valid());
+}
+
+// ContextBuilder::with_signer can be chained with with_settings
+TEST(Context, ContextBuilderWithSettingsAndSigner) {
+    c2pa::Settings settings;
+    settings.set("builder.thumbnail.enabled", "false");
+    auto signer = c2pa_test::create_test_signer();
+    auto context = c2pa::Context::ContextBuilder()
+        .with_settings(settings)
+        .with_signer(std::move(signer))
+        .create_context();
+    EXPECT_TRUE(context.is_valid());
+}
+
+// Convenience constructor creates a context with settings and signer
+TEST(Context, ConvenienceConstructorWithSettingsAndSigner) {
+    c2pa::Settings settings;
+    settings.set("builder.thumbnail.enabled", "false");
+    auto signer = c2pa_test::create_test_signer();
+    c2pa::Context context(settings, std::move(signer));
+    EXPECT_TRUE(context.is_valid());
+}
+
+// Moving a signer leaves the source invalid; with_signer rejects it
+TEST(Context, WithSignerThrowsOnMovedSigner) {
+    auto signer = c2pa_test::create_test_signer();
+    auto moved = std::move(signer);
+    EXPECT_THROW(
+        c2pa::Context::ContextBuilder().with_signer(std::move(signer)),
+        c2pa::C2paException);
+}
+
+// CallbackSigner can be set on a context via with_signer
+TEST(Context, ContextBuilderWithCallbackSigner) {
+    auto signer = c2pa_test::create_test_callback_signer();
+    auto context = c2pa::Context::ContextBuilder()
+        .with_signer(std::move(signer))
+        .create_context();
+    EXPECT_TRUE(context.is_valid());
+}

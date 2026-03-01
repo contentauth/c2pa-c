@@ -412,6 +412,13 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
     Context::Context(const std::string& json) : Context(Settings(json, "json")) {
     }
 
+    Context::Context(const Settings& settings, Signer&& signer)
+        : Context(ContextBuilder()
+            .with_settings(settings)
+            .with_signer(std::move(signer))
+            .create_context()) {
+    }
+
     // Context::ContextBuilder
 
     Context::ContextBuilder::ContextBuilder() : context_builder(c2pa_context_builder_new()) {
@@ -481,6 +488,24 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         std::string json_content((std::istreambuf_iterator<char>(*file)), std::istreambuf_iterator<char>());
 
         return with_json(json_content);
+    }
+
+    Context::ContextBuilder& Context::ContextBuilder::with_signer(Signer&& signer) {
+        if (!is_valid()) {
+            throw C2paException("ContextBuilder is invalid (moved from)");
+        }
+        C2paSigner* raw = signer.release();
+        if (!raw) {
+            throw C2paException("Signer is not valid");
+        }
+        if (c2pa_context_builder_set_signer(context_builder, raw) != 0) {
+            // Re-wrap in a Signer for RAII cleanup on failure.
+            // Currently set_signer always succeeds, but this guards against
+            // future changes in the Rust API.
+            Signer cleanup(raw);
+            throw C2paException();
+        }
+        return *this;
     }
 
     Context Context::ContextBuilder::create_context() {
@@ -1066,6 +1091,38 @@ inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int6
         }
         auto format = detail::extract_file_extension(dest_path);
         auto result = sign(format.c_str(), *source, dest, signer);
+        return result;
+    }
+
+    std::vector<unsigned char> Builder::sign(const std::string &format, std::istream &source, std::iostream &dest)
+    {
+        CppIStream c_source(source);
+        CppIOStream c_dest(dest);
+        const unsigned char *c2pa_manifest_bytes = nullptr;
+
+        auto result = c2pa_builder_sign_context(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, &c2pa_manifest_bytes);
+        return detail::to_byte_vector(c2pa_manifest_bytes, result);
+    }
+
+    std::vector<unsigned char> Builder::sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path)
+    {
+        auto source = detail::open_file_binary<std::ifstream>(source_path);
+        auto dest_dir = dest_path.parent_path();
+        if (!std::filesystem::exists(dest_dir))
+        {
+            std::filesystem::create_directories(dest_dir);
+        }
+
+        std::fstream dest(dest_path,
+                          std::ios_base::binary | std::ios_base::trunc |
+                              std::ios_base::in | std::ios_base::out);
+
+        if (!dest.is_open())
+        {
+            throw std::runtime_error("Failed to open destination file: " + dest_path.string());
+        }
+        auto format = detail::extract_file_extension(dest_path);
+        auto result = sign(format.c_str(), *source, dest);
         return result;
     }
 

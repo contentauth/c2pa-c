@@ -375,6 +375,7 @@ You can configure a signer:
 
 - [From JSON Settings](#from-settings)
 - [Explicitly in code](#explicit-signer)
+- [In the Context](#signer-in-context) — store a signer in the `Context` so `Builder::sign()` uses it automatically
 
 ### From Settings
 
@@ -416,6 +417,190 @@ builder.sign(source_path, dest_path, signer);
 ```
 
 The `Context` continues to control verification and builder options. The signer is used only for the cryptographic signature.
+
+### Signer in context
+
+In addition to passing a `Signer` explicitly to `Builder::sign()`, you can store a signer inside the `Context` and use the signerless `Builder::sign()` overloads. This is useful when you want to configure the signer once and reuse it across multiple builders.
+
+There are three ways to store a signer in the context:
+
+| Approach | Best for | Signer lifetime |
+| -------- | -------- | --------------- |
+| [Settings-based](#settings-based-signer) | Config-file-driven workflows; no code changes when credentials rotate. | Stored in the `Context`; available to every `Builder` that uses it. |
+| [Programmatic](#programmatic-signer) | Full code control; choosing algorithm and credentials at runtime. | Stored in the `Context`; available to every `Builder` that uses it. |
+| [Callback](#callback-signer) | HSM, KMS, or custom signing logic where keys never leave secure hardware. | Stored in the `Context`; the callback is invoked at signing time. |
+
+#### Settings-based signer
+
+When signer credentials are included in a settings JSON file, the `Context` will use them automatically. The `Builder` will use the signer from the context when you call `sign()` without a `Signer` argument:
+
+```cpp
+// Load settings from a JSON file that contains signer credentials.
+auto context = c2pa::Context::ContextBuilder()
+    .with_json_settings_file("config/settings_with_signer.json")
+    .create_context();
+
+c2pa::Builder builder(context, manifest_json);
+
+// Sign using the signer from the context (no Signer parameter).
+auto manifest_bytes = builder.sign(source_path, dest_path);
+```
+
+<!-- Tested by: BuilderTest.SignFileWithSettingsSigner -->
+
+#### Programmatic signer
+
+Create a `c2pa::Signer` in code and move it into a `Context` using `ContextBuilder::with_signer()`:
+
+```cpp
+c2pa::Signer signer("es256", certs_pem, private_key_pem,
+                     "http://timestamp.digicert.com");
+
+auto context = c2pa::Context::ContextBuilder()
+    .with_signer(std::move(signer))
+    .create_context();
+
+c2pa::Builder builder(context, manifest_json);
+
+// Sign using the signer from the context.
+auto manifest_bytes = builder.sign(source_path, dest_path);
+```
+
+<!-- Tested by: BuilderTest.SignFileWithContextSigner -->
+
+A convenience constructor creates a `Context` from both a `Settings` object and a `Signer` in a single call:
+
+```cpp
+c2pa::Settings settings;
+settings.set("builder.thumbnail.enabled", "false");
+
+c2pa::Signer signer("es256", certs_pem, private_key_pem);
+c2pa::Context context(settings, std::move(signer));
+```
+
+<!-- Tested by: BuilderTest.SignWithContextSignerAndSettings -->
+
+> [!NOTE]
+> `with_signer()` consumes the `Signer` via move. After the call, the source `Signer` is invalid and must not be reused.
+
+#### Callback signer
+
+When signing keys cannot leave secure hardware (HSM, KMS, or a remote signing service with custom protocol), use a callback signer. You provide a function that receives the data to sign and returns the raw signature bytes. The SDK calls this function at signing time.
+
+The callback signature type is:
+
+```cpp
+using SignerFunc = std::function<std::vector<unsigned char>(
+    const std::vector<unsigned char>& data)>;
+```
+
+Create a callback-based `Signer` and move it into the context:
+
+```cpp
+// Callback that delegates signing to your HSM or KMS.
+auto my_signing_callback = [](const std::vector<unsigned char>& data)
+    -> std::vector<unsigned char> {
+    // Call your HSM / KMS / custom signer here.
+    return sign_with_hsm(data);
+};
+
+c2pa::Signer signer(
+    my_signing_callback,
+    C2paSigningAlg::Es256,
+    certificate_chain_pem,
+    "http://timestamp.digicert.com"
+);
+
+auto context = c2pa::Context::ContextBuilder()
+    .with_signer(std::move(signer))
+    .create_context();
+
+c2pa::Builder builder(context, manifest_json);
+auto manifest_bytes = builder.sign(source_path, dest_path);
+```
+
+<!-- Tested by: BuilderTest.SignFileWithCallbackSignerInContext -->
+
+#### Signer priority
+
+When a context contains both a settings-based signer (from JSON) and a programmatic or callback signer (from `with_signer()`), the programmatic signer takes priority. This lets you use a settings file as a default and override it in code when needed.
+
+```cpp
+// Settings file contains an es256 signer.
+auto settings = c2pa::Settings(settings_json, "json");
+
+// Programmatic signer overrides the one from settings.
+c2pa::Signer signer("ed25519", certs_pem, private_key_pem);
+
+c2pa::Context context(settings, std::move(signer));
+c2pa::Builder builder(context, manifest_json);
+
+// Uses the programmatic ed25519 signer, not the settings es256 signer.
+auto manifest_bytes = builder.sign(source_path, dest_path);
+```
+
+<!-- Tested by: BuilderTest.ConvenienceCtorProgrammaticOverridesSettings -->
+
+The following diagram shows how the SDK resolves which signer to use at signing time:
+
+```mermaid
+flowchart TD
+    A[Builder::sign called] --> B{Signer argument provided?}
+    B -- Yes --> C[Use the provided Signer]
+    B -- No --> D{Context has programmatic signer?}
+    D -- Yes --> E[Use programmatic signer from Context]
+    D -- No --> F{Context has settings-based signer?}
+    F -- Yes --> G[Use settings-based signer from Context]
+    F -- No --> H[Error: no signer available]
+```
+
+#### Signing flow
+
+The following diagram shows the sequence of operations when signing with a context signer:
+
+```mermaid
+sequenceDiagram
+    participant App
+    participant ContextBuilder
+    participant Context
+    participant Builder
+    participant Signer
+
+    App->>ContextBuilder: with_signer(std::move(signer))
+    Note over ContextBuilder: Signer ownership transferred
+    App->>ContextBuilder: create_context()
+    ContextBuilder->>Context: Build with signer
+    App->>Builder: Builder(context, manifest)
+    App->>Builder: sign(source, dest)
+    Builder->>Context: Retrieve signer
+    Context->>Signer: Sign data
+    Signer-->>Builder: Signature bytes
+    Builder-->>App: Manifest bytes
+```
+
+#### Signer gotchas
+
+**There is no "get signer from context" function.** Once a signer is moved into a `Context`, it cannot be retrieved as a standalone `Signer` object. The Rust SDK stores the signer as a borrowed reference tied to the `Context`'s lifetime, which cannot be safely exposed across the FFI boundary as an owned pointer. Use the signerless `Builder::sign()` overloads instead of trying to extract and reuse the signer.
+
+**`with_signer()` consumes the `Signer`.** After calling `with_signer(std::move(signer))`, the source `Signer` is invalid. Attempting to use it will throw `C2paException`. If you need signers for multiple contexts, create a new `Signer` for each one.
+
+```cpp
+c2pa::Signer signer("es256", certs, key);
+auto context = c2pa::Context::ContextBuilder()
+    .with_signer(std::move(signer))
+    .create_context();
+
+// signer is now invalid -- do not pass it to sign() or another context.
+// To sign, use the signerless overload:
+builder.sign(source_path, dest_path);       // OK: uses context signer
+builder.sign(source_path, dest_path, signer); // ERROR: signer was consumed
+```
+
+<!-- Tested by: Context.WithSignerThrowsOnMovedSigner -->
+
+**A `Builder` constructed without a `Context` has no context signer.** If you create a `Builder` with the legacy `Builder(manifest_json)` constructor (no `Context`), calling the signerless `sign()` will throw because there is no context to retrieve a signer from. Either pass a `Signer` explicitly, or use the `Builder(context, manifest_json)` constructor with a context that has a signer.
+
+**Settings-based signers are lazy-initialized.** A signer configured in settings JSON is not created until the first call to `sign()`. If the settings contain invalid credentials (wrong algorithm, malformed PEM), the error will surface at signing time, not at context construction time.
 
 ## Context lifetime and usage
 
