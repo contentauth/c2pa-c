@@ -631,21 +631,21 @@ The `Builder` class offers two `sign()` variants. The one to use depends on how 
 ```mermaid
 flowchart TD
     A[Need to sign a manifest] --> B{Signer stored in Context?}
-    B -- Yes --> C["Builder(context, manifest)"]
+
+    B -- "Yes: signer lives in the Context" --> C["Builder(context, manifest)"]
     C --> D["builder.sign(source, dest)"]
-    D --> E[Contextual signer is used automatically]
+    D --> E[Signer retrieved from Context automatically]
 
-    B -- No --> F{Signer created separately?}
-    F -- Yes --> G["Builder(context, manifest)\nor Builder(manifest)"]
+    B -- "No: no signer in the Context" --> F["Create a Signer separately:\nSigner signer(alg, certs, key)"]
+    F --> G["Builder(context, manifest)\nor Builder(manifest)"]
     G --> H["builder.sign(source, dest, signer)"]
-    H --> I[Explicitly passed Signer is used]
-
-    F -- No --> J[Error: no signer available]
+    H --> I[The Signer passed as argument is used]
 ```
 
-- **Contextual signer path:** The `Builder` is created with a `Context` that already contains a signer (via `with_signer()` or settings). Calling `sign()` without a `Signer` argument retrieves the Signer instance from the context.
-- **Explicit signer path:** A `Signer` is created independently and passed directly to `sign()`. The `Builder` can be constructed with or without a `Context`.
-- **No signer:** If the `Builder` has no context (or the context has no signer) and no `Signer` is passed to `sign()`, the call throws `C2paException`.
+- **Contextual signer** (left path): The `Context` already contains a signer (set via `with_signer()` or settings). The `Builder` is constructed with that context, and `sign()` is called without a `Signer` argument. The signer is retrieved from the context automatically.
+- **Explicit signer** (right path): No signer is stored in the context. A `Signer` object is created separately and passed as an argument to `sign()`. The `Builder` can be constructed with or without a `Context`.
+
+If neither path applies (no contextual signer and no explicit signer passed to `sign()`), the call throws `C2paException`.
 
 ##### A Signer in a Context is immutable
 
