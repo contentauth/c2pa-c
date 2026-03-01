@@ -73,46 +73,6 @@ inline c2pa::Settings create_test_settings_with_signer()
     return c2pa::Settings(settings_json, "json");
 }
 
-/// @brief Callback function that signs data using Ed25519 via the C API.
-/// @details This wraps `c2pa_ed25519_sign` in a SignerFunc callback, allowing
-///          tests to exercise the CallbackSigner code path without depending
-///          on openssl. The callback reads data from the input, signs it using
-///          the Ed25519 private key from test fixtures, and returns the signature.
-/// @param data Data bytes to sign.
-/// @return Signature bytes.
-/// @throws std::runtime_error if signing fails.
-inline std::vector<unsigned char> ed25519_callback_signer(
-    const std::vector<unsigned char> &data)
-{
-    auto private_key = read_text_file(get_fixture_path("ed25519.pem"));
-
-    const unsigned char *sig_ptr = c2pa_ed25519_sign(
-        data.data(), data.size(), private_key.c_str());
-    if (!sig_ptr) {
-        throw std::runtime_error("c2pa_ed25519_sign failed");
-    }
-
-    // Ed25519 signatures are always 64 bytes
-    std::vector<unsigned char> signature(sig_ptr, sig_ptr + 64);
-    c2pa_signature_free(sig_ptr);
-    return signature;
-}
-
-/// @brief Create a callback-based Signer for testing.
-/// @details Wraps ed25519_callback_signer into a c2pa::Signer via the
-///          callback constructor. This exercises the CallbackSigner code path
-///          without requiring openssl in the test environment.
-/// @return Callback-based Signer configured for Ed25519 with test credentials.
-inline c2pa::Signer create_test_callback_signer()
-{
-    auto certs = read_text_file(get_fixture_path("ed25519.pub"));
-    return c2pa::Signer(
-        &ed25519_callback_signer,
-        C2paSigningAlg::Ed25519,
-        certs,
-        "http://timestamp.digicert.com");
-}
-
 } // namespace c2pa_test
 
 #endif // C2PA_TEST_UTILS_HPP

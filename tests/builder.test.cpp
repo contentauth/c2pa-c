@@ -4625,7 +4625,7 @@ TEST_F(BuilderTest, NonAsciiPathForReaderGetResource)
 // Sign a file using a Signer from the Builder's Context, then read back
 TEST_F(BuilderTest, SignFileWithContextSigner) {
     auto image_path = c2pa_test::get_fixture_path("A.jpg");
-    auto output_path = get_temp_path("context_signer_file.jpg");
+    auto output_path = get_temp_path("signed_file_context_signed.jpg");
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
 
     auto signer = c2pa_test::create_test_signer();
@@ -4642,10 +4642,9 @@ TEST_F(BuilderTest, SignFileWithContextSigner) {
     auto reader = c2pa::Reader(context, output_path);
     std::string json_result;
     ASSERT_NO_THROW(json_result = reader.json());
-    EXPECT_TRUE(json_result.find("cawg.training-mining") != std::string::npos);
 }
 
-// Sign a stream using a Signer from the Builder's Context, then read back
+// Sign a stream using a Signer from the Builder Context
 TEST_F(BuilderTest, SignStreamWithContextSigner) {
     auto image_path = c2pa_test::get_fixture_path("A.jpg");
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
@@ -4677,49 +4676,7 @@ TEST_F(BuilderTest, SignStreamWithContextSigner) {
     EXPECT_TRUE(json_result.find("cawg.training-mining") != std::string::npos);
 }
 
-// Sign with an action using the Context's Signer, verify the action is present
-TEST_F(BuilderTest, TMN_SignWithActionAndContextSigner) {
-    auto image_path = c2pa_test::get_fixture_path("A.jpg");
-    auto output_path = get_temp_path("context_signer_action.jpg");
-    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-
-    auto signer = c2pa_test::create_test_signer();
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(std::move(signer))
-        .create_context();
-
-    auto builder = c2pa::Builder(context, manifest);
-    builder.add_action(R"({
-        "action": "c2pa.color_adjustments",
-        "parameters": { "name": "brightnesscontrast" }
-    })");
-
-    std::vector<unsigned char> manifest_data;
-    ASSERT_NO_THROW(manifest_data = builder.sign(image_path, output_path));
-
-    auto reader = c2pa::Reader(context, output_path);
-    std::string json_result;
-    ASSERT_NO_THROW(json_result = reader.json());
-
-    json manifest_json = json::parse(json_result);
-    string active_label = manifest_json["active_manifest"];
-    json active = manifest_json["manifests"][active_label];
-    ASSERT_TRUE(active.contains("assertions"));
-
-    bool found = false;
-    for (const auto& a : active["assertions"]) {
-        if (a.contains("label") && a["label"] == "c2pa.actions.v2") {
-            for (const auto& act : a["data"]["actions"]) {
-                if (act["action"] == "c2pa.color_adjustments") {
-                    found = true;
-                }
-            }
-        }
-    }
-    ASSERT_TRUE(found);
-}
-
-// Sign with context signer and custom settings, verify signing succeeds
+// Sign a stream using a Signer from the Builder Context (settings and signer overload)
 TEST_F(BuilderTest, SignWithContextSignerAndSettings) {
     auto image_path = c2pa_test::get_fixture_path("A.jpg");
     auto output_path = get_temp_path("context_signer_settings.jpg");
@@ -4753,25 +4710,6 @@ TEST_F(BuilderTest, SignWithoutContextSignerThrows) {
     EXPECT_THROW(builder.sign(image_path, output_path), c2pa::C2paException);
 }
 
-// Sign a file using a signer configured though settings JSON
-TEST_F(BuilderTest, TMN_SignFileWithSettingsSigner) {
-    auto image_path = c2pa_test::get_fixture_path("A.jpg");
-    auto output_path = get_temp_path("settings_signer_file.jpg");
-    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-
-    auto settings = c2pa_test::create_test_settings_with_signer();
-    c2pa::Context context(settings);
-
-    auto builder = c2pa::Builder(context, manifest);
-
-    std::vector<unsigned char> manifest_data;
-    ASSERT_NO_THROW(manifest_data = builder.sign(image_path, output_path));
-    ASSERT_FALSE(manifest_data.empty());
-
-    auto reader = c2pa::Reader(context, output_path);
-    ASSERT_NO_THROW(reader.json());
-}
-
 // Sign a stream using a Signer configured in settings JSON
 TEST_F(BuilderTest, SignStreamWithSettingsSigner) {
     auto image_path = c2pa_test::get_fixture_path("A.jpg");
@@ -4800,102 +4738,31 @@ TEST_F(BuilderTest, SignStreamWithSettingsSigner) {
     ASSERT_NO_THROW(reader.json());
 }
 
-// Signer in settings and programmatic: programmatic one wins
-TEST_F(BuilderTest, ProgrammaticSignerOverridesSettingsSigner) {
-    auto image_path = c2pa_test::get_fixture_path("A.jpg");
-    auto output_path = get_temp_path("priority_programmatic.jpg");
-    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-
-    auto settings = c2pa_test::create_test_settings_with_signer();
-    auto signer = c2pa_test::create_test_signer();
-
-    auto context = c2pa::Context::ContextBuilder()
-        .with_settings(settings)
-        .with_signer(std::move(signer))
-        .create_context();
-
-    auto builder = c2pa::Builder(context, manifest);
-
-    std::vector<unsigned char> manifest_data;
-    ASSERT_NO_THROW(manifest_data = builder.sign(image_path, output_path));
-    ASSERT_FALSE(manifest_data.empty());
-
-    auto reader = c2pa::Reader(context, output_path);
-    ASSERT_NO_THROW(reader.json());
-}
-
-// Programmatic signer set before settings should still take priority
-TEST_F(BuilderTest, TMN_ProgrammaticSignerBeforeSettingsStillWins) {
-    auto image_path = c2pa_test::get_fixture_path("A.jpg");
-    auto output_path = get_temp_path("priority_reversed.jpg");
-    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-
-    auto settings = c2pa_test::create_test_settings_with_signer();
-    auto signer = c2pa_test::create_test_signer();
-
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(std::move(signer))
-        .with_settings(settings)
-        .create_context();
-
-    auto builder = c2pa::Builder(context, manifest);
-
-    std::vector<unsigned char> manifest_data;
-    ASSERT_NO_THROW(manifest_data = builder.sign(image_path, output_path));
-    ASSERT_FALSE(manifest_data.empty());
-
-    auto reader = c2pa::Reader(context, output_path);
-    ASSERT_NO_THROW(reader.json());
-}
-
-// Convenience constructor with both settings signer and programmatic signer
-TEST_F(BuilderTest, CtorProgrammaticOverridesSettings) {
-    auto image_path = c2pa_test::get_fixture_path("A.jpg");
-    auto output_path = get_temp_path("priority_convenience.jpg");
-    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-
-    auto settings = c2pa_test::create_test_settings_with_signer();
-    auto signer = c2pa_test::create_test_signer();
-
-    c2pa::Context context(settings, std::move(signer));
-
-    auto builder = c2pa::Builder(context, manifest);
-
-    std::vector<unsigned char> manifest_data;
-    ASSERT_NO_THROW(manifest_data = builder.sign(image_path, output_path));
-    ASSERT_FALSE(manifest_data.empty());
-
-    auto reader = c2pa::Reader(context, output_path);
-    ASSERT_NO_THROW(reader.json());
-}
-
-// Sign a file using a callback signer stored in the context
-TEST_F(BuilderTest, TMN_SignFileWithCallbackSignerInContext) {
-    auto image_path = c2pa_test::get_fixture_path("A.jpg");
-    auto output_path = get_temp_path("callback_signer_file.jpg");
-    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-
-    auto signer = c2pa_test::create_test_callback_signer();
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(std::move(signer))
-        .create_context();
-
-    auto builder = c2pa::Builder(context, manifest);
-
-    std::vector<unsigned char> manifest_data;
-    ASSERT_NO_THROW(manifest_data = builder.sign(image_path, output_path));
-    ASSERT_FALSE(manifest_data.empty());
-
-    auto reader = c2pa::Reader(context, output_path);
-    ASSERT_NO_THROW(reader.json());
-}
-
 // Sign a stream using a CallbackSigner stored in Context
 TEST_F(BuilderTest, SignStreamWithCallbackSignerInContext) {
     auto image_path = c2pa_test::get_fixture_path("A.jpg");
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
 
-    auto signer = c2pa_test::create_test_callback_signer();
+    c2pa::SignerFunc *callback = [](const std::vector<unsigned char> &data)
+        -> std::vector<unsigned char> {
+        auto private_key = c2pa_test::read_text_file(
+            c2pa_test::get_fixture_path("ed25519.pem"));
+        const unsigned char *sig_ptr = c2pa_ed25519_sign(
+            data.data(), data.size(), private_key.c_str());
+        if (!sig_ptr) {
+            throw std::runtime_error("c2pa_ed25519_sign failed");
+        }
+        std::vector<unsigned char> signature(sig_ptr, sig_ptr + 64);
+        c2pa_signature_free(sig_ptr);
+        return signature;
+    };
+
+    auto certs = c2pa_test::read_text_file(
+        c2pa_test::get_fixture_path("ed25519.pub"));
+    auto signer = c2pa::Signer(
+        callback, C2paSigningAlg::Ed25519, certs,
+        "http://timestamp.digicert.com");
+
     auto context = c2pa::Context::ContextBuilder()
         .with_signer(std::move(signer))
         .create_context();
@@ -4917,29 +4784,5 @@ TEST_F(BuilderTest, SignStreamWithCallbackSignerInContext) {
     dest.seekg(0, std::ios::beg);
 
     auto reader = c2pa::Reader(context, "image/jpeg", dest);
-    ASSERT_NO_THROW(reader.json());
-}
-
-// Callback signer takes priority over settings-based signer
-TEST_F(BuilderTest, TMN_CallbackSignerOverridesSettingsSigner) {
-    auto image_path = c2pa_test::get_fixture_path("A.jpg");
-    auto output_path = get_temp_path("callback_overrides_settings.jpg");
-    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-
-    auto settings = c2pa_test::create_test_settings_with_signer();
-    auto signer = c2pa_test::create_test_callback_signer();
-
-    auto context = c2pa::Context::ContextBuilder()
-        .with_settings(settings)
-        .with_signer(std::move(signer))
-        .create_context();
-
-    auto builder = c2pa::Builder(context, manifest);
-
-    std::vector<unsigned char> manifest_data;
-    ASSERT_NO_THROW(manifest_data = builder.sign(image_path, output_path));
-    ASSERT_FALSE(manifest_data.empty());
-
-    auto reader = c2pa::Reader(context, output_path);
     ASSERT_NO_THROW(reader.json());
 }

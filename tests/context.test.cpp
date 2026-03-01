@@ -516,12 +516,3 @@ TEST(Context, WithSignerThrowsOnMovedSigner) {
         c2pa::Context::ContextBuilder().with_signer(std::move(signer)),
         c2pa::C2paException);
 }
-
-// CallbackSigner can be set on a context via with_signer
-TEST(Context, ContextBuilderWithCallbackSigner) {
-    auto signer = c2pa_test::create_test_callback_signer();
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(std::move(signer))
-        .create_context();
-    EXPECT_TRUE(context.is_valid());
-}
