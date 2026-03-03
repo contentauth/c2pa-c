@@ -6,13 +6,14 @@ To use this library, include the header file in your code as follows:
 #include "c2pa.hpp"
 ```
 
-## Read and validate an istream 
+## Read and validate an istream
 
 Use the `Reader` constructor to read C2PA data from a stream. This constructor examines the specified stream for C2PA data in the given format and its return value is a Reader that can be used to extract more information. Exceptions are thrown on errors.
 
 ```cpp
   auto reader = c2pa::Reader(<"FORMAT">, <"STREAM">);
 ```
+
 The parameters are:
 
 - `<FORMAT>`- A MIME string format for the stream; must be one of the [supported file formats](supported-formats.md).
@@ -42,12 +43,12 @@ The manifest JSON string defines the C2PA manifest to add to the file.
 A sample JSON manifest is provided in [tests/fixtures/training.json](https://github.com/contentauth/c2pa-c/blob/main/tests/fixtures/training.json).
 
 For example:
+
 ```cpp
 const std::string manifest_json = R"{
-    "claim_generator": "c2pa_c_test/0.1",
     "claim_generator_info": [
       {
-        "name": "c2pa-c test",
+        "name": "c2pa-cpp test",
         "version": "0.1"
       }
     ],
@@ -65,6 +66,65 @@ const std::string manifest_json = R"{
     }
   ]
  };
+```
+
+## Using settings
+
+The behavior of the SDK can be configured through various [settings](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/). SDK settings can be loaded from JSON config files, as well as valid JSON strings directly in the code.
+
+SDK settings are set on the `Context` objects used by the Builder and Reader objects. For full details see [Configuring settings](settings.md) and [Configuring the SDK using Context](context.md).
+
+NOTE: If you don't specify a value for a property, then the SDK will use the default value. If you specify a value of null, then the property will be set to null, not the default.
+
+### Creating a Context
+
+The `Context` class manages C2PA SDK configuration. There are two ways to create a context: direct construction and the ContextBuilder.
+
+#### Direct construction
+
+```cpp
+// Default settings
+c2pa::Context context;
+
+// From a Settings object
+c2pa::Settings settings;
+settings.set("builder.thumbnail.enabled", "true");
+c2pa::Context context(settings);
+
+// From a JSON configuration string
+c2pa::Context context(R"({
+  "builder": {
+    "thumbnail": {
+      "enabled": true
+    }
+  }
+})");
+```
+
+#### ContextBuilder
+
+The builder pattern is useful when you need to layer multiple configuration sources:
+
+```cpp
+c2pa::Settings settings;
+settings.set("builder.thumbnail.enabled", "true");
+
+auto context = c2pa::Context::ContextBuilder()
+    .with_settings(settings)
+    .with_json(R"({"verify": {"verify_after_sign": true}})")
+    .create_context();
+```
+
+Note: the ContextBuilder is consumed after calling `create_context()`. For single-source configuration, prefer direct construction.
+
+#### Using a Context
+
+Contexts are passed by reference to Builder and Reader constructors. The context is used only at construction; the implementation copies context state into the reader/builder, so the context does not need to outlive them.
+
+```cpp
+c2pa::Context context;
+c2pa::Builder builder(context, manifest_json);
+c2pa::Reader reader(context, "image.jpg");
 ```
 
 ## Creating a Builder
@@ -85,13 +145,15 @@ For example:
 
 ## Creating a Signer
 
-For testing you can create a signer using any supported algorithm by with Signer constructor.
+For testing you can create a signer using any supported algorithm by a Signer constructor. For the list of supported signing algorithms, see [Creating and using an X.509 certificate](https://opensource.contentauthenticity.org/docs/c2patool/x_509).
+
 There are multiple forms of constructors. But in this example we show how to create a signer with
 a public and private key.
 
 ```cpp
   Signer signer = Signer("<SIGNING_ALG>", "<PUBLIC_CERTS>",  "<PRIVATE_KEY>", "<TIMESTAMP_URL>");
 ```
+
 The parameters are:
 - `<SIGNING_ALG>`- The `C2paSigningAlg` from `c2pa.h` associated with the signing function.
 - `<PUBLIC_CERTS>`- A buffer containing the public cert chain in PEM format.
@@ -99,22 +161,28 @@ The parameters are:
 - `<TIMESTAMP_URL>`- An optional parameter containing a URL to a public Time Stamp Authority service.
 
 For example:
+
 ```cpp
 Signer signer = c2pa::Signer("Es256", certs, private_key, "http://timestamp.digicert.com");
 ```
 
+**WARNING**: Do not access a private key and certificate directly like this in production  because it's not secure. Instead use a hardware security module (HSM) and optionally a Key Management Service (KMS) to access the key; for example as show in the [C2PA Python Example](https://github.com/contentauth/c2pa-python-example).
+
 ## Signing and embedding a manifest
+
+A media file may contain many manifests in a manifest store. The `active_manifest` property in the manifest store identifies the most recently-added manifest.  For a comprehensive reference to the JSON manifest structure, see the [CAI manifest store reference](https://opensource.contentauthenticity.org/docs/manifest/manifest-ref).
 
 ```cpp
   auto manifest_data = builder.sign(image_path, output_path, signer);
 ```
 
 The parameters are:
+
 - `<SOURCE_ASSET>`- A file path or an istream referencing the asset to sign.
 - `<OUTPUT_ASSET>`- A file path or an iostream referencing the asset to generate.
 - `<SIGNER>` - A `Signer` instance.
 
-For example: 
+For example:
 ```cpp
   auto manifest_data = builder.sign("source_asset.jpg", "output_asset.jpg", signer);
 ```
@@ -123,9 +191,18 @@ For example:
 
 The C++ library can validate [CAWG identity assertions](https://cawg.io/identity/).
 
+## On trust configurations
+
+C2PA maintains two [trust lists](https://opensource.contentauthenticity.org/docs/conformance/trust-lists/)
+to verify the authenticity and integrity of Content Credentials attached to digital media: the C2PA trust list and the C2PA time-stamping authority (TSA) trust list. The C2PA trust list is a list of X.509 certificate trust anchors (either root or subordinate certification authorities) that issue certificates to conforming generator products under the C2PA Certificate Policy. The C2PA time-stamping authority (TSA) trust list is a list of X.509 certificate trust anchors (either root or subordinate certification authorities) that issue time-stamp signing certificates to TSAs.
+
+These trust lists need to be configured (loaded as settings) when using the SDK, using the Settings in the Context APIs. Using the Context API ensure proper propagation of settings (and trust) to Builder and Reader objects.
+
+Trust has an impact on manifest validation status, as a manifest for which a trust chain could be verified will be flagged as `Trusted`.
+
 ## More examples
 
-The simple C++ example in [`examples/training.cpp`](https://github.com/contentauth/c2pa-c/blob/main/examples/training.cpp) uses the [JSON for Modern C++](https://json.nlohmann.me/) library class.
+The C++ example in [`examples/training.cpp`](https://github.com/contentauth/c2pa-c/blob/main/examples/training.cpp) uses the [JSON for Modern C++](https://json.nlohmann.me/) library class.
 
 Build and run the example by entering this `make` command:
 
@@ -135,4 +212,4 @@ make examples
 
 This example adds the manifest [`tests/fixtures/training.json`](https://github.com/contentauth/c2pa-c/blob/main/tests/fixtures/training.json) to the image file [`tests/fixtures/A.jpg`](https://github.com/contentauth/c2pa-c/blob/main/tests/fixtures/A.jpg) using the sample private key and certificate in the [`tests/fixtures`](https://github.com/contentauth/c2pa-c/tree/main/tests/fixtures) directory.
 
-The example displays some text to standard out that summarizes whether AI training is allowed based on the specified manifest and then saves the resulting image file with attached manifest to `build/example/training.jpg`.
+The example displays some text to standard out that summarizes whether AI training is allowed based on the specified manifest and then saves the resulting image file with attached manifest to `build/examples/training.jpg`.

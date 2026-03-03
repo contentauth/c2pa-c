@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "builder": {
+    "thumbnail": {
+      "enabled": false
+    }
+  }
+}

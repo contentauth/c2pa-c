@@ -17,7 +17,7 @@ function(setup_c2pa_runtime_deps target_name)
             COMMENT "Copying c2pa_c library to ${target_name} directory"
         )
     endif()
-    
+
     # On Linux, set RPATH to look in the executable's directory
     if(UNIX AND NOT APPLE)
         set_target_properties(${target_name} PROPERTIES
@@ -29,7 +29,7 @@ function(setup_c2pa_runtime_deps target_name)
         set_property(TARGET ${target_name} PROPERTY BUILD_RPATH "$ORIGIN")
         set_property(TARGET ${target_name} PROPERTY INSTALL_RPATH "$ORIGIN")
     endif()
-    
+
     # On macOS, override the RPATH to remove hardcoded paths
     if(APPLE)
         set_target_properties(${target_name} PROPERTIES
@@ -46,8 +46,20 @@ endfunction()
 # Example executables
 add_executable(training training.cpp)
 target_link_libraries(training PRIVATE nlohmann_json::nlohmann_json c2pa_cpp)
+if(NOT MSVC)
+    target_compile_options(training PRIVATE -Wno-deprecated-declarations)
+endif()
+if(MSVC)
+    target_compile_options(training PRIVATE /wd4996)
+endif()
 setup_c2pa_runtime_deps(training)
 
 add_executable(demo demo.cpp)
 target_link_libraries(demo PRIVATE nlohmann_json::nlohmann_json c2pa_cpp)
+if(NOT MSVC)
+    target_compile_options(demo PRIVATE -Wno-deprecated-declarations)
+endif()
+if(MSVC)
+    target_compile_options(demo PRIVATE /wd4996)
+endif()
 setup_c2pa_runtime_deps(demo)

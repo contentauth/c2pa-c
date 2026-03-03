@@ -15,7 +15,7 @@
 #include <string.h>
 
 
-#include "../include/c2pa.h"
+#include  <c2pa.h>
 
 // load a file into a string for testing
 char *load_file(const char *filename)
@@ -64,20 +64,22 @@ int save_file(const char* filename, const unsigned char* data, size_t len) {
 void passed(const char *what, char *c2pa_str)
 {
     printf("PASSED: %s\n", what);
-    c2pa_release_string(c2pa_str);
+    if (c2pa_str != NULL)
+        c2pa_free(c2pa_str);
 }
 
 // assert that c2pa_str contains substr or exit
 void assert_contains(const char *what, char *c2pa_str, const char *substr)
 {
-    if (strstr(c2pa_str, substr) == NULL)
+    if (c2pa_str == NULL || strstr(c2pa_str, substr) == NULL)
     {
-        fprintf(stderr, "FAILED %s: %s not found in %s\n", what, c2pa_str, substr);
-        c2pa_release_string(c2pa_str);
+        fprintf(stderr, "FAILED %s: %s not found in %s\n", what, c2pa_str ? c2pa_str : "(null)", substr);
+        if (c2pa_str != NULL)
+            c2pa_free(c2pa_str);
         exit(1);
     }
     printf("PASSED: %s\n", what);
-    c2pa_release_string(c2pa_str);
+    c2pa_free(c2pa_str);
 }
 
 // assert that c2pa is not NULL or exit
@@ -86,8 +88,9 @@ void assert_not_null(const char *what, void *val)
     if (val == NULL)
     {
         char *err = c2pa_error();
-        fprintf(stderr, "FAILED %s: %s\n", what, err);
-        c2pa_release_string(err);
+        fprintf(stderr, "FAILED %s: %s\n", what, err ? err : "(null)");
+        if (err != NULL)
+            c2pa_free(err);
         exit(1);
     }
     printf("PASSED: %s\n", what);
@@ -97,7 +100,8 @@ void assert_not_null(const char *what, void *val)
 void assert_str_not_null(const char *what, char *c2pa_str)
 {
     assert_not_null(what, c2pa_str);
-    c2pa_release_string(c2pa_str);
+    if (c2pa_str != NULL)
+        c2pa_free(c2pa_str);
 }
 
 // assert that c2pa is not NULL or exit
@@ -108,18 +112,20 @@ void assert_null(const char *what, char *c2pa_str, const char *err_str)
     if (c2pa_str == NULL)
     {
         char *err = c2pa_error();
-        if (strstr(err, err_str) == NULL)
+        if (err == NULL || strstr(err, err_str) == NULL)
         {
-            fprintf(stderr, "FAILED %s: \"%s\" not found in \"%s\"\n", what, err_str, err);
-            c2pa_release_string(err);
+            fprintf(stderr, "FAILED %s: \"%s\" not found in \"%s\"\n", what, err_str, err ? err : "(null)");
+            if (err != NULL)
+                c2pa_free(err);
             exit(1);
         }
         printf("PASSED: %s: \n", what);
+        c2pa_free(err);
     }
     else
     {
         fprintf(stderr, "FAILED %s: expected NULL\n", what);
-        c2pa_release_string(c2pa_str);
+        c2pa_free(c2pa_str);
         exit(1);
     }
 }
@@ -129,8 +135,9 @@ void assert_int(const char *what, int result)
     if (result < 0)
     {
         char *err = c2pa_error();
-        fprintf(stderr, "FAILED %s: %s\n", what, err);
-        c2pa_release_string(err);
+        fprintf(stderr, "FAILED %s: %s\n", what, err ? err : "(null)");
+        if (err != NULL)
+            c2pa_free(err);
         exit(1);
     }
     printf("PASSED: %s\n", what);
@@ -192,7 +199,7 @@ intptr_t signer_callback(const void* context, const unsigned char *data, uintptr
     }
     if (context != NULL && strncmp((const char *)context,"testing context", 16)) {
         printf("signer callback unexpected context %s\n", (const char *) context);
-    }    
+    }
     // sign the temp file by calling openssl in a shell
     system("openssl dgst -sign tests/fixtures/es256_private.key -sha256 -out build/c_signature.sig build/c_data.bin");
 

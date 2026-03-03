@@ -1,0 +1,13 @@
+# LeakSanitizer suppression file for c2pa-c tests.
+#
+# On first use Tokio allocates process-global singleton state (signal handler
+# registry, thread-local handles via OnceLock/Lazy) that is intentionally never
+# freed. The allocation is bounded, does not grow, and is reclaimed by the OS on process exit.
+#
+# Observed on Ubuntu 22.04 aarch64 where LSan classifies the allocation as a
+# "direct leak" rather than "still reachable".
+#
+# Similar if not same as https://github.com/tokio-rs/tokio/issues/4756
+# Happens only on some Linxues as it depends on the OS/glibc version too it seems!
+#
+leak:libc2pa_c

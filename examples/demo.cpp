@@ -55,8 +55,8 @@ int main()
     fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
     fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
     fs::path image_path = current_dir / "../tests/fixtures/A.jpg";
-    fs::path output_path = current_dir / "../build/example/training.jpg";
-    fs::path thumbnail_path = current_dir / "../build/example/thumbnail.jpg";
+    fs::path output_path = current_dir / "../build/examples/training.jpg";
+    fs::path thumbnail_path = current_dir / "../build/examples/thumbnail.jpg";
 
     try
     {
@@ -85,9 +85,9 @@ int main()
             json &manifest = manifest_store["manifests"][active_manifest];
 
             // scan the assertions for the training-mining assertion
-            string identifer = manifest["thumbnail"]["identifier"];
+            string identifier = manifest["thumbnail"]["identifier"];
 
-            reader.get_resource(identifer, thumbnail_path);
+            reader.get_resource(identifier, thumbnail_path);
 
             cout << "thumbnail written to " << thumbnail_path << endl;
         }
