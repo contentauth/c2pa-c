@@ -1,4 +1,4 @@
-# Working stores and manifest stores
+# Manifests, working stores, and archives
 
 This table summarizes the fundamental entities that you work with when using the CAI SDK.
 
