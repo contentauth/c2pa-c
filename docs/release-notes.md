@@ -6,9 +6,9 @@ This release includes changes relating to trust validation and handling (made in
 
 Additionally, this release adds support for:
 - Configuring the SDK using [`Settings`](settings.md).
-- [Using `Context` to configure how `Reader`, `Builder`, and other aspects of the SDK operate.](context.md).
-- Using [working stores and archvies](working-stores.md) when creating manifest stores with a `Builder`.
-- Using `Builder` and `Reader` together to [filter actions and ingredients to selectively construct a manifests](selective-manifests.md).
+- [Using `Context`](context.md) to configure `Reader` `Builder`, and other aspects of the SDK.
+- Using [working stores and archvies](working-stores.md).
+- Using `Builder` and `Reader` together to [selectively construct a manifest by filtering actions and ingredients](selective-manifests.md).
 
 For answers to frequently-asked questions about these features, see the [FAQs](faqs.md).
 
