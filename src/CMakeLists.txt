@@ -295,7 +295,7 @@ endif()
 
 # Link the C++ library to the C library.
 # C2PA_C_LIB_OVERRIDE lets a parent project substitute its own library that already
-# embeds the c2pa_c symbols (e.g. libadobe_c2pa.dylib / adobe_c2pa.dll.lib).
+# embeds the c2pa_c symbols.
 # Without this, two independent copies of the tracked-pointer registry can exist in
 # the same process, causing UntrackedPointer errors when a pointer allocated through
 # one registry is freed or accessed through the other.
