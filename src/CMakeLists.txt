@@ -293,8 +293,15 @@ if(C2PA_BUILD_FROM_SOURCE)
     add_dependencies(c2pa_cpp build_c2pa_c)
 endif()
 
-# Link the C++ library to the C library file directly to avoid RPATH issues
-if(WIN32)
+# Link the C++ library to the C library.
+# C2PA_C_LIB_OVERRIDE lets a parent project substitute its own library that already
+# embeds the c2pa_c symbols (e.g. libadobe_c2pa.dylib / adobe_c2pa.dll.lib).
+# Without this, two independent copies of the tracked-pointer registry can exist in
+# the same process, causing UntrackedPointer errors when a pointer allocated through
+# one registry is freed or accessed through the other.
+if(DEFINED C2PA_C_LIB_OVERRIDE)
+    target_link_libraries(c2pa_cpp PRIVATE "${C2PA_C_LIB_OVERRIDE}")
+elseif(WIN32)
     # On Windows, link to the import library (.lib file)
     if(C2PA_BUILD_FROM_SOURCE)
         target_link_libraries(c2pa_cpp PRIVATE "${C2PA_RUST_BUILD_DIR}/${C2PA_IMPLIB_NAME}")
@@ -302,17 +309,8 @@ if(WIN32)
         target_link_libraries(c2pa_cpp PRIVATE "${c2pa_prebuilt_SOURCE_DIR}/lib/${C2PA_IMPLIB_NAME}")
     endif()
 else()
-    # On Unix systems, link directly to the shared library.
-    # C2PA_C_LIB_OVERRIDE lets a parent project substitute its own library that
-    # already embeds the c2pa_c symbols during build.
-    # Without this, wo independent copies of the tracked-pointer registry can end
-    # up in the same process, causing UntrackedPointer errors when pointers allocated
-    # by one registry are freed or accessed through the other.
-    if(DEFINED C2PA_C_LIB_OVERRIDE)
-        target_link_libraries(c2pa_cpp PRIVATE "${C2PA_C_LIB_OVERRIDE}")
-    else()
-        target_link_libraries(c2pa_cpp PRIVATE "${C2PA_C_LIB}")
-    endif()
+    # On Unix systems, link directly to the shared library
+    target_link_libraries(c2pa_cpp PRIVATE "${C2PA_C_LIB}")
 endif()
 target_include_directories(c2pa_cpp PUBLIC
     $<BUILD_INTERFACE:${C2PA_INCLUDE_DIR}>
