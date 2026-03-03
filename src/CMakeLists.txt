@@ -254,7 +254,6 @@ else()
         -Wstack-protector
         -fstack-protector-strong
         -fPIC
-        -D_FORTIFY_SOURCE=2
     )
 
     if(APPLE)
@@ -262,6 +261,7 @@ else()
             -Wl,-bind_at_load
         )
     elseif(UNIX)
+        target_compile_options(c2pa_cpp PRIVATE -D_FORTIFY_SOURCE=2)
         # Linux-only hardening flags
         target_link_options(c2pa_cpp PRIVATE
             -Wl,-z,relro
