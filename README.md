@@ -9,9 +9,16 @@ Although this library works for plain C applications, the documentation assumes 
 <div class="hide-doxygen" >
 <div style={{display: 'none'}}>
 
-For the best experience, read the docs on the [CAI Open Source SDK documentation website](https://opensource.contentauthenticity.org/docs/c2pa-c).  If you want to view the documentation in GitHub, see:
+For the best experience, read the docs on the [CAI Open Source SDK documentation website](https://opensource.contentauthenticity.org/docs/c2pa-c).
+
+If you want to view the documentation in GitHub, see:
 - [Using the C++ library](docs/usage.md)
 - [Supported formats](https://github.com/contentauth/c2pa-rs/blob/main/docs/supported-formats.md)
+- Configuring the SDK using [`Settings`](settings.md).
+- [Using `Context`](context.md) to configure `Reader` `Builder`, and other aspects of the SDK.
+- Using [working stores and archvies](working-stores.md).
+- Using `Builder` and `Reader` together to [selectively construct a manifest by filtering actions and ingredients](selective-manifests.md).
+- [Release notes](release-notes.md)
 
 </div>
 </div>
