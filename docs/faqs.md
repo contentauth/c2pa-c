@@ -1,4 +1,4 @@
-# FAQs
+# Frequently-asked questions (FAQs)
 
 ## When do I use `Reader` vs. `Builder`
 
