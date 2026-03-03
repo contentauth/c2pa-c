@@ -12,4 +12,3 @@ Additionally, this release adds support for:
 
 For answers to frequently-asked questions about these features, see the [FAQs](faqs.md).
 
-_More details TBD_
