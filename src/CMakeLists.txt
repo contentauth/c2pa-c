@@ -302,8 +302,17 @@ if(WIN32)
         target_link_libraries(c2pa_cpp PRIVATE "${c2pa_prebuilt_SOURCE_DIR}/lib/${C2PA_IMPLIB_NAME}")
     endif()
 else()
-    # On Unix systems, link directly to the shared library
-    target_link_libraries(c2pa_cpp PRIVATE "${C2PA_C_LIB}")
+    # On Unix systems, link directly to the shared library.
+    # C2PA_C_LIB_OVERRIDE lets a parent project substitute its own library that
+    # already embeds the c2pa_c symbols during build.
+    # Without this, wo independent copies of the tracked-pointer registry can end
+    # up in the same process, causing UntrackedPointer errors when pointers allocated
+    # by one registry are freed or accessed through the other.
+    if(DEFINED C2PA_C_LIB_OVERRIDE)
+        target_link_libraries(c2pa_cpp PRIVATE "${C2PA_C_LIB_OVERRIDE}")
+    else()
+        target_link_libraries(c2pa_cpp PRIVATE "${C2PA_C_LIB}")
+    endif()
 endif()
 target_include_directories(c2pa_cpp PUBLIC
     $<BUILD_INTERFACE:${C2PA_INCLUDE_DIR}>
