@@ -2,7 +2,7 @@
 
 ## 3 Mar 2026
 
-This release includes changes relating to trust validation and handling (made in the Rust library at end of last year).
+This release includes changes relating to trust validation and handling (made in the Rust library [v0.68.0](https://github.com/contentauth/c2pa-rs/releases/tag/c2pa-v0.68.0), see also [trust lists](https://opensource.contentauthenticity.org/docs/conformance/trust-lists) for more details on trust lists).
 
 Additionally, this release adds support for:
 - Configuring the SDK using [`Settings`](settings.md).
