@@ -64,6 +64,13 @@ namespace c2pa
     Context::Context(const std::string& json) : Context(Settings(json, "json")) {
     }
 
+    Context::Context(const Settings& settings, Signer&& signer)
+        : Context(ContextBuilder()
+            .with_settings(settings)
+            .with_signer(std::move(signer))
+            .create_context()) {
+    }
+
     // Context::ContextBuilder
 
     Context::ContextBuilder::ContextBuilder() : context_builder(c2pa_context_builder_new()) {
@@ -133,6 +140,18 @@ namespace c2pa
         std::string json_content((std::istreambuf_iterator<char>(*file)), std::istreambuf_iterator<char>());
 
         return with_json(json_content);
+    }
+
+    Context::ContextBuilder& Context::ContextBuilder::with_signer(Signer&& signer) {
+        if (!is_valid()) {
+            throw C2paException("ContextBuilder is invalid (moved from)");
+        }
+        C2paSigner* raw = signer.release();
+        if (!raw) {
+            throw C2paException("Signer is not valid");
+        }
+        c2pa_context_builder_set_signer(context_builder, raw);
+        return *this;
     }
 
     Context Context::ContextBuilder::create_context() {

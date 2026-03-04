@@ -224,6 +224,38 @@ namespace c2pa
         return result;
     }
 
+    std::vector<unsigned char> Builder::sign(const std::string &format, std::istream &source, std::iostream &dest)
+    {
+        CppIStream c_source(source);
+        CppIOStream c_dest(dest);
+        const unsigned char *c2pa_manifest_bytes = nullptr;
+
+        auto result = c2pa_builder_sign_context(builder, format.c_str(), c_source.c_stream, c_dest.c_stream, &c2pa_manifest_bytes);
+        return detail::to_byte_vector(c2pa_manifest_bytes, result);
+    }
+
+    std::vector<unsigned char> Builder::sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path)
+    {
+        auto source = detail::open_file_binary<std::ifstream>(source_path);
+        auto dest_dir = dest_path.parent_path();
+        if (!std::filesystem::exists(dest_dir))
+        {
+            std::filesystem::create_directories(dest_dir);
+        }
+
+        std::fstream dest(dest_path,
+                          std::ios_base::binary | std::ios_base::trunc |
+                              std::ios_base::in | std::ios_base::out);
+
+        if (!dest.is_open())
+        {
+            throw std::runtime_error("Failed to open destination file: " + dest_path.string());
+        }
+        auto format = detail::extract_file_extension(dest_path);
+        auto result = sign(format.c_str(), *source, dest);
+        return result;
+    }
+
     /// @brief Create a Builder from an archive stream.
     /// @param archive The input stream to read the archive from.
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.

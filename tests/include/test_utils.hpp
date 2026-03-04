@@ -64,6 +64,15 @@ inline c2pa::Signer create_test_signer()
                         "http://timestamp.digicert.com");
 }
 
+/// @brief Create Settings that contain a signer configured in JSON.
+/// @return Settings object with an es256 signer from test fixtures.
+inline c2pa::Settings create_test_settings_with_signer()
+{
+    auto settings_json = read_text_file(
+        get_fixture_path("settings/test_settings_with_signer.json"));
+    return c2pa::Settings(settings_json, "json");
+}
+
 } // namespace c2pa_test
 
 #endif // C2PA_TEST_UTILS_HPP

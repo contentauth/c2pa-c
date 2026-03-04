@@ -4621,3 +4621,168 @@ TEST_F(BuilderTest, NonAsciiPathForReaderGetResource)
     ASSERT_NO_THROW(reader.get_resource(thumbnail_id, output_resource_path));
     EXPECT_TRUE(fs::exists(output_resource_path));
 }
+
+// Sign a file using a Signer from the Builder's Context, then read back
+TEST_F(BuilderTest, SignFileWithContextSigner) {
+    auto image_path = c2pa_test::get_fixture_path("A.jpg");
+    auto output_path = get_temp_path("signed_file_context_signed.jpg");
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+
+    auto signer = c2pa_test::create_test_signer();
+    auto context = c2pa::Context::ContextBuilder()
+        .with_signer(std::move(signer))
+        .create_context();
+
+    auto builder = c2pa::Builder(context, manifest);
+
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(image_path, output_path));
+    ASSERT_FALSE(manifest_data.empty());
+
+    auto reader = c2pa::Reader(context, output_path);
+    std::string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+}
+
+// Sign a stream using a Signer from the Builder Context
+TEST_F(BuilderTest, SignStreamWithContextSigner) {
+    auto image_path = c2pa_test::get_fixture_path("A.jpg");
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+
+    auto signer = c2pa_test::create_test_signer();
+    auto context = c2pa::Context::ContextBuilder()
+        .with_signer(std::move(signer))
+        .create_context();
+
+    auto builder = c2pa::Builder(context, manifest);
+
+    std::ifstream source(image_path, std::ios::binary);
+    ASSERT_TRUE(source.is_open());
+
+    std::stringstream memory_buffer(std::ios::in | std::ios::out | std::ios::binary);
+    std::iostream& dest = memory_buffer;
+
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign("image/jpeg", source, dest));
+    source.close();
+    ASSERT_FALSE(manifest_data.empty());
+
+    dest.flush();
+    dest.seekg(0, std::ios::beg);
+
+    auto reader = c2pa::Reader(context, "image/jpeg", dest);
+    std::string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+    EXPECT_TRUE(json_result.find("cawg.training-mining") != std::string::npos);
+}
+
+// Sign a stream using a Signer from the Builder Context (settings and signer overload)
+TEST_F(BuilderTest, SignWithContextSignerAndSettings) {
+    auto image_path = c2pa_test::get_fixture_path("A.jpg");
+    auto output_path = get_temp_path("context_signer_settings.jpg");
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+
+    c2pa::Settings settings;
+    settings.set("builder.thumbnail.enabled", "false");
+
+    auto signer = c2pa_test::create_test_signer();
+    c2pa::Context context(settings, std::move(signer));
+
+    auto builder = c2pa::Builder(context, manifest);
+
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(image_path, output_path));
+    ASSERT_FALSE(manifest_data.empty());
+
+    auto reader = c2pa::Reader(context, output_path);
+    ASSERT_NO_THROW(reader.json());
+}
+
+// Calling sign() without a signer in the context should throw
+TEST_F(BuilderTest, SignWithoutContextSignerThrows) {
+    auto image_path = c2pa_test::get_fixture_path("A.jpg");
+    auto output_path = get_temp_path("no_signer_throws.jpg");
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+
+    auto context = c2pa::Context();
+    auto builder = c2pa::Builder(context, manifest);
+
+    EXPECT_THROW(builder.sign(image_path, output_path), c2pa::C2paException);
+}
+
+// Sign a stream using a Signer configured in settings JSON
+TEST_F(BuilderTest, SignStreamWithSettingsSigner) {
+    auto image_path = c2pa_test::get_fixture_path("A.jpg");
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+
+    auto settings = c2pa_test::create_test_settings_with_signer();
+    c2pa::Context context(settings);
+
+    auto builder = c2pa::Builder(context, manifest);
+
+    std::ifstream source(image_path, std::ios::binary);
+    ASSERT_TRUE(source.is_open());
+
+    std::stringstream memory_buffer(std::ios::in | std::ios::out | std::ios::binary);
+    std::iostream& dest = memory_buffer;
+
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign("image/jpeg", source, dest));
+    source.close();
+    ASSERT_FALSE(manifest_data.empty());
+
+    dest.flush();
+    dest.seekg(0, std::ios::beg);
+
+    auto reader = c2pa::Reader(context, "image/jpeg", dest);
+    ASSERT_NO_THROW(reader.json());
+}
+
+// Sign a stream using a CallbackSigner stored in Context
+TEST_F(BuilderTest, SignStreamWithCallbackSignerInContext) {
+    auto image_path = c2pa_test::get_fixture_path("A.jpg");
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+
+    c2pa::SignerFunc *callback = [](const std::vector<unsigned char> &data)
+        -> std::vector<unsigned char> {
+        auto private_key = c2pa_test::read_text_file(
+            c2pa_test::get_fixture_path("ed25519.pem"));
+        const unsigned char *sig_ptr = c2pa_ed25519_sign(
+            data.data(), data.size(), private_key.c_str());
+        if (!sig_ptr) {
+            throw std::runtime_error("c2pa_ed25519_sign failed");
+        }
+        std::vector<unsigned char> signature(sig_ptr, sig_ptr + 64);
+        c2pa_signature_free(sig_ptr);
+        return signature;
+    };
+
+    auto certs = c2pa_test::read_text_file(
+        c2pa_test::get_fixture_path("ed25519.pub"));
+    auto signer = c2pa::Signer(
+        callback, C2paSigningAlg::Ed25519, certs,
+        "http://timestamp.digicert.com");
+
+    auto context = c2pa::Context::ContextBuilder()
+        .with_signer(std::move(signer))
+        .create_context();
+
+    auto builder = c2pa::Builder(context, manifest);
+
+    std::ifstream source(image_path, std::ios::binary);
+    ASSERT_TRUE(source.is_open());
+
+    std::stringstream memory_buffer(std::ios::in | std::ios::out | std::ios::binary);
+    std::iostream& dest = memory_buffer;
+
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign("image/jpeg", source, dest));
+    source.close();
+    ASSERT_FALSE(manifest_data.empty());
+
+    dest.flush();
+    dest.seekg(0, std::ios::beg);
+
+    auto reader = c2pa::Reader(context, "image/jpeg", dest);
+    ASSERT_NO_THROW(reader.json());
+}
