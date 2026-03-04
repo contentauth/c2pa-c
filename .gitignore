@@ -13,6 +13,9 @@ CMakeLists.txt.user
 # Doxygen docs
 /api-docs/_build
 
+# Generated files
+/src/c2pa.cpp
+
 .vscode
 # Mac OS X files
 .DS_Store

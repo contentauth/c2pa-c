@@ -52,6 +52,10 @@ else()
     set(C2PA_LIB_NAME "libc2pa_c.so")
 endif()
 set(C2PA_C_LIB "${C2PA_LIB_NAME}" PARENT_SCOPE)
+if(WIN32)
+    # Export path to C library import library so tests/examples can link (MSVC needs .lib, not .dll)
+    set(C2PA_C_IMPLIB "" PARENT_SCOPE)
+endif()
 
 if(C2PA_BUILD_FROM_SOURCE)
     # Build from source path
@@ -101,6 +105,10 @@ if(C2PA_BUILD_FROM_SOURCE)
 
     set(C2PA_C_LIB "${C2PA_RUST_BUILD_DIR}/${C2PA_LIB_NAME}")
     set(C2PA_C_LIB "${C2PA_C_LIB}" PARENT_SCOPE)
+    if(WIN32)
+        set(C2PA_C_IMPLIB "${C2PA_RUST_BUILD_DIR}/${C2PA_IMPLIB_NAME}")
+        set(C2PA_C_IMPLIB "${C2PA_C_IMPLIB}" PARENT_SCOPE)
+    endif()
     set(C2PA_INCLUDE_DIR "${C2PA_RUST_BUILD_DIR}")
     set(C2PA_PREBUILT_INCLUDE_DIR "${C2PA_RUST_BUILD_DIR}" PARENT_SCOPE)
 
@@ -122,6 +130,10 @@ else()
 
     set(C2PA_C_LIB "${c2pa_prebuilt_SOURCE_DIR}/lib/${C2PA_LIB_NAME}")
     set(C2PA_C_LIB "${C2PA_C_LIB}" PARENT_SCOPE)
+    if(WIN32)
+        set(C2PA_C_IMPLIB "${c2pa_prebuilt_SOURCE_DIR}/lib/${C2PA_IMPLIB_NAME}")
+        set(C2PA_C_IMPLIB "${C2PA_C_IMPLIB}" PARENT_SCOPE)
+    endif()
     set(C2PA_INCLUDE_DIR "${c2pa_prebuilt_SOURCE_DIR}/include")
     set(C2PA_PREBUILT_INCLUDE_DIR "${c2pa_prebuilt_SOURCE_DIR}/include" PARENT_SCOPE)
 
@@ -162,8 +174,63 @@ else()
     endif()
 endif()
 
-# Define the C++ library and add sources
-add_library(c2pa_cpp STATIC c2pa.cpp)
+# -----
+# Amalgamation: generate a single, complete, compilable c2pa.cpp at build time.
+# Parts are concatenated into one file so downstream users can
+# compile it with only c2pa.hpp in the include path.
+# -----
+set(C2PA_CPP_PARTS
+    c2pa_core.cpp
+    c2pa_context.cpp
+    c2pa_builder.cpp
+    c2pa_reader.cpp
+    c2pa_settings.cpp
+    c2pa_signer.cpp
+    c2pa_streams.cpp
+)
+set(C2PA_AMALGAM_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/c2pa.cpp")
+# Path to script in this repo (works when built standalone or via FetchContent)
+set(C2PA_AMALGAM_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/amalgamate.cmake")
+set(C2PA_AMALGAM_PARTS_FILE "${CMAKE_CURRENT_BINARY_DIR}/amalgam_parts.txt")
+
+# Write part list to a file so the script gets it reliably (avoids command-line list mangling)
+list(JOIN C2PA_CPP_PARTS "\n" C2PA_CPP_PARTS_LINES)
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+file(WRITE "${C2PA_AMALGAM_PARTS_FILE}" "${C2PA_CPP_PARTS_LINES}\n")
+
+# Regenerate c2pa.cpp when any part or header changes
+set(C2PA_AMALGAM_DEPENDS
+    ${C2PA_AMALGAM_SCRIPT}
+    ${C2PA_AMALGAM_PARTS_FILE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/c2pa_internal.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/c2pa.hpp
+)
+foreach(part ${C2PA_CPP_PARTS})
+    list(APPEND C2PA_AMALGAM_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${part}")
+endforeach()
+
+add_custom_command(
+    OUTPUT "${C2PA_AMALGAM_OUTPUT}"
+    COMMAND ${CMAKE_COMMAND}
+        -DC2PA_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+        -DC2PA_AMALGAM_OUTPUT=${C2PA_AMALGAM_OUTPUT}
+        -DC2PA_CPP_PARTS_FILE=${C2PA_AMALGAM_PARTS_FILE}
+        -P "${C2PA_AMALGAM_SCRIPT}"
+    DEPENDS ${C2PA_AMALGAM_DEPENDS}
+    COMMENT "Generating amalgamated c2pa.cpp (complete, compilable single file)"
+    VERBATIM
+)
+
+# Define the C++ library using the generated unity source (one TU).
+add_library(c2pa_cpp SHARED "${C2PA_AMALGAM_OUTPUT}")
+
+# On Windows, export all symbols so MSVC generates the c2pa_cpp.lib
+# import library that test/example targets need to link against.
+# Without this, MSVC silently skips .lib generation when no __declspec(dllexport)
+# annotations are present, causing LNK1104 at link time.
+if(WIN32)
+    set_target_properties(c2pa_cpp PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
 
 # Set compiler-specific flags for the C++ library
 if(MSVC)
@@ -186,19 +253,16 @@ else()
         -Wnull-dereference
         -Wstack-protector
         -fstack-protector-strong
-        -fPIE
-        -D_FORTIFY_SOURCE=2
-    )
-
-    target_link_options(c2pa_cpp PRIVATE
-        -pie
+        -fPIC
     )
 
     if(APPLE)
         target_link_options(c2pa_cpp PRIVATE
             -Wl,-bind_at_load
         )
-    else()
+    elseif(UNIX)
+        target_compile_options(c2pa_cpp PRIVATE -D_FORTIFY_SOURCE=2)
+        # Linux-only hardening flags
         target_link_options(c2pa_cpp PRIVATE
             -Wl,-z,relro
             -Wl,-z,now
@@ -219,6 +283,9 @@ target_include_directories(c2pa_cpp
         $<BUILD_INTERFACE:${c2pa-c_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${C2PA_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:include>
+    PRIVATE
+        # So generated c2pa.cpp can find part files (c2pa_core.cpp etc.)
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
 # Add dependency on build_c2pa_c if building from source
@@ -226,8 +293,15 @@ if(C2PA_BUILD_FROM_SOURCE)
     add_dependencies(c2pa_cpp build_c2pa_c)
 endif()
 
-# Link the C++ library to the C library file directly to avoid RPATH issues
-if(WIN32)
+# Link the C++ library to the C library.
+# C2PA_C_LIB_OVERRIDE lets a parent project substitute its own library that already
+# embeds the c2pa_c symbols.
+# Without this, two independent copies of the tracked-pointer registry can exist in
+# the same process, causing UntrackedPointer errors when a pointer allocated through
+# one registry is freed or accessed through the other.
+if(DEFINED C2PA_C_LIB_OVERRIDE)
+    target_link_libraries(c2pa_cpp PRIVATE "${C2PA_C_LIB_OVERRIDE}")
+elseif(WIN32)
     # On Windows, link to the import library (.lib file)
     if(C2PA_BUILD_FROM_SOURCE)
         target_link_libraries(c2pa_cpp PRIVATE "${C2PA_RUST_BUILD_DIR}/${C2PA_IMPLIB_NAME}")
