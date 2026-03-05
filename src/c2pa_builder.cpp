@@ -336,6 +336,57 @@ namespace c2pa
         return detail::to_byte_vector(c2pa_manifest_bytes, result);
     }
 
+    bool Builder::needs_placeholder(const std::string &format)
+    {
+        int result = c2pa_builder_needs_placeholder(builder, format.c_str());
+        if (result < 0)
+        {
+            throw C2paException();
+        }
+        return result == 1;
+    }
+
+    std::vector<unsigned char> Builder::placeholder(const std::string &format)
+    {
+        const unsigned char *c2pa_manifest_bytes = nullptr;
+        auto result = c2pa_builder_placeholder(builder, format.c_str(), &c2pa_manifest_bytes);
+        return detail::to_byte_vector(c2pa_manifest_bytes, result);
+    }
+
+    void Builder::set_data_hash_exclusions(const std::vector<std::pair<uint64_t, uint64_t>> &exclusions)
+    {
+        std::vector<uint64_t> flat;
+        flat.reserve(exclusions.size() * 2);
+        for (const auto &[start, len] : exclusions)
+        {
+            flat.push_back(start);
+            flat.push_back(len);
+        }
+        int result = c2pa_builder_set_data_hash_exclusions(
+            builder, flat.data(), exclusions.size());
+        if (result < 0)
+        {
+            throw C2paException();
+        }
+    }
+
+    void Builder::update_hash_from_stream(const std::string &format, std::istream &stream)
+    {
+        CppIStream c_stream(stream);
+        int result = c2pa_builder_update_hash_from_stream(builder, format.c_str(), c_stream.c_stream);
+        if (result < 0)
+        {
+            throw C2paException();
+        }
+    }
+
+    std::vector<unsigned char> Builder::sign_embeddable(const std::string &format)
+    {
+        const unsigned char *c2pa_manifest_bytes = nullptr;
+        auto result = c2pa_builder_sign_embeddable(builder, format.c_str(), &c2pa_manifest_bytes);
+        return detail::to_byte_vector(c2pa_manifest_bytes, result);
+    }
+
     std::vector<unsigned char> Builder::format_embeddable(const std::string &format, std::vector<unsigned char> &data)
     {
         const unsigned char *c2pa_manifest_bytes = nullptr;

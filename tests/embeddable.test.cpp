@@ -120,6 +120,55 @@ TEST_F(EmbeddableTest, FullWorkflowWithAJpg) {
         << "Signed manifest size must match placeholder size for in-place patching";
 }
 
+// e2e workflow with A.jpg using new context-signer embeddable APIs
+TEST_F(EmbeddableTest, FullWorkflowWithAJpgContextSigner) {
+    // Demonstrates the new embeddable API where the signer lives on the context
+    // rather than being passed explicitly to placeholder/sign methods.
+    //
+    // Workflow:
+    //   1. needs_placeholder() — check whether a placeholder embed step is required
+    //   2. placeholder()       — get the correctly-sized placeholder bytes to embed
+    //   3. set_data_hash_exclusions() — register where the placeholder was embedded
+    //   4. update_hash_from_stream()  — hash the asset (SDK skips exclusion ranges)
+    //   5. sign_embeddable()          — sign; output is exactly placeholder.size()
+
+    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto source_asset  = c2pa_test::get_fixture_path("A.jpg");
+
+    // Create a context with the signer attached programmatically
+    auto context = c2pa::Context::ContextBuilder()
+        .with_signer(c2pa_test::create_test_signer())
+        .create_context();
+
+    auto builder = c2pa::Builder(context, manifest_json);
+
+    // 1: Check if a placeholder is required for JPEG
+    ASSERT_TRUE(builder.needs_placeholder("image/jpeg"))
+        << "JPEG always requires a placeholder";
+
+    // 2: Get the placeholder bytes (size is committed internally for later validation)
+    auto placeholder_bytes = builder.placeholder("image/jpeg");
+    ASSERT_GT(placeholder_bytes.size(), 0) << "Placeholder must not be empty";
+    size_t placeholder_size = placeholder_bytes.size();
+
+    // 3: Register where we would embed the placeholder.
+    //    In production this offset is where you physically write placeholder_bytes.
+    size_t embed_offset = 20;
+    builder.set_data_hash_exclusions({{embed_offset, placeholder_bytes.size()}});
+
+    // 4: Hash the asset stream, skipping the exclusion range
+    std::ifstream asset_stream(source_asset, std::ios::binary);
+    ASSERT_TRUE(asset_stream.is_open());
+    builder.update_hash_from_stream("image/jpeg", asset_stream);
+    asset_stream.close();
+
+    // 5: Sign — output must match the placeholder size (enables in-place patching)
+    auto signed_manifest = builder.sign_embeddable("image/jpeg");
+    ASSERT_GT(signed_manifest.size(), 0);
+    EXPECT_EQ(signed_manifest.size(), placeholder_size)
+        << "Signed manifest must be exactly the same size as the placeholder";
+}
+
 // e2e workflow with C.jpg (has existing C2PA metadata)
 TEST_F(EmbeddableTest, FullWorkflowWithCJpg) {
     auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));

@@ -57,7 +57,6 @@ namespace c2pa
     class Settings;
     class Context;
     class IContextProvider;
-    class Signer;
 
     /// @brief Result codes for C API operations (matches C API return convention).
     enum class OperationResult : int {
@@ -301,16 +300,6 @@ namespace c2pa
             /// @throws C2paException if file cannot be read or JSON is invalid.
             ContextBuilder& with_json_settings_file(const std::filesystem::path& settings_path);
 
-            /// @brief Set a Signer on the context being built.
-            /// @details After this call the source Signer object is consumed and must
-            ///          not be reused, as it becomes part to the context and tied to it.
-            ///          If settings also contain a signer, the programmatic signer
-            ///          set through this API will be used for signing.
-            /// @param signer Signer to put into the context.
-            /// @return Reference to this ContextBuilder for method chaining.
-            /// @throws C2paException if the builder or signer is invalid.
-            ContextBuilder& with_signer(Signer&& signer);
-
             /// @brief Create a Context from the current builder configuration.
             /// @return A new Context instance.
             /// @throws C2paException if context creation fails.
@@ -335,15 +324,6 @@ namespace c2pa
         /// @param json JSON configuration string.
         /// @throws C2paException if JSON is invalid or context creation fails.
         explicit Context(const std::string& json);
-
-        /// @brief Create a Context with a Settings object and a Signer.
-        /// @param settings Settings configuration to apply.
-        /// @param signer Signer to move into the context. Consumed after this call.
-        ///        The programmatic Signer from the signer parameter
-        ///        takes priority over the Signer in settings, so use this API
-        ///        when wanting to explicitly set a Signer (or override the Signer in settings).
-        /// @throws C2paException if settings or signer are invalid, or context creation fails.
-        Context(const Settings& settings, Signer&& signer);
 
         // Non-copyable, moveable
         Context(const Context&) = delete;
@@ -731,23 +711,8 @@ namespace c2pa
     ///          Supports both callback-based and direct signing methods.
     class C2PA_CPP_API Signer
     {
-        friend class Context::ContextBuilder;
-
     private:
         C2paSigner *signer;
-
-        /// @brief Transfers ownership of the underlying C2paSigner pointer out
-        ///        of this wrapper, without freeing it.
-        /// @details Used by ContextBuilder::with_signer() to pass the raw pointer
-        ///          to c2pa_context_builder_set_signer(), which takes ownership on
-        ///          the Rust side via Box::from_raw. After this call the Signer
-        ///          wrapper holds nullptr and its destructor is a no-op.
-        ///          This is not the same as c2pa_signer_free(), which destroys
-        ///          the signer. Similar to std::unique_ptr::release().
-        /// @return Raw C2paSigner pointer, or nullptr if already released.
-        C2paSigner* release() noexcept {
-            return std::exchange(signer, nullptr);
-        }
 
         /// @brief Validate a TSA URI string.
         /// @param tsa_uri The TSA URI to validate.
@@ -945,29 +910,6 @@ namespace c2pa
         /// @note Prefer using the streaming APIs if possible.
         std::vector<unsigned char> sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path, Signer &signer);
 
-        /// @brief Sign using the signer from the Builder's Context.
-        /// @details The Signer may have been set programmatically via
-        ///          ContextBuilder::with_signer(), or configured in settings JSON.
-        ///          If both programmatic and settings signers are present,
-        ///          the programmatic signer takes priority.
-        /// @param format The mime format of the output.
-        /// @param source The input stream to sign.
-        /// @param dest The I/O stream to write the signed data to.
-        /// @return A vector containing the signed manifest bytes.
-        /// @throws C2paException if the context has no signer or on other errors.
-        std::vector<unsigned char> sign(const std::string &format, std::istream &source, std::iostream &dest);
-
-        /// @brief Sign a file using the signer from the Builder's Context.
-        /// @details The signer may have been set programmatically via
-        ///          ContextBuilder::with_signer(), or configured in settings JSON.
-        ///          If both programmatic and settings signers are present,
-        ///          the programmatic signer takes priority.
-        /// @param source_path The path to the file to sign.
-        /// @param dest_path The path to write the signed file to.
-        /// @return A vector containing the signed manifest bytes.
-        /// @throws C2paException if the context has no signer or on other errors.
-        std::vector<unsigned char> sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path);
-
         /// @brief Create a Builder from an archived Builder stream.
         /// @param archive The input stream to read the archive from.
         /// @return A new Builder instance loaded from the archive.
@@ -1021,6 +963,59 @@ namespace c2pa
         /// @param data Unformatted manifest data from sign_data_hashed_embeddable using "c2pa" format.
         /// @return A formatted copy of the data.
         static std::vector<unsigned char> format_embeddable(const std::string &format, std::vector<unsigned char> &data);
+
+        /// @brief Check if the given format requires a placeholder embedding step.
+        /// @details Returns false for BoxHash-capable formats when prefer_box_hash is enabled in
+        ///          the context settings (no placeholder needed — hash covers the full asset).
+        ///          Always returns true for BMFF formats (MP4, etc.) regardless of settings.
+        /// @param format The MIME type or extension of the asset (e.g. "image/jpeg", "video/mp4").
+        /// @return true if placeholder() must be called and embedded before sign_embeddable(); false otherwise.
+        /// @throws C2paException on error.
+        bool needs_placeholder(const std::string &format);
+
+        /// @brief Create a composed placeholder manifest to embed in the asset.
+        /// @details The signer (and its reserve size) are obtained from the Builder's Context.
+        ///          For BMFF assets, if core.merkle_tree_chunk_size_in_kb is set in the context
+        ///          settings, the placeholder will include pre-allocated Merkle map slots.
+        ///          Returns empty bytes for formats that do not need a placeholder (BoxHash).
+        ///          The placeholder size is stored internally so sign_embeddable() returns bytes
+        ///          of exactly the same size, enabling in-place patching.
+        /// @param format The MIME type or extension of the asset (e.g. "image/jpeg", "video/mp4").
+        /// @return Composed placeholder bytes ready to embed into the asset.
+        /// @throws C2paException on error.
+        std::vector<unsigned char> placeholder(const std::string &format);
+
+        /// @brief Register the byte ranges where the placeholder was embedded (DataHash workflow).
+        /// @details Call this after embedding the placeholder bytes into the asset and before
+        ///          update_hash_from_stream(). The exclusions replace the dummy ranges set by
+        ///          placeholder() so the asset hash covers all bytes except the manifest slot.
+        ///          Exclusions are (start, length) pairs in asset byte coordinates.
+        /// @param exclusions Vector of (start, length) pairs describing the embedded placeholder region.
+        /// @throws C2paException if no DataHash assertion exists or on other error.
+        void set_data_hash_exclusions(const std::vector<std::pair<uint64_t, uint64_t>> &exclusions);
+
+        /// @brief Compute and store the asset hash by reading a stream.
+        /// @details Automatically detects the hard binding type from the builder state:
+        ///          - DataHash: uses exclusion ranges already registered via set_data_hash_exclusions().
+        ///          - BmffHash: uses path-based exclusions from the BMFF assertion (UUID box, mdat).
+        ///          - BoxHash: hashes each format-specific box individually.
+        ///          Call set_data_hash_exclusions() before this for DataHash workflows.
+        /// @param format The MIME type or extension of the asset (e.g. "image/jpeg", "video/mp4").
+        /// @param stream The asset stream to hash. Must include the embedded placeholder bytes.
+        /// @throws C2paException on error.
+        void update_hash_from_stream(const std::string &format, std::istream &stream);
+
+        /// @brief Sign and return the final manifest bytes, ready for embedding.
+        /// @details Operates in two modes:
+        ///          - Placeholder mode (after placeholder()): zero-pads the signed manifest to the
+        ///            pre-committed placeholder size, enabling in-place patching of the asset.
+        ///          - Direct mode (no placeholder): returns the actual signed manifest size.
+        ///            Requires a valid hard binding assertion (set via update_hash_from_stream()).
+        ///          The signer is obtained from the Builder's Context.
+        /// @param format The MIME type or extension of the asset (e.g. "image/jpeg", "video/mp4").
+        /// @return Signed manifest bytes ready to embed into the asset.
+        /// @throws C2paException on error.
+        std::vector<unsigned char> sign_embeddable(const std::string &format);
 
         /// @brief Get a list of mime types that the Builder supports.
         /// @return Vector of supported MIME type strings.
