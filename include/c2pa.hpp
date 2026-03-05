@@ -1022,6 +1022,59 @@ namespace c2pa
         /// @return A formatted copy of the data.
         static std::vector<unsigned char> format_embeddable(const std::string &format, std::vector<unsigned char> &data);
 
+        /// @brief Check if the given format requires a placeholder embedding step.
+        /// @details Returns false for BoxHash-capable formats when prefer_box_hash is enabled in
+        ///          the context settings (no placeholder needed — hash covers the full asset).
+        ///          Always returns true for BMFF formats (MP4, etc.) regardless of settings.
+        /// @param format The MIME type or extension of the asset (e.g. "image/jpeg", "video/mp4").
+        /// @return true if placeholder() must be called and embedded before sign_embeddable(); false otherwise.
+        /// @throws C2paException on error.
+        bool needs_placeholder(const std::string &format);
+
+        /// @brief Create a composed placeholder manifest to embed in the asset.
+        /// @details The signer (and its reserve size) are obtained from the Builder's Context.
+        ///          For BMFF assets, if core.merkle_tree_chunk_size_in_kb is set in the context
+        ///          settings, the placeholder will include pre-allocated Merkle map slots.
+        ///          Returns empty bytes for formats that do not need a placeholder (BoxHash).
+        ///          The placeholder size is stored internally so sign_embeddable() returns bytes
+        ///          of exactly the same size, enabling in-place patching.
+        /// @param format The MIME type or extension of the asset (e.g. "image/jpeg", "video/mp4").
+        /// @return Composed placeholder bytes ready to embed into the asset.
+        /// @throws C2paException on error.
+        std::vector<unsigned char> placeholder(const std::string &format);
+
+        /// @brief Register the byte ranges where the placeholder was embedded (DataHash workflow).
+        /// @details Call this after embedding the placeholder bytes into the asset and before
+        ///          update_hash_from_stream(). The exclusions replace the dummy ranges set by
+        ///          placeholder() so the asset hash covers all bytes except the manifest slot.
+        ///          Exclusions are (start, length) pairs in asset byte coordinates.
+        /// @param exclusions Vector of (start, length) pairs describing the embedded placeholder region.
+        /// @throws C2paException if no DataHash assertion exists or on other error.
+        void set_data_hash_exclusions(const std::vector<std::pair<uint64_t, uint64_t>> &exclusions);
+
+        /// @brief Compute and store the asset hash by reading a stream.
+        /// @details Automatically detects the hard binding type from the builder state:
+        ///          - DataHash: uses exclusion ranges already registered via set_data_hash_exclusions().
+        ///          - BmffHash: uses path-based exclusions from the BMFF assertion (UUID box, mdat).
+        ///          - BoxHash: hashes each format-specific box individually.
+        ///          Call set_data_hash_exclusions() before this for DataHash workflows.
+        /// @param format The MIME type or extension of the asset (e.g. "image/jpeg", "video/mp4").
+        /// @param stream The asset stream to hash. Must include the embedded placeholder bytes.
+        /// @throws C2paException on error.
+        void update_hash_from_stream(const std::string &format, std::istream &stream);
+
+        /// @brief Sign and return the final manifest bytes, ready for embedding.
+        /// @details Operates in two modes:
+        ///          - Placeholder mode (after placeholder()): zero-pads the signed manifest to the
+        ///            pre-committed placeholder size, enabling in-place patching of the asset.
+        ///          - Direct mode (no placeholder): returns the actual signed manifest size.
+        ///            Requires a valid hard binding assertion (set via update_hash_from_stream()).
+        ///          The signer is obtained from the Builder's Context.
+        /// @param format The MIME type or extension of the asset (e.g. "image/jpeg", "video/mp4").
+        /// @return Signed manifest bytes ready to embed into the asset.
+        /// @throws C2paException on error.
+        std::vector<unsigned char> sign_embeddable(const std::string &format);
+
         /// @brief Get a list of mime types that the Builder supports.
         /// @return Vector of supported MIME type strings.
         static std::vector<std::string> supported_mime_types();
