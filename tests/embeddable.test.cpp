@@ -130,7 +130,7 @@ TEST_F(EmbeddableTest, FullWorkflowWithAJpgContextSigner) {
     //   2. placeholder()       — get the correctly-sized placeholder bytes to embed
     //   3. set_data_hash_exclusions() — register where the placeholder was embedded
     //   4. update_hash_from_stream()  — hash the asset (SDK skips exclusion ranges)
-    //   5. sign_embeddable()          — sign; output is exactly placeholder.size()
+    //   5. sign_embeddable()          — sign; output size is exactly placeholder.size()
 
     auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
     auto source_asset  = c2pa_test::get_fixture_path("A.jpg");
