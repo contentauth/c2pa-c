@@ -305,9 +305,9 @@ The [`trust` properties](https://opensource.contentauthenticity.org/docs/manifes
 | `trust.trust_anchors` | string | Default trust anchor root certificates (PEM format). **Replaces** the SDK's built-in trust anchors entirely. | — |
 | `trust.trust_config` | string | Allowed Extended Key Usage (EKU) OIDs for certificate purposes (e.g., document signing: `1.3.6.1.4.1.311.76.59.1.9`). | — |
 
-#### Using `user_anchors` (recommended for development)
+#### Using `user_anchors` 
 
-Add your test root CA without replacing the SDK's default trust store:
+For development, add your test root CA without replacing the SDK's default trust store:
 
 ```cpp
 std::string test_root_ca = R"(-----BEGIN CERTIFICATE-----
@@ -325,9 +325,9 @@ c2pa::Context context(R"({
 c2pa::Reader reader(context, "signed_asset.jpg");
 ```
 
-#### Using `allowed_list` (quick testing)
+#### Using `allowed_list`
 
-Bypass chain validation by explicitly allowing a specific certificate:
+For quick testing, bypass chain validation by explicitly allowing a specific certificate:
 
 ```cpp
 std::string test_cert = read_file("test_cert.pem");
@@ -635,9 +635,9 @@ c2pa::Context context(R"({
 })");
 ```
 
-#### Explicit signer (typical C++ approach)
+#### Explicit signer
 
-For full programmatic control, create a `Signer` and pass it to `Builder::sign()`:
+For full programmatic control, create a `Signer` and pass it to `Builder::sign()`. This is the typical C++ approach:
 
 ```cpp
 c2pa::Signer signer("es256", certs_pem, private_key_pem, "http://timestamp.digicert.com");
