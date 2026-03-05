@@ -90,16 +90,22 @@ c2pa::Context context(settings);
 ## Creating a Context
 
 There are several ways to create a `Context`:
+- [Use SDK defaults](#use-sdk-defaults)
+- [Create from inline JSON](#create-from-inline-json)
+- [Create from a Settings objec](#create-from-a-settings-object)
+- [Create using ContextBuilder](#create-using-contextbuilder)
 
-### 1. SDK defaults
+### Use SDK defaults
+
+For quick prototyping and simple use cases, you can use the SDK defaults like this:
 
 ```cpp
 c2pa::Context context;  // Uses SDK defaults
 ```
 
-**When to use:** Quick prototyping or when defaults are sufficient.
+### Create from inline JSON
 
-### 2. From inline JSON
+To specify a simple configuration that doesn't need to be shared across the codebase, you can use inline JSON like this:
 
 ```cpp
 c2pa::Context context(R"({
@@ -109,9 +115,9 @@ c2pa::Context context(R"({
 })");
 ```
 
-**When to use:** Simple configuration that doesn't need to be shared across the codebase.
+### Create from a Settings object
 
-### 3. From a Settings object
+To specify a configuration that needs runtime logic or incremental construction, use a Settings object like this:
 
 ```cpp
 c2pa::Settings settings;
@@ -122,9 +128,9 @@ settings.update(R"({"builder": {"claim_generator_info": {"name": "My App"}}})");
 c2pa::Context context(settings);
 ```
 
-**When to use:** Configuration that needs runtime logic or incremental construction.
+### Create using ContextBuilder
 
-### 4. Using ContextBuilder
+To load a configuration from files or combine multiple configuration sources, use ContextBuilder. Don't use if you have a single configuration source, since direct construction is simpler.
 
 ```cpp
 c2pa::Settings base_settings;
@@ -136,8 +142,6 @@ auto context = c2pa::Context::ContextBuilder()
     .with_json_settings_file("config/overrides.json")
     .create_context();
 ```
-
-**When to use:** Loading from files or combining multiple configuration sources. Don't use for single sources—direct construction is simpler.
 
 > [!IMPORTANT]
 > Later configuration overrides earlier configuration. In the example above, `overrides.json` will override values from `base_settings` and the inline JSON.
@@ -157,18 +161,18 @@ The `Settings` class provides methods for creating and manipulating configuratio
 
 | Method | Description |
 |--------|-------------|
-| `Settings()` | Create default settings |
-| `Settings(data, format)` | Parse settings from a string. Format is `"json"` or `"toml"` |
-| `set(path, json_value)` | Set a value by dot-separated path (e.g., `"verify.verify_after_sign"`). Value must be JSON-encoded. Returns `*this` for chaining |
-| `update(data)` | Merge JSON configuration (same as `update(data, "json")`) |
-| `update(data, format)` | Merge configuration from a string with specified format |
-| `is_valid()` | Returns `true` if the object is valid (not moved-from) |
+| [`Settings()`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html) | Create default settings |
+| [`Settings(data, format)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html) | Parse settings from a string. Format is `"json"` or `"toml"` |
+| [`set(path, json_value)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html) | Set a value by dot-separated path (e.g., `"verify.verify_after_sign"`). Value must be JSON-encoded. Returns `*this` for chaining |
+| [`update(data)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html) | Merge JSON configuration (same as `update(data, "json")`) |
+| [`update(data, format)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html) | Merge configuration from a string with specified format |
+| [`is_valid()`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html) | Returns `true` if the object is valid (not moved-from) |
 
-**Important notes:**
-
-- Settings are **moveable, not copyable**. After moving, `is_valid()` returns `false` on the source
-- `set()` and `update()` can be chained for sequential configuration
-- Later calls override earlier ones (last wins)
+> [!NOTE]
+> 
+> - Settings are **moveable, not copyable**. After moving, `is_valid()` returns `false` on the source.
+> - `set()` and `update()` can be chained for sequential configuration.
+> - Later calls override earlier ones (last wins).
 
 ## Common configuration patterns
 
