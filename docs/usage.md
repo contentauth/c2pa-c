@@ -116,7 +116,8 @@ auto context = c2pa::Context::ContextBuilder()
     .create_context();
 ```
 
-Note: the ContextBuilder is consumed after calling `create_context()`. For single-source configuration, prefer direct construction.
+> [!NOTE]
+> The ContextBuilder is consumed after calling `create_context()`. For single-source configuration, prefer direct construction.
 
 #### Using a Context
 

@@ -155,25 +155,6 @@ auto context = c2pa::Context::ContextBuilder()
 | `with_json_settings_file(path)` | Load and apply settings from a JSON file |
 | `create_context()` | Build and return the `Context` (consumes the builder) |
 
-## Settings API
-
-The `Settings` class provides methods for creating and manipulating configuration:
-
-| Method | Description |
-|--------|-------------|
-| [`Settings()`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html) | Create default settings |
-| [`Settings(data, format)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html) | Parse settings from a string. Format is `"json"` or `"toml"` |
-| [`set(path, json_value)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html) | Set a value by dot-separated path (e.g., `"verify.verify_after_sign"`). Value must be JSON-encoded. Returns `*this` for chaining |
-| [`update(data)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html) | Merge JSON configuration (same as `update(data, "json")`) |
-| [`update(data, format)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html) | Merge configuration from a string with specified format |
-| [`is_valid()`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html) | Returns `true` if the object is valid (not moved-from) |
-
-> [!NOTE]
-> 
-> - Settings are **moveable, not copyable**. After moving, `is_valid()` returns `false` on the source.
-> - `set()` and `update()` can be chained for sequential configuration.
-> - Later calls override earlier ones (last wins).
-
 ## Common configuration patterns
 
 ### Development with test certificates
@@ -257,9 +238,81 @@ c2pa::Reader reader(
 );
 ```
 
+## Using Context with Reader
+
+`Reader` uses `Context` to control validation, trust configuration, network access, and performance.
+
+> [!IMPORTANT]
+> `Context` is used only at construction. `Reader` copies the configuration it needs internally, so the `Context` doesn't need to outlive the `Reader`.
+
+### Reading from a file
+
+```cpp
+c2pa::Context context(R"({
+  "version": 1,
+  "verify": {
+    "remote_manifest_fetch": false,
+    "ocsp_fetch": false
+  }
+})");
+
+c2pa::Reader reader(context, "image.jpg");
+std::cout << reader.json() << std::endl;
+```
+
+### Reading from a stream
+
+```cpp
+std::ifstream stream("image.jpg", std::ios::binary);
+c2pa::Reader reader(context, "image/jpeg", stream);
+std::cout << reader.json() << std::endl;
+```
+
+## Using Context with Builder
+
+`Builder` uses `Context` to control manifest creation, signing, thumbnails, and verification.
+
+> [!IMPORTANT]
+> The `Context` is used only when constructing the `Builder`. It copies the configuration internally, so the `Context` doesn't need to outlive the `Builder`.
+
+```cpp
+c2pa::Context context(R"({
+  "version": 1,
+  "builder": {
+    "claim_generator_info": {"name": "My App", "version": "1.0"},
+    "intent": {"Create": "digitalCapture"}
+  }
+})");
+
+c2pa::Builder builder(context, manifest_json);
+
+// Pass signer explicitly at signing time
+c2pa::Signer signer("es256", certs, private_key);
+builder.sign(source_path, output_path, signer);
+```
+
 ## Settings reference
 
-### Settings structure
+### Settings API
+
+The `Settings` class provides methods for creating and manipulating configuration:
+
+| Method | Description |
+|--------|-------------|
+| [`Settings()`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#a70274281f05d59ddcfda4aa21397b896) | Create default settings |
+| [`Settings(data, format)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#a695e6e8c5a8cf16e40d6522af1fc13dd) | Parse settings from a string. Format is `"json"` or `"toml"` |
+| [`set(path, json_value)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#a13810c5df3183aa2b0132e3c7c8edd1c) | Set a value by dot-separated path (e.g., `"verify.verify_after_sign"`). Value must be JSON-encoded. Returns `*this` for chaining |
+| [`update(data)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#a1bd09762fb2e6c4c937c814500826ecc) | Merge JSON configuration (same as `update(data, "json")`) |
+| [`update(data, format)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#a80a12a51569bd89cc18231c7c9c36242) | Merge configuration from a string with specified format |
+| [`is_valid()`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#add51c3e2ef459978be035b86803b338e) | Returns `true` if the object is valid (not moved-from) |
+
+> [!NOTE]
+> 
+> - Settings are **moveable, not copyable**. After moving, `is_valid()` returns `false` on the source.
+> - `set()` and `update()` can be chained for sequential configuration.
+> - Later calls override earlier ones (last wins).
+
+### Settings object structure
 
 Settings JSON has this top-level structure:
 
@@ -294,16 +347,19 @@ The `version` property must be `1`. All other properties are optional.
 
 For Boolean values, use JSON `true` and `false`, not the strings `"true"` and `"false"`.
 
+> [!TIP]
+> For the complete default settings configuration, see [Rust library - Configuring SDK settings - Default configuration](https://opensource.contentauthenticity.org/docs/rust-sdk/docs/settings#default-configuration).
+
 ### Trust configuration
 
 The [`trust` properties](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#trust) control which certificates are trusted when validating C2PA manifests.
 
-| Property | Type | Description | Default |
-|----------|------|-------------|---------|
-| `trust.user_anchors` | string | Additional root certificates (PEM format). Adds custom CAs without replacing built-in trust anchors. Recommended for development. | — |
-| `trust.allowed_list` | string | Explicitly allowed certificates (PEM format). Trusted regardless of chain validation. Use for development/testing to bypass validation. | — |
-| `trust.trust_anchors` | string | Default trust anchor root certificates (PEM format). **Replaces** the SDK's built-in trust anchors entirely. | — |
-| `trust.trust_config` | string | Allowed Extended Key Usage (EKU) OIDs for certificate purposes (e.g., document signing: `1.3.6.1.4.1.311.76.59.1.9`). | — |
+| Property |  Description | Default |
+|----------|--------------|---------|
+| `trust.user_anchors` |  Additional root certificates (PEM format). Adds custom CAs without replacing built-in trust anchors. Recommended for development. | — |
+| `trust.allowed_list` |  Explicitly allowed certificates (PEM format). Trusted regardless of chain validation. Use for development/testing to bypass validation. | — |
+| `trust.trust_anchors` |  Default trust anchor root certificates (PEM format). **Replaces** the SDK's built-in trust anchors entirely. | — |
+| `trust.trust_config` |  Allowed Extended Key Usage (EKU) OIDs for certificate purposes (e.g., document signing: `1.3.6.1.4.1.311.76.59.1.9`). | — |
 
 #### Using `user_anchors` 
 
@@ -346,6 +402,8 @@ c2pa::Reader reader(context, "signed_asset.jpg");
 
 #### Loading trust from a file
 
+Suppose `dev_trust_config.json` looks like this:
+
 ```json
 {
   "version": 1,
@@ -356,7 +414,7 @@ c2pa::Reader reader(context, "signed_asset.jpg");
 }
 ```
 
-**PEM format requirements:**
+For the PEM string (for example in `user_anchors` in above example):
 
 - Use literal `\n` (as two-character strings) in JSON for line breaks
 - Include the full certificate chain if needed
@@ -383,7 +441,7 @@ The `cawg_trust` properties configure CAWG (Creator Assertions Working Group) va
 
 The [`verify` properties](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#verify) control how the SDK validates C2PA manifests.
 
-**Key properties (all default to `true`):**
+The following table lists the key properties (all default to `true`):
 
 | Property | Description | Default |
 |----------|-------------|---------|
@@ -584,7 +642,7 @@ The [`core` properties](https://opensource.contentauthenticity.org/docs/manifest
 - **Performance tuning for large files**: Set `backing_store_memory_threshold_in_mb` to `2048` or higher for large video files with sufficient RAM
 - **Restricted network environments**: Set `allowed_network_hosts` to limit which domains the SDK can contact
 
-### Signer configuration
+### Signer settings
 
 The [`signer` properties](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#signersettings) configure the C2PA signer. Set to `null` if you provide the signer at runtime, or configure as **local** or **remote** in settings.
 
@@ -676,136 +734,6 @@ c2pa::Context context(R"({
     }
   }
 })");
-```
-
-## Default configuration
-
-The complete default configuration with all properties and default values:
-
-```json
-{
-  "version": 1,
-  "builder": {
-    "claim_generator_info": null,
-    "created_assertion_labels": null,
-    "certificate_status_fetch": null,
-    "certificate_status_should_override": null,
-    "generate_c2pa_archive": true,
-    "intent": null,
-    "actions": {
-      "all_actions_included": null,
-      "templates": null,
-      "actions": null,
-      "auto_created_action": {
-        "enabled": true,
-        "source_type": "empty"
-      },
-      "auto_opened_action": {
-        "enabled": true,
-        "source_type": null
-      },
-      "auto_placed_action": {
-        "enabled": true,
-        "source_type": null
-      }
-    },
-    "thumbnail": {
-      "enabled": true,
-      "ignore_errors": true,
-      "long_edge": 1024,
-      "format": null,
-      "prefer_smallest_format": true,
-      "quality": "medium"
-    }
-  },
-  "cawg_trust": {
-    "verify_trust_list": true,
-    "user_anchors": null,
-    "trust_anchors": null,
-    "trust_config": null,
-    "allowed_list": null
-  },
-  "cawg_x509_signer": null,
-  "core": {
-    "merkle_tree_chunk_size_in_kb": null,
-    "merkle_tree_max_proofs": 5,
-    "backing_store_memory_threshold_in_mb": 512,
-    "decode_identity_assertions": true,
-    "allowed_network_hosts": null
-  },
-  "signer": null,
-  "trust": {
-    "user_anchors": null,
-    "trust_anchors": null,
-    "trust_config": null,
-    "allowed_list": null
-  },
-  "verify": {
-    "verify_after_reading": true,
-    "verify_after_sign": true,
-    "verify_trust": true,
-    "verify_timestamp_trust": true,
-    "ocsp_fetch": false,
-    "remote_manifest_fetch": true,
-    "skip_ingredient_conflict_resolution": false,
-    "strict_v1_validation": false
-  }
-}
-```
-
-## Using Context with Reader
-
-`Reader` uses `Context` to control validation, trust configuration, network access, and performance.
-
-> [!IMPORTANT]
-> `Context` is used only at construction. `Reader` copies the configuration it needs internally, so the `Context` doesn't need to outlive the `Reader`.
-
-### Reading from a file
-
-```cpp
-c2pa::Context context(R"({
-  "version": 1,
-  "verify": {
-    "remote_manifest_fetch": false,
-    "ocsp_fetch": false
-  }
-})");
-
-c2pa::Reader reader(context, "image.jpg");
-std::cout << reader.json() << std::endl;
-```
-
-### Reading from a stream
-
-```cpp
-std::ifstream stream("image.jpg", std::ios::binary);
-c2pa::Reader reader(context, "image/jpeg", stream);
-std::cout << reader.json() << std::endl;
-```
-
-## Using Context with Builder
-
-`Builder` uses `Context` to control manifest creation, signing, thumbnails, and verification.
-
-> [!IMPORTANT]
-> The `Context` is used only when constructing the `Builder`. It copies the configuration internally, so the `Context` doesn't need to outlive the `Builder`.
-
-### Basic usage
-
-```cpp
-c2pa::Context context(R"({
-  "version": 1,
-  "builder": {
-    "claim_generator_info": {"name": "My App", "version": "1.0"},
-    "intent": {"Create": "digitalCapture"}
-  }
-})");
-
-c2pa::Builder builder(context, manifest_json);
-
-// Pass signer explicitly at signing time
-c2pa::Signer signer("es256", certs, private_key);
-builder.sign(source_path, output_path, signer);
 ```
 
 ## Migrating from thread-local Settings
