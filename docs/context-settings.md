@@ -314,6 +314,9 @@ The `Settings` class provides methods for creating and manipulating configuratio
 
 ### Settings object structure
 
+> [!TIP]
+> For the complete reference to the Settings object, see [SDK object reference - Settings](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema).
+
 Settings JSON has this top-level structure:
 
 ```json
@@ -507,7 +510,47 @@ auto validation_result = reader.json();
 
 ### Builder settings
 
-The [`builder` properties](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#buildersettings) control how the SDK creates and embeds C2PA manifests.
+The [`builder` settings](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#buildersettings) control how the SDK creates and embeds C2PA manifests:
+
+- [Builder intent](#builder-intent) to to specify the purpose of the claim (for example create or edit).
+- [Claim generator information](#claim-generator-information) - Identifies your application in the manifest.
+- [Thumbnail settings](#thumbnail-settings)
+- Action tracking settings - See [ActionsSettings in the SDK object reference](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema#actionssettings).
+- Other builder settings
+
+#### Builder intent
+
+Use the [`builder.intent` setting](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#builderintent) to specify the purpose of the claim, one of:
+-  `{"Create": <TYPE>}`: Specifies a new digital creation, where `<TYPE>` is one of the [DigitalSourceType](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#digitalsourcetype).
+- `{"Edit": null}`: An edit of a pre-existing parent asset.
+- `{"Update": null}`: An restricted version of `Edit` type for non-editorial changes.
+
+> [!TIP]
+> For more information on intents, see [Intents](https://opensource.contentauthenticity.org/docs/rust-sdk/docs/intents) and [BuilderIntent in the SDK object reference.](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#builderintent).
+
+**Example: Original digital capture (photos from camera)**
+
+```cpp
+c2pa::Context camera_context(R"({
+  "version": 1,
+  "builder": {
+    "intent": {"Create": "digitalCapture"},
+    "claim_generator_info": {"name": "Camera App", "version": "1.0"}
+  }
+})");
+```
+
+**Example: Editing existing content**
+
+```cpp
+c2pa::Context editor_context(R"({
+  "version": 1,
+  "builder": {
+    "intent": {"Edit": null},
+    "claim_generator_info": {"name": "Photo Editor", "version": "2.0"}
+  }
+})");
+```
 
 #### Claim generator information
 
@@ -519,6 +562,8 @@ Identifies your application in the C2PA manifest:
 | `claim_generator_info.version` | Application version (recommended, e.g., `"2.1.0"`) |
 | `claim_generator_info.icon` | Icon in C2PA format (optional) |
 | `claim_generator_info.operating_system` | OS identifier or `"auto"` to auto-detect (optional) |
+
+See [ClaimGeneratorInfoSettings in the SDK object reference](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema#claimgeneratorinfosettings).
 
 **Example:**
 
@@ -572,58 +617,6 @@ c2pa::Context mobile_thumbnails(R"({
   }
 })");
 ```
-
-#### Action tracking settings
-
-Control automatic action generation:
-
-| Property | Description | Default |
-|----------|-------------|---------|
-| `actions.auto_created_action.enabled` | Add `c2pa.created` action for new content | `true` |
-| `actions.auto_created_action.source_type` | Source type for created action | `"empty"` |
-| `actions.auto_opened_action.enabled` | Add `c2pa.opened` action when opening content | `true` |
-| `actions.auto_placed_action.enabled` | Add `c2pa.placed` action when placing content | `true` |
-
-#### Builder intent
-
-Set the purpose of the claim:
-
-| Property | Description | Default |
-|----------|-------------|---------|
-| `builder.intent` | Claim intent: `{"Create": "digitalCapture"}`, `{"Edit": null}`, or `{"Update": null}` | `null` |
-
-**Example: Original digital capture (photos from camera)**
-
-```cpp
-c2pa::Context camera_context(R"({
-  "version": 1,
-  "builder": {
-    "intent": {"Create": "digitalCapture"},
-    "claim_generator_info": {"name": "Camera App", "version": "1.0"}
-  }
-})");
-```
-
-**Example: Editing existing content**
-
-```cpp
-c2pa::Context editor_context(R"({
-  "version": 1,
-  "builder": {
-    "intent": {"Edit": null},
-    "claim_generator_info": {"name": "Photo Editor", "version": "2.0"}
-  }
-})");
-```
-
-#### Other builder settings
-
-| Property | Description | Default |
-|----------|-------------|---------|
-| `builder.generate_c2pa_archive` | Generate content in C2PA archive format | `true` |
-| `builder.certificate_status_fetch` | Certificate status fetch behavior | `null` |
-| `builder.certificate_status_should_override` | Override certificate status | `null` |
-| `builder.created_assertion_labels` | Custom assertion labels | `null` |
 
 ### Core settings
 
