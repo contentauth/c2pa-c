@@ -1,7 +1,7 @@
 # Embeddable Signing API
 
 > [!WARNING]
-> The embeddable signing API is for advanced use cases that require fine-grained, low-level control over manifest embedding. The standard `Builder::sign()` method handles the full signing and embedding pipeline automatically and is the recommended approach for the majority of use cases. The embeddable API should only be used when the application needs to manage the embedding process directly. With this level of control comes additional responsibility: callers must ensure that each step is performed correctly and in the right order.
+> The embeddable signing API is for advanced use cases that require fine-grained, low-level control over manifest embedding. The standard `Builder::sign()` method handles the full signing and embedding pipeline automatically and is the recommended approach for most use cases. The embeddable API should only be used when the application needs to manage the embedding process directly. With this level of control comes additional responsibility: callers must ensure that each step is performed correctly and in the right order.
 
 > [!IMPORTANT]
 > The embeddable APIs require the **Signer to be attached to the Context** via `Context::ContextBuilder::with_signer()` or through a signer configuration in the JSON settings. Calling `placeholder()` or `sign_embeddable()` without a signer on the Context will throw a `C2paException`.
@@ -23,11 +23,11 @@ The standard `Builder::sign()` handles the full pipeline internally:
 auto manifest_bytes = builder.sign(source_path, output_path, signer);
 ```
 
-The standard approach is sufficient for the vast majority of use cases. The embeddable API exists for situations where the application requires explicit control over embedding:
+The standard approach works for most use cases. The embeddable API exists for situations where the application requires explicit control over embedding:
 
-- **The application controls its own I/O pipeline.** Video transcoders, streaming ingest services, and other tools have their own asset-writing code. Transferring stream ownership to the SDK conflicts with that architecture.
-- **The asset is too large to buffer.** The SDK's `sign()` may re-read large files. With the embeddable API, the application can hash chunks as it writes them and pass the results directly to the builder.
-- **The application needs in-place patching.** When using the placeholder workflow, `sign_embeddable()` returns a signed manifest that is byte-for-byte the same size as the placeholder. This allows the caller to overwrite the placeholder region in the file without changing the overall file size or shifting any surrounding data.
+- The application controls its own I/O pipeline. Video transcoders, streaming ingest services, and other tools have their own asset-writing code. Transferring stream ownership to the SDK conflicts with that architecture.
+- The asset is too large to buffer. The SDK's `sign()` may re-read large files. With the embeddable API, the application can hash chunks as it writes them and pass the results directly to the builder.
+- The application needs in-place patching. When using the placeholder workflow, `sign_embeddable()` returns a signed manifest that is byte-for-byte the same size as the placeholder. The caller can then overwrite the placeholder region in the file without changing the overall file size or shifting any surrounding data.
 
 ## Concepts
 
@@ -41,9 +41,9 @@ The embeddable API supports three hard-binding strategies, selected automaticall
 | [BmffHash](#using-the-bmffhash-placeholder) | `BmffHash` | MP4, video (BMFF containers), AVIF, HEIF/HEIC | Yes |
 | [BoxHash](#using-boxhash-directly) | `BoxHash` | JPEG, PNG, GIF, WebP, and others | No |
 
-The `needs_placeholder()` method on `Builder` is the entry point for deciding which workflow to follow. It returns `true` when the format requires a placeholder step (DataHash or BmffHash) and `false` when the format supports BoxHash and `prefer_box_hash` is enabled in the settings.
+Call `needs_placeholder()` on the `Builder` to decide which workflow to follow. It returns `true` when the format requires a placeholder step (DataHash or BmffHash) and `false` when the format supports BoxHash and `prefer_box_hash` is enabled in the settings.
 
-The following decision tree illustrates how to select the correct workflow:
+Use the following decision tree to select the correct workflow:
 
 ```mermaid
 flowchart TD
@@ -54,7 +54,7 @@ flowchart TD
     Check -->|No| BoxHashWorkflow["Use BoxHash direct workflow<br/>No placeholder needed"]
 ```
 
-To use `BoxHash` mode, enable `prefer_box_hash` in Builder settings. These formats support chunk-based hashing. This mode inserts the manifest as an independent chunk so byte offsets of existing data are never disturbed, which removes the need for a pre-sized placeholder.
+To use `BoxHash` mode, enable `prefer_box_hash` in Builder settings. These formats support chunk-based hashing. `BoxHash` mode inserts the manifest as an independent chunk so byte offsets of existing data are never disturbed, removing the need for a pre-sized placeholder.
 
 The `prefer_box_hash` setting can be provided in a JSON settings file:
 
@@ -85,11 +85,11 @@ When a placeholder is required, the SDK pre-sizes the JUMBF manifest based on it
 
 ### Signer on Context
 
-Unlike `Builder::sign()` where a `Signer` is passed explicitly, the embeddable APIs obtain the signer (and its reserve size) from the Builder's Context. The signer **must** be attached when building the Context.
+Unlike `Builder::sign()` where a `Signer` is passed explicitly, the embeddable APIs obtain the signer (and its reserve size) from the Builder's Context. The signer must be attached when building the Context.
 
 There are two ways to attach a signer to the Context:
 
-**Programmatically via ContextBuilder:**
+Programmatically via ContextBuilder:
 
 ```cpp
 // Create a Signer
@@ -107,7 +107,7 @@ auto builder = c2pa::Builder(context, manifest_json);
 > [!NOTE]
 > `with_signer()` consumes the `Signer` via move semantics. The `Signer` object is no longer valid after this call and should not be used standalone anymore.
 
-**Via JSON settings:**
+Via JSON settings:
 
 The signer can also be configured in a JSON settings file or string. The following skeleton shows the structure; replace the placeholder values with actual PEM-encoded certificates and keys:
 
@@ -142,15 +142,15 @@ All methods listed below are called on a `Builder` instance.
 
 ### Workflow selection
 
-These methods help determine which workflow to follow based on the asset format and settings.
+These methods determine which workflow to follow based on the asset format and settings.
 
 | Method | Description |
 |--------|-------------|
-| `Builder::needs_placeholder(format)` | Returns `true` when the format requires a pre-embedded placeholder before hashing. Always `true` for BMFF formats. Returns `false` when `prefer_box_hash` is enabled and the format supports `BoxHash`, or when a `BoxHash` assertion has already been added. This is the primary entry point for choosing between the placeholder and direct workflows. |
+| `Builder::needs_placeholder(format)` | Returns `true` when the format requires a pre-embedded placeholder before hashing. Always `true` for BMFF formats. Returns `false` when `prefer_box_hash` is enabled and the format supports `BoxHash`, or when a `BoxHash` assertion has already been added. Use this to choose between the placeholder and direct workflows. |
 
 ### Signing and embedding
 
-These methods perform the actual signing workflow: placeholder creation, hashing, and signing steps.
+These methods perform the signing workflow: placeholder creation, hashing, and signing.
 
 | Method | Description |
 |--------|-------------|
@@ -297,7 +297,7 @@ auto context = c2pa::Context::ContextBuilder()
     .create_context();  // No builder settings needed for BMFF formats
 ```
 
-BMFF containers (ISO Base Media File Format) store media data in `mdat` (media data) boxes, which hold the raw audio, video, and other media samples. Because these `mdat` boxes can be very large, re-reading the entire file to compute a hash after signing can be prohibitively expensive. To address this, the SDK uses a Merkle tree structure in the `BmffHash` assertion: the `mdat` content is divided into fixed-size chunks, and a hash is computed for each chunk (a "leaf" in the tree). These leaf hashes are then combined into a Merkle root hash that covers the entire `mdat` content. The `placeholder()` method pre-allocates slots in the `BmffHash` assertion for these Merkle leaf hashes, sized according to the `core.merkle_tree_chunk_size_in_kb` setting. This pre-allocation is necessary because the final manifest must be exactly the same size as the placeholder for in-place patching to work.
+BMFF containers (ISO Base Media File Format) store media data in `mdat` (media data) boxes, which hold the raw audio, video, and other media samples. These `mdat` boxes can be very large, making it expensive to re-read the entire file to compute a hash after signing. The SDK addresses this with a Merkle tree structure in the `BmffHash` assertion: it divides `mdat` content into fixed-size chunks and computes a hash for each chunk (a "leaf" in the tree). These leaf hashes are combined into a Merkle root hash that covers the entire `mdat` content. The `placeholder()` method pre-allocates slots in the `BmffHash` assertion for these Merkle leaf hashes, sized according to the `core.merkle_tree_chunk_size_in_kb` setting. This pre-allocation is necessary because the final manifest must be exactly the same size as the placeholder for in-place patching to work.
 
 #### BmffHash flow
 
@@ -459,7 +459,7 @@ auto manifest_bytes = builder.sign_embeddable("image/jpeg");
 
 ## Class relationships
 
-Note: This is a **partial class diagram** showing only the classes and methods relevant to the embeddable APIs. For the full API reference, see the [c2pa.hpp](../include/c2pa.hpp) header file.
+This is a partial class diagram showing only the classes and methods relevant to the embeddable APIs. For the full API reference, see the [c2pa.hpp](../include/c2pa.hpp) header file.
 
 ```mermaid
 classDiagram
