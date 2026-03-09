@@ -168,7 +168,7 @@ These methods perform the signing workflow: placeholder creation, hashing, and s
 
 Use this workflow for JPEG, PNG, and other non-BMFF formats.
 
-For this workflow, `prefer_box_hash` must not be enabled — this is the default. If it was previously set to `true`, disable it explicitly:
+For this workflow, `prefer_box_hash` must be `false` (the default). If it was previously set to `true`, disable it explicitly:
 
 ```json
 {
