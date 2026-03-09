@@ -281,21 +281,7 @@ if (builder.needs_placeholder("image/jpeg")) {
 
 ### Using the BmffHash placeholder
 
-Use this workflow with MP4 and other BMFF formats, which always require a placeholder. The `prefer_box_hash` setting has no effect on BMFF formats: they always use `BmffHash` regardless of the setting. No special Builder settings are required as the SDK selects `BmffHash` automatically based on the format:
-
-```json
-{
-    "builder": {}
-}
-```
-
-Or programmatically:
-
-```cpp
-auto context = c2pa::Context::ContextBuilder()
-    .with_signer(std::move(signer))
-    .create_context();  // No builder settings needed for BMFF formats
-```
+Use this workflow with MP4 and other BMFF formats, which always require a placeholder. The `prefer_box_hash` setting has no effect on BMFF formats: they always use `BmffHash` regardless of the setting. No special Builder settings are required as the SDK selects `BmffHash` automatically based on the format.
 
 BMFF containers (ISO Base Media File Format) store media data in `mdat` (media data) boxes, which hold the raw audio, video, and other media samples. These `mdat` boxes can be very large, making it expensive to re-read the entire file to compute a hash after signing. The SDK addresses this with a Merkle tree structure in the `BmffHash` assertion: it divides `mdat` content into fixed-size chunks and computes a hash for each chunk (a "leaf" in the tree). These leaf hashes are combined into a Merkle root hash that covers the entire `mdat` content. The `placeholder()` method pre-allocates slots in the `BmffHash` assertion for these Merkle leaf hashes, sized according to the `core.merkle_tree_chunk_size_in_kb` setting. This pre-allocation is necessary because the final manifest must be exactly the same size as the placeholder for in-place patching to work.
 
