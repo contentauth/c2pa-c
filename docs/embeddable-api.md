@@ -48,7 +48,7 @@ Use the following decision tree to select the correct workflow:
 ```mermaid
 flowchart TD
     Start["Builder.needs_placeholder(format)"] --> Check{Returns true?}
-    Check -->|Yes| IsBmff{Is the format BMFF?<br/>e.g. video/mp4, image/avif}
+    Check -->|Yes| IsBmff{BMFF format?<br/>e.g. video/mp4, image/avif}
     IsBmff -->|Yes| BmffWorkflow["Use BmffHash placeholder workflow"]
     IsBmff -->|No| DataHashWorkflow["Use DataHash placeholder workflow"]
     Check -->|No| BoxHashWorkflow["Use BoxHash direct workflow<br/>No placeholder needed"]
