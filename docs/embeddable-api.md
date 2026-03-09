@@ -23,9 +23,9 @@ The standard `Builder::sign()` handles the full pipeline internally:
 auto manifest_bytes = builder.sign(source_path, output_path, signer);
 ```
 
-The standard approach works for most use cases. The embeddable API exists for situations where the application requires explicit control over embedding:
+The standard approach works for most use cases. The embeddable API exists for situations where the application requires explicit control over embedding, for example:
 
-- The application controls its own I/O pipeline. Video transcoders, streaming ingest services, and other tools have their own asset-writing code. Transferring stream ownership to the SDK conflicts with that architecture.
+- The application controls its own I/O pipeline. Video transcoders, streaming ingestion services, and other tools have their own asset-writing code. Transferring stream ownership to the SDK conflicts with that architecture.
 - The asset is too large to buffer. The SDK's `sign()` may re-read large files. With the embeddable API, the application can hash chunks as it writes them and pass the results directly to the builder.
 - The application needs in-place patching. When using the placeholder workflow, `sign_embeddable()` returns a signed manifest that is byte-for-byte the same size as the placeholder. The caller can then overwrite the placeholder region in the file without changing the overall file size or shifting any surrounding data.
 
@@ -88,8 +88,10 @@ When a placeholder is required, the SDK pre-sizes the JUMBF manifest based on it
 Unlike `Builder::sign()` where a `Signer` is passed explicitly, the embeddable APIs obtain the signer (and its reserve size) from the Builder's Context. The signer must be attached when building the Context.
 
 There are two ways to attach a signer to the Context:
+- [Programmatically via ContextBuilder](#attaching-a-signer-programmatically-via-contextbuilder)
+- [Via JSON settings](#attaching-signer-via-json-settings)
 
-Programmatically via ContextBuilder:
+#### Attaching a signer programmatically via ContextBuilder:
 
 ```cpp
 // Create a Signer
@@ -105,9 +107,9 @@ auto builder = c2pa::Builder(context, manifest_json);
 ```
 
 > [!NOTE]
-> `with_signer()` consumes the `Signer` via move semantics. The `Signer` object is no longer valid after this call and should not be used standalone anymore.
+> `with_signer()` consumes the `Signer` via move semantics. The `Signer` object is no longer valid after this call and must not be used after it has been moved.
 
-Via JSON settings:
+#### Attaching signer via JSON settings:
 
 The signer can also be configured in a JSON settings file or string. The following skeleton shows the structure; replace the placeholder values with actual PEM-encoded certificates and keys:
 
@@ -166,7 +168,7 @@ These methods perform the signing workflow: placeholder creation, hashing, and s
 
 Use this workflow for JPEG, PNG, and other non-BMFF formats.
 
-For this workflow, `prefer_box_hash` in Builder settings must be `false`. Set it explicitly in a JSON settings file:
+For this workflow, `prefer_box_hash` must not be enabled — this is the default. If it was previously set to `true`, disable it explicitly:
 
 ```json
 {
@@ -347,7 +349,7 @@ patched.write(reinterpret_cast<const char*>(final_manifest.data()), final_manife
 patched.close();
 ```
 
-In BMFF files, `mdat` (media data) boxes contain the raw audio and video samples and are often the largest part of the file. If the application already hashes `mdat` chunks during writing or transcoding, it can pass those pre-computed leaf hashes directly to the builder to avoid re-reading the file:
+If the application already hashes `mdat` chunks during writing or transcoding, it can pass those pre-computed leaf hashes directly to the builder via `set_bmff_mdat_hashes()` to avoid re-reading the file:
 
 ```cpp
 // leaf_hashes: outer = tracks, middle = chunks, inner = hash bytes
@@ -472,6 +474,7 @@ classDiagram
         +needs_placeholder(format) bool
         +placeholder(format) vector~uint8~
         +set_data_hash_exclusions(exclusions) void
+        +set_bmff_mdat_hashes(leaf_hashes) void
         +update_hash_from_stream(format, stream) void
         +sign_embeddable(format) vector~uint8~
     }
