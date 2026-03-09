@@ -465,7 +465,7 @@ classDiagram
     class Context {
         +ContextBuilder : nested class
     }
-    note for Context : When using embeddable APIs, the context MUST have a Signer (set either explicitly using with_signer, or coming from settings).
+    note for Context "When using embeddable APIs, the context MUST have a Signer (set either explicitly using with_signer, or coming from settings)."
 
     class Builder {
         +Builder(Context&, manifest_json)
