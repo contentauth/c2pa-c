@@ -472,7 +472,6 @@ The [`core` properties](https://opensource.contentauthenticity.org/docs/manifest
 - **Performance tuning for large files**: Set `backing_store_memory_threshold_in_mb` to `2048` or higher for large video files with sufficient RAM
 - **Restricted network environments**: Set `allowed_network_hosts` to limit which domains the SDK can contact
 
-
 ### Verify settings
 
 The [`verify` properties](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#verify) control how the SDK validates C2PA manifests.
