@@ -70,12 +70,9 @@ const std::string manifest_json = R"{
 
 ## Using settings
 
-The behavior of the SDK can be configured through various [settings](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/). SDK settings can be loaded from JSON config files, as well as valid JSON strings directly in the code.
+The behavior of the SDK can be configured through various [settings](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/) loaded from JSON config files or JSON strings directly in the code.
 
 SDK settings are set on the `Context` objects used by the Builder and Reader objects. For full details see [Configuring the SDK with Context and Settings](context-settings.md).
-
-> [!NOTE] 
-> If you don't specify a value for a property, then the SDK will use the default value. If you specify a value of null, then the property will be set to null, not the default.
 
 ### Creating a Context
 

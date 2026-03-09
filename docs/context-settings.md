@@ -2,6 +2,12 @@
 
 This guide explains how to configure the C2PA SDK using `Context` and `Settings`. The configuration controls SDK behavior including verification, trust anchors, thumbnails, signing, and more.
 
+See also:
+
+- [Usage](usage.md): Reading and signing with Reader and Builder
+- [Rust SDK settings](https://github.com/contentauth/c2pa-rs/blob/main/docs/settings.md): Shared settings schema and additional JSON examples
+- [CAI settings schema reference](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/): Complete schema reference
+
 ## Quick start
 
 The simplest way to configure the SDK is to create a `Context` with inline JSON and pass it to `Reader` or `Builder`:
@@ -156,6 +162,14 @@ auto context = c2pa::Context::ContextBuilder()
 | `create_context()` | Build and return the `Context` (consumes the builder) |
 
 ## Common configuration patterns
+
+
+
+- [Development with test certificates](#development-with-test-certificates)
+- [Configuration from environment variables](#configuration-from-environment-variables)
+- [Layered configuration](#layered-configuration)
+- [Multiple contexts](#multiple-contexts)
+- [Temporary contexts](#temporary-contexts)
 
 ### Development with test certificates
 
@@ -440,6 +454,25 @@ The `cawg_trust` properties configure CAWG (Creator Assertions Working Group) va
 > [!NOTE]
 > CAWG trust settings only apply when processing identity assertions with X.509 certificates. If your workflow doesn't use CAWG identity assertions, these settings have no effect.
 
+
+### Core settings
+
+The [`core` properties](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#core) control SDK behavior and performance tuning:
+
+| Property | Description | Default |
+|----------|-------------|---------|
+| `merkle_tree_chunk_size_in_kb` | Merkle tree chunk size | `null` |
+| `merkle_tree_max_proofs` | Maximum merkle tree proofs | `5` |
+| `backing_store_memory_threshold_in_mb` | Memory threshold for backing store | `512` |
+| `decode_identity_assertions` | Decode identity assertions | `true` |
+| `allowed_network_hosts` | Allowed network hosts for SDK requests | `null` |
+
+**Use cases:**
+
+- **Performance tuning for large files**: Set `backing_store_memory_threshold_in_mb` to `2048` or higher for large video files with sufficient RAM
+- **Restricted network environments**: Set `allowed_network_hosts` to limit which domains the SDK can contact
+
+
 ### Verify settings
 
 The [`verify` properties](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#verify) control how the SDK validates C2PA manifests.
@@ -618,23 +651,6 @@ c2pa::Context mobile_thumbnails(R"({
 })");
 ```
 
-### Core settings
-
-The [`core` properties](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#core) control SDK behavior and performance tuning:
-
-| Property | Description | Default |
-|----------|-------------|---------|
-| `merkle_tree_chunk_size_in_kb` | Merkle tree chunk size | `null` |
-| `merkle_tree_max_proofs` | Maximum merkle tree proofs | `5` |
-| `backing_store_memory_threshold_in_mb` | Memory threshold for backing store | `512` |
-| `decode_identity_assertions` | Decode identity assertions | `true` |
-| `allowed_network_hosts` | Allowed network hosts for SDK requests | `null` |
-
-**Use cases:**
-
-- **Performance tuning for large files**: Set `backing_store_memory_threshold_in_mb` to `2048` or higher for large video files with sufficient RAM
-- **Restricted network environments**: Set `allowed_network_hosts` to limit which domains the SDK can contact
-
 ### Signer settings
 
 The [`signer` properties](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#signersettings) configure the C2PA signer. Set to `null` if you provide the signer at runtime, or configure as **local** or **remote** in settings.
@@ -758,8 +774,3 @@ c2pa::Reader reader(context, "image/jpeg", stream);
 
 If you still use `load_settings`, construct `Reader` or `Builder` without a context to use the thread-local settings. Prefer passing a context for new code.
 
-## See also
-
-- [Usage](usage.md): Reading and signing with Reader and Builder
-- [Rust SDK settings](https://github.com/contentauth/c2pa-rs/blob/main/docs/settings.md): Shared settings schema and additional JSON examples
-- [CAI settings schema reference](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/): Complete schema reference
