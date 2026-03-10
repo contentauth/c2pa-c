@@ -65,7 +65,7 @@ c2pa::Reader reader(context, "image.jpg");
 ### Context lifecycle
 
 - **Non-copyable, moveable**: `Context` can be moved but not copied. After moving, `is_valid()` returns `false` on the source
-- **Used at construction**: `Reader` and `Builder` copy configuration at construction time. The `Context` doesn't need to outlive them
+- **Used at construction**: `Reader` and `Builder` copy configuration from the context at construction time. The `Context` doesn't need to outlive them
 - **Reusable**: Use the same `Context` to create multiple readers and builders
 
 ```cpp
