@@ -17,7 +17,7 @@ Use the `Reader` constructor to read C2PA data from a stream. This constructor e
 
 The parameters are:
 
-- `context` - A `Context` (or any `IContextProvider`) that configures SDK behavior. See [Using Context](context.md).
+- `context` - A `Context` (or any `IContextProvider`) that configures SDK behavior. See [Configuring the SDK with Context and Settings](context-settings.md).
 - `<FORMAT>` - A MIME string format for the stream; must be one of the [supported file formats](supported-formats.md).
 - `<STREAM>` - An open readable iostream.
 
@@ -75,7 +75,7 @@ const std::string manifest_json = R"{
 
 The behavior of the SDK can be configured through various [settings](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/). SDK settings can be loaded from JSON config files, as well as valid JSON strings directly in the code.
 
-SDK settings are set on the `Context` objects used by the Builder and Reader objects. For full details see [Configuring settings](settings.md) and [Configuring the SDK using Context](context.md).
+SDK settings are set on the `Context` objects used by the Builder and Reader objects. For full details see [Configuring the SDK with Context and Settings](context-settings.md).
 
 NOTE: If you don't specify a value for a property, then the SDK will use the default value. If you specify a value of null, then the property will be set to null, not the default.
 
@@ -141,7 +141,7 @@ Use the `Builder` constructor to create a `Builder` instance. A `Context` is req
 
 The parameters are:
 
-- `context` - A `Context` (or any `IContextProvider`) that configures SDK behavior. See [Using Context](context.md).
+- `context` - A `Context` (or any `IContextProvider`) that configures SDK behavior. See [Configuring the SDK with Context and Settings](context-settings.md).
 - `<MANIFEST_JSON>` - A string in JSON format as described above, defining the manifest to be generated.
 
 For example:
