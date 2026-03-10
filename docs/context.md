@@ -476,7 +476,7 @@ c2pa::Builder builder(
 // Temporary context destroyed, but builder still has the configuration
 ```
 
-## Migrating from deprecated APIs
+## Migrating from thread-local Settings
 
 The SDK introduced Context-based APIs to replace constructors and functions that relied on thread-local state. The older APIs still compile but produce deprecation warnings. This section covers each deprecation that involves passing a `Context`, and explains the `Builder::sign` overloads.
 
