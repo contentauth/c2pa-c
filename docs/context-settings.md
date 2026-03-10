@@ -753,7 +753,7 @@ c2pa::Context context(R"({
 })");
 ```
 
-## Migrating from thread-local Settings
+## Migrating from deprecated APIs
 
 The SDK introduced Context-based APIs to replace constructors and functions that relied on thread-local state. The older APIs still compile but produce deprecation warnings. This section covers each deprecation that involves passing a `Context`, and explains the `Builder::sign` overloads.
 
