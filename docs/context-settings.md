@@ -45,7 +45,7 @@ c2pa::Reader reader(context, "image.jpg");
 
 `Context` encapsulates SDK configuration that controls how `Reader`, `Builder`, and other components operate:
 
-- **Settings**: Verification options, trust configuration, builder behavior, thumbnails, and more
+- **Settings**: Trust configuration, builder behavior, thumbnails, and more
 - **Signer configuration**: Optional signing credentials that can be stored for reuse
 - **State isolation**: Each `Context` is independent, allowing multiple configurations to coexist
 
