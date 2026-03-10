@@ -61,7 +61,7 @@ c2pa::Reader reader(context, "image.jpg");
 
 > [!NOTE]
 > The deprecated `c2pa::load_settings(data, format)` still works but you should migrate to `Context`. **Never mix the two approaches**. 
-> See [Migrating from thread-local Settings](#migrating-from-deprecated-apis).
+> See [Migrating from deprecated APIS](#migrating-from-deprecated-apis).
 
 ### Context lifecycle
 

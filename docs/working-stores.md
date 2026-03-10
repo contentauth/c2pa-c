@@ -571,7 +571,8 @@ archive_stream.close();
 // The builder has the archived manifest but keeps the custom context
 ```
 
-**Note**: Calling `with_archive()` replaces the builder's current state. You cannot merge multiple archives.
+> [!NOTE]
+> Calling `with_archive()` replaces the builder's current state. You cannot merge multiple archives.
 
 ### Two-phase workflow example
 
