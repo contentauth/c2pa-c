@@ -284,7 +284,7 @@ std::cout << reader.json() << std::endl;
 
 ## Using Context with Builder
 
-`Builder` uses `Context` to control manifest creation, signing, thumbnails, and verification.
+`Builder` uses `Context` to control manifest creation, signing, thumbnails, and more.
 
 > [!IMPORTANT]
 > The `Context` is used only when constructing the `Builder`. It copies the configuration internally, so the `Context` doesn't need to outlive the `Builder`.
