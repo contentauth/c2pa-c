@@ -60,7 +60,8 @@ c2pa::Reader reader(context, "image.jpg");
 - **Improves code clarity**: `Builder(context, manifest)` shows configuration is being used
 
 > [!NOTE]
-> The deprecated `c2pa::load_settings(data, format)` still works but you should migrate to `Context`. See [Migrating from thread-local Settings](#migrating-from-thread-local-settings).
+> The deprecated `c2pa::load_settings(data, format)` still works but you should migrate to `Context`. **Never mix the two approaches**. 
+> See [Migrating from thread-local Settings](#migrating-from-thread-local-settings).
 
 ### Context lifecycle
 
@@ -108,6 +109,8 @@ For quick prototyping and simple use cases, you can use the SDK defaults like th
 ```cpp
 c2pa::Context context;  // Uses SDK defaults
 ```
+
+For information on the defaults, see [Configuring SDK settings - Default configuration](https://opensource.contentauthenticity.org/docs/rust-sdk/docs/context-settings#default-configuration).
 
 ### Create from inline JSON
 
@@ -163,11 +166,11 @@ auto context = c2pa::Context::ContextBuilder()
 
 ## Common configuration patterns
 
-
+Common configurations include:
 
 - [Development with test certificates](#development-with-test-certificates)
-- [Configuration from environment variables](#configuration-from-environment-variables)
 - [Layered configuration](#layered-configuration)
+- [Configuration from environment variables](#configuration-from-environment-variables)
 - [Multiple contexts](#multiple-contexts)
 - [Temporary contexts](#temporary-contexts)
 
@@ -194,6 +197,22 @@ c2pa::Context dev_context(R"({
 })");
 ```
 
+### Layered configuration
+
+Load base configuration and apply environment-specific overrides:
+
+```cpp
+auto context = c2pa::Context::ContextBuilder()
+    .with_json_settings_file("config/base.json")
+    .with_json_settings_file("config/" + environment + ".json")
+    .with_json(R"({
+      "builder": {
+        "claim_generator_info": {"version": ")" + app_version + R"("}
+      }
+    })")
+    .create_context();
+```
+
 ### Configuration from environment variables
 
 Adapt configuration based on runtime environment:
@@ -211,22 +230,6 @@ if (env == "production") {
 }
 
 c2pa::Context context(settings);
-```
-
-### Layered configuration
-
-Load base configuration and apply environment-specific overrides:
-
-```cpp
-auto context = c2pa::Context::ContextBuilder()
-    .with_json_settings_file("config/base.json")
-    .with_json_settings_file("config/" + environment + ".json")
-    .with_json(R"({
-      "builder": {
-        "claim_generator_info": {"version": ")" + app_version + R"("}
-      }
-    })")
-    .create_context();
 ```
 
 ### Multiple contexts
@@ -508,7 +511,11 @@ c2pa::Context context(R"({
 c2pa::Reader reader(context, "signed_asset.jpg");
 ```
 
-#### Fast development iteration
+<!-- 
+This is to avoid trust errors but errors can be easily missed. 
+Removed for now.
+
+**Fast development iteration**
 
 Disable verification for faster iteration:
 
@@ -520,6 +527,8 @@ dev_settings.set("verify.verify_after_sign", "false");
 
 c2pa::Context dev_context(dev_settings);
 ```
+
+-->
 
 #### Strict validation
 
