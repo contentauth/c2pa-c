@@ -35,11 +35,11 @@ The standard approach works for most use cases. The embeddable API exists for si
 
 The embeddable API supports three hard-binding strategies, selected automatically based on format and settings:
 
-| Mode | Assertion | Formats | Requires placeholder |
-|------|-----------|---------|----------------------|
-| [DataHash](#using-the-datahash-placeholder) | `DataHash` | JPEG, PNG, GIF, WebP, and others | Yes |
-| [BmffHash](#using-the-bmffhash-placeholder) | `BmffHash` | MP4, video (BMFF containers), AVIF, HEIF/HEIC | Yes |
-| [BoxHash](#using-boxhash-directly) | `BoxHash` | JPEG, PNG, GIF, WebP, and others | No |
+| Mode | Assertion | Formats | Requires placeholder | Typical usage |
+|------|-----------|---------|----------------------|---------------|
+| [DataHash](#using-the-datahash-placeholder) | `DataHash` | JPEG, PNG, GIF, WebP, and others | Yes | Embeddable API |
+| [BmffHash](#using-the-bmffhash-placeholder) | `BmffHash` | MP4, video (BMFF containers), AVIF, HEIF/HEIC | Yes | Embeddable API |
+| [BoxHash](#using-boxhash-directly) | `BoxHash` | JPEG, PNG, GIF, WebP, and others | No | Standard `Builder::sign()` (embeddable API also supported) |
 
 Call `needs_placeholder()` on the `Builder` to decide which workflow to follow. It returns `true` when the format requires a placeholder step (DataHash or BmffHash) and `false` when the format supports BoxHash and `prefer_box_hash` is enabled in the settings.
 
@@ -51,10 +51,16 @@ flowchart TD
     Check -->|Yes| IsBmff{BMFF format?<br/>e.g. video/mp4, image/avif}
     IsBmff -->|Yes| BmffWorkflow["Use BmffHash placeholder workflow"]
     IsBmff -->|No| DataHashWorkflow["Use DataHash placeholder workflow"]
-    Check -->|No| BoxHashWorkflow["Use BoxHash direct workflow<br/>No placeholder needed"]
+    Check -->|No| BoxHashWorkflow["Use BoxHash:<br/>Builder.sign() handles everything<br/>(or use embeddable API for fine-grained control)"]
 ```
 
 To use `BoxHash` mode, enable `prefer_box_hash` in Builder settings. These formats support chunk-based hashing. `BoxHash` mode inserts the manifest as an independent chunk so byte offsets of existing data are never disturbed, removing the need for a pre-sized placeholder.
+
+When `needs_placeholder()` returns `false`, the standard `Builder::sign()` flow is usually all you need. The embeddable API (`update_hash_from_stream()` + `sign_embeddable()`) is available for situations where you need finer control over the process:
+
+- The application controls its own write pipeline (e.g., a video transcoder or streaming ingest service) and wants to hash the asset during its own write pass rather than having the SDK re-read the finished file.
+- The application needs to receive the raw signed manifest bytes and decide where and how to append them as a new chunk, rather than letting the SDK write to a destination path.
+- The asset is being produced incrementally, so the application can pass the stream to `update_hash_from_stream()` at the right moment, then call `sign_embeddable()` to get the manifest without a second full read.
 
 The `prefer_box_hash` setting can be provided in a JSON settings file:
 
@@ -359,9 +365,9 @@ auto final_manifest = builder.sign_embeddable("video/mp4");
 
 ### Using BoxHash directly
 
-Use this workflow when no placeholder is needed. No placeholder is written: the manifest is appended as a new independent chunk after signing.
+BoxHash is usually used with the standard `Builder::sign()` flow. Enable `prefer_box_hash` in settings, call `sign()`, and the SDK handles hashing, signing, and embedding automatically. No placeholder, no manual hashing, no patching. The embeddable API is also available with BoxHash for applications that need explicit control over the process (see [Using the embeddable API with BoxHash](#using-the-embeddable-api-with-boxhash) below).
 
-For this workflow, `prefer_box_hash` must be enabled in Builder settings. This can be set in a JSON settings file:
+For BoxHash, `prefer_box_hash` must be enabled in Builder settings. This can be set in a JSON settings file:
 
 ```json
 {
@@ -384,7 +390,32 @@ auto context = c2pa::Context::ContextBuilder()
     .create_context();
 ```
 
-#### BoxHash flow
+#### Standard usage
+
+With `prefer_box_hash` enabled, `Builder::sign()` handles the entire BoxHash workflow internally:
+
+```cpp
+// Enable BoxHash via context settings.
+auto context = c2pa::Context::ContextBuilder()
+    .with_signer(c2pa::Signer("Es256", certs, private_key, "http://timestamp.digicert.com"))
+    .with_json(R"({
+        "builder": {
+            "prefer_box_hash": true
+        }
+    })")
+    .create_context();
+
+auto builder = c2pa::Builder(context, manifest_json);
+
+// sign() handles hashing, signing, and embedding the manifest as a new chunk.
+auto manifest_data = builder.sign(source_path, output_path);
+```
+
+#### Using the embeddable API with BoxHash
+
+If the application controls its own I/O pipeline, it can use the embeddable API with BoxHash instead of `Builder::sign()`. This gives the caller explicit control over when the asset is hashed and how the signed manifest bytes are appended. For example, a video transcoder or streaming ingest service can hash the asset during its own write pass and append the manifest chunk itself, avoiding a second read of the file.
+
+##### BoxHash embeddable flow
 
 ```mermaid
 flowchart TD
@@ -399,7 +430,7 @@ flowchart TD
     style F fill:#c8e6c9
 ```
 
-#### BoxHash builder state transitions
+##### BoxHash embeddable state transitions
 
 ```mermaid
 stateDiagram-v2
@@ -414,7 +445,7 @@ stateDiagram-v2
     end note
 ```
 
-#### BoxHash example
+##### BoxHash embeddable example
 
 ```cpp
 // Enable BoxHash via context settings.

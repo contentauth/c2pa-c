@@ -506,6 +506,107 @@ TEST_F(EmbeddableTest, MultipleFormats) {
     }
 }
 
+// BoxHash: standard Builder::sign() flow with prefer_box_hash enabled
+TEST_F(EmbeddableTest, BoxHashStandardSign) {
+    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto source_path = c2pa_test::get_fixture_path("A.jpg");
+    auto output_path = get_temp_path("boxhash_standard.jpg");
+
+    // Enable BoxHash via context settings
+    auto context = c2pa::Context::ContextBuilder()
+        .with_signer(c2pa_test::create_test_signer())
+        .with_json(R"({
+            "builder": {
+                "prefer_box_hash": true
+            }
+        })")
+        .create_context();
+
+    auto builder = c2pa::Builder(context, manifest_json);
+
+    // Standard sign() handles the entire BoxHash workflow internally
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(source_path, output_path));
+    ASSERT_FALSE(manifest_data.empty());
+
+    // Verify the output can be read back with valid C2PA data
+    auto reader = c2pa::Reader(context, output_path);
+    std::string json_result;
+    ASSERT_NO_THROW(json_result = reader.json());
+    EXPECT_FALSE(json_result.empty());
+}
+
+// BoxHash: needs_placeholder() returns false when prefer_box_hash is enabled
+TEST_F(EmbeddableTest, BoxHashNeedsPlaceholderReturnsFalse) {
+    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+
+    auto context = c2pa::Context::ContextBuilder()
+        .with_signer(c2pa_test::create_test_signer())
+        .with_json(R"({
+            "builder": {
+                "prefer_box_hash": true
+            }
+        })")
+        .create_context();
+
+    auto builder = c2pa::Builder(context, manifest_json);
+
+    // BoxHash-capable formats should not require a placeholder
+    ASSERT_FALSE(builder.needs_placeholder("image/jpeg"))
+        << "JPEG with prefer_box_hash should not require a placeholder";
+}
+
+// BoxHash: embeddable API workflow (update_hash_from_stream + sign_embeddable)
+TEST_F(EmbeddableTest, BoxHashEmbeddableWorkflow) {
+    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
+
+    auto context = c2pa::Context::ContextBuilder()
+        .with_signer(c2pa_test::create_test_signer())
+        .with_json(R"({
+            "builder": {
+                "prefer_box_hash": true
+            }
+        })")
+        .create_context();
+
+    auto builder = c2pa::Builder(context, manifest_json);
+
+    // No placeholder needed for BoxHash
+    ASSERT_FALSE(builder.needs_placeholder("image/jpeg"));
+
+    // Hash the original asset directly (no placeholder to embed first)
+    std::ifstream asset_stream(source_asset, std::ios::binary);
+    ASSERT_TRUE(asset_stream.is_open());
+    builder.update_hash_from_stream("image/jpeg", asset_stream);
+    asset_stream.close();
+
+    // Sign — output is the actual manifest size (not padded to a placeholder)
+    auto manifest_bytes = builder.sign_embeddable("image/jpeg");
+    ASSERT_GT(manifest_bytes.size(), 0)
+        << "BoxHash embeddable should produce signed manifest bytes";
+}
+
+// BoxHash: BMFF formats always require a placeholder regardless of prefer_box_hash
+TEST_F(EmbeddableTest, BoxHashBmffAlwaysRequiresPlaceholder) {
+    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+
+    auto context = c2pa::Context::ContextBuilder()
+        .with_signer(c2pa_test::create_test_signer())
+        .with_json(R"({
+            "builder": {
+                "prefer_box_hash": true
+            }
+        })")
+        .create_context();
+
+    auto builder = c2pa::Builder(context, manifest_json);
+
+    // BMFF formats always require a placeholder, even with prefer_box_hash
+    ASSERT_TRUE(builder.needs_placeholder("video/mp4"))
+        << "MP4 must always require a placeholder regardless of prefer_box_hash";
+}
+
 // Direct embedding when giving format
 TEST_F(EmbeddableTest, DirectEmbeddingWithFormat) {
     // This test demonstrates that when you sign with format="image/jpeg",
