@@ -4808,7 +4808,6 @@ TEST_F(BuilderTest, CreateIntentAddsCreatedAction)
     string active_label = result["active_manifest"];
     json active = result["manifests"][active_label];
 
-    // Find c2pa.actions assertion and verify c2pa.created action
     bool found_created = false;
     for (const auto& assertion : active["assertions"]) {
         if (!assertion.contains("label")) continue;
@@ -4817,10 +4816,9 @@ TEST_F(BuilderTest, CreateIntentAddsCreatedAction)
         for (const auto& action : assertion["data"]["actions"]) {
             if (action["action"] == "c2pa.created") {
                 found_created = true;
-                // Verify digital source type is digitalCapture
+                // Verify digital source type matches what was set
                 std::string dst = action["digitalSourceType"];
-                EXPECT_TRUE(dst.find("digitalCapture") != std::string::npos)
-                    << "Expected digitalCapture in digitalSourceType, got: " << dst;
+                EXPECT_TRUE(dst.find("digitalCapture") != std::string::npos);
             }
         }
     }
@@ -4859,9 +4857,9 @@ TEST_F(BuilderTest, EditIntentAddsOpenedAction)
             }
         }
     }
-    ASSERT_TRUE(found_opened) << "Expected c2pa.opened action in manifest";
+    ASSERT_TRUE(found_opened) << "Expected c2pa.opened action in active manifest";
 
-    // Verify a parentOf ingredient exists
+    // Verify parentOf ingredient exists
     ASSERT_TRUE(active.contains("ingredients"));
     bool found_parent = false;
     for (const auto& ingredient : active["ingredients"]) {
@@ -4869,7 +4867,7 @@ TEST_F(BuilderTest, EditIntentAddsOpenedAction)
             found_parent = true;
         }
     }
-    ASSERT_TRUE(found_parent) << "Expected parentOf ingredient in manifest";
+    ASSERT_TRUE(found_parent) << "Expected parentOf ingredient to be found in active manifest";
 }
 
 TEST_F(BuilderTest, UpdateIntentAddsOpenedAction)
@@ -4904,7 +4902,7 @@ TEST_F(BuilderTest, UpdateIntentAddsOpenedAction)
             }
         }
     }
-    ASSERT_TRUE(found_opened) << "Expected c2pa.opened action in manifest";
+    ASSERT_TRUE(found_opened) << "Expected c2pa.opened action in active manifest";
 
     // Verify a parentOf ingredient exists
     ASSERT_TRUE(active.contains("ingredients"));
@@ -4914,7 +4912,7 @@ TEST_F(BuilderTest, UpdateIntentAddsOpenedAction)
             found_parent = true;
         }
     }
-    ASSERT_TRUE(found_parent) << "Expected parentOf ingredient in manifest";
+    ASSERT_TRUE(found_parent) << "Expected parentOf ingredient to be found in active manifest";
 }
 
 TEST_F(BuilderTest, CreateIntentViaContext)
@@ -4953,7 +4951,7 @@ TEST_F(BuilderTest, CreateIntentViaContext)
             }
         }
     }
-    ASSERT_TRUE(found_created) << "Expected c2pa.created action in manifest";
+    ASSERT_TRUE(found_created) << "Expected c2pa.created action in active manifest";
 }
 
 TEST_F(BuilderTest, CreateIntentWithParentIngredientThrows)
@@ -4973,6 +4971,6 @@ TEST_F(BuilderTest, CreateIntentWithParentIngredientThrows)
 
     builder.set_intent(Create, DigitalCapture);
 
-    // Signing should throw because Create intent rejects parentOf ingredients
+    // Signing should throw because Create intent rejects having an existing parentOf ingredient
     EXPECT_THROW(builder.sign(image_path, output_path, signer), c2pa::C2paException);
 }
