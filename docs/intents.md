@@ -1,6 +1,6 @@
 # Using Builder intents
 
-Intents enable validation, add required default actions, and help prevent invalid operations when using a `Builder`. Intents are about the operation (create, edit, update) executed on the source asset.
+Intents enable validation, add required actions to be spec-compliant, and help prevent invalid operations when using a `Builder`. Intents are about the operation (create, edit, update) executed on the source asset.
 
 ## Why use intents?
 
@@ -158,7 +158,7 @@ For **EDIT** and **UPDATE**, the Builder looks at the source stream, and if no `
 
 ### How intent relates to `add_ingredient`
 
-The intent controls what the Builder does with the source stream at sign time. The `add_ingredient` method adds other ingredients explicitly. These are separate concerns.
+The (Builder) intent controls what the Builder does with the source stream (source asset) at sign time. The `add_ingredient` method adds other ingredients explicitly. These are separate concerns.
 
 ```mermaid
 flowchart TD
@@ -441,7 +441,7 @@ builder.sign("signed_asset.jpg", "updated_asset.jpg", signer);
 When configuring settings, the intent is specified as a string or object in the `builder.intent` field:
 
 | Intent | Settings value | With digital source type |
-|--------|---------------|--------------------------|
+| --- | --- | --- |
 | Create | `{"Create": "<sourceType>"}` | Required. E.g., `{"Create": "digitalCapture"}` |
 | Edit   | `"edit"` | Not applicable |
 | Update | `"update"` | Not applicable |
@@ -458,16 +458,16 @@ void Builder::set_intent(
 ```
 
 | Parameter | Type | Description |
-|-----------|------|-------------|
+| --- | --- | --- |
 | `intent` | `C2paBuilderIntent` | The intent: `Create`, `Edit`, or `Update`. |
 | `digital_source_type` | `C2paDigitalSourceType` | Required for `Create`. Describes how the asset was made. Defaults to `Empty`. |
 
 Throws `C2paException` if the intent cannot be set.
 
-### `C2paDigitalSourceType` values
+### `C2paDigitalSourceType` enum values
 
 | Enum value | Description |
-|------------|-------------|
+| --- | --- |
 | `Empty` | No source type specified |
 | `DigitalCapture` | Captured from a real-world source using a digital device |
 | `TrainedAlgorithmicMedia` | Created by a trained algorithm (e.g., generative AI) |
