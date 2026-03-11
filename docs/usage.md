@@ -11,21 +11,24 @@ To use this library, include the header file in your code as follows:
 Use the `Reader` constructor to read C2PA data from a stream. This constructor examines the specified stream for C2PA data in the given format and its return value is a Reader that can be used to extract more information. Exceptions are thrown on errors.
 
 ```cpp
-  auto reader = c2pa::Reader(<"FORMAT">, <"STREAM">);
+  c2pa::Context context;  // or Context(settings) or Context(json_string)
+  auto reader = c2pa::Reader(context, <"FORMAT">, <"STREAM">);
 ```
 
 The parameters are:
 
-- `<FORMAT>`- A MIME string format for the stream; must be one of the [supported file formats](supported-formats.md).
+- `context` - A `Context` (or any `IContextProvider`) that configures SDK behavior. See [Configuring the SDK with Context and Settings](context-settings.md).
+- `<FORMAT>` - A MIME string format for the stream; must be one of the [supported file formats](supported-formats.md).
 - `<STREAM>` - An open readable iostream.
 
 For example:
 
 ```cpp
+c2pa::Context context;
 std::ifstream ifs("tests/fixtures/C.jpg", std::ios::binary);
 
 // the Reader supports streams or file paths
-auto reader = c2pa::Reader("image/jpeg", ifs);
+auto reader = c2pa::Reader(context, "image/jpeg", ifs);
 
 // print out the Manifest Store information
 printf("Manifest Store = %s", reader.json())
@@ -72,7 +75,11 @@ const std::string manifest_json = R"{
 
 The behavior of the SDK can be configured through various [settings](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/) loaded from JSON config files or JSON strings directly in the code.
 
-SDK settings are set on the `Context` objects used by the Builder and Reader objects. For full details see [Configuring the SDK with Context and Settings](context-settings.md).
+SDK settings are set on the `Context` objects used by the Builder and Reader objects. 
+For full details see [Configuring the SDK with Context and Settings](context-settings.md).
+
+> [!NOTE] If you don't specify a value for a property, then the SDK will use the default value. 
+> If you specify a value of null, then the property will be set to null, not the default.
 
 ### Creating a Context
 
@@ -128,18 +135,23 @@ c2pa::Reader reader(context, "image.jpg");
 
 ## Creating a Builder
 
-Use the `Builder` constructor to create a `Builder` instance.
+Use the `Builder` constructor to create a `Builder` instance. A `Context` is required as the first parameter.
 
 ```cpp
-  auto builder = Builder("<MANIFEST_JSON>");
+  c2pa::Context context;
+  auto builder = c2pa::Builder(context, "<MANIFEST_JSON>");
 ```
-The parameter is:
-- `<MANIFEST_JSON>`- A string in JSON format as as described above, defining the manifest to be generated.
+
+The parameters are:
+
+- `context` - A `Context` (or any `IContextProvider`) that configures SDK behavior. See [Configuring the SDK with Context and Settings](context-settings.md).
+- `<MANIFEST_JSON>` - A string in JSON format as described above, defining the manifest to be generated.
 
 For example:
 
 ```cpp
-  auto builder = Builder(manifest_json);
+  c2pa::Context context;
+  auto builder = c2pa::Builder(context, manifest_json);
 ```
 
 ## Creating a Signer
