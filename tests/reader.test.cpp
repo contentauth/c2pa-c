@@ -607,7 +607,7 @@ TEST_F(ReaderTest, GetResourceWithInvalidUri) {
 
 TEST_F(ReaderTest, ReadArchive)
 {
-    // Build a manifest with ingredients and archive it
+    // Build a manifest with ingredients and archive it to re-read it back with a Reader
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
     auto builder = c2pa::Builder(manifest);
 
@@ -620,13 +620,12 @@ TEST_F(ReaderTest, ReadArchive)
     std::stringstream archive_stream(std::ios::in | std::ios::out | std::ios::binary);
     ASSERT_NO_THROW(builder.to_archive(archive_stream));
 
-    // Read the archive with a Reader using Context API
+    // Read back the archive with a Reader
     archive_stream.seekg(0);
     auto context = c2pa::Context();
     auto reader = c2pa::Reader(context, "application/c2pa", archive_stream);
     auto json_result = reader.json();
 
-    // Checks on the returned JSON
     auto parsed = json::parse(json_result);
     EXPECT_TRUE(parsed.contains("active_manifest"));
     EXPECT_TRUE(parsed.contains("manifests"));
