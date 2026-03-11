@@ -194,7 +194,6 @@ These methods perform the signing workflow: placeholder creation, hashing, and s
 | `Builder::placeholder(format)` | Composes a placeholder manifest and returns it as format-specific bytes ready to embed (e.g., JPEG APP11 segments). Automatically adds the appropriate hash assertion (`BmffHash` for BMFF formats, `DataHash` for others). Stores the JUMBF length internally so `sign_embeddable()` can pad to the same size. |
 | `Builder::set_data_hash_exclusions(exclusions)` | Replaces the dummy exclusion ranges in the `DataHash` assertion with the actual byte offset and length of the embedded placeholder. Call after embedding placeholder bytes and before `update_hash_from_stream()`. Takes a `std::vector<std::pair<uint64_t, uint64_t>>` of (start, length) pairs. |
 | `Builder::update_hash_from_stream(format, stream)` | Reads the asset stream and computes the hard-binding hash. Automatically selects the appropriate path based on format: `BmffHash` for BMFF (skips manifest box), `BoxHash` for chunk-based formats (creates assertion if needed), or `DataHash` (skips exclusion ranges). Takes a `std::istream&`. |
-| `Builder::set_bmff_mdat_hashes(leaf_hashes)` | Provides pre-computed Merkle leaf hashes for `mdat` segments in BMFF assets. Use when the application already hashes `mdat` chunks during writing/transcoding to avoid re-reading large files. Call before `sign_embeddable()`. |
 | `Builder::sign_embeddable(format)` | Signs the manifest and returns bytes ready to embed. For placeholder workflows, the output is padded to match the placeholder size for in-place patching. For BoxHash workflows, the output is the actual signed manifest size (not padded), suitable for appending as a new chunk. |
 
 ## Workflows
@@ -320,7 +319,7 @@ if (builder.needs_placeholder("image/jpeg")) {
 
 Use this workflow with MP4 and other BMFF formats, which always require a placeholder. The `prefer_box_hash` setting has no effect on BMFF formats: they always use `BmffHash` regardless of the setting. No special Builder settings are required as the SDK selects `BmffHash` automatically based on the format.
 
-BMFF containers (ISO Base Media File Format) store media data in `mdat` (media data) boxes, which hold the raw audio, video, and other media samples. These `mdat` boxes can be very large, making it expensive to re-read the entire file to compute a hash after signing. The SDK addresses this with a Merkle tree structure in the `BmffHash` assertion: it divides `mdat` content into fixed-size chunks and computes a hash for each chunk (a "leaf" in the tree). These leaf hashes are combined into a Merkle root hash that covers the entire `mdat` content. The `placeholder()` method pre-allocates slots in the `BmffHash` assertion for these Merkle leaf hashes, sized according to the `core.merkle_tree_chunk_size_in_kb` setting. This pre-allocation is necessary because the final manifest must be exactly the same size as the placeholder for in-place patching to work.
+BMFF containers (ISO Base Media File Format) store media data in `mdat` (media data) boxes, which hold the raw audio, video, and other media samples. These `mdat` boxes can be very large. The SDK uses a `BmffHash` assertion for BMFF formats that excludes the manifest UUID box when computing the asset hash. The `placeholder()` method creates a `BmffHash` assertion with a placeholder hash and default exclusions. After embedding the placeholder, call `update_hash_from_stream()` to read and hash the asset, then `sign_embeddable()` to produce a signed manifest of the same size as the placeholder for in-place patching.
 
 #### BmffHash flow
 
@@ -382,14 +381,6 @@ std::fstream patched("output.mp4", std::ios::binary | std::ios::in | std::ios::o
 patched.seekp(insert_offset);
 patched.write(reinterpret_cast<const char*>(final_manifest.data()), final_manifest.size());
 patched.close();
-```
-
-If the application already hashes `mdat` chunks during writing or transcoding, it can pass those pre-computed leaf hashes directly to the builder via `set_bmff_mdat_hashes()` to avoid re-reading the file:
-
-```cpp
-// leaf_hashes: outer = tracks, middle = chunks, inner = hash bytes
-builder.set_bmff_mdat_hashes(leaf_hashes);
-auto final_manifest = builder.sign_embeddable("video/mp4");
 ```
 
 ### Using BoxHash directly
@@ -533,7 +524,6 @@ classDiagram
         +needs_placeholder(format) bool
         +placeholder(format) vector~uint8~
         +set_data_hash_exclusions(exclusions) void
-        +set_bmff_mdat_hashes(leaf_hashes) void
         +update_hash_from_stream(format, stream) void
         +sign_embeddable(format) vector~uint8~
     }
