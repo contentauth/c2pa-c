@@ -35,23 +35,39 @@ The standard approach works for most use cases. The embeddable API exists for si
 
 The embeddable API supports three hard-binding strategies, selected automatically based on format and settings:
 
-| Mode | Assertion | Formats | Requires placeholder | Typical usage |
+| Mode | Assertion | Formats | Requires placeholder | When selected |
 |------|-----------|---------|----------------------|---------------|
-| [DataHash](#using-the-datahash-placeholder) | `DataHash` | JPEG, PNG, GIF, WebP, and others | Yes | Embeddable API |
-| [BmffHash](#using-the-bmffhash-placeholder) | `BmffHash` | MP4, video (BMFF containers), AVIF, HEIF/HEIC | Yes | Embeddable API |
-| [BoxHash](#using-boxhash-directly) | `BoxHash` | JPEG, PNG, GIF, WebP, and others | No | Standard `Builder::sign()` (embeddable API also supported) |
+| [DataHash](#using-the-datahash-placeholder) | `DataHash` | JPEG, PNG, GIF, WebP, and others | Yes | `prefer_box_hash` is `false` (the default) |
+| [BmffHash](#using-the-bmffhash-placeholder) | `BmffHash` | MP4, video (BMFF containers), AVIF, HEIF/HEIC | Yes | Always (BMFF formats ignore `prefer_box_hash`) |
+| [BoxHash](#using-boxhash-directly) | `BoxHash` | JPEG, PNG, GIF, WebP, and others | No | `prefer_box_hash` is `true` |
 
 Call `needs_placeholder()` on the `Builder` to decide which workflow to follow. It returns `true` when the format requires a placeholder step (DataHash or BmffHash) and `false` when the format supports BoxHash and `prefer_box_hash` is enabled in the settings.
+
+> [!NOTE]
+> The same format can require a placeholder or not, depending on the hashing strategy. For example, `needs_placeholder("image/jpeg")` returns `true` by default (DataHash) but returns `false` when `prefer_box_hash` is enabled (BoxHash). Always call `needs_placeholder()` rather than assuming based on format alone.
+
+The following diagram shows how a non-BMFF format like JPEG branches into different workflows based on the `prefer_box_hash` setting:
+
+```mermaid
+flowchart LR
+    JPEG["image/jpeg"] --> Setting{"prefer_box_hash?"}
+    Setting -->|"false (default)"| DH["DataHash mode"]
+    DH --> PHYes["needs_placeholder() returns true"]
+    PHYes --> PlaceholderWorkflow["Placeholder > Embed > Exclude > Hash > Sign > Patch"]
+    Setting -->|"true"| BH["BoxHash mode"]
+    BH --> PHNo["needs_placeholder() returns false"]
+    PHNo --> DirectWorkflow["Hash > Sign > Append"]
+```
 
 Use the following decision tree to select the correct workflow:
 
 ```mermaid
 flowchart TD
-    Start["Builder.needs_placeholder(format)"] --> Check{Returns true?}
-    Check -->|Yes| IsBmff{BMFF format?<br/>e.g. video/mp4, image/avif}
-    IsBmff -->|Yes| BmffWorkflow["Use BmffHash placeholder workflow"]
-    IsBmff -->|No| DataHashWorkflow["Use DataHash placeholder workflow"]
-    Check -->|No| BoxHashWorkflow["Use BoxHash:<br/>Builder.sign() handles everything<br/>(or use embeddable API for fine-grained control)"]
+    Start["Builder.needs_placeholder(format)"] --> IsBmff{BMFF format?<br/>e.g. video/mp4, image/avif}
+    IsBmff -->|Yes| BmffWorkflow["Returns true<br/>Use BmffHash placeholder workflow"]
+    IsBmff -->|No| BoxCheck{"prefer_box_hash enabled?"}
+    BoxCheck -->|Yes| BoxHashWorkflow["Returns false<br/>Use BoxHash workflow<br/>(no placeholder needed)"]
+    BoxCheck -->|No| DataHashWorkflow["Returns true<br/>Use DataHash placeholder workflow"]
 ```
 
 To use `BoxHash` mode, enable `prefer_box_hash` in Builder settings. These formats support chunk-based hashing. `BoxHash` mode inserts the manifest as an independent chunk so byte offsets of existing data are never disturbed, removing the need for a pre-sized placeholder.
@@ -154,7 +170,7 @@ These methods determine which workflow to follow based on the asset format and s
 
 | Method | Description |
 |--------|-------------|
-| `Builder::needs_placeholder(format)` | Returns `true` when the format requires a pre-embedded placeholder before hashing. Always `true` for BMFF formats. Returns `false` when `prefer_box_hash` is enabled and the format supports `BoxHash`, or when a `BoxHash` assertion has already been added. Use this to choose between the placeholder and direct workflows. |
+| `Builder::needs_placeholder(format)` | Returns `true` when the format requires a pre-embedded placeholder before hashing. Always `true` for BMFF formats. Returns `false` when `prefer_box_hash` is enabled and the format supports `BoxHash`, or when a `BoxHash` assertion has already been added. Use this to choose between the placeholder and direct workflows. The return value depends on the active hashing strategy, not the format alone — the same format can return different values depending on whether `prefer_box_hash` is enabled. |
 
 ### Signing and embedding
 
@@ -172,7 +188,7 @@ These methods perform the signing workflow: placeholder creation, hashing, and s
 
 ### Using the DataHash placeholder
 
-Use this workflow for JPEG, PNG, and other non-BMFF formats.
+Use this workflow for JPEG, PNG, and other non-BMFF formats when `prefer_box_hash` is disabled (the default). If `prefer_box_hash` is enabled, these formats use BoxHash instead and do not require a placeholder — see [Using BoxHash directly](#using-boxhash-directly).
 
 For this workflow, `prefer_box_hash` must be `false` (the default). If it was previously set to `true`, disable it explicitly:
 
