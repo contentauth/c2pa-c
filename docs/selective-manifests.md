@@ -683,6 +683,174 @@ for (auto& ingredient : selected) {
 new_builder.sign(source_path, output_path, signer);
 ```
 
+### Reading ingredient details from an ingredient archive
+
+An ingredient archive is a serialized `Builder` containing exactly one and only one ingredient (see [Builder archives vs. ingredient archives](#builder-archives-vs-ingredient-archives)). Reading it with `Reader` allows the caller to inspect the ingredient before deciding whether to use it: its thumbnail, whether it carries provenance (e.g. an active manifest), validation status, relationship, etc.
+
+```mermaid
+flowchart LR
+    IA["ingredient_archive.c2pa"] -->|"Reader(application/c2pa)"| JSON["JSON + resources"]
+    JSON --> TH["Thumbnail"]
+    JSON --> AM["Active manifest?"]
+    JSON --> VS["Validation status"]
+    JSON --> REL["Relationship"]
+```
+
+```cpp
+// Open the ingredient archive
+std::ifstream archive_file("ingredient_archive.c2pa", std::ios::binary);
+c2pa::Reader reader(context, "application/c2pa", archive_file);
+auto parsed = json::parse(reader.json());
+std::string active = parsed["active_manifest"];
+auto manifest = parsed["manifests"][active];
+
+// An ingredient archive has exactly one ingredient
+auto& ingredient = manifest["ingredients"][0];
+
+// Relationship
+std::string relationship = ingredient["relationship"];  // e.g. "parentOf", "componentOf", "inputTo"
+
+// Instance ID (optional, set by the caller via add_ingredient or derived from XMP metadata)
+std::string instance_id;
+if (ingredient.contains("instance_id")) {
+    instance_id = ingredient["instance_id"];
+}
+
+// Active manifest:
+// When present, the ingredient was a signed asset and its manifest label
+// points into the top-level "manifests" dictionary.
+bool has_provenance = ingredient.contains("active_manifest");
+if (has_provenance) {
+    std::string ing_manifest_label = ingredient["active_manifest"];
+    auto ing_manifest = parsed["manifests"][ing_manifest_label];
+    // ing_manifest contains the ingredient's own assertions, actions, etc.
+}
+
+// Validation status.
+// The top-level "validation_status" array covers the entire manifest store,
+// including this ingredient's manifest. An empty or absent array means
+// no validation errors were found.
+if (parsed.contains("validation_status")) {
+    for (auto& status : parsed["validation_status"]) {
+        std::cout << status["code"].get<std::string>() << ": "
+                  << status["explanation"].get<std::string>() << std::endl;
+    }
+}
+
+// Thumbnail
+if (ingredient.contains("thumbnail")) {
+    std::string thumb_id = ingredient["thumbnail"]["identifier"];
+    std::stringstream thumb_stream(std::ios::in | std::ios::out | std::ios::binary);
+    reader.get_resource(thumb_id, thumb_stream);
+    // thumb_stream now contains the thumbnail binary data
+}
+```
+
+#### Linking an archived ingredient to an action
+
+After reading the ingredient details from an ingredient archive, the ingredient can be added to a new `Builder` and linked to an action. The preferred approach is to assign a `label` in the `add_ingredient` call and use that label as the linking key in `ingredientIds`. If the archived ingredient carries an `instance_id`, you can use that instead.
+
+Note that labels are only used as build-time linking keys. The SDK may reassign the actual label in the signed manifest. An `instance_id`, on the other hand, is preserved as-is through signing and can be read back unchanged from the final manifest.
+
+##### Using a label
+
+Assign a `label` in the `add_ingredient` call and reference that same label in `ingredientIds`. This works whether or not the ingredient has an `instance_id`.
+
+```cpp
+c2pa::Context context;
+
+// Read the ingredient archive
+std::ifstream archive_file("ingredient_archive.c2pa", std::ios::binary);
+c2pa::Reader reader(context, "application/c2pa", archive_file);
+auto parsed = json::parse(reader.json());
+std::string active = parsed["active_manifest"];
+auto& ingredient = parsed["manifests"][active]["ingredients"][0];
+
+// Use a caller-assigned label as the linking key
+json manifest_json = {
+    {"claim_generator_info", json::array({{{"name", "an-application"}, {"version", "1.0"}}})},
+    {"assertions", json::array({
+        {
+            {"label", "c2pa.actions.v2"},
+            {"data", {
+                {"actions", json::array({
+                    {
+                        {"action", "c2pa.opened"},
+                        {"parameters", {
+                            {"ingredientIds", json::array({"archived-ingredient"})}
+                        }}
+                    }
+                })}
+            }}
+        }
+    })}
+};
+
+c2pa::Builder builder(context, manifest_json.dump());
+
+// The label on the ingredient JSON matches the entry in ingredientIds
+archive_file.seekg(0);
+builder.add_ingredient(
+    json({
+        {"title", ingredient["title"]},
+        {"relationship", "parentOf"},
+        {"label", "archived-ingredient"}
+    }).dump(),
+    "application/c2pa",
+    archive_file);
+
+builder.sign(source_path, output_path, signer);
+```
+
+##### Using an `instance_id`
+
+If the ingredient archive carries an `instance_id` and you need a stable identifier that persists unchanged in the signed manifest, you can use the `instance_id` as the linking key in `ingredientIds` instead of a label.
+
+```cpp
+c2pa::Context context;
+
+// Read the ingredient archive and extract the instance_id
+std::ifstream archive_file("ingredient_archive.c2pa", std::ios::binary);
+c2pa::Reader reader(context, "application/c2pa", archive_file);
+auto parsed = json::parse(reader.json());
+std::string active = parsed["active_manifest"];
+auto& ingredient = parsed["manifests"][active]["ingredients"][0];
+std::string instance_id = ingredient["instance_id"];
+
+json manifest_json = {
+    {"claim_generator_info", json::array({{{"name", "an-application"}, {"version", "1.0"}}})},
+    {"assertions", json::array({
+        {
+            {"label", "c2pa.actions.v2"},
+            {"data", {
+                {"actions", json::array({
+                    {
+                        {"action", "c2pa.placed"},
+                        {"parameters", {
+                            {"ingredientIds", json::array({instance_id})}
+                        }}
+                    }
+                })}
+            }}
+        }
+    })}
+};
+
+c2pa::Builder builder(context, manifest_json.dump());
+
+archive_file.seekg(0);
+builder.add_ingredient(
+    json({
+        {"title", ingredient["title"]},
+        {"relationship", "componentOf"},
+        {"instance_id", instance_id}
+    }).dump(),
+    "application/c2pa",
+    archive_file);
+
+builder.sign(source_path, output_path, signer);
+```
+
 ### Merging multiple working stores
 
 In some cases you may need to merge ingredients from multiple working stores (builder archives) into a single `Builder`. This should be a **fallback strategy**—the recommended practice is to maintain a single active working store and add ingredients incrementally (archived ingredient catalogs help with this). Merging is available when multiple working stores must be consolidated.
