@@ -4786,3 +4786,193 @@ TEST_F(BuilderTest, SignStreamWithCallbackSignerInContext) {
     auto reader = c2pa::Reader(context, "image/jpeg", dest);
     ASSERT_NO_THROW(reader.json());
 }
+
+
+TEST_F(BuilderTest, CreateIntentAddsCreatedAction)
+{
+    auto signer = c2pa_test::create_test_signer();
+    auto image_path = c2pa_test::get_fixture_path("A.jpg");
+    auto output_path = get_temp_path("intent_create.jpg");
+
+    auto context = c2pa::Context();
+    auto builder = c2pa::Builder(context, R"({})");
+    builder.set_intent(Create, DigitalCapture);
+
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(image_path, output_path, signer));
+    ASSERT_FALSE(manifest_data.empty());
+
+    auto reader = c2pa::Reader(context, output_path);
+    auto result = json::parse(reader.json());
+
+    string active_label = result["active_manifest"];
+    json active = result["manifests"][active_label];
+
+    // Find c2pa.actions assertion and verify c2pa.created action
+    bool found_created = false;
+    for (const auto& assertion : active["assertions"]) {
+        if (!assertion.contains("label")) continue;
+        std::string label = assertion["label"];
+        if (label.find("c2pa.actions") == std::string::npos) continue;
+        for (const auto& action : assertion["data"]["actions"]) {
+            if (action["action"] == "c2pa.created") {
+                found_created = true;
+                // Verify digital source type is digitalCapture
+                std::string dst = action["digitalSourceType"];
+                EXPECT_TRUE(dst.find("digitalCapture") != std::string::npos)
+                    << "Expected digitalCapture in digitalSourceType, got: " << dst;
+            }
+        }
+    }
+    ASSERT_TRUE(found_created) << "Expected c2pa.created action in manifest";
+}
+
+TEST_F(BuilderTest, EditIntentAddsOpenedAction)
+{
+    auto signer = c2pa_test::create_test_signer();
+    auto image_path = c2pa_test::get_fixture_path("C.jpg");
+    auto output_path = get_temp_path("intent_edit.jpg");
+
+    auto context = c2pa::Context();
+    auto builder = c2pa::Builder(context, R"({})");
+    builder.set_intent(Edit);
+
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(image_path, output_path, signer));
+    ASSERT_FALSE(manifest_data.empty());
+
+    auto reader = c2pa::Reader(context, output_path);
+    auto result = json::parse(reader.json());
+
+    string active_label = result["active_manifest"];
+    json active = result["manifests"][active_label];
+
+    // Verify c2pa.opened action exists
+    bool found_opened = false;
+    for (const auto& assertion : active["assertions"]) {
+        if (!assertion.contains("label")) continue;
+        std::string label = assertion["label"];
+        if (label.find("c2pa.actions") == std::string::npos) continue;
+        for (const auto& action : assertion["data"]["actions"]) {
+            if (action["action"] == "c2pa.opened") {
+                found_opened = true;
+            }
+        }
+    }
+    ASSERT_TRUE(found_opened) << "Expected c2pa.opened action in manifest";
+
+    // Verify a parentOf ingredient exists
+    ASSERT_TRUE(active.contains("ingredients"));
+    bool found_parent = false;
+    for (const auto& ingredient : active["ingredients"]) {
+        if (ingredient.contains("relationship") && ingredient["relationship"] == "parentOf") {
+            found_parent = true;
+        }
+    }
+    ASSERT_TRUE(found_parent) << "Expected parentOf ingredient in manifest";
+}
+
+TEST_F(BuilderTest, UpdateIntentAddsOpenedAction)
+{
+    auto signer = c2pa_test::create_test_signer();
+    auto image_path = c2pa_test::get_fixture_path("C.jpg");
+    auto output_path = get_temp_path("intent_update.jpg");
+
+    auto context = c2pa::Context();
+    auto builder = c2pa::Builder(context, R"({})");
+    builder.set_intent(Update);
+
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(image_path, output_path, signer));
+    ASSERT_FALSE(manifest_data.empty());
+
+    auto reader = c2pa::Reader(context, output_path);
+    auto result = json::parse(reader.json());
+
+    string active_label = result["active_manifest"];
+    json active = result["manifests"][active_label];
+
+    // Verify c2pa.opened action exists
+    bool found_opened = false;
+    for (const auto& assertion : active["assertions"]) {
+        if (!assertion.contains("label")) continue;
+        std::string label = assertion["label"];
+        if (label.find("c2pa.actions") == std::string::npos) continue;
+        for (const auto& action : assertion["data"]["actions"]) {
+            if (action["action"] == "c2pa.opened") {
+                found_opened = true;
+            }
+        }
+    }
+    ASSERT_TRUE(found_opened) << "Expected c2pa.opened action in manifest";
+
+    // Verify a parentOf ingredient exists
+    ASSERT_TRUE(active.contains("ingredients"));
+    bool found_parent = false;
+    for (const auto& ingredient : active["ingredients"]) {
+        if (ingredient.contains("relationship") && ingredient["relationship"] == "parentOf") {
+            found_parent = true;
+        }
+    }
+    ASSERT_TRUE(found_parent) << "Expected parentOf ingredient in manifest";
+}
+
+TEST_F(BuilderTest, CreateIntentViaContext)
+{
+    auto signer = c2pa_test::create_test_signer();
+    auto image_path = c2pa_test::get_fixture_path("A.jpg");
+    auto output_path = get_temp_path("intent_create_ctx.jpg");
+
+    auto context = c2pa::Context(R"({
+        "version": 1,
+        "builder": {
+            "intent": {"Create": "digitalCapture"}
+        }
+    })");
+    auto builder = c2pa::Builder(context, R"({})");
+
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder.sign(image_path, output_path, signer));
+    ASSERT_FALSE(manifest_data.empty());
+
+    auto reader = c2pa::Reader(context, output_path);
+    auto result = json::parse(reader.json());
+
+    string active_label = result["active_manifest"];
+    json active = result["manifests"][active_label];
+
+    // Verify c2pa.created action exists
+    bool found_created = false;
+    for (const auto& assertion : active["assertions"]) {
+        if (!assertion.contains("label")) continue;
+        std::string label = assertion["label"];
+        if (label.find("c2pa.actions") == std::string::npos) continue;
+        for (const auto& action : assertion["data"]["actions"]) {
+            if (action["action"] == "c2pa.created") {
+                found_created = true;
+            }
+        }
+    }
+    ASSERT_TRUE(found_created) << "Expected c2pa.created action in manifest";
+}
+
+TEST_F(BuilderTest, CreateIntentWithParentIngredientThrows)
+{
+    auto signer = c2pa_test::create_test_signer();
+    auto image_path = c2pa_test::get_fixture_path("C.jpg");
+    auto output_path = get_temp_path("intent_create_parent_err.jpg");
+
+    auto context = c2pa::Context();
+    auto builder = c2pa::Builder(context, R"({})");
+
+    // Add a parentOf ingredient
+    builder.add_ingredient(
+        R"({"title": "Parent", "relationship": "parentOf"})",
+        image_path
+    );
+
+    builder.set_intent(Create, DigitalCapture);
+
+    // Signing should throw because Create intent rejects parentOf ingredients
+    EXPECT_THROW(builder.sign(image_path, output_path, signer), c2pa::C2paException);
+}

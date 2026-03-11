@@ -604,3 +604,37 @@ TEST_F(ReaderTest, GetResourceWithInvalidUri) {
     std::ostringstream output;
     EXPECT_THROW(reader.get_resource("invalid://nonexistent", output), c2pa::C2paException);
 }
+
+TEST_F(ReaderTest, ReadArchive)
+{
+    // Build a manifest with ingredients and archive it
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto builder = c2pa::Builder(manifest);
+
+    std::string ingredient1_json = R"({"title": "A.jpg", "relationship": "parentOf"})";
+    builder.add_ingredient(ingredient1_json, c2pa_test::get_fixture_path("A.jpg"));
+
+    std::string ingredient2_json = R"({"title": "C.jpg", "relationship": "componentOf"})";
+    builder.add_ingredient(ingredient2_json, c2pa_test::get_fixture_path("C.jpg"));
+
+    std::stringstream archive_stream(std::ios::in | std::ios::out | std::ios::binary);
+    ASSERT_NO_THROW(builder.to_archive(archive_stream));
+
+    // Read the archive with a Reader using Context API
+    archive_stream.seekg(0);
+    auto context = c2pa::Context();
+    auto reader = c2pa::Reader(context, "application/c2pa", archive_stream);
+    auto json_result = reader.json();
+
+    // Checks on the returned JSON
+    auto parsed = json::parse(json_result);
+    EXPECT_TRUE(parsed.contains("active_manifest"));
+    EXPECT_TRUE(parsed.contains("manifests"));
+
+    std::string active = parsed["active_manifest"];
+    EXPECT_FALSE(active.empty());
+
+    auto active_manifest = parsed["manifests"][active];
+    EXPECT_TRUE(active_manifest.contains("ingredients"));
+    EXPECT_EQ(active_manifest["ingredients"].size(), 2);
+}

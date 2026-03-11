@@ -917,6 +917,13 @@ namespace c2pa
         /// @throws C2paException for errors encountered by the C2PA library.
         void add_action(const std::string &action_json);
 
+        /// @brief Set the intent for this Builder, controlling what kind of manifest to create.
+        /// @param intent The intent type: Create, Edit, or Update.
+        /// @param digital_source_type Required for Create intent. Describes how the asset was produced.
+        ///        Defaults to Empty.
+        /// @throws C2paException if the intent cannot be set.
+        void set_intent(C2paBuilderIntent intent, C2paDigitalSourceType digital_source_type = Empty);
+
         /// @brief Sign an input stream and write the signed data to an output stream.
         /// @param format The mime format of the output stream.
         /// @param source The input stream to sign.
