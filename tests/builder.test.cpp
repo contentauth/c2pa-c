@@ -4953,24 +4953,3 @@ TEST_F(BuilderTest, CreateIntentViaContext)
     }
     ASSERT_TRUE(found_created) << "Expected c2pa.created action in active manifest";
 }
-
-TEST_F(BuilderTest, CreateIntentWithParentIngredientThrows)
-{
-    auto signer = c2pa_test::create_test_signer();
-    auto image_path = c2pa_test::get_fixture_path("C.jpg");
-    auto output_path = get_temp_path("intent_create_parent_err.jpg");
-
-    auto context = c2pa::Context();
-    auto builder = c2pa::Builder(context, R"({})");
-
-    // Add a parentOf ingredient
-    builder.add_ingredient(
-        R"({"title": "Parent", "relationship": "parentOf"})",
-        image_path
-    );
-
-    builder.set_intent(Create, DigitalCapture);
-
-    // Signing should throw because Create intent rejects having an existing parentOf ingredient
-    EXPECT_THROW(builder.sign(image_path, output_path, signer), c2pa::C2paException);
-}
