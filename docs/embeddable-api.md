@@ -75,7 +75,7 @@ flowchart TD
 
     BHFalse --> BHChoice{"Need fine-grained<br/>control over I/O?"}
     subgraph BHFlow ["BoxHash workflow"]
-        BHChoice -->|No| BHSign["sign()"]
+        BHChoice -->|"No (recommended)"| BHSign["sign()"]
         BHChoice -->|Yes| BHHash["update_hash_from_stream()"]
         BHHash --> BHSignEmb["sign_embeddable()"]
     end
