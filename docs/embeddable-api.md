@@ -413,7 +413,7 @@ auto manifest_data = builder.sign(source_path, output_path);
 
 #### Using the embeddable API with BoxHash
 
-If the application controls its own I/O pipeline, it can use the embeddable API with BoxHash instead of `Builder::sign()`. This gives the caller explicit control over when the asset is hashed and how the signed manifest bytes are appended. For example, a video transcoder or streaming ingest service can hash the asset during its own write pass and append the manifest chunk itself, avoiding a second read of the file.
+If the application controls its own I/O pipeline, it can use the embeddable API with BoxHash instead of `Builder::sign()`. This gives the caller explicit control over when the asset is hashed and how the signed manifest bytes are appended.
 
 ##### BoxHash embeddable flow
 
@@ -468,8 +468,7 @@ std::ifstream source("input.jpg", std::ios::binary);
 builder.update_hash_from_stream("image/jpeg", source);
 source.close();
 
-// Sign. Because there is no placeholder to match, the output is the actual
-// signed manifest size without any padding.
+// Sign. Because there is no placeholder to match, the output is the actual signed manifest size without any padding.
 auto manifest_bytes = builder.sign_embeddable("image/jpeg");
 
 // Append manifest_bytes as a new independent chunk in the asset.
