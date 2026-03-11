@@ -52,8 +52,9 @@ Use the following decision tree to select the correct workflow. For non-BMFF for
 flowchart TD
     Start["Builder.needs_placeholder(format)"] --> IsBmff{BMFF format?<br/>e.g. video/mp4, image/avif}
     IsBmff -->|Yes| BmffWorkflow["Returns true<br/>Use BmffHash placeholder workflow"]
-    IsBmff -->|No| BoxCheck{"prefer_box_hash enabled?"}
-    BoxCheck -->|No, default| DataHashWorkflow["Returns true<br/>Use DataHash placeholder workflow"]
+    BmffWorkflow --> BmffSteps["Placeholder > Insert uuid box > Hash > Sign > Patch"]
+    IsBmff -->|No| BoxCheck{"prefer_box_hash<br/>enabled in settings?"}
+    BoxCheck -->|"No (default)"| DataHashWorkflow["Returns true<br/>Use DataHash placeholder workflow"]
     DataHashWorkflow --> DHSteps["Placeholder > Embed > Exclude > Hash > Sign > Patch"]
     BoxCheck -->|Yes| BoxHashWorkflow["Returns false<br/>Use BoxHash workflow"]
     BoxHashWorkflow --> BHSteps["Hash > Sign > Append"]
