@@ -50,14 +50,20 @@ Use the following decision tree to select the correct workflow. For non-BMFF for
 
 ```mermaid
 flowchart TD
-    Start["Builder.needs_placeholder(format)"] --> IsBmff{BMFF format?<br/>e.g. video/mp4, image/avif}
-    IsBmff -->|Yes| BmffWorkflow["Returns true<br/>Use BmffHash placeholder workflow"]
+    Settings["Context settings<br/>prefer_box_hash: true / false"]
+    Start["Builder.needs_placeholder(format)"]
+
+    Settings --> Start
+    Start --> IsBmff{BMFF format?<br/>e.g. video/mp4, image/avif}
+    IsBmff -->|Yes, always needs placeholder| BmffWorkflow["Returns true<br/>Use BmffHash placeholder workflow"]
     BmffWorkflow --> BmffSteps["Placeholder > Insert uuid box > Hash > Sign > Patch"]
-    IsBmff -->|No| BoxCheck{"prefer_box_hash<br/>enabled in settings?"}
-    BoxCheck -->|"No (default)"| DataHashWorkflow["Returns true<br/>Use DataHash placeholder workflow"]
+    IsBmff -->|No, e.g. image/jpeg| BoxCheck{"prefer_box_hash?"}
+    BoxCheck -->|"false (default)"| DataHashWorkflow["Returns true<br/>Use DataHash placeholder workflow"]
     DataHashWorkflow --> DHSteps["Placeholder > Embed > Exclude > Hash > Sign > Patch"]
-    BoxCheck -->|Yes| BoxHashWorkflow["Returns false<br/>Use BoxHash workflow"]
+    BoxCheck -->|"true"| BoxHashWorkflow["Returns false<br/>Use BoxHash workflow"]
     BoxHashWorkflow --> BHSteps["Hash > Sign > Append"]
+
+    style Settings fill:#fff3cd
 ```
 
 To use `BoxHash` mode, enable `prefer_box_hash` in Builder settings. These formats support chunk-based hashing. `BoxHash` mode inserts the manifest as an independent chunk so byte offsets of existing data are never disturbed, removing the need for a pre-sized placeholder.
