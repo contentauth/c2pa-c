@@ -14,11 +14,12 @@ For the best experience, read the docs on the [CAI Open Source SDK documentation
 If you want to view the documentation in GitHub, see:
 - [Using the C++ library](docs/usage.md)
 - [Supported formats](https://github.com/contentauth/c2pa-rs/blob/main/docs/supported-formats.md)
-- Configuring the SDK using [`Settings`](settings.md).
-- [Using `Context`](context.md) to configure `Reader` `Builder`, and other aspects of the SDK.
-- Using [working stores and archvies](working-stores.md).
-- Using `Builder` and `Reader` together to [selectively construct a manifest by filtering actions and ingredients](selective-manifests.md).
-- [Release notes](release-notes.md)
+- [Configuring the SDK using `Context` and `Settings`](docs/context-settings.md).
+- Using [working stores and archvies](docs/working-stores.md).
+- Using `Builder` and `Reader` together to [selectively construct a manifest by filtering actions and ingredients](docs/selective-manifests.md).
+- Using the [embeddable API for low-level control over embedding manifests](docs/embeddable-api.md)
+- [Frequently-asked questions (FAQs)](docs/faqs.md)
+- [Release notes](docs/release-notes.md)
 
 </div>
 </div>
