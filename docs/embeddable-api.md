@@ -55,13 +55,16 @@ flowchart TD
 
     Settings --> Start
     Start --> IsBmff{BMFF format?<br/>e.g. video/mp4, image/avif}
-    IsBmff -->|Yes, always needs placeholder| BmffWorkflow["needs_placeholder returns true<br/>Use BmffHash placeholder workflow"]
-    BmffWorkflow --> BmffSteps["Placeholder > Insert uuid box > Hash > Sign > Patch"]
+    IsBmff -->|Yes, always| BmffTrue["needs_placeholder returns true"]
+    BmffTrue --> BmffSteps["placeholder > Embed into asset > update_hash_from_stream > sign_embeddable > Patch"]
+
     IsBmff -->|No, e.g. image/jpeg| BoxCheck{"prefer_box_hash?"}
-    BoxCheck -->|"false (default)"| DataHashWorkflow["needs_placeholder returns true<br/>Use DataHash placeholder workflow"]
-    DataHashWorkflow --> DHSteps["Placeholder > Embed > Exclude > Hash > Sign > Patch"]
-    BoxCheck -->|"true"| BoxHashWorkflow["needs_placeholder returns false<br/>Use BoxHash workflow"]
-    BoxHashWorkflow --> BHSteps["Hash > Sign > Append"]
+
+    BoxCheck -->|"false (default)"| DHTrue["needs_placeholder returns true"]
+    DHTrue --> DHSteps["placeholder > Embed into asset > set_data_hash_exclusions > update_hash_from_stream > sign_embeddable > Patch"]
+
+    BoxCheck -->|"true"| BHFalse["needs_placeholder returns false"]
+    BHFalse --> BHSteps["update_hash_from_stream > sign_embeddable > Append"]
 
     style Settings fill:#fff3cd
 ```
