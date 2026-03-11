@@ -46,28 +46,17 @@ Call `needs_placeholder()` on the `Builder` to decide which workflow to follow. 
 > [!NOTE]
 > The same format can require a placeholder or not, depending on the hashing strategy. For example, `needs_placeholder("image/jpeg")` returns `true` by default (DataHash) but returns `false` when `prefer_box_hash` is enabled (BoxHash). Always call `needs_placeholder()` rather than assuming based on format alone.
 
-The following diagram shows how a non-BMFF format like JPEG branches into different workflows based on the `prefer_box_hash` setting:
-
-```mermaid
-flowchart LR
-    JPEG["image/jpeg"] --> Setting{"prefer_box_hash?"}
-    Setting -->|"false (default)"| DH["DataHash mode"]
-    DH --> PHYes["needs_placeholder() returns true"]
-    PHYes --> PlaceholderWorkflow["Placeholder > Embed > Exclude > Hash > Sign > Patch"]
-    Setting -->|"true"| BH["BoxHash mode"]
-    BH --> PHNo["needs_placeholder() returns false"]
-    PHNo --> DirectWorkflow["Hash > Sign > Append"]
-```
-
-Use the following decision tree to select the correct workflow:
+Use the following decision tree to select the correct workflow. For non-BMFF formats, the `prefer_box_hash` setting determines whether a placeholder is needed:
 
 ```mermaid
 flowchart TD
     Start["Builder.needs_placeholder(format)"] --> IsBmff{BMFF format?<br/>e.g. video/mp4, image/avif}
     IsBmff -->|Yes| BmffWorkflow["Returns true<br/>Use BmffHash placeholder workflow"]
     IsBmff -->|No| BoxCheck{"prefer_box_hash enabled?"}
-    BoxCheck -->|Yes| BoxHashWorkflow["Returns false<br/>Use BoxHash workflow<br/>(no placeholder needed)"]
-    BoxCheck -->|No| DataHashWorkflow["Returns true<br/>Use DataHash placeholder workflow"]
+    BoxCheck -->|No, default| DataHashWorkflow["Returns true<br/>Use DataHash placeholder workflow"]
+    DataHashWorkflow --> DHSteps["Placeholder > Embed > Exclude > Hash > Sign > Patch"]
+    BoxCheck -->|Yes| BoxHashWorkflow["Returns false<br/>Use BoxHash workflow"]
+    BoxHashWorkflow --> BHSteps["Hash > Sign > Append"]
 ```
 
 To use `BoxHash` mode, enable `prefer_box_hash` in Builder settings. These formats support chunk-based hashing. `BoxHash` mode inserts the manifest as an independent chunk so byte offsets of existing data are never disturbed, removing the need for a pre-sized placeholder.
