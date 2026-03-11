@@ -194,7 +194,8 @@ These methods perform the signing workflow: placeholder creation, hashing, and s
 | `Builder::placeholder(format)` | Composes a placeholder manifest and returns it as format-specific bytes ready to embed (e.g., JPEG APP11 segments). Automatically adds the appropriate hash assertion (`BmffHash` for BMFF formats, `DataHash` for others). Stores the JUMBF length internally so `sign_embeddable()` can pad to the same size. |
 | `Builder::set_data_hash_exclusions(exclusions)` | Replaces the dummy exclusion ranges in the `DataHash` assertion with the actual byte offset and length of the embedded placeholder. Call after embedding placeholder bytes and before `update_hash_from_stream()`. Takes a `std::vector<std::pair<uint64_t, uint64_t>>` of (start, length) pairs. |
 | `Builder::update_hash_from_stream(format, stream)` | Reads the asset stream and computes the hard-binding hash. Automatically selects the appropriate path based on format: `BmffHash` for BMFF (skips manifest box), `BoxHash` for chunk-based formats (creates assertion if needed), or `DataHash` (skips exclusion ranges). Takes a `std::istream&`. |
-| `Builder::set_bmff_mdat_hashes(leaf_hashes)` | Provides pre-computed Merkle leaf hashes for `mdat` segments in BMFF assets. Use when the application already hashes `mdat` chunks during writing/transcoding to avoid re-reading large files. Call before `sign_embeddable()`. |
+| `c2pa_builder_hash_mdat_bytes(builder, mdat_id, data, len, large_size)` *(C API only)* | Streams a chunk of `mdat` bytes into the SDK's internal Merkle accumulator. Call once per chunk as mdat data is written, with `mdat_id` starting at 0 for the first mdat box. When `update_hash_from_stream()` is subsequently called, mdat content is excluded from the flat hash and the accumulated Merkle data is used instead. No UUID proof boxes are generated. Not yet wrapped in the C++ API. |
+| `c2pa_builder_set_fixed_size_merkle(builder, leaf_size_kb)` *(C API only)* | Sets a fixed Merkle leaf size in KB. By default, each chunk passed to `c2pa_builder_hash_mdat_bytes()` becomes one variable-length leaf. When a fixed size is set, the SDK accumulates data into leaves of exactly `leaf_size_kb` KB. Call before the first `c2pa_builder_hash_mdat_bytes()` call. Not yet wrapped in the C++ API. |
 | `Builder::sign_embeddable(format)` | Signs the manifest and returns bytes ready to embed. For placeholder workflows, the output is padded to match the placeholder size for in-place patching. For BoxHash workflows, the output is the actual signed manifest size (not padded), suitable for appending as a new chunk. |
 
 ## Workflows
@@ -320,7 +321,9 @@ if (builder.needs_placeholder("image/jpeg")) {
 
 Use this workflow with MP4 and other BMFF formats, which always require a placeholder. The `prefer_box_hash` setting has no effect on BMFF formats: they always use `BmffHash` regardless of the setting. No special Builder settings are required as the SDK selects `BmffHash` automatically based on the format.
 
-BMFF containers (ISO Base Media File Format) store media data in `mdat` (media data) boxes, which hold the raw audio, video, and other media samples. These `mdat` boxes can be very large, making it expensive to re-read the entire file to compute a hash after signing. The SDK addresses this with a Merkle tree structure in the `BmffHash` assertion: it divides `mdat` content into fixed-size chunks and computes a hash for each chunk (a "leaf" in the tree). These leaf hashes are combined into a Merkle root hash that covers the entire `mdat` content. The `placeholder()` method pre-allocates slots in the `BmffHash` assertion for these Merkle leaf hashes, sized according to the `core.merkle_tree_chunk_size_in_kb` setting. This pre-allocation is necessary because the final manifest must be exactly the same size as the placeholder for in-place patching to work.
+BMFF containers (ISO Base Media File Format) store media data in `mdat` (media data) boxes, which hold the raw audio, video, and other media samples. After the placeholder is embedded, `update_hash_from_stream()` reads the asset and computes the `BmffHash` — the C2PA manifest UUID box is excluded automatically.
+
+For large assets where re-reading the `mdat` content is expensive, the C API provides a streaming Merkle optimization: as the application writes `mdat` chunks, it passes each chunk to `c2pa_builder_hash_mdat_bytes()` so the SDK can build a Merkle tree incrementally. When `update_hash_from_stream()` is called later, the pre-computed Merkle data is used and `mdat` content is not re-read. An optional fixed leaf size can be set via `c2pa_builder_set_fixed_size_merkle()`. These functions are available in the C API but are not yet wrapped in the C++ API.
 
 #### BmffHash flow
 
@@ -384,13 +387,7 @@ patched.write(reinterpret_cast<const char*>(final_manifest.data()), final_manife
 patched.close();
 ```
 
-If the application already hashes `mdat` chunks during writing or transcoding, it can pass those pre-computed leaf hashes directly to the builder via `set_bmff_mdat_hashes()` to avoid re-reading the file:
-
-```cpp
-// leaf_hashes: outer = tracks, middle = chunks, inner = hash bytes
-builder.set_bmff_mdat_hashes(leaf_hashes);
-auto final_manifest = builder.sign_embeddable("video/mp4");
-```
+For applications that write large `mdat` boxes and want to avoid a full re-read, the C API provides `c2pa_builder_hash_mdat_bytes()` to stream mdat chunks incrementally as they are written. Call it once per chunk, with `mdat_id` starting at 0 for the first mdat box. An optional fixed Merkle leaf size can be set via `c2pa_builder_set_fixed_size_merkle()` before the first `c2pa_builder_hash_mdat_bytes()` call. When `update_hash_from_stream()` is called afterward, mdat content is excluded from the flat hash and the pre-computed Merkle data is used instead. These C API functions are not yet wrapped in the C++ API.
 
 ### Using BoxHash directly
 
@@ -533,7 +530,6 @@ classDiagram
         +needs_placeholder(format) bool
         +placeholder(format) vector~uint8~
         +set_data_hash_exclusions(exclusions) void
-        +set_bmff_mdat_hashes(leaf_hashes) void
         +update_hash_from_stream(format, stream) void
         +sign_embeddable(format) vector~uint8~
     }
