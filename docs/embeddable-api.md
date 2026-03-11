@@ -317,9 +317,11 @@ if (builder.needs_placeholder("image/jpeg")) {
 
 ### Using the BmffHash placeholder
 
-Use this workflow with MP4 and other BMFF formats, which always require a placeholder. The `prefer_box_hash` setting has no effect on BMFF formats: they always use `BmffHash` regardless of the setting. No special Builder settings are required as the SDK selects `BmffHash` automatically based on the format.
+Use this workflow with BMFF (ISO Base Media File Format) formats (like MP4), which always require a placeholder. The `prefer_box_hash` setting has no effect on BMFF formats: they always use `BmffHash` regardless of the setting. Therefore, no special Builder settings are required as the SDK selects `BmffHash` automatically based on the format.
 
-BMFF containers (ISO Base Media File Format) store media data in `mdat` (media data) boxes, which hold the raw audio, video, and other media samples. These `mdat` boxes can be very large. The SDK uses a `BmffHash` assertion for BMFF formats that excludes the manifest UUID box when computing the asset hash. The `placeholder()` method creates a `BmffHash` assertion with a placeholder hash and default exclusions. After embedding the placeholder, call `update_hash_from_stream()` to read and hash the asset, then `sign_embeddable()` to produce a signed manifest of the same size as the placeholder for in-place patching.
+BMFF containers store media data in `mdat` (media data) boxes, which hold the raw audio, video, and other media samples. The SDK uses a `BmffHash` assertion for BMFF formats that excludes the manifest UUID box when computing the asset hash.
+
+The `placeholder()` method creates a `BmffHash` assertion with a placeholder hash and default exclusions. After embedding the placeholder, call `update_hash_from_stream()` to read and hash the asset, then `sign_embeddable()` to produce a signed manifest of the same size as the placeholder for in-place patching.
 
 #### BmffHash flow
 
