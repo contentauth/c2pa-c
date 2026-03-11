@@ -73,9 +73,11 @@ flowchart TD
         DHHash --> DHSign["sign_embeddable()"]
     end
 
-    BHFalse --> BHHash["update_hash_from_stream()"]
+    BHFalse --> BHChoice{"Need fine-grained<br/>control over I/O?"}
     subgraph BHFlow ["BoxHash workflow"]
-        BHHash --> BHSign["sign_embeddable()"]
+        BHChoice -->|No| BHSign["sign()"]
+        BHChoice -->|Yes| BHHash["update_hash_from_stream()"]
+        BHHash --> BHSignEmb["sign_embeddable()"]
     end
 
     style Settings fill:#fff3cd
