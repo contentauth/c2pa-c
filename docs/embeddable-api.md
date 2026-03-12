@@ -33,12 +33,12 @@ The standard approach works for most use cases. The embeddable API exists for si
 
 ### Hard-binding modes
 
-The embeddable API supports three hard-binding strategies, selected automatically based on format and settings:
+The embeddable API supports these hard-binding strategies, selected automatically based on the asset format. Both strategies require a placeholder.
 
-| Mode | Assertion | Formats | Requires placeholder | When selected |
-|------|-----------|---------|----------------------|---------------|
-| [DataHash](#using-the-datahash-placeholder) | `DataHash` | JPEG, PNG, GIF, WebP, and others | Yes | `prefer_box_hash` is `false` (the default) |
-| [BmffHash](#using-the-bmffhash-placeholder) | `BmffHash` | MP4, video (BMFF containers), AVIF, HEIF/HEIC | Yes | Always (BMFF formats ignore `prefer_box_hash`) |
+| Mode | Assertion | Formats | 
+|------|-----------|---------|
+| [DataHash](#using-the-datahash-placeholder) | `DataHash` | JPEG, PNG, GIF, WebP, and others | 
+| [BmffHash](#using-the-bmffhash-placeholder) | `BmffHash` | MP4, video (BMFF containers), AVIF, HEIF/HEIC | 
 
 <!-- 
 | [BoxHash](#using-boxhash-directly) | `BoxHash` | JPEG, PNG, GIF, WebP, and others | No | `prefer_box_hash` is `true` |
@@ -49,7 +49,11 @@ Call `needs_placeholder()` on the `Builder` to decide which workflow to follow. 
 > [!NOTE]
 > The same format can require a placeholder or not, depending on the hashing strategy. For example, `needs_placeholder("image/jpeg")` returns `true` by default (DataHash). <!-- but returns `false` when `prefer_box_hash` is enabled (BoxHash).--> Always call `needs_placeholder()` rather than assuming based on format alone.
 
-Use the following decision tree to select the correct workflow. For non-BMFF formats, the `prefer_box_hash` setting determines whether a placeholder is needed:
+Use the following decision tree to select the correct workflow. 
+
+<!-- 
+For non-BMFF formats, the `prefer_box_hash` setting determines whether a placeholder is needed:
+-->
 
 ```mermaid
 flowchart TD
@@ -81,6 +85,7 @@ When `needs_placeholder()` returns `false`, the standard `Builder::sign()` flow 
 - The application needs to receive the raw signed manifest bytes and decide where and how to append them as a new chunk, rather than letting the SDK write to a destination path.
 - The asset is being produced incrementally, so the application can pass the stream to `update_hash_from_stream()` at the right moment, then call `sign_embeddable()` to get the manifest without a second full read.
 
+<!-- 
 The `prefer_box_hash` setting can be provided in a JSON settings file:
 
 ```json
@@ -103,6 +108,8 @@ auto context = c2pa::Context::ContextBuilder()
     })")
     .create_context();
 ```
+
+-->
 
 ### Placeholder sizing
 
@@ -184,7 +191,7 @@ These methods perform the signing workflow: placeholder creation, hashing, and s
 
 ## Using the DataHash placeholder
 
-Use this workflow for JPEG, PNG, and other non-BMFF formats when `prefer_box_hash` is disabled (the default). 
+Use this workflow for JPEG, PNG, and other non-BMFF formats. 
 
 <!-- If `prefer_box_hash` is enabled, these formats use BoxHash instead and do not require a placeholder — see [Using BoxHash directly](#using-boxhash-directly).
 
