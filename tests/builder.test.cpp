@@ -4951,5 +4951,5 @@ TEST_F(BuilderTest, CreateIntentViaContext)
             }
         }
     }
-    ASSERT_TRUE(found_created) << "Expected c2pa.created action in manifest";
+    ASSERT_TRUE(found_created) << "Expected c2pa.created action in active manifest";
 }
