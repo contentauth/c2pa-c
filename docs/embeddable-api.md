@@ -381,6 +381,8 @@ patched.close();
 ```
 
 <!--
+NOTE: Mermaid diagrams modified to allow commenting out these sections
+
 h2. Using BoxHash directly
 
 BoxHash is usually used with the standard `Builder::sign()` flow. Enable `prefer_box_hash` in settings, call `sign()`, and the SDK handles hashing, signing, and embedding automatically. No placeholder, no manual hashing, no patching. The embeddable API is also available with BoxHash for applications that need explicit control over the process (see [Using the embeddable API with BoxHash](#using-the-embeddable-api-with-boxhash) below).
@@ -435,13 +437,13 @@ If the application controls its own I/O pipeline, it can use the embeddable API 
 
 h4. BoxHash embeddable flow
 
-```mermaid
+``` (mermaid)
 flowchart TD
-    A[Create Context with Signer + prefer_box_hash] --> B[Create Builder]
-    B --> C{"Builder.needs_placeholder(format)?"}
-    C -->|No| D["Builder.update_hash_from_stream(format, source_stream)"]
-    D --> E["Builder.sign_embeddable(format)"]
-    E --> F[Append manifest bytes as new chunk in asset]
+    A[Create Context with Signer + prefer_box_hash] -arrow-> B[Create Builder]
+    B -arrow-> C{"Builder.needs_placeholder(format)?"}
+    C -arrow->|No| D["Builder.update_hash_from_stream(format, source_stream)"]
+    D -arrow-> E["Builder.sign_embeddable(format)"]
+    E -arrow-> F[Append manifest bytes as new chunk in asset]
 
     style A fill:#e1f5fe
     style E fill:#c8e6c9
@@ -450,12 +452,12 @@ flowchart TD
 
 h4. BoxHash embeddable state transitions
 
-```mermaid
+``` (mermaid)
 stateDiagram-v2
-    [*] --> Initialized : Builder(context, manifest_json)
-    Initialized --> Hashed : update_hash_from_stream(format, stream)
-    Hashed --> Signed : sign_embeddable(format)
-    Signed --> [*]
+    [*] -arrow-> Initialized : Builder(context, manifest_json)
+    Initialized -arrow-> Hashed : update_hash_from_stream(format, stream)
+    Hashed -arrow-> Signed : sign_embeddable(format)
+    Signed -arrow-> [*]
 
     note right of Initialized
         No placeholder step needed.
