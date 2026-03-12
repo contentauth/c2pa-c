@@ -2968,7 +2968,7 @@ TEST_F(BuilderTest, ArchiveRoundTripSettingsBehavior)
         << "Archive round-trip (default context on Builder) should generate thumbnail with default settings";
 }
 
-TEST_F(BuilderTest, ArchiveRoundTripSettingsBehaviorRestoredCOntext)
+TEST_F(BuilderTest, ArchiveRoundTripSettingsBehaviorRestoredContext)
 {
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
 
