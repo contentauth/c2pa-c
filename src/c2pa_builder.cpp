@@ -169,6 +169,15 @@ namespace c2pa
         }
     }
 
+    void Builder::set_intent(C2paBuilderIntent intent, C2paDigitalSourceType digital_source_type)
+    {
+        int result = c2pa_builder_set_intent(builder, intent, digital_source_type);
+        if (result < 0)
+        {
+            throw C2paException();
+        }
+    }
+
     std::vector<unsigned char> Builder::sign(const std::string &format, std::istream &source, std::ostream &dest, Signer &signer)
     {
         // Caller's source/dest streams must outlive this call

@@ -61,7 +61,7 @@ c2pa::Reader reader(context, "image.jpg");
 
 > [!NOTE]
 > The deprecated `c2pa::load_settings(data, format)` still works but you should migrate to `Context`. **Never mix the two approaches**. 
-> See [Migrating from thread-local Settings](#migrating-from-thread-local-settings).
+> See [Migrating from deprecated APIS](#migrating-from-deprecated-apis).
 
 ### Context lifecycle
 
@@ -753,9 +753,23 @@ c2pa::Context context(R"({
 })");
 ```
 
-## Migrating from thread-local Settings
+## Migrating from deprecated APIs
 
-The legacy function `c2pa::load_settings(data, format)` sets thread-local settings. This function is deprecated; use `Context` instead.
+The SDK introduced Context-based APIs to replace constructors and functions that relied on thread-local state. The older APIs still compile but produce deprecation warnings. This section covers each deprecation that involves passing a `Context`, and explains the `Builder::sign` overloads.
+
+### Quick reference
+
+| Deprecated API | Replacement |
+|---|---|
+| `load_settings(data, format)` | [`Context` constructors or `ContextBuilder`](#replacing-load_settings) |
+| `Reader(format, stream)` | [`Reader(context, format, stream)`](#adding-a-context-parameter-to-reader-and-builder) |
+| `Reader(source_path)` | [`Reader(context, source_path)`](#adding-a-context-parameter-to-reader-and-builder) |
+| `Builder(manifest_json)` | [`Builder(context, manifest_json)`](#adding-a-context-parameter-to-reader-and-builder) |
+| `Builder::sign(..., ostream, ...)` | [`Builder::sign(..., iostream, ...)`](#using-iostream-instead-of-ostream-in-buildersign) |
+
+### Replacing load_settings
+
+`c2pa::load_settings(data, format)` sets thread-local settings that `Reader` and `Builder` pick up implicitly. Replace it with a `Context` that you pass explicitly.
 
 | Aspect | load_settings (legacy) | Context |
 |--------|------------------------|---------|
@@ -763,22 +777,114 @@ The legacy function `c2pa::load_settings(data, format)` sets thread-local settin
 | Multiple configs | Awkward (per-thread) | One context per configuration |
 | Testing | Shared global state | Isolated contexts per test |
 
-**Deprecated approach:**
+**Deprecated:** 
 
 ```cpp
-// Thread-local settings
 std::ifstream config_file("settings.json");
 std::string config((std::istreambuf_iterator<char>(config_file)), std::istreambuf_iterator<char>());
 c2pa::load_settings(config, "json");
 c2pa::Reader reader("image/jpeg", stream);  // uses thread-local settings
 ```
 
-**Current approach:**
+**With context API:**
 
 ```cpp
-c2pa::Context context(settings_json_string);
+c2pa::Context context(settings_json_string);  // or Context(Settings(...))
 c2pa::Reader reader(context, "image/jpeg", stream);
 ```
 
-If you still use `load_settings`, construct `Reader` or `Builder` without a context to use the thread-local settings. Prefer passing a context for new code.
+If you still use `load_settings`, construct `Reader` or `Builder` **without** a context parameter to continue using the thread-local settings. Prefer passing a context for new code.
 
+### Adding a context parameter to Reader and Builder
+
+The following constructors are deprecated because they rely on thread-local settings:
+
+- `Reader(const std::string& format, std::istream& stream)`
+- `Reader(const std::filesystem::path& source_path)`
+- `Builder(const std::string& manifest_json)`
+
+The migration path for each is to create a `Context` and pass it as the first argument.
+
+**Deprecated:**
+
+```cpp
+c2pa::Reader reader("image/jpeg", stream);
+c2pa::Reader reader("image.jpg");
+c2pa::Builder builder(manifest_json);
+```
+
+**With context API:**
+
+```cpp
+c2pa::Context context;  // or Context(settings) or Context(json_string)
+c2pa::Reader reader(context, "image/jpeg", stream);
+c2pa::Reader reader(context, "image.jpg");
+c2pa::Builder builder(context, manifest_json);
+```
+
+If you need default SDK behavior and have no custom settings, `c2pa::Context context;` with no arguments is sufficient.
+
+#### About IContextProvider
+
+The deprecation warnings reference `IContextProvider` in their suggested fix (e.g., "Use Reader(IContextProvider& context, ...)"). `IContextProvider` is the interface that `Reader` and `Builder` constructors accept. `Context` is the SDK's built-in implementation of this interface.
+
+When the deprecation warning says "Use Reader(IContextProvider& context, ...)", passing a `Context` object satisfies that parameter.
+
+External libraries can also implement `IContextProvider` to provide their own context objects (for example, wrapping a platform-specific configuration system). The interface is minimal: any class that can produce a valid `C2paContext*` pointer and report its validity can serve as a context provider. This becomes relevant when building integrations that need to manage context lifetime or initialization differently than the SDK's `Context` class does.
+
+### Builder::sign overloads
+
+`Builder::sign` has two kinds of overloads: those that take an explicit `Signer` argument, and those that use the signer stored in the `Builder`'s `Context`.
+
+#### Signing with an explicit Signer
+
+Pass a `Signer` directly when you create signers at runtime or use different signers for different signing operations:
+
+```cpp
+c2pa::Signer signer("es256", certs, key, tsa_url);
+
+// Stream-based (preferred)
+std::fstream dest("output.jpg", std::ios::in | std::ios::out | std::ios::binary);
+builder.sign("image/jpeg", source, dest, signer);
+
+// File-based
+builder.sign("source.jpg", "output.jpg", signer);
+```
+
+#### Signing with the Context's signer
+
+If a signer is configured in the `Context` (through settings JSON or `ContextBuilder::with_signer()`), you can call `sign` without a `Signer` argument. The context's signer is used automatically. If both a programmatic signer (via `with_signer()`) and a settings-based signer exist, the programmatic signer takes priority.
+
+```cpp
+c2pa::Signer signer("es256", certs, key, tsa_url);
+
+auto context = c2pa::Context::ContextBuilder()
+    .with_json(settings_json)
+    .with_signer(std::move(signer))  // signer is consumed here
+    .create_context();
+
+c2pa::Builder builder(context, manifest_json);
+
+// Stream-based (preferred)
+std::fstream dest("output.jpg", std::ios::in | std::ios::out | std::ios::binary);
+builder.sign("image/jpeg", source, dest);
+
+// File-based
+builder.sign("source.jpg", "output.jpg");
+```
+
+This is useful when you want to configure signing once and reuse the same context across multiple builders without passing the signer to each `sign` call.
+
+**Deprecated:**
+
+```cpp
+std::ofstream out("output.jpg", std::ios::binary);
+builder.sign("image/jpeg", source, out, signer);
+```
+
+**With context API:**
+
+```cpp
+std::fstream dest("output.jpg", std::ios::in | std::ios::out | std::ios::binary);
+builder.sign("image/jpeg", source, dest, signer);
+```
