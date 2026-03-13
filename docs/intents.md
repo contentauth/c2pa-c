@@ -1,19 +1,18 @@
 # Using Builder intents
 
-Intents enable validation, add required actions to be spec-compliant, and help prevent invalid operations when using a `Builder`. Intents are about the operation (create, edit, update) executed on the source asset.
+_Intents_ enable validation, add required actions that are required by the C2PA specification, and help prevent invalid operations when using a `Builder`. Intents are about the operation (create, edit, update) executed on the source asset.
 
 ## Why use intents?
 
-Without intents, the caller must manually construct the correct manifest structure: adding the required actions (`c2pa.created` or `c2pa.opened` as the first action per the specification), setting digital source types, managing ingredients, and linking actions to ingredients. Getting any of this wrong produces a non-compliant manifest.
+Without intents, you have to manually construct the correct manifest structure: adding the required actions (`c2pa.created` or `c2pa.opened` as the first action per the specification), setting digital source types, managing ingredients, and linking actions to ingredients. Getting any of this wrong produces a non-compliant manifest.
 
-With intents, the caller declares *what is being done* and the Builder handles the rest:
+With intents, the caller declares *what is being done* and `Builder` handles the rest.
+
+For example, without intents you have to manually wire up actions and make sure ingredients are properly linked to actions. This is especially important for `parentOf` ingredient relationships with the `c2pa.opened` action.
 
 ```cpp
 #include "c2pa.hpp"
 
-// Without intents: manually wire up actions and make sure ingredients are properly
-// linked to actions. This is especially important for parentOf ingredient
-// relationships with the c2pa.opened action.
 c2pa::Context context;
 c2pa::Builder builder(context, R"({
     "assertions": [
@@ -31,23 +30,32 @@ c2pa::Builder builder(context, R"({
     ]
 })");
 builder.sign(source_path, output_path, signer);
+```
 
-// With intents: the Builder generates the actions automatically
+But with intents, `Builder` generates the actions automatically; for example:
+
+```cpp
+#include "c2pa.hpp"
+
 c2pa::Context context;
 c2pa::Builder builder(context, R"({})");
 builder.set_intent(Create, TrainedAlgorithmicMedia);
 builder.sign(source_path, output_path, signer);
 ```
 
-Both produce the same signed manifest. With intents, the Builder validates the setup and fills in the spec-required structure.
+Both of these code snippets produce the same signed manifest. But with intents, `Builder` validates the setup and fills in the required structure.
 
 ## Setting the intent
 
-There are three ways to set the intent on a `Builder` instance.
+There are three ways to set the intent on a `Builder` instance:
+
+- [Using Context](#using-context)
+- [Using `set_intent` on the `Builder`](#using-set_intent-on-builder)
+- Using `load_settings` with `builder.intent` (deprecated)
 
 ### Using Context
 
-Pass the intent through a `Context` object when creating the `Builder`. This keeps intent configuration alongside other builder settings such as `claim_generator_info` and `thumbnail`.
+Pass the intent through a `Context` object when creating a `Builder`. This keeps intent configuration alongside other builder settings such as `claim_generator_info` and `thumbnail`.
 
 ```cpp
 c2pa::Context context(R"({
@@ -62,7 +70,7 @@ c2pa::Builder builder(context, R"({})");
 builder.sign(source_path, output_path, signer);
 ```
 
-The same `Context` can be reused across multiple `Builder` instances, ensuring consistent configuration:
+You can reuse the same `Context` across multiple `Builder` instances, ensuring consistent configuration:
 
 ```cpp
 c2pa::Context context(R"({
@@ -79,9 +87,9 @@ for (const auto& path : image_paths) {
 }
 ```
 
-### Using `set_intent` on the Builder
+### Using `set_intent` on Builder
 
-Call `set_intent` directly on a `Builder` instance. This is useful for one-off operations or when the intent needs to be determined at runtime:
+Call `set_intent` directly on a `Builder` instance for one-off operations or when the intent is determined at runtime. For example:
 
 ```cpp
 c2pa::Context context;
@@ -90,9 +98,10 @@ builder.set_intent(Create, TrainedAlgorithmicMedia);
 builder.sign(source_path, output_path, signer);
 ```
 
-### Intent setting precedence
+### Intent precedence
 
-When an intent is configured in multiple places, the most specific setting wins:
+When an intent is configured in multiple places, the most specific setting takes precedence.
+If `set_intent` is called on a `Builder` instance, it takes precedence over all other sources.
 
 ```mermaid
 flowchart TD
@@ -110,8 +119,6 @@ flowchart TD
     Caller must define actions
     manually in manifest JSON."]
 ```
-
-If a `set_intent` call is present on the Builder, it takes precedence over all other sources.
 
 ## How intents relate to the source stream
 
@@ -154,11 +161,11 @@ flowchart LR
     end
 ```
 
-For **EDIT** and **UPDATE**, the Builder looks at the source stream, and if no `parentOf` ingredient has been added manually, it automatically creates one from that stream (and adds the needed action). The source stream *becomes* the parent ingredient. If a `parentOf` ingredient has already been added manually (via `add_ingredient`), the Builder uses that one instead and does not auto-create one from the source.
+For `Edit` and `Update` intents, `Builder` looks at the source stream, and if no `parentOf` ingredient has been added manually, it automatically creates one from that stream (and adds the needed action). The source stream *becomes* the parent ingredient. If a `parentOf` ingredient has already been added manually (via `add_ingredient`), `Builder` uses that one instead and does not automatically create one from the source.
 
 ### How intent relates to `add_ingredient`
 
-The (Builder) intent controls what the Builder does with the source stream (source asset) at sign time. The `add_ingredient` method adds other ingredients explicitly. These are separate concerns.
+The `Builder` intent controls what the Builder does with the source stream (source asset) at sign time. The `add_ingredient` method adds other ingredients explicitly. These are separate concerns.
 
 ```mermaid
 flowchart TD
@@ -189,23 +196,65 @@ flowchart TD
 
 ## Including the header
 
-The `C2paBuilderIntent` and `C2paDigitalSourceType` enums are available through the C header included by `c2pa.hpp`:
+The `C2paBuilderIntent` and `C2paDigitalSourceType` enums are available through the `c2pa.hpp` header file:
 
 ```cpp
 #include "c2pa.hpp"
-
-// Enum values are in the global namespace:
-//   C2paBuilderIntent:   Create, Edit, Update
-//   C2paDigitalSourceType: Empty, DigitalCapture, TrainedAlgorithmicMedia, ...
 ```
 
-## Intent types
+Enum values are in the global namespace:
+- `C2paBuilderIntent`: Create, Edit, or Update
+- `C2paDigitalSourceType`: Empty, DigitalCapture, TrainedAlgorithmicMedia, and so on...
 
-| Intent   | Operation                 | Parent ingredient                                     | Auto-generated action            |
-|----------|---------------------------|-------------------------------------------------------|----------------------------------|
-| `Create` | Brand-new content         | Must NOT have one                                     | `c2pa.created`                   |
-| `Edit`   | Modifying existing content| Auto-created from the source stream if not provided   | `c2pa.opened` (linked to parent) |
-| `Update` | Metadata-only changes     | Auto-created from the source stream if not provided   | `c2pa.opened` (linked to parent) |
+### Using `set_intent`
+
+Use the `Builder` [`set_intent`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#ac3ca980a43f44c9349ac0d6de50a088c) method to specify the intent:
+
+```cpp
+void Builder::set_intent(
+    C2paBuilderIntent intent,
+    C2paDigitalSourceType digital_source_type = Empty
+);
+```
+
+Where:
+- `intent` is one of the [intent types](#intent-types).
+- `digital_source_type` is one of the [`C2paDigitalSourceType` values](#c2padigitalsourcetype) values that describes how the asset was made.  Required for the `Create` intent.  Defaults to `Empty`. 
+
+
+### Intent types
+
+Intent types can be any `C2paBuilderIntent` values: 
+
+| Intent   | Operation | Parent ingredient  | Auto-generated action  |
+|----------|-----------|--------------------|------------------------|
+| `Create` | Brand-new content | Must NOT have one. | `c2pa.created` |
+| `Edit`   | Modifying existing content| Automatically created from the source stream if not provided   | `c2pa.opened` (linked to parent) |
+| `Update` | Metadata-only changes | Automatically created from the source stream if not provided.  | `c2pa.opened` (linked to parent) |
+
+### C2paDigitalSourceType
+
+| Enum value | Description |
+| --- | --- |
+| `Empty` | No source type specified. The default value. |
+| `DigitalCapture` | Captured from a real-world source using a digital device |
+| `TrainedAlgorithmicMedia` | Created by a trained algorithm (e.g., generative AI) |
+| `DigitalCreation` | Created digitally (e.g., drawing software) |
+| `CompositeWithTrainedAlgorithmicMedia` | Composite that includes trained algorithmic media |
+| `AlgorithmicallyEnhanced` | Enhanced by an algorithm |
+| `ScreenCapture` | Captured from a screen |
+| `VirtualRecording` | Recorded from a virtual environment |
+| `Composite` | Composed from multiple sources |
+| `CompositeCapture` | Composite of captured sources |
+| `CompositeSynthetic` | Composite of synthetic sources |
+| `DataDrivenMedia` | Generated from data |
+| `AlgorithmicMedia` | Created by an algorithm |
+| `HumanEdits` | Human-edited content |
+| `ComputationalCapture` | Captured with computational processing |
+| `NegativeFilm` | Scanned from negative film |
+| `PositiveFilm` | Scanned from positive film |
+| `Print` | Scanned from a print |
+| `TrainedAlgorithmicData` | Data created by a trained algorithm |
 
 ## Choosing the right intent
 
@@ -225,9 +274,9 @@ flowchart TD
     directly in manifest JSON."]
 ```
 
-## CREATE intent
+## Create intent
 
-Use `Create` when the asset has no prior history. A `C2paDigitalSourceType` is required to describe how the asset was produced. The Builder will:
+Use the `Create` intent when the asset has no prior history. A `C2paDigitalSourceType` is required to describe how the asset was produced.  `Builder` will:
 
 - Add a `c2pa.created` action with the specified digital source type.
 - Reject the operation if a `parentOf` ingredient exists.
@@ -267,9 +316,9 @@ c2pa::Builder builder(context, R"({})");
 builder.sign(source_path, output_path, signer);
 ```
 
-### Example: CREATE with additional manifest metadata
+### Example: Create with additional manifest metadata
 
-A `Context` and a manifest definition can be combined. The context handles the intent; the manifest definition provides additional metadata and assertions:
+A `Context` and a manifest definition can be combined. The `Context` handles the intent; the manifest definition provides additional metadata and assertions:
 
 ```cpp
 c2pa::Context context(R"({
@@ -299,12 +348,12 @@ c2pa::Builder builder(context, manifest_def);
 builder.sign(source_path, output_path, signer);
 ```
 
-## EDIT intent
+## Edit intent
 
-Use `Edit` when modifying an existing asset. The Builder will:
+Use the `Edit` intent when an existing asset is modified. With this intent, `Builder`:
 
-1. Check if a `parentOf` ingredient has already been added. If not, it automatically creates one from the source stream passed to `sign()`.
-2. Add a `c2pa.opened` action linked to the parent ingredient.
+1. Checks if a `parentOf` ingredient has already been added. If not, it automatically creates one from the source stream passed to `sign()`.
+2. Adds a `c2pa.opened` action linked to the parent ingredient.
 
 No `digital_source_type` parameter is needed.
 
@@ -403,15 +452,15 @@ builder.add_ingredient(
 builder.sign("original.jpg", "composite.jpg", signer);
 ```
 
-## UPDATE intent
+## Update intent
 
-Use `Update` for metadata-only changes where the asset content itself is not modified. This is a restricted form of `Edit`:
+Use the `Update` intent for metadata-only changes where the asset content itself is not modified. This is a restricted form of the `Edit` intent that:
 
-- Allows exactly one ingredient (only the parent).
+- Allows exactly one ingredient (the parent).
 - Does not allow changes to the parent's hashed content.
 - Produces a more compact manifest than `Edit`.
 
-As with `Edit`, the Builder auto-creates a parent ingredient from the source stream if one is not provided.
+As with `Edit` intent, `Builder` automatically creates a parent ingredient from the source stream if one is not provided.
 
 ### Example: Adding metadata to a signed asset
 
@@ -436,54 +485,3 @@ builder.set_intent(Update);
 builder.sign("signed_asset.jpg", "updated_asset.jpg", signer);
 ```
 
-## Intent values in settings
-
-When configuring settings, the intent is specified as a string or object in the `builder.intent` field:
-
-| Intent | Settings value | With digital source type |
-| --- | --- | --- |
-| Create | `{"Create": "<sourceType>"}` | Required. E.g., `{"Create": "digitalCapture"}` |
-| Edit   | `"edit"` | Not applicable |
-| Update | `"update"` | Not applicable |
-
-## API reference
-
-### `Builder::set_intent`
-
-```cpp
-void Builder::set_intent(
-    C2paBuilderIntent intent,
-    C2paDigitalSourceType digital_source_type = Empty
-);
-```
-
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `intent` | `C2paBuilderIntent` | The intent: `Create`, `Edit`, or `Update`. |
-| `digital_source_type` | `C2paDigitalSourceType` | Required for `Create`. Describes how the asset was made. Defaults to `Empty`. |
-
-Throws `C2paException` if the intent cannot be set.
-
-### `C2paDigitalSourceType` enum values
-
-| Enum value | Description |
-| --- | --- |
-| `Empty` | No source type specified |
-| `DigitalCapture` | Captured from a real-world source using a digital device |
-| `TrainedAlgorithmicMedia` | Created by a trained algorithm (e.g., generative AI) |
-| `DigitalCreation` | Created digitally (e.g., drawing software) |
-| `CompositeWithTrainedAlgorithmicMedia` | Composite that includes trained algorithmic media |
-| `AlgorithmicallyEnhanced` | Enhanced by an algorithm |
-| `ScreenCapture` | Captured from a screen |
-| `VirtualRecording` | Recorded from a virtual environment |
-| `Composite` | Composed from multiple sources |
-| `CompositeCapture` | Composite of captured sources |
-| `CompositeSynthetic` | Composite of synthetic sources |
-| `DataDrivenMedia` | Generated from data |
-| `AlgorithmicMedia` | Created by an algorithm |
-| `HumanEdits` | Human-edited content |
-| `ComputationalCapture` | Captured with computational processing |
-| `NegativeFilm` | Scanned from negative film |
-| `PositiveFilm` | Scanned from positive film |
-| `Print` | Scanned from a print |
-| `TrainedAlgorithmicData` | Data created by a trained algorithm |
