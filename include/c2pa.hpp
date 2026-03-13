@@ -1040,8 +1040,8 @@ namespace c2pa
 
         /// @brief Create a composed placeholder manifest to embed in the asset.
         /// @details The signer (and its reserve size) are obtained from the Builder's Context.
-        ///          For BMFF assets, if core.merkle_tree_chunk_size_in_kb is set in the context
-        ///          settings, the placeholder will include pre-allocated Merkle map slots.
+        ///          For BMFF assets, the placeholder includes a BmffHash assertion with
+        ///          default exclusions for the manifest UUID box.
         ///          Returns empty bytes for formats that do not need a placeholder (BoxHash).
         ///          The placeholder size is stored internally so sign_embeddable() returns bytes
         ///          of exactly the same size, enabling in-place patching.
