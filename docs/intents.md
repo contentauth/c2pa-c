@@ -47,11 +47,12 @@ Both of these code snippets produce the same signed manifest. But with intents, 
 
 ## Setting the intent
 
-There are three ways to set the intent on a `Builder` instance:
+YOu can set the intent on a `Builder` instance by:
 
 - [Using Context](#using-context)
 - [Using `set_intent` on the `Builder`](#using-set_intent-on-builder)
-- Using `load_settings` with `builder.intent` (deprecated)
+
+Don't set intent using the a deprecated `load_settings()` function. For existing code, see [Context and Settings - Migrating from deprecated APIs](context-settings.md#migrating-from-deprecated-apis).
 
 ### Using Context
 
