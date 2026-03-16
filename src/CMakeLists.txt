@@ -80,7 +80,7 @@ if(C2PA_BUILD_FROM_SOURCE)
     # Build the Rust c2pa_c_ffi library
     add_custom_command(
         OUTPUT "${C2PA_RUST_BUILD_DIR}/${C2PA_LIB_NAME}"
-        COMMAND ${CARGO_EXECUTABLE} build --release --package c2pa-c-ffi --no-default-features --features "rust_native_crypto, file_io"
+        COMMAND ${CARGO_EXECUTABLE} build --release --package c2pa-c-ffi --no-default-features --features "rust_native_crypto, file_io, http, add_thumbnails"
         COMMAND ${CMAKE_COMMAND} -E copy
             "${C2PA_RS_PATH}/target/release/${C2PA_LIB_NAME}"
             "${C2PA_RUST_BUILD_DIR}/${C2PA_LIB_NAME}"
