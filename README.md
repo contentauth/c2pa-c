@@ -15,6 +15,7 @@ If you want to view the documentation in GitHub, see:
 - [Using the C++ library](docs/usage.md)
 - [Supported formats](https://github.com/contentauth/c2pa-rs/blob/main/docs/supported-formats.md)
 - [Configuring the SDK using `Context` and `Settings`](docs/context-settings.md)
+- [Using Builder intents](docs/intents.md) to ensure spec-compliant manifests
 - Using [working stores and archvies](docs/working-stores.md)
 - Selectively constructing manifests by [filtering actions and ingredients](docs/selective-manifests.md)
 - Using the [embeddable API for low-level control over embedding manifests](docs/embeddable-api.md)

@@ -99,7 +99,7 @@ c2pa::Context context(settings);
 There are several ways to create a `Context`:
 - [Use SDK defaults](#use-sdk-defaults)
 - [Create from inline JSON](#create-from-inline-json)
-- [Create from a Settings objec](#create-from-a-settings-object)
+- [Create from a Settings object](#create-from-a-settings-object)
 - [Create using ContextBuilder](#create-using-contextbuilder)
 
 ### Use SDK defaults
@@ -553,7 +553,7 @@ auto validation_result = reader.json();
 
 The [`builder` settings](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema/#buildersettings) control how the SDK creates and embeds C2PA manifests:
 
-- [Builder intent](#builder-intent) to to specify the purpose of the claim (for example create or edit).
+- [Builder intent](#builder-intent) to specify the purpose of the claim (for example create or edit).
 - [Claim generator information](#claim-generator-information) - Identifies your application in the manifest.
 - [Thumbnail settings](#thumbnail-settings)
 - Action tracking settings - See [ActionsSettings in the SDK object reference](https://opensource.contentauthenticity.org/docs/manifest/json-ref/settings-schema#actionssettings).
