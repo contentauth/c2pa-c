@@ -83,7 +83,7 @@ For full details see [Configuring the SDK with Context and Settings](context-set
 
 ### Creating a Context
 
-The `Context` class manages C2PA SDK configuration. There are two ways to create a context: direct construction and the ContextBuilder.
+The `Context` class manages C2PA SDK configuration. There are two ways to create a context: direct construction and using `ContextBuilder`.
 
 #### Direct construction
 
@@ -106,26 +106,9 @@ c2pa::Context context(R"({
 })");
 ```
 
-#### ContextBuilder
-
-The builder pattern is useful when you need to layer multiple configuration sources:
-
-```cpp
-c2pa::Settings settings;
-settings.set("builder.thumbnail.enabled", "true");
-
-auto context = c2pa::Context::ContextBuilder()
-    .with_settings(settings)
-    .with_json(R"({"verify": {"verify_after_sign": true}})")
-    .create_context();
-```
-
-> [!NOTE]
-> The ContextBuilder is consumed after calling `create_context()`. For single-source configuration, prefer direct construction.
-
 #### Using a Context
 
-Contexts are passed by reference to Builder and Reader constructors. The context is used only at construction; the implementation copies context state into the reader/builder, so the context does not need to outlive them.
+Contexts are passed by reference to `Builder` and `Reader` constructors. The context is used only at construction; the implementation copies context state into the reader/builder, so the context does not need to outlive them.
 
 ```cpp
 c2pa::Context context;
@@ -156,10 +139,9 @@ For example:
 
 ## Creating a Signer
 
-For testing you can create a signer using any supported algorithm by a Signer constructor. For the list of supported signing algorithms, see [Creating and using an X.509 certificate](https://opensource.contentauthenticity.org/docs/c2patool/x_509).
+For testing, you can create a signer using any supported algorithm by a `Signer` constructor. For the list of supported signing algorithms, see [Creating and using an X.509 certificate](https://opensource.contentauthenticity.org/docs/c2patool/x_509).
 
-There are multiple forms of constructors. But in this example we show how to create a signer with
-a public and private key.
+There are multiple constructor forms; this example shows how to create a signer with a public/private key pair.
 
 ```cpp
   Signer signer = Signer("<SIGNING_ALG>", "<PUBLIC_CERTS>",  "<PRIVATE_KEY>", "<TIMESTAMP_URL>");
@@ -177,7 +159,8 @@ For example:
 Signer signer = c2pa::Signer("Es256", certs, private_key, "http://timestamp.digicert.com");
 ```
 
-**WARNING**: Do not access a private key and certificate directly like this in production  because it's not secure. Instead use a hardware security module (HSM) and optionally a Key Management Service (KMS) to access the key; for example as show in the [C2PA Python Example](https://github.com/contentauth/c2pa-python-example).
+> [!WARNING]
+> Do not access a private key and certificate directly like this in production  because it's not secure. Instead use a hardware security module (HSM) and optionally a Key Management Service (KMS) to access the key; for example as shown in the [C2PA Python Example](https://github.com/contentauth/c2pa-python-example).
 
 ## Signing and embedding a manifest
 
@@ -207,9 +190,9 @@ The C++ library can validate [CAWG identity assertions](https://cawg.io/identity
 C2PA maintains two [trust lists](https://opensource.contentauthenticity.org/docs/conformance/trust-lists/)
 to verify the authenticity and integrity of Content Credentials attached to digital media: the C2PA trust list and the C2PA time-stamping authority (TSA) trust list. The C2PA trust list is a list of X.509 certificate trust anchors (either root or subordinate certification authorities) that issue certificates to conforming generator products under the C2PA Certificate Policy. The C2PA time-stamping authority (TSA) trust list is a list of X.509 certificate trust anchors (either root or subordinate certification authorities) that issue time-stamp signing certificates to TSAs.
 
-These trust lists need to be configured (loaded as settings) when using the SDK, using the Settings in the Context APIs. Using the Context API ensure proper propagation of settings (and trust) to Builder and Reader objects.
+Configure trust lists using the `Settings` and `Context` APIs. Using the `Context` API ensures proper propagation of settings (and trust) to `Builder` and `Reader` objects.
 
-Trust has an impact on manifest validation status, as a manifest for which a trust chain could be verified will be flagged as `Trusted`.
+Trust affects manifest validation status: a manifest whose trust chain was verified will be flagged as `Trusted`.
 
 ## More examples
 

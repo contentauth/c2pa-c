@@ -85,8 +85,9 @@ Use the `Reader` class to read manifest stores from signed assets.
 
 int main() {
     try {
+        c2pa::Context context;
         // Create a Reader from a signed asset file
-        auto reader = c2pa::Reader("signed_image.jpg");
+        auto reader = c2pa::Reader(context, "signed_image.jpg");
 
         // Get the manifest store as JSON
         std::string manifest_store_json = reader.json();
@@ -101,10 +102,10 @@ int main() {
 ```cpp
 #include <fstream>
 
+c2pa::Context context;
 std::ifstream file_stream("signed_image.jpg", std::ios::binary);
 if (file_stream.is_open()) {
-    // Create Reader from stream with MIME type
-    auto reader = c2pa::Reader("image/jpeg", file_stream);
+    auto reader = c2pa::Reader(context, "image/jpeg", file_stream);
     std::string manifest_json = reader.json();
     file_stream.close();
 }
@@ -218,19 +219,19 @@ std::string manifest_store_json = reader.json();  // This is the manifest store
 ### Creating a Builder (working store)
 
 ```cpp
-// Create with default context
-// manifest_json contains the starting manifest definition
-auto builder = c2pa::Builder(manifest_json);
+// Create with default settings
+c2pa::Context context;
+auto builder = c2pa::Builder(context, manifest_json);
 
-// Or with custom context
-c2pa::Context context(R"({
+// Or with custom settings
+c2pa::Context custom_context(R"({
   "builder": {
     "thumbnail": {
       "enabled": true
     }
   }
 })");
-auto builder = c2pa::Builder(context, manifest_json);
+auto builder = c2pa::Builder(custom_context, manifest_json);
 ```
 
 ### Creating a Signer
@@ -261,7 +262,8 @@ auto signer = c2pa::Signer(
 );
 ```
 
-**WARNING**: Never hard-code or directly access private keys in production. Use a Hardware Security Module (HSM) or Key Management Service (KMS).
+> [!WARNING]
+> Never hard-code or directly access private keys in production. Instead use a Hardware Security Module (HSM) or Key Management Service (KMS).
 
 Supported algorithms: Es256, Es384, Es512, Ps256, Ps384, Ps512, Ed25519. See [X.509 certificate documentation](https://opensource.contentauthenticity.org/docs/c2patool/x_509) for details.
 
@@ -339,7 +341,8 @@ int main() {
                                    "http://timestamp.digicert.com");
 
         // 4. Create working store (Builder) and sign
-        auto builder = c2pa::Builder(manifest_json);
+        c2pa::Context context;
+        auto builder = c2pa::Builder(context, manifest_json);
         builder.sign("source.jpg", "signed.jpg", signer);
 
         std::cout << "Asset signed - working store is now a manifest store" << std::endl;
@@ -419,7 +422,8 @@ When building a manifest, you add resources using identifiers. The SDK will refe
 **Pattern:**
 
 ```cpp
-auto builder = c2pa::Builder(manifest_json);
+c2pa::Context context;
+auto builder = c2pa::Builder(context, manifest_json);
 
 // Add resource with a simple identifier
 // The identifier must match what you reference in your manifest JSON
@@ -445,7 +449,8 @@ An ingredient archive is a serialized `Builder` with _exactly one_ ingredient.  
 When creating a manifest, add ingredients to preserve the provenance chain:
 
 ```cpp
-auto builder = c2pa::Builder(manifest_json);
+c2pa::Context context;
+auto builder = c2pa::Builder(context, manifest_json);
 
 // Define ingredient metadata
 const std::string ingredient_json = R"({
@@ -495,7 +500,7 @@ builder.add_ingredient(ingredient_json, "base_layer.png");
 
 ## Working with archives 
 
-A *archive* (C2PA archive) is a serialized working store (`Builder` object) saved to a file or stream.
+An *archive* (C2PA archive) is a serialized working store (`Builder` object) saved to a file or stream.
 
 Using archives provides these advantages:
 
@@ -585,7 +590,8 @@ void prepare_manifest() {
       "assertions": [ ... ]
     })";
 
-    auto builder = c2pa::Builder(manifest_json);
+    c2pa::Context context;
+    auto builder = c2pa::Builder(context, manifest_json);
     builder.add_resource("thumbnail", "thumb.jpg");
     builder.add_ingredient("{\"title\": \"Sketch\"}", "sketch.png");
 
@@ -635,7 +641,8 @@ assert(reader.is_embedded() == true);  // Manifest store is embedded
 Prevent embedding the manifest store in the asset:
 
 ```cpp
-auto builder = c2pa::Builder(manifest_json);
+c2pa::Context context;
+auto builder = c2pa::Builder(context, manifest_json);
 builder.set_no_embed();  // Don't embed the manifest store
 
 // Sign: manifest store is NOT embedded, manifest bytes are returned
