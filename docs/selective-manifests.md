@@ -748,11 +748,9 @@ if (ingredient.contains("thumbnail")) {
 
 #### Linking an archived ingredient to an action
 
-After reading the ingredient details from an ingredient archive, the ingredient can be added to a new `Builder` and linked to an action. The preferred approach is to assign a `label` in the `add_ingredient` call and use that label as the linking key in `ingredientIds`. If the archived ingredient carries an `instance_id`, you can use that instead.
+After reading the ingredient details from an ingredient archive, the ingredient can be added to a new `Builder` and linked to an action. You must assign a `label` in the `add_ingredient` call on the signing builder and use that label as the linking key in `ingredientIds`. Labels baked into the archive ingredient are not carried through, and `instance_id` does not work as a linking key for ingredient archives.
 
-Note that labels are only used as build-time linking keys. The SDK may reassign the actual label in the signed manifest. An `instance_id`, on the other hand, is preserved as-is through signing and can be read back unchanged from the final manifest.
-
-##### Using a label
+Note that labels are only used as build-time linking keys. The SDK may reassign the actual label in the signed manifest.
 
 Assign a `label` in the `add_ingredient` call and reference that same label in `ingredientIds`. This works whether or not the ingredient has an `instance_id`.
 
@@ -795,55 +793,6 @@ builder.add_ingredient(
         {"title", ingredient["title"]},
         {"relationship", "parentOf"},
         {"label", "archived-ingredient"}
-    }).dump(),
-    "application/c2pa",
-    archive_file);
-
-builder.sign(source_path, output_path, signer);
-```
-
-##### Using an `instance_id`
-
-If the ingredient archive carries an `instance_id` and you need a stable identifier that persists unchanged in the signed manifest, you can use the `instance_id` as the linking key in `ingredientIds` instead of a label.
-
-```cpp
-c2pa::Context context;
-
-// Read the ingredient archive and extract the instance_id
-std::ifstream archive_file("ingredient_archive.c2pa", std::ios::binary);
-c2pa::Reader reader(context, "application/c2pa", archive_file);
-auto parsed = json::parse(reader.json());
-std::string active = parsed["active_manifest"];
-auto& ingredient = parsed["manifests"][active]["ingredients"][0];
-std::string instance_id = ingredient["instance_id"];
-
-json manifest_json = {
-    {"claim_generator_info", json::array({{{"name", "an-application"}, {"version", "1.0"}}})},
-    {"assertions", json::array({
-        {
-            {"label", "c2pa.actions.v2"},
-            {"data", {
-                {"actions", json::array({
-                    {
-                        {"action", "c2pa.placed"},
-                        {"parameters", {
-                            {"ingredientIds", json::array({instance_id})}
-                        }}
-                    }
-                })}
-            }}
-        }
-    })}
-};
-
-c2pa::Builder builder(context, manifest_json.dump());
-
-archive_file.seekg(0);
-builder.add_ingredient(
-    json({
-        {"title", ingredient["title"]},
-        {"relationship", "componentOf"},
-        {"instance_id", instance_id}
     }).dump(),
     "application/c2pa",
     archive_file);
