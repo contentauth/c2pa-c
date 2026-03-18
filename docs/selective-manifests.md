@@ -523,7 +523,7 @@ When building an ingredient archive, you can set `instance_id` on the ingredient
 `instance_id` is only for identification and catalog lookups. It cannot be used as a linking key in `ingredientIds` when linking ingredient archives to actions — use `label` for that (see [Linking an archived ingredient to an action](#linking-an-archived-ingredient-to-an-action)).
 
 ```cpp
-// Set instance_id when adding the ingredient to the archive builder
+// Set instance_id when adding the ingredient to the archive builder.
 auto builder = c2pa::Builder(context, manifest_str);
 builder.add_ingredient(
     R"({
@@ -792,14 +792,14 @@ Assign a `label` in the `add_ingredient` call and reference that same label in `
 ```cpp
 c2pa::Context context;
 
-// Read the ingredient archive
+// Read the ingredient archive.
 std::ifstream archive_file("ingredient_archive.c2pa", std::ios::binary);
 c2pa::Reader reader(context, "application/c2pa", archive_file);
 auto parsed = json::parse(reader.json());
 std::string active = parsed["active_manifest"];
 auto& ingredient = parsed["manifests"][active]["ingredients"][0];
 
-// Use a caller-assigned label as the linking key
+// Use a caller-assigned label as the linking key.
 json manifest_json = {
     {"claim_generator_info", json::array({{{"name", "an-application"}, {"version", "1.0"}}})},
     {"assertions", json::array({
@@ -821,7 +821,7 @@ json manifest_json = {
 
 c2pa::Builder builder(context, manifest_json.dump());
 
-// The label on the ingredient JSON matches the entry in ingredientIds
+// The label on the ingredient JSON matches the entry in ingredientIds.
 archive_file.seekg(0);
 builder.add_ingredient(
     json({
@@ -1210,12 +1210,22 @@ auto manifest_bytes = builder.sign("image/jpeg", source, dest, signer);
 // The output asset has no embedded manifest
 ```
 
-Reading back:
+### Checking manifest location on a Reader
+
+After opening an asset with `Reader`, use `is_embedded()` to check whether the manifest is embedded in the asset or stored remotely. If the manifest is remote, `remote_url()` returns the URL it was fetched from (the URL set via `set_remote_url()` at signing time).
 
 ```cpp
 c2pa::Reader reader(context, "image/jpeg", dest);
-reader.is_embedded();    // false
-reader.remote_url();     // "<<URI/URL to remote storage of manifest bytes>>"
+
+if (reader.is_embedded()) {
+    std::cout << "Manifest is embedded in the asset." << std::endl;
+} else {
+    std::cout << "Manifest is not embedded." << std::endl;
+    auto url = reader.remote_url();
+    if (url.has_value()) {
+        std::cout << "Remote manifest URL: " << url.value() << std::endl;
+    }
+}
 ```
 
 ## Complete workflow diagram

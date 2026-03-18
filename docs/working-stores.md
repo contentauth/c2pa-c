@@ -484,7 +484,7 @@ To link an ingredient archive to an action via `ingredientIds`, you must use a `
 ```cpp
 c2pa::Context context;
 
-// Step 1: Create the ingredient archive
+// Step 1: Create the ingredient archive.
 auto manifest_str = read_file("training.json");
 auto archive_builder = c2pa::Builder(context, manifest_str);
 archive_builder.add_ingredient(
@@ -492,9 +492,9 @@ archive_builder.add_ingredient(
     "photo.jpg");
 archive_builder.to_archive("ingredient.c2pa");
 
-// Step 2: Build a manifest with an action that references the ingredient
+// Step 2: Build a manifest with an action that references the ingredient.
 auto manifest_json = R"({
-    "claim_generator_info": [{"name": "my-app", "version": "1.0"}],
+    "claim_generator_info": [{"name": "an-application", "version": "0.1.0"}],
     "assertions": [{
         "label": "c2pa.actions.v2",
         "data": {
@@ -525,7 +525,7 @@ If each ingredient has its own action (e.g., one `c2pa.opened` for the parent an
 
 ```cpp
 auto manifest_json = R"({
-    "claim_generator_info": [{"name": "my-app", "version": "1.0"}],
+    "claim_generator_info": [{"name": "an-application", "version": "0.1.0"}],
     "assertions": [{
         "label": "c2pa.actions.v2",
         "data": {
@@ -560,7 +560,7 @@ A single `c2pa.placed` action can also reference several `componentOf` ingredien
 
 ```cpp
 auto manifest_json = R"({
-    "claim_generator_info": [{"name": "my-app", "version": "1.0"}],
+    "claim_generator_info": [{"name": "an-application", "version": "0.1.0"}],
     "assertions": [{
         "label": "c2pa.actions.v2",
         "data": {
