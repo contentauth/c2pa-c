@@ -21,6 +21,15 @@
 
 namespace c2pa
 {
+    Builder::Builder(C2paBuilder *builder)
+        : builder(builder)
+    {
+        if (this->builder == nullptr)
+        {
+            throw C2paException("Invalid builder pointer");
+        }
+    }
+
     Builder::Builder(IContextProvider& context)
         : builder(nullptr)
     {
