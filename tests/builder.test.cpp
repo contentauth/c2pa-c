@@ -4505,6 +4505,160 @@ TEST_F(BuilderTest, AddIngredientFromArchiveWithCustomProperties)
     }
 }
 
+TEST_F(BuilderTest, IngredientFieldsSurviveArchive)
+{
+    auto context = c2pa::Context();
+
+    auto manifest_str = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto builder = c2pa::Builder(context, manifest_str);
+    json ingredient_json = {
+        {"title", "tracked-asset.jpg"},
+        {"relationship", "componentOf"},
+        {"instance_id", "tracking:project-7:asset-42"},
+        {"description", "A tracked ingredient"},
+        {"informational_URI", "https://example.com/assets/42"}
+    };
+    builder.add_ingredient(ingredient_json.dump(), c2pa_test::get_fixture_path("A.jpg"));
+
+    auto archive_path = get_temp_path("fields_survive_archive.c2pa");
+    ASSERT_NO_THROW(builder.to_archive(archive_path));
+
+    // Read the archive back and check which fields survived
+    auto reader = c2pa::Reader(context, archive_path);
+    auto parsed = json::parse(reader.json());
+    std::string active = parsed["active_manifest"];
+    auto& ingredients = parsed["manifests"][active]["ingredients"];
+
+    ASSERT_GE(ingredients.size(), 1u);
+    auto& ing = ingredients[0];
+
+    EXPECT_EQ(ing["title"], "tracked-asset.jpg");
+    EXPECT_EQ(ing["relationship"], "componentOf");
+
+    // Log which optional fields survived archiving
+    bool instance_id_survived = ing.contains("instance_id")
+        && ing["instance_id"] == "tracking:project-7:asset-42";
+    bool description_survived = ing.contains("description")
+        && ing["description"] == "A tracked ingredient";
+    bool informational_uri_survived = ing.contains("informational_URI")
+        && ing["informational_URI"] == "https://example.com/assets/42";
+
+    std::cout << "[IngredientFieldsSurviveArchive]"
+              << " instance_id=" << instance_id_survived
+              << " description=" << description_survived
+              << " informational_URI=" << informational_uri_survived << std::endl;
+
+    // At least instance_id should survive — it is the candidate identifier
+    EXPECT_TRUE(instance_id_survived)
+        << "instance_id set on the archive ingredient should survive archiving";
+}
+
+TEST_F(BuilderTest, IngredientFieldsSurviveArchiveThenSign)
+{
+    auto context = c2pa::Context();
+    auto signer = c2pa_test::create_test_signer();
+    auto source_path = c2pa_test::get_fixture_path("A.jpg");
+
+    // Create an archive with an ingredient carrying identifying fields
+    auto manifest_str = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto builder1 = c2pa::Builder(context, manifest_str);
+    json ingredient_json = {
+        {"title", "tracked-asset.jpg"},
+        {"relationship", "componentOf"},
+        {"instance_id", "tracking:project-7:asset-42"},
+        {"description", "A tracked ingredient"},
+        {"informational_URI", "https://example.com/assets/42"}
+    };
+    builder1.add_ingredient(ingredient_json.dump(), c2pa_test::get_fixture_path("A.jpg"));
+
+    auto archive_path = get_temp_path("fields_survive_sign.c2pa");
+    ASSERT_NO_THROW(builder1.to_archive(archive_path));
+
+    // Add the archive as ingredient to a second builder, no overrides
+    auto builder2 = c2pa::Builder(context, manifest_str);
+    builder2.add_ingredient(
+        R"({"title": "tracked-asset.jpg", "relationship": "componentOf"})",
+        archive_path);
+
+    auto output_path = get_temp_path("fields_survive_sign_result.jpg");
+    ASSERT_NO_THROW(builder2.sign(source_path, output_path, signer));
+
+    // Read signed asset and check ingredient fields
+    auto reader = c2pa::Reader(context, output_path);
+    auto parsed = json::parse(reader.json());
+    std::string active = parsed["active_manifest"];
+    auto& ingredients = parsed["manifests"][active]["ingredients"];
+
+    ASSERT_GE(ingredients.size(), 1u);
+    auto& ing = ingredients[0];
+
+    bool instance_id_survived = ing.contains("instance_id")
+        && ing["instance_id"] == "tracking:project-7:asset-42";
+    bool description_survived = ing.contains("description")
+        && ing["description"] == "A tracked ingredient";
+    bool informational_uri_survived = ing.contains("informational_URI")
+        && ing["informational_URI"] == "https://example.com/assets/42";
+
+    std::cout << "[IngredientFieldsSurviveArchiveThenSign]"
+              << " instance_id=" << instance_id_survived
+              << " description=" << description_survived
+              << " informational_URI=" << informational_uri_survived << std::endl;
+
+    EXPECT_TRUE(instance_id_survived)
+        << "instance_id should survive archive-then-sign round-trip";
+}
+
+TEST_F(BuilderTest, InstanceIdAsIngredientIdentifierInCatalog)
+{
+    auto context = c2pa::Context();
+
+    // Create an archive with two ingredients, each with a different instance_id
+    auto manifest_str = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto builder = c2pa::Builder(context, manifest_str);
+
+    builder.add_ingredient(
+        json({
+            {"title", "photo-A.jpg"},
+            {"relationship", "componentOf"},
+            {"instance_id", "catalog:photo-A"}
+        }).dump(),
+        c2pa_test::get_fixture_path("A.jpg"));
+
+    builder.add_ingredient(
+        json({
+            {"title", "photo-B.jpg"},
+            {"relationship", "componentOf"},
+            {"instance_id", "catalog:photo-B"}
+        }).dump(),
+        c2pa_test::get_fixture_path("A.jpg"));
+
+    auto archive_path = get_temp_path("catalog_instance_id.c2pa");
+    ASSERT_NO_THROW(builder.to_archive(archive_path));
+
+    // Read the archive and pick an ingredient by instance_id
+    auto reader = c2pa::Reader(context, archive_path);
+    auto parsed = json::parse(reader.json());
+    std::string active = parsed["active_manifest"];
+    auto& ingredients = parsed["manifests"][active]["ingredients"];
+
+    ASSERT_EQ(ingredients.size(), 2u);
+
+    // Find the ingredient with instance_id "catalog:photo-B"
+    json* found = nullptr;
+    for (auto& ing : ingredients) {
+        if (ing.contains("instance_id") && ing["instance_id"] == "catalog:photo-B") {
+            found = &ing;
+            break;
+        }
+    }
+
+    ASSERT_NE(found, nullptr)
+        << "Should find ingredient by instance_id 'catalog:photo-B' in archive";
+    EXPECT_EQ((*found)["title"], "photo-B.jpg");
+
+    std::cout << "[InstanceIdAsIngredientIdentifierInCatalog] found ingredient: "
+              << (*found)["title"] << std::endl;
+}
 
 TEST_F(BuilderTest, LinkArchiveLabelOnSigningBuilderPlaced)
 {

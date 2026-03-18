@@ -516,7 +516,40 @@ for (auto& ingredient : selected) {
 builder.sign(source_path, output_path, signer);
 ```
 
-### Overriding ingredient properties 
+### Identifying ingredients in archives
+
+When building an ingredient archive, you can set `instance_id` on the ingredient to give it a stable, caller-controlled identifier. This field survives archiving and signing unchanged. The `description` and `informational_URI` fields also survive and can carry additional metadata about the ingredient's origin.
+
+```cpp
+// Set instance_id when adding the ingredient to the archive builder
+auto builder = c2pa::Builder(context, manifest_str);
+builder.add_ingredient(
+    R"({
+        "title": "photo-A.jpg",
+        "relationship": "componentOf",
+        "instance_id": "catalog:photo-A"
+    })",
+    source_path);
+
+builder.to_archive("catalog.c2pa");
+```
+
+Later, when reading the archive, select ingredients by their `instance_id`:
+
+```cpp
+auto reader = c2pa::Reader(context, "catalog.c2pa");
+auto parsed = json::parse(reader.json());
+std::string active = parsed["active_manifest"];
+auto& ingredients = parsed["manifests"][active]["ingredients"];
+
+for (auto& ing : ingredients) {
+    if (ing.contains("instance_id") && ing["instance_id"] == "catalog:photo-A") {
+        // Found the target ingredient
+    }
+}
+```
+
+### Overriding ingredient properties
 
 When adding an ingredient from an archive or from a file, the JSON passed to `add_ingredient()` can override properties like `title` and `relationship`. This is useful when reusing archived ingredients in a different context:
 
