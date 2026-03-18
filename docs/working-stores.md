@@ -4,11 +4,11 @@ This table summarizes the fundamental entities that you work with when using the
 
 | Object | Description | Where it is | Primary API |
 |--------|-------------|-------------|-------------|
-| [**Manifest store**](#manifest-store) | Final signed provenance data. Contains one or more manifests. | Embedded in asset or remotely in cloud | [`Reader`](https://contentauth.github.io/c2pa-c/d9/dbb/classc2pa_1_1Reader.html) class |
-| [**Working store**](#working-store) | Editable in-progress manifest. | `Builder` object | [`Builder`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html) class |
-| [**Archive**](#archive) | Serialized working store | `.c2pa` file/stream | [`Builder::to_archive()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a68074eac71b7fc57d338019220101db3)<br/> [`Builder::from_archive()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a913c64f6b5ec978322ef0edc89e407b3) |
-| [**Resources**](#working-with-resources) | Binary assets referenced by manifest assertions, such as thumbnails or ingredient thumbnails. | In manifest. | [`Builder::add_resource()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a45bf6fc8163b0194b334aa21f73f8476) <br/> [`Reader::get_resource`](https://contentauth.github.io/c2pa-c/d9/dbb/classc2pa_1_1Reader.html#a308939c990cab98bf8435c699bc96096) |
-| [**Ingredients**](#working-with-ingredients) | Source materials used to create an asset. | In manifest. | [`builder.add_ingredient`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a49407f9604a53b5b68bcfa699cba05f5)
+| [**Manifest store**](#manifest-store) | Final signed provenance data. Contains one or more manifests. | Embedded in asset or remotely in cloud | [`Reader`](https://contentauth.github.io/c2pa-cpp/d9/dbb/classc2pa_1_1Reader.html) class |
+| [**Working store**](#working-store) | Editable in-progress manifest. | `Builder` object | [`Builder`](https://contentauth.github.io/c2pa-cpp/da/db7/classc2pa_1_1Builder.html) class |
+| [**Archive**](#archive) | Serialized working store | `.c2pa` file/stream | [`Builder::to_archive()`](https://contentauth.github.io/c2pa-cpp/da/db7/classc2pa_1_1Builder.html#a68074eac71b7fc57d338019220101db3)<br/> [`Builder::from_archive()`](https://contentauth.github.io/c2pa-cpp/da/db7/classc2pa_1_1Builder.html#a913c64f6b5ec978322ef0edc89e407b3) |
+| [**Resources**](#working-with-resources) | Binary assets referenced by manifest assertions, such as thumbnails or ingredient thumbnails. | In manifest. | [`Builder::add_resource()`](https://contentauth.github.io/c2pa-cpp/da/db7/classc2pa_1_1Builder.html#a45bf6fc8163b0194b334aa21f73f8476) <br/> [`Reader::get_resource`](https://contentauth.github.io/c2pa-cpp/d9/dbb/classc2pa_1_1Reader.html#a308939c990cab98bf8435c699bc96096) |
+| [**Ingredients**](#working-with-ingredients) | Source materials used to create an asset. | In manifest. | [`builder.add_ingredient`](https://contentauth.github.io/c2pa-cpp/da/db7/classc2pa_1_1Builder.html#a49407f9604a53b5b68bcfa699cba05f5)
 
 This diagram summarizes the relationships among these entities.
 
@@ -67,7 +67,7 @@ A _C2PA archive_ (or just _archive_) contains the serialized bytes of a working 
 **Characteristics:**
 
 - Portable serialization of a working store (Builder).
-- Save an archive by using [`Builder::to_archive()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a68074eac71b7fc57d338019220101db3) and restore a full working store from an archive by using [`Builder::from_archive()`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#a913c64f6b5ec978322ef0edc89e407b3).
+- Save an archive by using [`Builder::to_archive()`](https://contentauth.github.io/c2pa-cpp/da/db7/classc2pa_1_1Builder.html#a68074eac71b7fc57d338019220101db3) and restore a full working store from an archive by using [`Builder::from_archive()`](https://contentauth.github.io/c2pa-cpp/da/db7/classc2pa_1_1Builder.html#a913c64f6b5ec978322ef0edc89e407b3).
 - Useful for separating manifest preparation ("work in progress") from final signing.
 
 For more information, see [Working with archives](#working-with-archives)
@@ -236,7 +236,7 @@ auto builder = c2pa::Builder(custom_context, manifest_json);
 
 ### Creating a Signer
 
-For testing, create a [`Signer`](https://contentauth.github.io/c2pa-c/d3/da1/classc2pa_1_1Signer.html) with certificates and private key:
+For testing, create a [`Signer`](https://contentauth.github.io/c2pa-cpp/d3/da1/classc2pa_1_1Signer.html) with certificates and private key:
 
 ```cpp
 #include <fstream>

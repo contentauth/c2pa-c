@@ -316,12 +316,12 @@ The `Settings` class provides methods for creating and manipulating configuratio
 
 | Method | Description |
 |--------|-------------|
-| [`Settings()`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#a70274281f05d59ddcfda4aa21397b896) | Create default settings |
-| [`Settings(data, format)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#a695e6e8c5a8cf16e40d6522af1fc13dd) | Parse settings from a string. Format is `"json"` or `"toml"` |
-| [`set(path, json_value)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#a13810c5df3183aa2b0132e3c7c8edd1c) | Set a value by dot-separated path (e.g., `"verify.verify_after_sign"`). Value must be JSON-encoded. Returns `*this` for chaining |
-| [`update(data)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#a1bd09762fb2e6c4c937c814500826ecc) | Merge JSON configuration (same as `update(data, "json")`) |
-| [`update(data, format)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#a80a12a51569bd89cc18231c7c9c36242) | Merge configuration from a string with specified format |
-| [`is_valid()`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#add51c3e2ef459978be035b86803b338e) | Returns `true` if the object is valid (not moved-from) |
+| [`Settings()`](https://contentauth.github.io/c2pa-cpp/da/d96/classc2pa_1_1Settings.html#a70274281f05d59ddcfda4aa21397b896) | Create default settings |
+| [`Settings(data, format)`](https://contentauth.github.io/c2pa-cpp/da/d96/classc2pa_1_1Settings.html#a695e6e8c5a8cf16e40d6522af1fc13dd) | Parse settings from a string. Format is `"json"` or `"toml"` |
+| [`set(path, json_value)`](https://contentauth.github.io/c2pa-cpp/da/d96/classc2pa_1_1Settings.html#a13810c5df3183aa2b0132e3c7c8edd1c) | Set a value by dot-separated path (e.g., `"verify.verify_after_sign"`). Value must be JSON-encoded. Returns `*this` for chaining |
+| [`update(data)`](https://contentauth.github.io/c2pa-cpp/da/d96/classc2pa_1_1Settings.html#a1bd09762fb2e6c4c937c814500826ecc) | Merge JSON configuration (same as `update(data, "json")`) |
+| [`update(data, format)`](https://contentauth.github.io/c2pa-cpp/da/d96/classc2pa_1_1Settings.html#a80a12a51569bd89cc18231c7c9c36242) | Merge configuration from a string with specified format |
+| [`is_valid()`](https://contentauth.github.io/c2pa-cpp/da/d96/classc2pa_1_1Settings.html#add51c3e2ef459978be035b86803b338e) | Returns `true` if the object is valid (not moved-from) |
 
 > [!NOTE]
 > 
