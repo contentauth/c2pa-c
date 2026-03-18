@@ -792,14 +792,14 @@ Assign a `label` in the `add_ingredient` call and reference that same label in `
 ```cpp
 c2pa::Context context;
 
-// Read the ingredient archive.
+// Read the ingredient archive
 std::ifstream archive_file("ingredient_archive.c2pa", std::ios::binary);
 c2pa::Reader reader(context, "application/c2pa", archive_file);
 auto parsed = json::parse(reader.json());
 std::string active = parsed["active_manifest"];
 auto& ingredient = parsed["manifests"][active]["ingredients"][0];
 
-// Use a caller-assigned label as the linking key.
+// Use a caller-assigned label as the linking key
 json manifest_json = {
     {"claim_generator_info", json::array({{{"name", "an-application"}, {"version", "1.0"}}})},
     {"assertions", json::array({
@@ -821,7 +821,7 @@ json manifest_json = {
 
 c2pa::Builder builder(context, manifest_json.dump());
 
-// The label on the ingredient JSON matches the entry in ingredientIds.
+// The label on the ingredient JSON matches the entry in ingredientIds
 archive_file.seekg(0);
 builder.add_ingredient(
     json({
