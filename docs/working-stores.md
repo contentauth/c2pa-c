@@ -477,6 +477,117 @@ ingredient_stream.close();
 builder.sign("new_asset.jpg", "signed_asset.jpg", signer);
 ```
 
+### Linking an ingredient archive to an action
+
+To link an ingredient archive to an action via `ingredientIds`, you must use a `label` set in the `add_ingredient` call on the signing builder. Labels baked into the archive ingredient are not carried through, and `instance_id` does not work as a linking key for ingredient archives regardless of where it is set.
+
+```cpp
+c2pa::Context context;
+
+// Step 1: Create the ingredient archive
+auto manifest_str = read_file("training.json");
+auto archive_builder = c2pa::Builder(context, manifest_str);
+archive_builder.add_ingredient(
+    R"({"title": "photo.jpg", "relationship": "componentOf"})",
+    "photo.jpg");
+archive_builder.to_archive("ingredient.c2pa");
+
+// Step 2: Build a manifest with an action that references the ingredient
+auto manifest_json = R"({
+    "claim_generator_info": [{"name": "my-app", "version": "1.0"}],
+    "assertions": [{
+        "label": "c2pa.actions.v2",
+        "data": {
+            "actions": [{
+                "action": "c2pa.placed",
+                "parameters": {
+                    "ingredientIds": ["my-ingredient"]
+                }
+            }]
+        }
+    }]
+})";
+
+auto builder = c2pa::Builder(context, manifest_json);
+
+// Step 3: Add the ingredient archive with a label matching the ingredientIds value.
+// The label MUST be set here, on the signing builder's add_ingredient call.
+builder.add_ingredient(
+    R"({"title": "photo.jpg", "relationship": "componentOf", "label": "my-ingredient"})",
+    "ingredient.c2pa");
+
+builder.sign("source.jpg", "signed.jpg", signer);
+```
+
+When linking multiple ingredient archives, give each a distinct label and reference it in the appropriate action's `ingredientIds` array.
+
+If each ingredient has its own action (e.g., one `c2pa.opened` for the parent and one `c2pa.placed` for a composited element), set up two actions with separate `ingredientIds`:
+
+```cpp
+auto manifest_json = R"({
+    "claim_generator_info": [{"name": "my-app", "version": "1.0"}],
+    "assertions": [{
+        "label": "c2pa.actions.v2",
+        "data": {
+            "actions": [
+                {
+                    "action": "c2pa.opened",
+                    "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation",
+                    "parameters": { "ingredientIds": ["parent-photo"] }
+                },
+                {
+                    "action": "c2pa.placed",
+                    "parameters": { "ingredientIds": ["overlay-graphic"] }
+                }
+            ]
+        }
+    }]
+})";
+
+auto builder = c2pa::Builder(context, manifest_json);
+
+builder.add_ingredient(
+    R"({"title": "photo.jpg", "relationship": "parentOf", "label": "parent-photo"})",
+    "photo_archive.c2pa");
+builder.add_ingredient(
+    R"({"title": "overlay.png", "relationship": "componentOf", "label": "overlay-graphic"})",
+    "overlay_archive.c2pa");
+
+builder.sign("source.jpg", "signed.jpg", signer);
+```
+
+A single `c2pa.placed` action can also reference several `componentOf` ingredients composited together. List all labels in the `ingredientIds` array:
+
+```cpp
+auto manifest_json = R"({
+    "claim_generator_info": [{"name": "my-app", "version": "1.0"}],
+    "assertions": [{
+        "label": "c2pa.actions.v2",
+        "data": {
+            "actions": [{
+                "action": "c2pa.placed",
+                "parameters": {
+                    "ingredientIds": ["base-layer", "overlay-layer"]
+                }
+            }]
+        }
+    }]
+})";
+
+auto builder = c2pa::Builder(context, manifest_json);
+
+builder.add_ingredient(
+    R"({"title": "base.jpg", "relationship": "componentOf", "label": "base-layer"})",
+    "base_ingredient.c2pa");
+builder.add_ingredient(
+    R"({"title": "overlay.jpg", "relationship": "componentOf", "label": "overlay-layer"})",
+    "overlay_ingredient.c2pa");
+
+builder.sign("source.jpg", "signed.jpg", signer);
+```
+
+After signing, the action's `parameters.ingredients` array contains one resolved URL per ingredient.
+
 ### Ingredient relationships
 
 Specify the relationship between the ingredient and the current asset:
