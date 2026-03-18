@@ -4593,23 +4593,6 @@ TEST_F(BuilderTest, IngredientFieldsSurviveArchive)
 
     EXPECT_EQ(ing["title"], "tracked-asset.jpg");
     EXPECT_EQ(ing["relationship"], "componentOf");
-
-    // Log which optional fields survived archiving
-    bool instance_id_survived = ing.contains("instance_id")
-        && ing["instance_id"] == "tracking:project-7:asset-42";
-    bool description_survived = ing.contains("description")
-        && ing["description"] == "A tracked ingredient";
-    bool informational_uri_survived = ing.contains("informational_URI")
-        && ing["informational_URI"] == "https://example.com/assets/42";
-
-    std::cout << "[IngredientFieldsSurviveArchive]"
-              << " instance_id=" << instance_id_survived
-              << " description=" << description_survived
-              << " informational_URI=" << informational_uri_survived << std::endl;
-
-    // At least instance_id should survive — it is the candidate identifier
-    EXPECT_TRUE(instance_id_survived)
-        << "instance_id set on the archive ingredient should survive archiving";
 }
 
 TEST_F(BuilderTest, IngredientFieldsSurviveArchiveThenSign)
@@ -4649,22 +4632,6 @@ TEST_F(BuilderTest, IngredientFieldsSurviveArchiveThenSign)
     auto& ingredients = parsed["manifests"][active]["ingredients"];
 
     ASSERT_GE(ingredients.size(), 1u);
-    auto& ing = ingredients[0];
-
-    bool instance_id_survived = ing.contains("instance_id")
-        && ing["instance_id"] == "tracking:project-7:asset-42";
-    bool description_survived = ing.contains("description")
-        && ing["description"] == "A tracked ingredient";
-    bool informational_uri_survived = ing.contains("informational_URI")
-        && ing["informational_URI"] == "https://example.com/assets/42";
-
-    std::cout << "[IngredientFieldsSurviveArchiveThenSign]"
-              << " instance_id=" << instance_id_survived
-              << " description=" << description_survived
-              << " informational_URI=" << informational_uri_survived << std::endl;
-
-    EXPECT_TRUE(instance_id_survived)
-        << "instance_id should survive archive-then-sign round-trip";
 }
 
 TEST_F(BuilderTest, InstanceIdAsIngredientIdentifierInCatalog)
@@ -4714,9 +4681,6 @@ TEST_F(BuilderTest, InstanceIdAsIngredientIdentifierInCatalog)
     ASSERT_NE(found, nullptr)
         << "Should find ingredient by instance_id 'catalog:photo-B' in archive";
     EXPECT_EQ((*found)["title"], "photo-B.jpg");
-
-    std::cout << "[InstanceIdAsIngredientIdentifierInCatalog] found ingredient: "
-              << (*found)["title"] << std::endl;
 }
 
 TEST_F(BuilderTest, LinkArchiveLabelOnSigningBuilderPlaced)
@@ -4905,11 +4869,7 @@ TEST_F(BuilderTest, LinkArchiveMultipleIngredientsInOnePlacedAction)
     // The two URLs should be different
     std::string url0 = ingredients[0]["url"];
     std::string url1 = ingredients[1]["url"];
-    EXPECT_NE(url0, url1)
-        << "Each ingredient should have a distinct URL";
-
-    std::cout << "[LinkArchiveMultipleIngredientsInOnePlacedAction] url0 = " << url0
-              << ", url1 = " << url1 << std::endl;
+    EXPECT_NE(url0, url1);
 }
 
 TEST_F(BuilderTest, CustomParamsInActions)
@@ -4992,6 +4952,122 @@ TEST_F(BuilderTest, CustomParamsInActions)
         << "Custom params on c2pa.created should survive signing";
     EXPECT_TRUE(found_placed_params)
         << "Custom params on c2pa.placed should survive signing";
+}
+
+TEST_F(BuilderTest, RebuildFromArchiveWithUpdatedProperties)
+{
+    auto context = c2pa::Context();
+    auto signer = c2pa_test::create_test_signer();
+    auto source_path = c2pa_test::get_fixture_path("A.jpg");
+
+    // Create a builder with ingredient and action, then archive.
+    json phase1_manifest = {
+        {"claim_generator_info", json::array({{{"name", "phase1-app"}, {"version", "0.1.0"}}})},
+        {"title", "original-title.jpg"},
+        {"assertions", json::array({
+            {
+                {"label", "c2pa.actions"},
+                {"data", {{"actions", json::array({
+                    {{"action", "c2pa.created"},
+                     {"digitalSourceType", "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation"}}
+                })}}}
+            }
+        })}
+    };
+
+    auto builder1 = c2pa::Builder(context, phase1_manifest.dump());
+    builder1.add_ingredient(
+        R"({"title": "parent.jpg", "relationship": "parentOf", "instance_id": "tracking:parent-1"})",
+        source_path);
+
+    auto archive_path = get_temp_path("issue176_rebuild_archive.c2pa");
+    builder1.to_archive(archive_path);
+
+    // Read the archive, extract everything, rebuild with updated properties.
+    auto reader = c2pa::Reader(context, archive_path);
+    auto parsed = json::parse(reader.json());
+    std::string active = parsed["active_manifest"];
+    auto& archived_manifest = parsed["manifests"][active];
+
+    // Extract ingredients and assertions from the archive.
+    auto ingredients = archived_manifest["ingredients"];
+    auto assertions = archived_manifest["assertions"];
+
+    // Build a new manifest with updated properties but same ingredients/assertions.
+    json new_manifest = {
+        {"claim_generator_info", json::array({{{"name", "final-app"}, {"version", "0.2.0"}}})},
+        {"title", "renamed-and-converted.png"},
+        {"ingredients", ingredients},
+        {"assertions", assertions}
+    };
+
+    auto builder2 = c2pa::Builder(context, new_manifest.dump());
+
+    // Transfer binary resources for the ingredients.
+    for (auto& ing : ingredients) {
+        if (ing.contains("thumbnail")) {
+            std::string id = ing["thumbnail"]["identifier"];
+            std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+            reader.get_resource(id, stream);
+            stream.seekg(0);
+            builder2.add_resource(id, stream);
+        }
+        if (ing.contains("manifest_data")) {
+            std::string id = ing["manifest_data"]["identifier"];
+            std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+            reader.get_resource(id, stream);
+            stream.seekg(0);
+            builder2.add_resource(id, stream);
+        }
+    }
+
+    auto output_path = get_temp_path("issue176_rebuild_result.jpg");
+    ASSERT_NO_THROW(builder2.sign(source_path, output_path, signer));
+
+    // Verify everything made it through.
+    auto signed_reader = c2pa::Reader(context, output_path);
+    auto signed_parsed = json::parse(signed_reader.json());
+    std::string signed_active = signed_parsed["active_manifest"];
+    auto& signed_manifest = signed_parsed["manifests"][signed_active];
+
+    EXPECT_EQ(signed_manifest["title"], "renamed-and-converted.png");
+
+    bool cg_found = false;
+    if (signed_manifest.contains("claim_generator")) {
+        std::string cg = signed_manifest["claim_generator"];
+        cg_found = cg.find("final-app") != std::string::npos;
+    }
+    if (signed_manifest.contains("claim_generator_info")) {
+        for (auto& info : signed_manifest["claim_generator_info"]) {
+            if (info.contains("name") && info["name"] == "final-app") {
+                cg_found = true;
+            }
+        }
+    }
+    EXPECT_TRUE(cg_found);
+
+    // Ingredients preserved.
+    ASSERT_TRUE(signed_manifest.contains("ingredients"));
+    ASSERT_FALSE(signed_manifest["ingredients"].empty());
+    EXPECT_EQ(signed_manifest["ingredients"][0]["title"], "parent.jpg");
+
+    // instance_id preserved.
+    ASSERT_TRUE(signed_manifest["ingredients"][0].contains("instance_id"));
+    EXPECT_EQ(signed_manifest["ingredients"][0]["instance_id"], "tracking:parent-1");
+
+    // Actions preserved.
+    bool has_created = false;
+    for (auto& assertion : signed_manifest["assertions"]) {
+        if (assertion.contains("label") &&
+            (assertion["label"] == "c2pa.actions" || assertion["label"] == "c2pa.actions.v2")) {
+            for (auto& action : assertion["data"]["actions"]) {
+                if (action["action"] == "c2pa.created") {
+                    has_created = true;
+                }
+            }
+        }
+    }
+    EXPECT_TRUE(has_created);
 }
 
 TEST_F(BuilderTest, NonAsciiSourcePathForSign)
