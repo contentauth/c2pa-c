@@ -43,7 +43,7 @@ ifs.close();
 
 The manifest JSON string defines the C2PA manifest to add to the file.
 
-A sample JSON manifest is provided in [tests/fixtures/training.json](https://github.com/contentauth/c2pa-c/blob/main/tests/fixtures/training.json).
+A sample JSON manifest is provided in [tests/fixtures/training.json](https://github.com/contentauth/c2pa-cpp/blob/main/tests/fixtures/training.json).
 
 For example:
 
@@ -196,7 +196,7 @@ Trust affects manifest validation status: a manifest whose trust chain was verif
 
 ## More examples
 
-The C++ example in [`examples/training.cpp`](https://github.com/contentauth/c2pa-c/blob/main/examples/training.cpp) uses the [JSON for Modern C++](https://json.nlohmann.me/) library class.
+The C++ example in [`examples/training.cpp`](https://github.com/contentauth/c2pa-cpp/blob/main/examples/training.cpp) uses the [JSON for Modern C++](https://json.nlohmann.me/) library class.
 
 Build and run the example by entering this `make` command:
 
@@ -204,6 +204,6 @@ Build and run the example by entering this `make` command:
 make examples
 ```
 
-This example adds the manifest [`tests/fixtures/training.json`](https://github.com/contentauth/c2pa-c/blob/main/tests/fixtures/training.json) to the image file [`tests/fixtures/A.jpg`](https://github.com/contentauth/c2pa-c/blob/main/tests/fixtures/A.jpg) using the sample private key and certificate in the [`tests/fixtures`](https://github.com/contentauth/c2pa-c/tree/main/tests/fixtures) directory.
+This example adds the manifest [`tests/fixtures/training.json`](https://github.com/contentauth/c2pa-cpp/blob/main/tests/fixtures/training.json) to the image file [`tests/fixtures/A.jpg`](https://github.com/contentauth/c2pa-cpp/blob/main/tests/fixtures/A.jpg) using the sample private key and certificate in the [`tests/fixtures`](https://github.com/contentauth/c2pa-cpp/tree/main/tests/fixtures) directory.
 
 The example displays some text to standard out that summarizes whether AI training is allowed based on the specified manifest and then saves the resulting image file with attached manifest to `build/examples/training.jpg`.
