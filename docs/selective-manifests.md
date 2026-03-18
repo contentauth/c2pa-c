@@ -518,7 +518,9 @@ builder.sign(source_path, output_path, signer);
 
 ### Identifying ingredients in archives
 
-When building an ingredient archive, you can set `instance_id` on the ingredient to give it a stable, caller-controlled identifier. This field survives archiving and signing unchanged. The `description` and `informational_URI` fields also survive and can carry additional metadata about the ingredient's origin.
+When building an ingredient archive, you can set `instance_id` on the ingredient to give it a stable, caller-controlled identifier. This field survives archiving and signing unchanged, so it can be used to look up a specific ingredient from a catalog archive. The `description` and `informational_URI` fields also survive and can carry additional metadata about the ingredient's origin.
+
+`instance_id` is only for identification and catalog lookups. It cannot be used as a linking key in `ingredientIds` when linking ingredient archives to actions — use `label` for that (see [Linking an archived ingredient to an action](#linking-an-archived-ingredient-to-an-action)).
 
 ```cpp
 // Set instance_id when adding the ingredient to the archive builder
@@ -544,7 +546,7 @@ auto& ingredients = parsed["manifests"][active]["ingredients"];
 
 for (auto& ing : ingredients) {
     if (ing.contains("instance_id") && ing["instance_id"] == "catalog:photo-A") {
-        // Found the target ingredient
+        // Do something with the found ingredient...
     }
 }
 ```

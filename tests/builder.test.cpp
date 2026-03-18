@@ -4505,6 +4505,65 @@ TEST_F(BuilderTest, AddIngredientFromArchiveWithCustomProperties)
     }
 }
 
+TEST_F(BuilderTest, LinkArchiveInstanceIdFromArchiveOnSigningBuilder)
+{
+    // Verify that instance_id does NOT work as a linking key for ingredient
+    // archives, even when the instance_id is read from the archive and set
+    // on the signing builder's add_ingredient call.
+    auto context = c2pa::Context();
+    auto signer = c2pa_test::create_test_signer();
+    auto source_path = c2pa_test::get_fixture_path("A.jpg");
+
+    // Create archive with ingredient carrying instance_id
+    auto archive_path = get_temp_path("iid_from_archive_linking.c2pa");
+    create_ingredient_archive(archive_path,
+        R"({"title": "photo.jpg", "relationship": "componentOf", "instance_id": "xmp:iid:test-archive-link"})");
+
+    // Read archive, extract instance_id
+    auto reader = c2pa::Reader(context, archive_path);
+    auto archive_parsed = json::parse(reader.json());
+    std::string active = archive_parsed["active_manifest"];
+    auto& archive_ingredient = archive_parsed["manifests"][active]["ingredients"][0];
+    ASSERT_TRUE(archive_ingredient.contains("instance_id"));
+    std::string instance_id = archive_ingredient["instance_id"];
+
+    // Build manifest with ingredientIds referencing that instance_id
+    json manifest_json = {
+        {"claim_generator_info", json::array({{{"name", "c2pa-test"}, {"version", "1.0"}}})},
+        {"assertions", json::array({
+            {
+                {"label", "c2pa.actions.v2"},
+                {"data", {{"actions", json::array({
+                    {
+                        {"action", "c2pa.placed"},
+                        {"parameters", {{"ingredientIds", json::array({instance_id})}}}
+                    }
+                })}}}
+            }
+        })}
+    };
+
+    auto builder = c2pa::Builder(context, manifest_json.dump());
+
+    // Set instance_id on the signing builder's add_ingredient
+    std::ifstream archive_stream(archive_path, std::ios::binary);
+    builder.add_ingredient(
+        json({
+            {"title", archive_ingredient["title"]},
+            {"relationship", "componentOf"},
+            {"instance_id", instance_id}
+        }).dump(),
+        "application/c2pa",
+        archive_stream);
+    archive_stream.close();
+
+    auto output_path = get_temp_path("iid_from_archive_linking_result.jpg");
+
+    // Signing throws because instance_id cannot be used as a linking key
+    // for ingredient archives. Use label instead.
+    EXPECT_THROW(builder.sign(source_path, output_path, signer), c2pa::C2paException);
+}
+
 TEST_F(BuilderTest, IngredientFieldsSurviveArchive)
 {
     auto context = c2pa::Context();
