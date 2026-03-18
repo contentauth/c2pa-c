@@ -519,17 +519,74 @@ builder.add_ingredient(
 builder.sign("source.jpg", "signed.jpg", signer);
 ```
 
-When linking multiple ingredient archives, give each a distinct label and reference them separately in `ingredientIds`:
+When linking multiple ingredient archives, give each a distinct label and reference it in the appropriate action's `ingredientIds` array.
+
+If each ingredient has its own action (e.g., one `c2pa.opened` for the parent and one `c2pa.placed` for a composited element), set up two actions with separate `ingredientIds`:
 
 ```cpp
-// Two actions, each linked to a different ingredient archive
+auto manifest_json = R"({
+    "claim_generator_info": [{"name": "my-app", "version": "1.0"}],
+    "assertions": [{
+        "label": "c2pa.actions.v2",
+        "data": {
+            "actions": [
+                {
+                    "action": "c2pa.opened",
+                    "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation",
+                    "parameters": { "ingredientIds": ["parent-photo"] }
+                },
+                {
+                    "action": "c2pa.placed",
+                    "parameters": { "ingredientIds": ["overlay-graphic"] }
+                }
+            ]
+        }
+    }]
+})";
+
+auto builder = c2pa::Builder(context, manifest_json);
+
+builder.add_ingredient(
+    R"({"title": "photo.jpg", "relationship": "parentOf", "label": "parent-photo"})",
+    "photo_archive.c2pa");
+builder.add_ingredient(
+    R"({"title": "overlay.png", "relationship": "componentOf", "label": "overlay-graphic"})",
+    "overlay_archive.c2pa");
+
+builder.sign("source.jpg", "signed.jpg", signer);
+```
+
+A single `c2pa.placed` action can also reference several `componentOf` ingredients composited together. List all labels in the `ingredientIds` array:
+
+```cpp
+auto manifest_json = R"({
+    "claim_generator_info": [{"name": "my-app", "version": "1.0"}],
+    "assertions": [{
+        "label": "c2pa.actions.v2",
+        "data": {
+            "actions": [{
+                "action": "c2pa.placed",
+                "parameters": {
+                    "ingredientIds": ["base-layer", "overlay-layer"]
+                }
+            }]
+        }
+    }]
+})";
+
+auto builder = c2pa::Builder(context, manifest_json);
+
 builder.add_ingredient(
     R"({"title": "base.jpg", "relationship": "componentOf", "label": "base-layer"})",
     "base_ingredient.c2pa");
 builder.add_ingredient(
     R"({"title": "overlay.jpg", "relationship": "componentOf", "label": "overlay-layer"})",
     "overlay_ingredient.c2pa");
+
+builder.sign("source.jpg", "signed.jpg", signer);
 ```
+
+After signing, the action's `parameters.ingredients` array contains one resolved URL per ingredient.
 
 ### Ingredient relationships
 

@@ -93,8 +93,7 @@ protected:
         builder.to_archive(archive_path);
     }
 
-    // Helper: Builds a manifest JSON with a single action that references an
-    // ingredientId linking key.
+    // Helper: Builds a manifest JSON with one action that references one ingredient for linking.
     json make_manifest_with_action(const std::string& action_name,
                                    const std::string& linking_key,
                                    const std::string& digital_source_type = "")
@@ -116,8 +115,7 @@ protected:
         };
     }
 
-    // Helper: Signs with builder, reads back, and checks whether the given
-    // action has a resolved ingredients array with the expected JUMBF URL.
+    // Helper: Verifies an ingredient linked to an action.
     bool verify_ingredient_linked(
         c2pa::Builder& builder,
         const fs::path& output_path,
@@ -4508,7 +4506,7 @@ TEST_F(BuilderTest, AddIngredientFromArchiveWithCustomProperties)
 }
 
 
-TEST_F(BuilderTest, LinkArchive_Label_OnSigningBuilder_Placed)
+TEST_F(BuilderTest, LinkArchiveLabelOnSigningBuilderPlaced)
 {
     // No label on the archive ingredient
     auto archive_path = get_temp_path("label_on_signing_placed.c2pa");
@@ -4519,7 +4517,7 @@ TEST_F(BuilderTest, LinkArchive_Label_OnSigningBuilder_Placed)
     auto context = c2pa::Context();
     auto builder = c2pa::Builder(context, manifest_json.dump());
 
-    // Label set here, on the signing builder's add_ingredient call
+    // Label set on the signing builder's add_ingredient call
     builder.add_ingredient(
         R"({"title": "photo.jpg", "relationship": "componentOf", "label": "my-ingredient"})",
         archive_path);
@@ -4528,12 +4526,10 @@ TEST_F(BuilderTest, LinkArchive_Label_OnSigningBuilder_Placed)
     auto output_path = get_temp_path("link_label_on_signing_placed.jpg");
 
     bool linked = verify_ingredient_linked(builder, output_path, signer, "c2pa.placed");
-    std::cout << "[LinkArchive_Label_OnSigningBuilder_Placed] linked = " << linked << std::endl;
-    EXPECT_TRUE(linked)
-        << "Expected label set on the signing builder's add_ingredient to link with ingredientIds";
+    EXPECT_TRUE(linked);
 }
 
-TEST_F(BuilderTest, LinkArchive_Label_OnSigningBuilder_Opened)
+TEST_F(BuilderTest, LinkArchiveLabelOnSigningBuilderOpened)
 {
     auto archive_path = get_temp_path("label_on_signing_opened.c2pa");
     create_ingredient_archive(archive_path,
@@ -4552,14 +4548,11 @@ TEST_F(BuilderTest, LinkArchive_Label_OnSigningBuilder_Opened)
     auto output_path = get_temp_path("link_label_on_signing_opened.jpg");
 
     bool linked = verify_ingredient_linked(builder, output_path, signer, "c2pa.opened");
-    std::cout << "[LinkArchive_Label_OnSigningBuilder_Opened] linked = " << linked << std::endl;
-    EXPECT_TRUE(linked)
-        << "Expected label set on the signing builder's add_ingredient to link with ingredientIds";
+    EXPECT_TRUE(linked);
 }
 
-TEST_F(BuilderTest, LinkArchive_TwoIngredients_Labels)
+TEST_F(BuilderTest, LinkArchiveTwoIngredientsUsingLabels)
 {
-    // Create two separate ingredient archives
     auto archive1 = get_temp_path("two_labels_archive1.c2pa");
     create_ingredient_archive(archive1,
         R"({"title": "photo-placed.jpg", "relationship": "componentOf"})");
@@ -4567,7 +4560,6 @@ TEST_F(BuilderTest, LinkArchive_TwoIngredients_Labels)
     create_ingredient_archive(archive2,
         R"({"title": "photo-opened.jpg", "relationship": "parentOf"})");
 
-    // Manifest with two actions, each referencing a different ingredient label
     json manifest_json = {
         {"claim_generator_info", json::array({{{"name", "c2pa-test"}, {"version", "1.0"}}})},
         {"assertions", json::array({
@@ -4591,7 +4583,6 @@ TEST_F(BuilderTest, LinkArchive_TwoIngredients_Labels)
     auto context = c2pa::Context();
     auto builder = c2pa::Builder(context, manifest_json.dump());
 
-    // Add both archives with distinct labels on the signing builder
     builder.add_ingredient(
         R"({"title": "photo-placed.jpg", "relationship": "componentOf", "label": "ingredient-for-placed"})",
         archive1);
@@ -4604,13 +4595,11 @@ TEST_F(BuilderTest, LinkArchive_TwoIngredients_Labels)
     auto output_path = get_temp_path("two_ingredients_labels.jpg");
     ASSERT_NO_THROW(builder.sign(source_path, output_path, signer));
 
-    // Read back and verify each action links to the correct ingredient
     auto reader = c2pa::Reader(context, output_path);
     auto parsed = json::parse(reader.json());
     std::string active = parsed["active_manifest"];
     auto& manifest = parsed["manifests"][active];
 
-    // Find both actions
     json placed_action, opened_action;
     bool found_placed = false, found_opened = false;
     for (auto& assertion : manifest["assertions"]) {
@@ -4623,24 +4612,91 @@ TEST_F(BuilderTest, LinkArchive_TwoIngredients_Labels)
     ASSERT_TRUE(found_placed) << "c2pa.placed action not found";
     ASSERT_TRUE(found_opened) << "c2pa.opened action not found";
 
-    // Verify placed action links to one ingredient
     ASSERT_TRUE(placed_action.contains("parameters"));
     ASSERT_TRUE(placed_action["parameters"].contains("ingredients"));
     ASSERT_EQ(placed_action["parameters"]["ingredients"].size(), 1u);
     std::string placed_url = placed_action["parameters"]["ingredients"][0]["url"];
 
-    // Verify opened action links to a different ingredient
     ASSERT_TRUE(opened_action.contains("parameters"));
     ASSERT_TRUE(opened_action["parameters"].contains("ingredients"));
     ASSERT_EQ(opened_action["parameters"]["ingredients"].size(), 1u);
     std::string opened_url = opened_action["parameters"]["ingredients"][0]["url"];
 
-    // The two URLs should be different (no cross-linking)
-    EXPECT_NE(placed_url, opened_url)
-        << "Each action should link to a different ingredient, but both resolved to: " << placed_url;
+    EXPECT_NE(placed_url, opened_url);
+}
 
-    std::cout << "[LinkArchive_TwoIngredients_Labels] placed_url = " << placed_url
-              << ", opened_url = " << opened_url << std::endl;
+TEST_F(BuilderTest, LinkArchiveMultipleIngredientsInOnePlacedAction)
+{
+    // c2pa.placed supports multiple ingredientIds — all composited at once.
+    auto archive1 = get_temp_path("multi_in_one_archive1.c2pa");
+    create_ingredient_archive(archive1,
+        R"({"title": "base-layer.jpg", "relationship": "componentOf"})");
+    auto archive2 = get_temp_path("multi_in_one_archive2.c2pa");
+    create_ingredient_archive(archive2,
+        R"({"title": "overlay-layer.jpg", "relationship": "componentOf"})");
+
+    // One c2pa.placed action referencing two ingredients
+    json manifest_json = {
+        {"claim_generator_info", json::array({{{"name", "c2pa-test"}, {"version", "1.0"}}})},
+        {"assertions", json::array({
+            {
+                {"label", "c2pa.actions.v2"},
+                {"data", {{"actions", json::array({
+                    {
+                        {"action", "c2pa.placed"},
+                        {"parameters", {{"ingredientIds", json::array({"base-layer", "overlay-layer"})}}}
+                    }
+                })}}}
+            }
+        })}
+    };
+
+    auto context = c2pa::Context();
+    auto builder = c2pa::Builder(context, manifest_json.dump());
+
+    builder.add_ingredient(
+        R"({"title": "base-layer.jpg", "relationship": "componentOf", "label": "base-layer"})",
+        archive1);
+    builder.add_ingredient(
+        R"({"title": "overlay-layer.jpg", "relationship": "componentOf", "label": "overlay-layer"})",
+        archive2);
+
+    auto signer = c2pa_test::create_test_signer();
+    auto source_path = c2pa_test::get_fixture_path("A.jpg");
+    auto output_path = get_temp_path("multi_in_one_placed.jpg");
+    ASSERT_NO_THROW(builder.sign(source_path, output_path, signer));
+
+    // Read back and verify the single placed action has two resolved ingredients
+    auto reader = c2pa::Reader(context, output_path);
+    auto parsed = json::parse(reader.json());
+    std::string active = parsed["active_manifest"];
+
+    json placed_action;
+    bool found = false;
+    for (auto& assertion : parsed["manifests"][active]["assertions"]) {
+        if (assertion["label"] != "c2pa.actions.v2") continue;
+        for (auto& action : assertion["data"]["actions"]) {
+            if (action["action"] == "c2pa.placed") {
+                placed_action = action;
+                found = true;
+            }
+        }
+    }
+    ASSERT_TRUE(found) << "c2pa.placed action not found";
+    ASSERT_TRUE(placed_action.contains("parameters"));
+    ASSERT_TRUE(placed_action["parameters"].contains("ingredients"));
+    auto& ingredients = placed_action["parameters"]["ingredients"];
+    ASSERT_EQ(ingredients.size(), 2u)
+        << "c2pa.placed should reference both ingredients";
+
+    // The two URLs should be different
+    std::string url0 = ingredients[0]["url"];
+    std::string url1 = ingredients[1]["url"];
+    EXPECT_NE(url0, url1)
+        << "Each ingredient should have a distinct URL";
+
+    std::cout << "[LinkArchiveMultipleIngredientsInOnePlacedAction] url0 = " << url0
+              << ", url1 = " << url1 << std::endl;
 }
 
 TEST_F(BuilderTest, CustomParamsInActions)
