@@ -4960,7 +4960,7 @@ TEST_F(BuilderTest, RebuildFromArchiveWithUpdatedProperties)
     auto signer = c2pa_test::create_test_signer();
     auto source_path = c2pa_test::get_fixture_path("A.jpg");
 
-    // Create a builder with ingredient and action, then archive.
+    // Create a builder with ingredient and multiple actions, then archive.
     json phase1_manifest = {
         {"claim_generator_info", json::array({{{"name", "phase1-app"}, {"version", "0.1.0"}}})},
         {"title", "original-title.jpg"},
@@ -4969,7 +4969,9 @@ TEST_F(BuilderTest, RebuildFromArchiveWithUpdatedProperties)
                 {"label", "c2pa.actions"},
                 {"data", {{"actions", json::array({
                     {{"action", "c2pa.created"},
-                     {"digitalSourceType", "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation"}}
+                     {"digitalSourceType", "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation"}},
+                    {{"action", "c2pa.color_adjustments"},
+                     {"parameters", {{"name", "brightnesscontrast"}}}}
                 })}}}
             }
         })}
@@ -5032,31 +5034,29 @@ TEST_F(BuilderTest, RebuildFromArchiveWithUpdatedProperties)
 
     EXPECT_EQ(signed_manifest["title"], "renamed-and-converted.png");
 
-    bool cg_found = false;
+    bool claim_generator_found = false;
     if (signed_manifest.contains("claim_generator")) {
         std::string cg = signed_manifest["claim_generator"];
-        cg_found = cg.find("final-app") != std::string::npos;
+        claim_generator_found = cg.find("final-app") != std::string::npos;
     }
     if (signed_manifest.contains("claim_generator_info")) {
         for (auto& info : signed_manifest["claim_generator_info"]) {
             if (info.contains("name") && info["name"] == "final-app") {
-                cg_found = true;
+                claim_generator_found = true;
             }
         }
     }
-    EXPECT_TRUE(cg_found);
+    EXPECT_TRUE(claim_generator_found);
 
-    // Ingredients preserved.
     ASSERT_TRUE(signed_manifest.contains("ingredients"));
     ASSERT_FALSE(signed_manifest["ingredients"].empty());
     EXPECT_EQ(signed_manifest["ingredients"][0]["title"], "parent.jpg");
 
-    // instance_id preserved.
     ASSERT_TRUE(signed_manifest["ingredients"][0].contains("instance_id"));
     EXPECT_EQ(signed_manifest["ingredients"][0]["instance_id"], "tracking:parent-1");
 
-    // Actions preserved.
     bool has_created = false;
+    bool has_color_adjustments = false;
     for (auto& assertion : signed_manifest["assertions"]) {
         if (assertion.contains("label") &&
             (assertion["label"] == "c2pa.actions" || assertion["label"] == "c2pa.actions.v2")) {
@@ -5064,10 +5064,348 @@ TEST_F(BuilderTest, RebuildFromArchiveWithUpdatedProperties)
                 if (action["action"] == "c2pa.created") {
                     has_created = true;
                 }
+                if (action["action"] == "c2pa.color_adjustments") {
+                    has_color_adjustments = true;
+                }
             }
         }
     }
     EXPECT_TRUE(has_created);
+    EXPECT_TRUE(has_color_adjustments);
+}
+
+TEST_F(BuilderTest, MultiphaseRebuildFromArchiveWithUpdatedProperties)
+{
+    auto context = c2pa::Context();
+    auto signer = c2pa_test::create_test_signer();
+    auto source_path = c2pa_test::get_fixture_path("A.jpg");
+
+    // Phase 1: initial manifest with initial ingredient and actions.
+    json phase1_manifest = {
+        {"claim_generator_info", json::array({{{"name", "phase1-app"}, {"version", "0.1.0"}}})},
+        {"title", "original-title.jpg"},
+        {"assertions", json::array({
+            {
+                {"label", "c2pa.actions"},
+                {"data", {{"actions", json::array({
+                    {{"action", "c2pa.created"},
+                     {"digitalSourceType", "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation"}}
+                })}}}
+            }
+        })}
+    };
+
+    auto builder1 = c2pa::Builder(context, phase1_manifest.dump());
+    builder1.add_ingredient(
+        R"({"title": "parent.jpg", "relationship": "parentOf", "instance_id": "tracking:parent-1"})",
+        source_path);
+
+    auto archive1_path = get_temp_path("multiphase_archive1.c2pa");
+    builder1.to_archive(archive1_path);
+
+    // Phase 2: restore from archive, add a color_adjustments action, archive again.
+    auto builder2 = c2pa::Builder(context);
+    std::ifstream archive1_stream(archive1_path, std::ios::binary);
+    builder2.with_archive(archive1_stream);
+    archive1_stream.close();
+
+    builder2.add_action(R"({
+        "action": "c2pa.color_adjustments",
+        "parameters": {"name": "brightnesscontrast"}
+    })");
+
+    auto archive2_path = get_temp_path("multiphase_archive2.c2pa");
+    builder2.to_archive(archive2_path);
+
+    // Final phase: read the archive with Reader then rebuild final manifest to use
+    auto reader = c2pa::Reader(context, archive2_path);
+    auto parsed = json::parse(reader.json());
+    std::string active = parsed["active_manifest"];
+    auto& archived_manifest = parsed["manifests"][active];
+
+    auto ingredients = archived_manifest["ingredients"];
+
+    // Merge all c2pa.actions / c2pa.actions.v2 assertions into a single one.
+    // add_action() creates separate assertions, so the archive may have duplicates.
+    json merged_actions = json::array();
+    json other_assertions = json::array();
+    for (auto& assertion : archived_manifest["assertions"]) {
+        if (assertion.contains("label") &&
+            (assertion["label"] == "c2pa.actions" || assertion["label"] == "c2pa.actions.v2")) {
+            for (auto& action : assertion["data"]["actions"]) {
+                merged_actions.push_back(action);
+            }
+        } else {
+            other_assertions.push_back(assertion);
+        }
+    }
+    json merged_assertions = other_assertions;
+    if (!merged_actions.empty()) {
+        merged_assertions.push_back({
+            {"label", "c2pa.actions"},
+            {"data", {{"actions", merged_actions}}}
+        });
+    }
+
+    json new_manifest = {
+        {"claim_generator_info", json::array({{{"name", "final-app"}, {"version", "2.0"}}})},
+        {"title", "renamed-and-converted.png"},
+        {"ingredients", ingredients},
+        {"assertions", merged_assertions}
+    };
+
+    auto builder3 = c2pa::Builder(context, new_manifest.dump());
+
+    for (auto& ing : ingredients) {
+        if (ing.contains("thumbnail")) {
+            std::string id = ing["thumbnail"]["identifier"];
+            std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+            reader.get_resource(id, stream);
+            stream.seekg(0);
+            builder3.add_resource(id, stream);
+        }
+        if (ing.contains("manifest_data")) {
+            std::string id = ing["manifest_data"]["identifier"];
+            std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+            reader.get_resource(id, stream);
+            stream.seekg(0);
+            builder3.add_resource(id, stream);
+        }
+    }
+
+    auto output_path = get_temp_path("multiphase_rebuild_result.jpg");
+    ASSERT_NO_THROW(builder3.sign(source_path, output_path, signer));
+
+    // Verify everything made it through all phases.
+    auto signed_reader = c2pa::Reader(context, output_path);
+    auto signed_parsed = json::parse(signed_reader.json());
+    std::string signed_active = signed_parsed["active_manifest"];
+    auto& signed_manifest = signed_parsed["manifests"][signed_active];
+
+    EXPECT_EQ(signed_manifest["title"], "renamed-and-converted.png");
+
+    bool claim_generator_found = false;
+    if (signed_manifest.contains("claim_generator")) {
+        std::string cg = signed_manifest["claim_generator"];
+        claim_generator_found = cg.find("final-app") != std::string::npos;
+    }
+    if (signed_manifest.contains("claim_generator_info")) {
+        for (auto& info : signed_manifest["claim_generator_info"]) {
+            if (info.contains("name") && info["name"] == "final-app") {
+                claim_generator_found = true;
+            }
+        }
+    }
+    EXPECT_TRUE(claim_generator_found);
+
+    ASSERT_TRUE(signed_manifest.contains("ingredients"));
+    ASSERT_FALSE(signed_manifest["ingredients"].empty());
+    EXPECT_EQ(signed_manifest["ingredients"][0]["title"], "parent.jpg");
+    ASSERT_TRUE(signed_manifest["ingredients"][0].contains("instance_id"));
+    EXPECT_EQ(signed_manifest["ingredients"][0]["instance_id"], "tracking:parent-1");
+
+    // Verify exactly one actions assertion with both actions inside.
+    int actions_assertion_count = 0;
+    bool has_created = false;
+    bool has_color_adjustments = false;
+    for (auto& assertion : signed_manifest["assertions"]) {
+        if (assertion.contains("label") &&
+            (assertion["label"] == "c2pa.actions" || assertion["label"] == "c2pa.actions.v2")) {
+            actions_assertion_count++;
+            for (auto& action : assertion["data"]["actions"]) {
+                if (action["action"] == "c2pa.created") {
+                    has_created = true;
+                }
+                if (action["action"] == "c2pa.color_adjustments") {
+                    has_color_adjustments = true;
+                }
+            }
+        }
+    }
+    EXPECT_EQ(actions_assertion_count, 1)
+        << "There should be exactly one c2pa.actions assertion after merging";
+    EXPECT_TRUE(has_created)
+        << "c2pa.created from phase 1 should survive multi-phase rebuild";
+    EXPECT_TRUE(has_color_adjustments)
+        << "c2pa.color_adjustments from phase 2 should survive multi-phase rebuild";
+}
+
+TEST_F(BuilderTest, MultiphaseRebuildFromArchiveWithUpdatedProperties2)
+{
+    auto context = c2pa::Context();
+    auto signer = c2pa_test::create_test_signer();
+    auto source_path = c2pa_test::get_fixture_path("A.jpg");
+
+    // Phase 1: initial manifest with parentOf ingredient and c2pa.created.
+    json phase1_manifest = {
+        {"claim_generator_info", json::array({{{"name", "phase1-app"}, {"version", "0.1.0"}}})},
+        {"title", "original-title.jpg"},
+        {"assertions", json::array({
+            {
+                {"label", "c2pa.actions"},
+                {"data", {{"actions", json::array({
+                    {{"action", "c2pa.created"},
+                     {"digitalSourceType", "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation"}}
+                })}}}
+            }
+        })}
+    };
+
+    auto builder1 = c2pa::Builder(context, phase1_manifest.dump());
+    builder1.add_ingredient(
+        R"({"title": "parent.jpg", "relationship": "parentOf", "instance_id": "tracking:parent-1"})",
+        source_path);
+
+    auto archive1_path = get_temp_path("multiphase2_archive1.c2pa");
+    builder1.to_archive(archive1_path);
+
+    // Phase 2: restore, add a componentOf ingredient and a color_adjustments action, archive again.
+    auto builder2 = c2pa::Builder(context);
+    std::ifstream archive1_stream(archive1_path, std::ios::binary);
+    builder2.with_archive(archive1_stream);
+    archive1_stream.close();
+
+    builder2.add_ingredient(
+        R"({"title": "overlay.png", "relationship": "componentOf", "instance_id": "tracking:overlay-1"})",
+        c2pa_test::get_fixture_path("A.jpg"));
+
+    builder2.add_action(R"({
+        "action": "c2pa.color_adjustments",
+        "parameters": {"name": "brightnesscontrast"}
+    })");
+
+    auto archive2_path = get_temp_path("multiphase2_archive2.c2pa");
+    builder2.to_archive(archive2_path);
+
+    // Final phase: read archive, rebuild with updated properties, transfer resources, sign.
+    auto reader = c2pa::Reader(context, archive2_path);
+    auto parsed = json::parse(reader.json());
+    std::string active = parsed["active_manifest"];
+    auto& archived_manifest = parsed["manifests"][active];
+
+    auto ingredients = archived_manifest["ingredients"];
+
+    // Merge all c2pa.actions / c2pa.actions.v2 assertions into a single one.
+    json merged_actions = json::array();
+    json other_assertions = json::array();
+    for (auto& assertion : archived_manifest["assertions"]) {
+        if (assertion.contains("label") &&
+            (assertion["label"] == "c2pa.actions" || assertion["label"] == "c2pa.actions.v2")) {
+            for (auto& action : assertion["data"]["actions"]) {
+                merged_actions.push_back(action);
+            }
+        } else {
+            other_assertions.push_back(assertion);
+        }
+    }
+    json merged_assertions = other_assertions;
+    if (!merged_actions.empty()) {
+        merged_assertions.push_back({
+            {"label", "c2pa.actions"},
+            {"data", {{"actions", merged_actions}}}
+        });
+    }
+
+    json new_manifest = {
+        {"claim_generator_info", json::array({{{"name", "final-app"}, {"version", "2.0"}}})},
+        {"title", "renamed-and-converted.png"},
+        {"ingredients", ingredients},
+        {"assertions", merged_assertions}
+    };
+
+    auto builder3 = c2pa::Builder(context, new_manifest.dump());
+
+    for (auto& ing : ingredients) {
+        if (ing.contains("thumbnail")) {
+            std::string id = ing["thumbnail"]["identifier"];
+            std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+            reader.get_resource(id, stream);
+            stream.seekg(0);
+            builder3.add_resource(id, stream);
+        }
+        if (ing.contains("manifest_data")) {
+            std::string id = ing["manifest_data"]["identifier"];
+            std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+            reader.get_resource(id, stream);
+            stream.seekg(0);
+            builder3.add_resource(id, stream);
+        }
+    }
+
+    auto output_path = get_temp_path("multiphase2_rebuild_result.jpg");
+    ASSERT_NO_THROW(builder3.sign(source_path, output_path, signer));
+
+    // Verify everything from both phases made it through.
+    auto signed_reader = c2pa::Reader(context, output_path);
+    std::cout << signed_reader.json() << std::endl;
+    auto signed_parsed = json::parse(signed_reader.json());
+    std::string signed_active = signed_parsed["active_manifest"];
+    auto& signed_manifest = signed_parsed["manifests"][signed_active];
+
+    EXPECT_EQ(signed_manifest["title"], "renamed-and-converted.png");
+
+    bool claim_generator_found = false;
+    if (signed_manifest.contains("claim_generator")) {
+        std::string cg = signed_manifest["claim_generator"];
+        claim_generator_found = cg.find("final-app") != std::string::npos;
+    }
+    if (signed_manifest.contains("claim_generator_info")) {
+        for (auto& info : signed_manifest["claim_generator_info"]) {
+            if (info.contains("name") && info["name"] == "final-app") {
+                claim_generator_found = true;
+            }
+        }
+    }
+    EXPECT_TRUE(claim_generator_found);
+
+    ASSERT_TRUE(signed_manifest.contains("ingredients"));
+    ASSERT_EQ(signed_manifest["ingredients"].size(), 2u);
+
+    bool found_parent = false;
+    bool found_overlay = false;
+    for (auto& ing : signed_manifest["ingredients"]) {
+        if (ing["title"] == "parent.jpg") {
+            found_parent = true;
+            ASSERT_TRUE(ing.contains("instance_id"));
+            EXPECT_EQ(ing["instance_id"], "tracking:parent-1");
+            EXPECT_EQ(ing["relationship"], "parentOf");
+        }
+        if (ing["title"] == "overlay.png") {
+            found_overlay = true;
+            ASSERT_TRUE(ing.contains("instance_id"));
+            EXPECT_EQ(ing["instance_id"], "tracking:overlay-1");
+            EXPECT_EQ(ing["relationship"], "componentOf");
+        }
+    }
+    EXPECT_TRUE(found_parent)
+        << "parentOf ingredient from phase 1 should survive";
+    EXPECT_TRUE(found_overlay)
+        << "componentOf ingredient from phase 2 should survive";
+
+    // Verify exactly one actions assertion with both actions inside.
+    int actions_assertion_count = 0;
+    bool has_created = false;
+    bool has_color_adjustments = false;
+    for (auto& assertion : signed_manifest["assertions"]) {
+        if (assertion.contains("label") &&
+            (assertion["label"] == "c2pa.actions" || assertion["label"] == "c2pa.actions.v2")) {
+            actions_assertion_count++;
+            for (auto& action : assertion["data"]["actions"]) {
+                if (action["action"] == "c2pa.created") {
+                    has_created = true;
+                }
+                if (action["action"] == "c2pa.color_adjustments") {
+                    has_color_adjustments = true;
+                }
+            }
+        }
+    }
+    EXPECT_EQ(actions_assertion_count, 1)
+        << "There should be exactly one c2pa.actions assertion after merging";
+    EXPECT_TRUE(has_created)
+        << "c2pa.created from phase 1 should survive";
+    EXPECT_TRUE(has_color_adjustments)
+        << "c2pa.color_adjustments from phase 2 should survive";
 }
 
 TEST_F(BuilderTest, NonAsciiSourcePathForSign)
