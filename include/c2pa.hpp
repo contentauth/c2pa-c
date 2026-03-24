@@ -840,6 +840,11 @@ namespace c2pa
         [[deprecated("Use Builder(IContextProvider& context, manifest_json) instead")]]
         Builder(const std::string &manifest_json);
 
+        /// @brief Create a Builder from a raw C FFI builder.
+        /// @param builder Raw C2paBuilder pointer to wrap.
+        /// @throws C2paException if builder is nullptr.
+        explicit Builder(C2paBuilder *builder);
+
         Builder(const Builder&) = delete;
 
         Builder& operator=(const Builder&) = delete;

@@ -166,6 +166,22 @@ TEST_F(BuilderTest, exposes_raw_pointer) {
     ASSERT_NE(builder.c2pa_builder(), nullptr);
 }
 
+TEST_F(BuilderTest, wraps_c_ffi_builder) {
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+
+    C2paBuilder* ffi_builder = c2pa_builder_from_json(manifest.c_str());
+    ASSERT_NE(ffi_builder, nullptr);
+
+    auto builder = c2pa::Builder(ffi_builder);
+    EXPECT_EQ(builder.c2pa_builder(), ffi_builder);
+}
+
+TEST_F(BuilderTest, wraps_null_c_ffi_builder_throws) {
+    EXPECT_THROW(c2pa::Builder(nullptr), c2pa::C2paException);
+}
+
 // Test fixture for basic signature validations with automatic cleanup
 class BuilderSmokeSignTest : public BuilderTest, public ::testing::WithParamInterface<std::string> {
 public:
