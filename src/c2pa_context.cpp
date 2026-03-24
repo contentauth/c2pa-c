@@ -38,19 +38,29 @@ namespace c2pa
     }
 
     Context::Context(Context&& other) noexcept
-        : context(std::exchange(other.context, nullptr)) {
+        : context(std::exchange(other.context, nullptr)),
+          callback_owner_(std::exchange(other.callback_owner_, nullptr)) {
     }
 
     Context& Context::operator=(Context&& other) noexcept {
         if (this != &other) {
             c2pa_free(context);
+            delete static_cast<ProgressCallbackFunc*>(callback_owner_);
             context = std::exchange(other.context, nullptr);
+            callback_owner_ = std::exchange(other.callback_owner_, nullptr);
         }
         return *this;
     }
 
     Context::~Context() noexcept {
         c2pa_free(context);
+        delete static_cast<ProgressCallbackFunc*>(callback_owner_);
+    }
+
+    void Context::cancel() noexcept {
+        if (context) {
+            c2pa_context_cancel(context);
+        }
     }
 
     C2paContext* Context::c_context() const noexcept {
@@ -80,13 +90,15 @@ namespace c2pa
     }
 
     Context::ContextBuilder::ContextBuilder(ContextBuilder&& other) noexcept
-        : context_builder(std::exchange(other.context_builder, nullptr)) {
+        : context_builder(std::exchange(other.context_builder, nullptr)),
+          pending_callback_(std::move(other.pending_callback_)) {
     }
 
     Context::ContextBuilder& Context::ContextBuilder::operator=(ContextBuilder&& other) noexcept {
         if (this != &other) {
             c2pa_free(context_builder);
             context_builder = std::exchange(other.context_builder, nullptr);
+            pending_callback_ = std::move(other.pending_callback_);
         }
         return *this;
     }
@@ -154,6 +166,32 @@ namespace c2pa
         return *this;
     }
 
+    // C trampoline: delegates to the ProgressCallbackFunc stored in user_data.
+    static bool progress_callback_trampoline(void* user_data,
+                                             C2paProgressPhase phase,
+                                             uint32_t step,
+                                             uint32_t total) {
+        auto* cb = static_cast<ProgressCallbackFunc*>(user_data);
+        return (*cb)(phase, step, total);
+    }
+
+    Context::ContextBuilder& Context::ContextBuilder::with_progress_callback(ProgressCallbackFunc callback) {
+        if (!is_valid()) {
+            throw C2paException("ContextBuilder is invalid (moved from)");
+        }
+        // Heap-allocate the std::function so we can pass a stable pointer to the C API.
+        // The resulting Context takes ownership of this allocation.
+        pending_callback_ = std::make_unique<ProgressCallbackFunc>(std::move(callback));
+        if (c2pa_context_builder_set_progress_callback(
+                context_builder,
+                pending_callback_.get(),
+                progress_callback_trampoline) != 0) {
+            pending_callback_.reset();
+            throw C2paException();
+        }
+        return *this;
+    }
+
     Context Context::ContextBuilder::create_context() {
         if (!is_valid()) {
             throw C2paException("ContextBuilder is invalid (moved from)");
@@ -168,6 +206,10 @@ namespace c2pa
         // Builder is consumed by the C API
         context_builder = nullptr;
 
-        return Context(ctx);
+        Context result(ctx);
+        // Transfer progress callback heap ownership to the Context so it is freed
+        // when the Context is destroyed (the C side holds a raw pointer to it).
+        result.callback_owner_ = pending_callback_.release();
+        return result;
     }
 } // namespace c2pa
