@@ -653,6 +653,17 @@ namespace c2pa
         [[deprecated("Use Reader(IContextProvider& context, source_path) instead")]]
         Reader(const std::filesystem::path &source_path);
 
+        /// @brief Try to open a Reader from a context and file path when the asset may lack C2PA data.
+        /// @return A Reader if JUMBF (c2pa/manifest) data is present; std::nullopt if none.
+        /// @throws C2paException for errors other than a missing manifest (e.g. invalid asset).
+        /// @throws std::system_error if the file cannot be opened.
+        static std::optional<Reader> from_asset(IContextProvider& context, const std::filesystem::path &source_path);
+
+        /// @brief Try to create a Reader from a context and stream when the asset may lack C2PA data.
+        /// @return A Reader if JUMBF (c2pa/manifest) data is present; std::nullopt if none.
+        /// @throws C2paException for errors other than a missing manifest.
+        static std::optional<Reader> from_asset(IContextProvider& context, const std::string &format, std::istream &stream);
+
         // Non-copyable
         Reader(const Reader&) = delete;
 

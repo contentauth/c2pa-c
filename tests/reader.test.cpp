@@ -246,6 +246,63 @@ TEST_F(ReaderTest, FileNoManifest)
     EXPECT_THROW({ auto reader = c2pa::Reader(test_file); }, c2pa::C2paException);
 };
 
+TEST_F(ReaderTest, FromAssetNoManifestReturnsNullopt)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/A.jpg";
+    auto context = c2pa::Context();
+    auto reader = c2pa::Reader::from_asset(context, test_file);
+    EXPECT_FALSE(reader.has_value());
+}
+
+TEST_F(ReaderTest, FromAssetWithManifestReturnsReader)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+    auto context = c2pa::Context();
+    auto reader = c2pa::Reader::from_asset(context, test_file);
+    ASSERT_TRUE(reader.has_value());
+    EXPECT_TRUE(reader->json().find("C.jpg") != std::string::npos);
+}
+
+TEST_F(ReaderTest, FromAssetStreamNoManifestReturnsNullopt)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/A.jpg";
+    std::ifstream stream(test_file, std::ios::binary);
+    ASSERT_TRUE(stream);
+    auto context = c2pa::Context();
+    auto reader = c2pa::Reader::from_asset(context, "image/jpeg", stream);
+    EXPECT_FALSE(reader.has_value());
+}
+
+TEST_F(ReaderTest, FromAssetStreamWithManifestReturnsReader)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
+    std::ifstream stream(test_file, std::ios::binary);
+    ASSERT_TRUE(stream);
+    auto context = c2pa::Context();
+    auto reader = c2pa::Reader::from_asset(context, "image/jpeg", stream);
+    ASSERT_TRUE(reader.has_value());
+    EXPECT_TRUE(reader->json().find("C.jpg") != std::string::npos);
+}
+
+TEST_F(ReaderTest, FromAssetEmptyFileStillThrows)
+{
+    fs::path empty_file = get_temp_path("from_asset_empty");
+    {
+        std::ofstream f(empty_file, std::ios::binary);
+        ASSERT_TRUE(f);
+    }
+    auto context = c2pa::Context();
+    EXPECT_THROW(
+        {
+            (void)c2pa::Reader::from_asset(context, empty_file);
+        },
+        c2pa::C2paException);
+}
+
 class RemoteUrlTests
     : public ::testing::TestWithParam<std::tuple<std::string, bool>> {
 public:
