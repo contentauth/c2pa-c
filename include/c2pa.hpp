@@ -816,7 +816,7 @@ namespace c2pa
     /// @details This class is used to create a manifest from a json std::string and add resources and ingredients to the manifest.
     class C2PA_CPP_API Builder
     {
-    private:
+    protected:
         C2paBuilder *builder;
 
     public:
@@ -1094,6 +1094,393 @@ namespace c2pa
     private:
         explicit Builder(std::istream &archive);
     };
+
+
+    /// @brief State tags for the embeddable signing state machine.
+    /// @details Each state carries only the data relevant to that stage of the workflow.
+    namespace embeddable {
+        struct Init {};
+
+        struct PlaceholderCreated {
+            std::vector<unsigned char> bytes;
+        };
+
+        struct ExclusionsSet {
+            std::vector<unsigned char> placeholder;
+            std::vector<std::pair<uint64_t, uint64_t>> ranges;
+        };
+
+        struct Hashed {
+            std::vector<unsigned char> placeholder;
+            std::vector<std::pair<uint64_t, uint64_t>> exclusions;
+        };
+
+        struct Signed {
+            std::vector<unsigned char> manifest;
+            std::vector<unsigned char> placeholder;
+            std::vector<std::pair<uint64_t, uint64_t>> exclusions;
+        };
+    }
+
+    /// @brief State-machine wrapper for the embeddable signing workflow.
+    /// @details Uses private inheritance from Builder. Only safe Builder methods
+    ///          are exposed, gated by state. Transition methods are &&-qualified —
+    ///          they consume the current object and return the next state.
+    ///
+    /// Supported flows and their state transitions:
+    ///
+    ///   DataHash (JPEG, PNG, and other non-BMFF formats by default):
+    ///     Init --create_placeholder()--> PlaceholderCreated
+    ///          --set_data_hash_exclusions()--> ExclusionsSet
+    ///          --hash_from_stream()--> Hashed --sign()--> Signed
+    ///     The caller embeds the placeholder bytes at a chosen offset, then
+    ///     registers that offset/size as an exclusion so the hash skips it.
+    ///
+    ///   BmffHash (MP4, AVIF, HEIF — BMFF containers):
+    ///     Init --create_placeholder()--> PlaceholderCreated
+    ///          --hash_from_stream()--> Hashed --sign()--> Signed
+    ///     The SDK handles exclusion of the manifest UUID box automatically.
+    ///     BMFF formats always require a placeholder regardless of settings.
+    ///
+    ///   BoxHash (JPEG and others when prefer_box_hash is enabled):
+    ///     Init --hash_from_stream()--> Hashed --sign()--> Signed
+    ///     No placeholder step. The SDK hashes each structural chunk
+    ///     independently and appends the manifest as a new chunk.
+    ///
+    /// Call needs_placeholder() in the Init state to determine which flow
+    /// applies for the given format and settings.
+    ///
+    /// Once create_placeholder() is called, the manifest definition is locked.
+    /// Methods that mutate the definition (add_ingredient, add_resource,
+    /// add_action, with_definition, sign, to_archive, etc.) are only available
+    /// in Init. After that, only c2pa_builder(), set_intent(), and set_base_path()
+    /// remain available. Use as_builder() for raw Builder access when needed.
+    ///
+    /// @tparam State One of the embeddable state tags.
+    template <typename State>
+    class EmbeddableWorkflow : private Builder {
+        std::string format_;
+        State state_data_;
+
+        template <typename> friend class EmbeddableWorkflow;
+
+        /// @brief Internal: moves C2paBuilder* and format from another state.
+        template <typename OtherState>
+        EmbeddableWorkflow(EmbeddableWorkflow<OtherState>&& other, State data)
+            : Builder(std::move(other))
+            , format_(std::move(other.format_))
+            , state_data_(std::move(data))
+        {
+        }
+
+    public:
+        /// @brief Enter the embeddable state machine from a Builder.
+        /// @param b Builder to consume (moved from).
+        /// @param format MIME type of the target asset (e.g. "image/jpeg", "video/mp4").
+        EmbeddableWorkflow(Builder&& b, std::string format)
+            : Builder(std::move(b))
+            , format_(std::move(format))
+        {
+        }
+
+        EmbeddableWorkflow(EmbeddableWorkflow&&) noexcept = default;
+        EmbeddableWorkflow& operator=(EmbeddableWorkflow&&) noexcept = default;
+        EmbeddableWorkflow(const EmbeddableWorkflow&) = delete;
+        EmbeddableWorkflow& operator=(const EmbeddableWorkflow&) = delete;
+
+        // -- Safe in all states (via using) --
+
+        using Builder::c2pa_builder;
+        using Builder::set_intent;
+        using Builder::set_base_path;
+
+        /// @brief [EmbeddableWorkflow state: all] Returns the current state name.
+        static constexpr const char* get_current_state() noexcept;
+
+        /// @brief [EmbeddableWorkflow state: all] Returns the MIME format string.
+        const std::string& format() const noexcept { return format_; }
+
+        /// @brief [EmbeddableWorkflow state: all] Access the underlying Builder reference.
+        Builder& as_builder() & { return *this; }
+        /// @brief [EmbeddableWorkflow state: all] Access the underlying Builder reference (const).
+        const Builder& as_builder() const & { return *this; }
+
+        /// @brief [EmbeddableWorkflow state: Init] Recover the Builder, exiting the workflow.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>, Builder>
+        into_builder() && {
+            return Builder(std::move(*this));
+        }
+
+        // -- Init-only Builder methods (unsafe after placeholder) --
+
+        /// @brief [EmbeddableWorkflow state: Init] Add an ingredient from a stream.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>>
+        add_ingredient(const std::string& json, const std::string& fmt, std::istream& source) {
+            Builder::add_ingredient(json, fmt, source);
+        }
+
+        /// @brief [EmbeddableWorkflow state: Init] Add an ingredient from a file.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>>
+        add_ingredient(const std::string& json, const std::filesystem::path& path) {
+            Builder::add_ingredient(json, path);
+        }
+
+        /// @brief [EmbeddableWorkflow state: Init] Add a resource from a stream.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>>
+        add_resource(const std::string& uri, std::istream& source) {
+            Builder::add_resource(uri, source);
+        }
+
+        /// @brief [EmbeddableWorkflow state: Init] Add a resource from a file.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>>
+        add_resource(const std::string& uri, const std::filesystem::path& path) {
+            Builder::add_resource(uri, path);
+        }
+
+        /// @brief [EmbeddableWorkflow state: Init] Add an action to the manifest.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>>
+        add_action(const std::string& json) {
+            Builder::add_action(json);
+        }
+
+        /// @brief [EmbeddableWorkflow state: Init] Set or update the manifest definition.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>, EmbeddableWorkflow&>
+        with_definition(const std::string& json) {
+            Builder::with_definition(json);
+            return *this;
+        }
+
+        /// @brief [EmbeddableWorkflow state: Init] Set the no-embed flag.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>>
+        set_no_embed() { Builder::set_no_embed(); }
+
+        /// @brief [EmbeddableWorkflow state: Init] Set the remote URL.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>>
+        set_remote_url(const std::string& url) { Builder::set_remote_url(url); }
+
+        /// @brief [EmbeddableWorkflow state: Init] Write the builder to an archive stream.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>>
+        to_archive(std::ostream& dest) { Builder::to_archive(dest); }
+
+        /// @brief [EmbeddableWorkflow state: Init] Write the builder to an archive file.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>>
+        to_archive(const std::filesystem::path& path) { Builder::to_archive(path); }
+
+        /// @brief [EmbeddableWorkflow state: Init] Standard sign (stream, deprecated ostream overload).
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>, std::vector<unsigned char>>
+        sign(const std::string& fmt, std::istream& src, std::ostream& dst, Signer& s) {
+            return Builder::sign(fmt, src, dst, s);
+        }
+
+        /// @brief [EmbeddableWorkflow state: Init] Standard sign (stream, iostream overload).
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>, std::vector<unsigned char>>
+        sign(const std::string& fmt, std::istream& src, std::iostream& dst, Signer& s) {
+            return Builder::sign(fmt, src, dst, s);
+        }
+
+        /// @brief [EmbeddableWorkflow state: Init] Standard sign (file path with signer).
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>, std::vector<unsigned char>>
+        sign(const std::filesystem::path& src, const std::filesystem::path& dst, Signer& s) {
+            return Builder::sign(src, dst, s);
+        }
+
+        /// @brief [EmbeddableWorkflow state: Init] Standard sign (stream, context signer).
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>, std::vector<unsigned char>>
+        sign(const std::string& fmt, std::istream& src, std::iostream& dst) {
+            return Builder::sign(fmt, src, dst);
+        }
+
+        /// @brief [EmbeddableWorkflow state: Init] Standard sign (file path, context signer).
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>, std::vector<unsigned char>>
+        sign(const std::filesystem::path& src, const std::filesystem::path& dst) {
+            return Builder::sign(src, dst);
+        }
+
+        // -- State machine transitions --
+
+        /// @brief [EmbeddableWorkflow state: Init] Check if the format requires a placeholder step.
+        /// @throws C2paException on error.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>, bool>
+        needs_placeholder() const {
+            assert(this->builder != nullptr && "use-after-move: builder is null");
+            int result = c2pa_builder_needs_placeholder(this->builder, format_.c_str());
+            if (result < 0) {
+                throw C2paException();
+            }
+            return result == 1;
+        }
+
+        /// @brief [EmbeddableWorkflow state: Init -> PlaceholderCreated] Compose placeholder bytes and commit the placeholder size.
+        /// @throws C2paException on error. On failure, *this is unchanged.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>,
+                         EmbeddableWorkflow<embeddable::PlaceholderCreated>>
+        create_placeholder() && {
+            assert(this->builder != nullptr && "use-after-move: builder is null");
+            auto bytes = Builder::placeholder(format_);
+            return EmbeddableWorkflow<embeddable::PlaceholderCreated>(
+                std::move(*this),
+                embeddable::PlaceholderCreated{std::move(bytes)});
+        }
+
+        /// @brief [EmbeddableWorkflow state: Init -> Hashed] Hash the asset stream directly (BoxHash path).
+        /// @throws C2paException on error. On failure, *this is unchanged.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Init>,
+                         EmbeddableWorkflow<embeddable::Hashed>>
+        hash_from_stream(std::istream& stream) && {
+            assert(this->builder != nullptr && "use-after-move: builder is null");
+            Builder::update_hash_from_stream(format_, stream);
+            return EmbeddableWorkflow<embeddable::Hashed>(
+                std::move(*this),
+                embeddable::Hashed{{}, {}});
+        }
+
+        /// @brief [EmbeddableWorkflow state: PlaceholderCreated -> ExclusionsSet] Register where the placeholder was embedded (DataHash path).
+        /// @param excl Vector of (offset, length) pairs.
+        /// @throws C2paException on error. On failure, *this is unchanged.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::PlaceholderCreated>,
+                         EmbeddableWorkflow<embeddable::ExclusionsSet>>
+        set_data_hash_exclusions(
+            const std::vector<std::pair<uint64_t, uint64_t>>& excl) && {
+            assert(this->builder != nullptr && "use-after-move: builder is null");
+            Builder::set_data_hash_exclusions(excl);
+            return EmbeddableWorkflow<embeddable::ExclusionsSet>(
+                std::move(*this),
+                embeddable::ExclusionsSet{
+                    std::move(state_data_.bytes),
+                    excl});
+        }
+
+        /// @brief [EmbeddableWorkflow state: PlaceholderCreated -> Hashed] Hash the asset stream after embedding the placeholder (BmffHash path).
+        /// @throws C2paException on error. On failure, *this is unchanged.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::PlaceholderCreated>,
+                         EmbeddableWorkflow<embeddable::Hashed>>
+        hash_from_stream(std::istream& stream) && {
+            assert(this->builder != nullptr && "use-after-move: builder is null");
+            Builder::update_hash_from_stream(format_, stream);
+            return EmbeddableWorkflow<embeddable::Hashed>(
+                std::move(*this),
+                embeddable::Hashed{
+                    std::move(state_data_.bytes),
+                    {}});
+        }
+
+        /// @brief [EmbeddableWorkflow state: ExclusionsSet -> Hashed] Hash the asset stream, skipping the registered exclusion ranges (DataHash path).
+        /// @throws C2paException on error. On failure, *this is unchanged.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::ExclusionsSet>,
+                         EmbeddableWorkflow<embeddable::Hashed>>
+        hash_from_stream(std::istream& stream) && {
+            assert(this->builder != nullptr && "use-after-move: builder is null");
+            Builder::update_hash_from_stream(format_, stream);
+            return EmbeddableWorkflow<embeddable::Hashed>(
+                std::move(*this),
+                embeddable::Hashed{
+                    std::move(state_data_.placeholder),
+                    std::move(state_data_.ranges)});
+        }
+
+        /// @brief [EmbeddableWorkflow state: Hashed -> Signed] Sign the manifest. For placeholder workflows the output
+        ///        matches the placeholder size; for BoxHash it is the actual manifest size.
+        /// @throws C2paException on error. On failure, *this is unchanged.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Hashed>,
+                         EmbeddableWorkflow<embeddable::Signed>>
+        sign() && {
+            assert(this->builder != nullptr && "use-after-move: builder is null");
+            auto bytes = Builder::sign_embeddable(format_);
+            return EmbeddableWorkflow<embeddable::Signed>(
+                std::move(*this),
+                embeddable::Signed{
+                    std::move(bytes),
+                    std::move(state_data_.placeholder),
+                    std::move(state_data_.exclusions)});
+        }
+
+        // -- State-specific accessors --
+
+        /// @brief [EmbeddableWorkflow state: PlaceholderCreated, ExclusionsSet, Hashed, Signed] Returns the placeholder bytes.
+        template <typename S = State>
+        std::enable_if_t<
+            std::is_same_v<S, embeddable::PlaceholderCreated> ||
+            std::is_same_v<S, embeddable::ExclusionsSet> ||
+            std::is_same_v<S, embeddable::Hashed> ||
+            std::is_same_v<S, embeddable::Signed>,
+            const std::vector<unsigned char>&>
+        placeholder_bytes() const noexcept {
+            if constexpr (std::is_same_v<State, embeddable::PlaceholderCreated>)
+                return state_data_.bytes;
+            else
+                return state_data_.placeholder;
+        }
+
+        /// @brief [EmbeddableWorkflow state: ExclusionsSet, Hashed, Signed] Returns the exclusion ranges.
+        template <typename S = State>
+        std::enable_if_t<
+            std::is_same_v<S, embeddable::ExclusionsSet> ||
+            std::is_same_v<S, embeddable::Hashed> ||
+            std::is_same_v<S, embeddable::Signed>,
+            const std::vector<std::pair<uint64_t, uint64_t>>&>
+        data_hash_exclusions() const noexcept {
+            if constexpr (std::is_same_v<State, embeddable::ExclusionsSet>)
+                return state_data_.ranges;
+            else
+                return state_data_.exclusions;
+        }
+
+        /// @brief [EmbeddableWorkflow state: Signed] Returns the signed manifest bytes for embedding.
+        template <typename S = State>
+        std::enable_if_t<std::is_same_v<S, embeddable::Signed>,
+                         const std::vector<unsigned char>&>
+        signed_bytes() const noexcept {
+            return state_data_.manifest;
+        }
+    };
+
+    template <>
+    inline constexpr const char* EmbeddableWorkflow<embeddable::Init>::get_current_state() noexcept {
+        return "Init";
+    }
+
+    template <>
+    inline constexpr const char* EmbeddableWorkflow<embeddable::PlaceholderCreated>::get_current_state() noexcept {
+        return "PlaceholderCreated";
+    }
+
+    template <>
+    inline constexpr const char* EmbeddableWorkflow<embeddable::ExclusionsSet>::get_current_state() noexcept {
+        return "ExclusionsSet";
+    }
+
+    template <>
+    inline constexpr const char* EmbeddableWorkflow<embeddable::Hashed>::get_current_state() noexcept {
+        return "Hashed";
+    }
+
+    template <>
+    inline constexpr const char* EmbeddableWorkflow<embeddable::Signed>::get_current_state() noexcept {
+        return "Signed";
+    }
 }
 
 // Restore warnings
