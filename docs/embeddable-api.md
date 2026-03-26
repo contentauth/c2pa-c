@@ -668,7 +668,7 @@ auto workflow = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
 // The ingredients and resources carry over into the workflow.
 ```
 
-Both approaches produce the same manifest content (assertions, ingredients, relationships). The `BuilderAndWorkflowProduceSameManifestContent` test in [embeddable.test.cpp](../tests/embeddable.test.cpp) verifies this by signing via each approach, reading the manifests back, and comparing them field by field (excluding per-sign volatile fields like instance IDs, timestamps, and hashes). Adding on the workflow is convenient when a single object should manage the full lifecycle.
+At this point in the workflow, both approaches produce the same manifest content (assertions, ingredients, relationships).
 
 ### EmbeddableWorkflow DataHash example
 
@@ -684,7 +684,7 @@ auto workflow_placeholder = std::move(workflow_init).create_placeholder();
 // Embed the placeholder bytes into the asset at a chosen offset.
 uint64_t insert_offset = 2;  // after JPEG SOI marker
 auto placeholder_size = workflow_placeholder.placeholder_bytes().size();
-// ... write workflow_placeholder.placeholder_bytes() into asset at insert_offset ...
+// ... write workflow_placeholder.placeholder_bytes() into asset at insert_offset...
 
 // PlaceholderCreated -> ExclusionsSet
 auto workflow_exclusions = std::move(workflow_placeholder)
@@ -709,7 +709,7 @@ auto workflow_init = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
 auto workflow_placeholder = std::move(workflow_init).create_placeholder();
 // Embed placeholder into MP4 container...
 
-// PlaceholderCreated -> Hashed (SDK handles manifest box exclusion)
+// PlaceholderCreated -> Hashed
 std::ifstream asset_stream("output.mp4", std::ios::binary);
 auto workflow_hashed = std::move(workflow_placeholder).hash_from_stream(asset_stream);
 asset_stream.close();
@@ -827,7 +827,7 @@ After `create_placeholder()`, the builder's internal state includes a committed 
 
 ### Compile-time safety
 
-Calling a method in the wrong state is a compile error:
+Calling a method in the wrong state results in a compilation error:
 
 ```cpp
 auto init = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
