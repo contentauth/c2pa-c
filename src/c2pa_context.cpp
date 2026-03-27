@@ -154,8 +154,8 @@ namespace c2pa
         return *this;
     }
 
-    C2paContextBuilder* Context::ContextBuilder::c2pa_context_builder() const noexcept {
-        return context_builder;
+    C2paContextBuilder* Context::ContextBuilder::release() noexcept {
+        return std::exchange(context_builder, nullptr);
     }
 
     Context Context::ContextBuilder::create_context() {

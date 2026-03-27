@@ -317,9 +317,12 @@ namespace c2pa
             /// @note This consumes the builder. After calling this, is_valid() returns false.
             [[nodiscard]] Context create_context();
 
-            /// @brief Get the underlying C2paContextBuilder pointer.
+            /// @brief Release ownership of the underlying C2paContextBuilder pointer.
+            ///        After this call, the ContextBuilder no longer owns the pointer
+            ///        and is_valid() returns false. The caller is responsible for managing
+            ///        the lifetime of the returned pointer.
             /// @return Pointer to the C2paContextBuilder object, or nullptr if moved from.
-            C2paContextBuilder* c2pa_context_builder() const noexcept;
+            C2paContextBuilder* release() noexcept;
 
         private:
             C2paContextBuilder* context_builder;
