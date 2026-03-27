@@ -602,7 +602,7 @@ stateDiagram-v2
     PlaceholderCreated --> ExclusionsSet : set_data_hash_exclusions [DataHash]
     PlaceholderCreated --> Hashed : hash_from_stream [BmffHash]
 
-    ExclusionsSet --> Hashed : hash_from_stream
+    ExclusionsSet --> Hashed : hash_from_stream [DataHash]
 
     Hashed --> Signed : sign
     Signed --> [*]
@@ -612,7 +612,9 @@ stateDiagram-v2
     end note
 ```
 
-### Methods by state
+### Class diagram with available emthods per state
+
+The following diagram groups methods by which state enables them, to show which methods are available when. In the implementation, `EmbeddableWorkflow` is a single class template parameterized on a state tag and not a class hierarchy. The inheritance arrows represent "includes these methods", not actual C++ class inheritance.
 
 ```mermaid
 classDiagram
@@ -669,8 +671,6 @@ classDiagram
     AllStates <|-- Hashed
     AllStates <|-- Signed
 ```
-
-Note: this diagram groups methods by which state enables them. In the implementation, `EmbeddableWorkflow` is a single class template parameterized on a state tag — not a class hierarchy. The inheritance arrows represent "includes these methods", not actual C++ inheritance.
 
 ### Entering workflow
 
