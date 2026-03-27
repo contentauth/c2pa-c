@@ -547,10 +547,53 @@ The methods described in the [API summary](#api-summary) above are available as 
 
 `EmbeddableWorkflow<State>` holds a `Builder` by composition. Builder methods that mutate the manifest definition (`add_ingredient`, `add_resource`, `add_action`, `with_definition`, `to_archive`, etc.) are forwarded and only available in the Init state. Once `create_placeholder()` locks the definition, only `c2pa_builder()` and state-specific accessors remain. In Init state, `builder()` returns a reference to the underlying `Builder` for direct access. Transition methods consume the current object via `std::move()` and return a new object in the next state. Call `needs_placeholder()` to determine whether the format requires a placeholder step.
 
+### Workflow overview
+
+This example shows a complete DataHash workflow end-to-end: creating a context with a signer, entering the embeddable workflow, creating a placeholder, setting exclusions, hashing, and signing.
+
+```cpp
+#include "c2pa.hpp"
+#include <fstream>
+#include <cassert>
+
+// Create a context with a signer.
+auto context = c2pa::Context::ContextBuilder()
+    .with_signer(c2pa::Signer("Es256", certs, private_key, "http://timestamp.digicert.com"))
+    .create_context();
+
+// Build a manifest...
+auto builder = c2pa::Builder(context, manifest_json);
+// ... Once ready, enter the signing workflow
+auto workflow = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
+
+// Create the placeholder (Transition: Init -> PlaceholderCreated).
+assert(workflow.needs_placeholder());
+auto workflow_placeholder = std::move(workflow).create_placeholder();
+
+// Embed placeholder bytes into the asset at a chosen offset.
+uint64_t insert_offset = 2;  // after JPEG SOI marker
+auto placeholder_size = workflow_placeholder.placeholder_bytes().size();
+
+// Tell the library where the placeholder lives (Transition: PlaceholderCreated -> ExclusionsSet).
+auto workflow_exclusions = std::move(workflow_placeholder)
+    .set_data_hash_exclusions({{insert_offset, placeholder_size}});
+
+// Hash the asset (Transition: ExclusionsSet -> Hashed).
+std::ifstream asset_stream("output.jpg", std::ios::binary);
+auto workflow_hashed = std::move(workflow_exclusions).hash_from_stream(asset_stream);
+asset_stream.close();
+
+// Sign (Transition: Hashed -> Signed).
+// This finishes the workflow.
+auto workflow_signed = std::move(workflow_hashed).sign();
+```
+
+The sections below cover each step in detail, along with BmffHash and BoxHash variations.
+
 ### State diagram
 
 ```mermaid
-stateDiagram-embeddable-as-state-machine
+stateDiagram-v2
     [*] --> Init : enter_embeddable_workflow(std::move(builder), format)
 
     Init --> PlaceholderCreated : create_placeholder()
@@ -575,7 +618,7 @@ stateDiagram-embeddable-as-state-machine
     end note
 ```
 
-### Getting started
+### Entering workflow
 
 Use `enter_embeddable_workflow()` to create a workflow from a `Builder`:
 
