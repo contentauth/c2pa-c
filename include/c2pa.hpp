@@ -1203,15 +1203,15 @@ namespace c2pa
         const std::vector<unsigned char>& sign();
 
         /// @brief Returns the placeholder bytes.
-        /// Available from placeholder_created state onward.
+        /// Available in placeholder_created and exclusions_configured states only.
         const std::vector<unsigned char>& placeholder_bytes() const;
 
         /// @brief Returns the exclusion ranges.
-        /// Available from exclusions_configured state onward.
+        /// Available in exclusions_configured state only.
         const std::vector<std::pair<uint64_t, uint64_t>>& data_hash_exclusions() const;
 
         /// @brief Returns the signed manifest bytes.
-        /// Available in signed state only.
+        /// Available in pipeline_signed state only.
         const std::vector<unsigned char>& signed_bytes() const;
 
         /// @brief Returns the MIME format string.

@@ -929,26 +929,42 @@ TEST_F(EmbeddablePipelineTest, PlaceholderBytesInInitState) {
     EXPECT_THROW(pipeline.placeholder_bytes(), c2pa::C2paException);
 }
 
-TEST_F(EmbeddablePipelineTest, PlaceholderBytesAvailableAfterCreation) {
+TEST_F(EmbeddablePipelineTest, PlaceholderBytesAvailableInAllowedStates) {
     auto pipeline = make_pipeline();
     pipeline.create_placeholder();
     auto size = pipeline.placeholder_bytes().size();
     ASSERT_GT(size, 0u);
 
-    // Still available after exclusions_configured
+    // Still available in exclusions_configured
     pipeline.set_data_hash_exclusions({{0, size}});
     EXPECT_EQ(pipeline.placeholder_bytes().size(), size);
+}
 
-    // Still available after hashed
+TEST_F(EmbeddablePipelineTest, PlaceholderBytesNotAvailableAfterHash) {
+    auto pipeline = make_pipeline();
+    pipeline.create_placeholder();
+    pipeline.set_data_hash_exclusions({{0, 100}});
+
     auto source_asset = c2pa_test::get_fixture_path("A.jpg");
     std::ifstream stream(source_asset, std::ios::binary);
     pipeline.hash_from_stream(stream);
     stream.close();
-    EXPECT_EQ(pipeline.placeholder_bytes().size(), size);
 
-    // Still available after signed
+    EXPECT_THROW(pipeline.placeholder_bytes(), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, PlaceholderBytesNotAvailableAfterSign) {
+    auto pipeline = make_pipeline();
+    pipeline.create_placeholder();
+    pipeline.set_data_hash_exclusions({{0, 100}});
+
+    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
+    std::ifstream stream(source_asset, std::ios::binary);
+    pipeline.hash_from_stream(stream);
+    stream.close();
     pipeline.sign();
-    EXPECT_EQ(pipeline.placeholder_bytes().size(), size);
+
+    EXPECT_THROW(pipeline.placeholder_bytes(), c2pa::C2paException);
 }
 
 TEST_F(EmbeddablePipelineTest, ExclusionsInInitState) {
@@ -962,7 +978,7 @@ TEST_F(EmbeddablePipelineTest, ExclusionsInPlaceholderCreatedState) {
     EXPECT_THROW(pipeline.data_hash_exclusions(), c2pa::C2paException);
 }
 
-TEST_F(EmbeddablePipelineTest, ExclusionsAvailableAfterSet) {
+TEST_F(EmbeddablePipelineTest, ExclusionsAvailableInConfiguredState) {
     auto pipeline = make_pipeline();
     pipeline.create_placeholder();
     pipeline.set_data_hash_exclusions({{10, 200}});
@@ -970,17 +986,6 @@ TEST_F(EmbeddablePipelineTest, ExclusionsAvailableAfterSet) {
     ASSERT_EQ(pipeline.data_hash_exclusions().size(), 1u);
     EXPECT_EQ(pipeline.data_hash_exclusions()[0].first, 10u);
     EXPECT_EQ(pipeline.data_hash_exclusions()[0].second, 200u);
-
-    // Still available after hashed
-    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
-    std::ifstream stream(source_asset, std::ios::binary);
-    pipeline.hash_from_stream(stream);
-    stream.close();
-    EXPECT_EQ(pipeline.data_hash_exclusions().size(), 1u);
-
-    // Still available after signed
-    pipeline.sign();
-    EXPECT_EQ(pipeline.data_hash_exclusions().size(), 1u);
 }
 
 TEST_F(EmbeddablePipelineTest, SignedBytesBeforeSign) {

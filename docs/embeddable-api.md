@@ -564,16 +564,12 @@ stateDiagram-v2
 
     note right of init
         Call needs_placeholder to choose path.
-        add_ingredient, add_resource, add_action,
-        with_definition, to_archive available here.
-    end note
-
-    note right of placeholder_created
-        placeholder_bytes available here and onward.
     end note
 ```
 
 ### Methods by state
+
+The following diagram groups methods by which state enables them. `EmbeddablePipeline` is a single class. The state groups show which methods are callable at runtime in each state, not separate C++ types.
 
 ```mermaid
 classDiagram
@@ -631,20 +627,15 @@ classDiagram
     EmbeddablePipeline -- pipeline_signed : state = pipeline_signed
 ```
 
-Note: this diagram groups methods by which state enables them. `EmbeddablePipeline` is a single class — the state groups show which methods are callable at runtime in each state, not separate C++ types.
-
 ### Pipeline DataHash example (JPEG, PNG)
 
 ```cpp
 auto pipeline = c2pa::EmbeddablePipeline(std::move(builder), "image/jpeg");
 
-// Optional: add ingredients/resources while in init state
-pipeline.add_ingredient(ingredient_json, "source.jpg");
-
 auto& placeholder = pipeline.create_placeholder();
-uint64_t offset = 2;  // after JPEG SOI marker
+uint64_t offset = 2;
 auto size = placeholder.size();
-// ... embed placeholder into asset at offset ...
+// embed placeholder into asset at offset
 
 pipeline.set_data_hash_exclusions({{offset, size}});
 
@@ -653,7 +644,7 @@ pipeline.hash_from_stream(stream);
 stream.close();
 
 auto& manifest = pipeline.sign();
-// manifest.size() == size — patch the placeholder in place
+// patch the placeholder in place
 ```
 
 ### Pipeline BmffHash example (MP4, AVIF, HEIF)
@@ -662,7 +653,7 @@ auto& manifest = pipeline.sign();
 auto pipeline = c2pa::EmbeddablePipeline(std::move(builder), "video/mp4");
 
 auto& placeholder = pipeline.create_placeholder();
-// ... embed into MP4 container ...
+// embed into container
 
 std::ifstream stream("output.mp4", std::ios::binary);
 pipeline.hash_from_stream(stream);
@@ -685,7 +676,7 @@ auto& manifest = pipeline.sign();
 
 ### State gating
 
-Transition methods require an exact state. Accessors carry forward from the state that produced them.
+Transition methods require an exact state.
 
 | Method | Allowed state(s) |
 | --- | --- |
@@ -695,15 +686,16 @@ Transition methods require an exact state. Accessors carry forward from the stat
 | `sign()` | `hashed` |
 | `add_ingredient()`, `add_resource()`, `add_action()`, `with_definition()`, `to_archive()` | `init` |
 
-| Accessor | Available from |
+Accessors are restricted to the states where the data is relevant.
+
+| Accessor | Allowed state(s) |
 | --- | --- |
-| `placeholder_bytes()` | `placeholder_created` onward |
-| `data_hash_exclusions()` | `exclusions_configured` onward |
-| `signed_bytes()` | `pipeline_signed` only |
+| `placeholder_bytes()` | `placeholder_created`, `exclusions_configured` |
+| `data_hash_exclusions()` | `exclusions_configured` |
+| `signed_bytes()` | `pipeline_signed` |
 
 Calling a method in the wrong state throws `C2paException`:
 
 ```text
 sign() requires state 'hashed' but current pipeline state is 'init'
 ```
-

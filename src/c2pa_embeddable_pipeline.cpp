@@ -54,14 +54,15 @@ namespace c2pa {
         for (auto s : allowed) {
             if (state_ == s) return;
         }
-        std::string names;
-        for (auto it = allowed.begin(); it != allowed.end(); ++it) {
-            if (it != allowed.begin()) names += ", ";
-            names += "'";
-            names += state_name(*it);
-            names += "'";
+        std::string expected = "one of {";
+        const char* sep = "";
+        for (auto s : allowed) {
+            expected += sep;
+            expected += state_name(s);
+            sep = ", ";
         }
-        throw_wrong_state(method, names);
+        expected += "}";
+        throw_wrong_state(method, expected);
     }
 
     EmbeddablePipeline::EmbeddablePipeline(Builder&& b, std::string format)
@@ -158,17 +159,19 @@ namespace c2pa {
     // Accessors
 
     const std::vector<unsigned char>& EmbeddablePipeline::placeholder_bytes() const {
-        require_state_at_least(State::placeholder_created, "placeholder_bytes()");
+        require_state_one_of(
+            {State::placeholder_created, State::exclusions_configured},
+            "placeholder_bytes()");
         return placeholder_;
     }
 
     const std::vector<std::pair<uint64_t, uint64_t>>& EmbeddablePipeline::data_hash_exclusions() const {
-        require_state_at_least(State::exclusions_configured, "data_hash_exclusions()");
+        require_state(State::exclusions_configured, "data_hash_exclusions()");
         return exclusions_;
     }
 
     const std::vector<unsigned char>& EmbeddablePipeline::signed_bytes() const {
-        require_state_at_least(State::pipeline_signed, "signed_bytes()");
+        require_state(State::pipeline_signed, "signed_bytes()");
         return signed_manifest_;
     }
 
