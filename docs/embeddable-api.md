@@ -594,26 +594,26 @@ The sections below cover each step in detail, along with BmffHash and BoxHash va
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Init : enter_embeddable_workflow(std::move(builder), format)
+    [*] --> Init : enter_embeddable_workflow
 
-    Init --> PlaceholderCreated : create_placeholder()
-    Init --> Hashed : hash_from_stream() [BoxHash]
+    Init --> PlaceholderCreated : create_placeholder
+    Init --> Hashed : hash_from_stream [BoxHash]
 
-    PlaceholderCreated --> ExclusionsSet : set_data_hash_exclusions() [DataHash]
-    PlaceholderCreated --> Hashed : hash_from_stream() [BmffHash]
+    PlaceholderCreated --> ExclusionsSet : set_data_hash_exclusions [DataHash]
+    PlaceholderCreated --> Hashed : hash_from_stream [BmffHash]
 
-    ExclusionsSet --> Hashed : hash_from_stream()
+    ExclusionsSet --> Hashed : hash_from_stream
 
-    Hashed --> Signed : sign()
+    Hashed --> Signed : sign
     Signed --> [*]
 
     note right of Init
-        Call needs_placeholder() to choose path.
+        Call needs_placeholder to choose path.
         Format string stored at construction.
     end note
 
     note right of PlaceholderCreated
-        placeholder_bytes() available here.
+        placeholder_bytes available here.
         Embed them in the asset before proceeding.
     end note
 ```
@@ -768,13 +768,13 @@ ph.get_current_state();    // "PlaceholderCreated"
 
 `to_archive()` is available only in the Init state. Once `create_placeholder()` is called, the manifest definition is locked and `to_archive()` is no longer accessible: calling it would produce a manifest archive whose definition no longer matches the committed placeholder size.
 
-An archive captures the manifest definition, ingredients, and resources. It does **not** capture embeddable workflow progress (placeholder commitment, exclusion ranges, computed hash). When an archive is restored, it produces a plain `Builder` — not an `EmbeddableWorkflow`.
+An archive captures the manifest definition, ingredients, and resources. It does not capture embeddable workflow progress (placeholder commitment, exclusion ranges, computed hash). When an archive is restored, it produces a plain `Builder`, not an `EmbeddableWorkflow`.
 
 `from_archive()` and `with_archive()` are not exposed on `EmbeddableWorkflow`. Use them on a plain `Builder` before entering the workflow.
 
 #### Prepare a manifest, archive it, sign later
 
-This pattern separates manifest preparation from signing. The archive can be transferred to another machine (e.g., an HSM server) for signing.
+This pattern separates manifest preparation from signing. The archive can be transferred to another machine for signing.
 
 ```cpp
 // Machine A: prepare the manifest and archive it
@@ -786,12 +786,10 @@ auto workflow = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg"
 
 // Archive while still in Init — manifest definition is not yet locked
 workflow.to_archive("manifest.c2pa");
-
-// ... transfer manifest.c2pa to Machine B ...
 ```
 
 ```cpp
-// Machine B: restore from archive and complete the embeddable workflow
+// Machine B: restore from archive and complete an embeddable workflow
 auto restored = c2pa::Builder::from_archive("manifest.c2pa");
 
 auto context_b = c2pa::Context::ContextBuilder()
@@ -807,32 +805,9 @@ auto workflow_placeholder = std::move(workflow).create_placeholder();
 // ... embed, set exclusions, hash, sign as usual ...
 ```
 
-#### Archive before entering the workflow, enter multiple times
-
-A single archive can be used to produce multiple signed assets with the same manifest definition.
-
-```cpp
-// Prepare and archive
-auto builder = c2pa::Builder(context, manifest_json);
-builder.add_ingredient(ingredient_json, source_path);
-builder.to_archive("template.c2pa");
-
-// Sign asset A
-auto builder_a = c2pa::Builder::from_archive("template.c2pa");
-auto workflow_a = c2pa::enter_embeddable_workflow(std::move(builder_a), "image/jpeg");
-auto signed_a = std::move(workflow_a).create_placeholder()
-    // ... complete the DataHash flow for asset A ...
-
-// Sign asset B from the same template
-auto builder_b = c2pa::Builder::from_archive("template.c2pa");
-auto workflow_b = c2pa::enter_embeddable_workflow(std::move(builder_b), "image/jpeg");
-auto signed_b = std::move(workflow_b).create_placeholder()
-    // ... complete the DataHash flow for asset B ...
-```
-
 #### Why `to_archive()` is Init-only
 
-After `create_placeholder()`, the builder's internal state includes a committed JUMBF placeholder size. An archive does not preserve this — it only captures the manifest definition. If `to_archive()` were allowed after `create_placeholder()`, restoring the archive and calling `create_placeholder()` again could produce a placeholder of a different size (because the signer's reserve size or context settings might differ), breaking the size invariant needed for in-place patching.
+After `create_placeholder()`, the `Builder` instance's internal state gets a JUMBF placeholder size. An archive does not preserve this progress in a workflow. If `to_archive()` were allowed after `create_placeholder()`, restoring the archive and calling `create_placeholder()` again could produce a placeholder of a different size (because the signer's reserve size or context settings might differ), breaking the size invariant needed for in-place patching.
 
 ### Compile-time safety
 
