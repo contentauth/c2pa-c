@@ -805,24 +805,32 @@ After `create_placeholder()`, the `Builder` instance's internal state gets a JUM
 
 ### Compile-time safety
 
-Calling a method in the wrong state results in a compilation error:
+State gating uses SFINAE (`std::enable_if_t`): each method is a template whose substitution succeeds only when the `State` parameter matches the required state tag. When it doesn't match, the method is silently removed from the overload set and any call to it becomes a compile error. We use SFINAE here over C++20 concepts to keep the header compatible with C++17 compilers.
+
+As such, calling a method in the wrong state results in a compilation error:
 
 ```cpp
 auto init = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
 
-// init.sign();                       // COMPILE ERROR: sign() only available in Hashed state
-// init.set_data_hash_exclusions({}); // COMPILE ERROR: only available in PlaceholderCreated
+// COMPILE ERROR: sign() only available in Hashed state
+// init.sign();
+
+// COMPILE ERROR: only available in PlaceholderCreated
+// init.set_data_hash_exclusions({});
 
 auto ph = std::move(init).create_placeholder();
-// ph.create_placeholder();           // COMPILE ERROR: only available in Init
-// ph.sign();                         // COMPILE ERROR: only available in Hashed
+// COMPILE ERROR: only available in Init
+// ph.create_placeholder();
+
+// COMPILE ERROR: only available in Hashed
+// ph.sign();
 ```
 
-### Migrating from the flat Builder API
+### Migrating from the "flat" Builder API
 
-The flat `Builder` methods (`placeholder()`, `set_data_hash_exclusions()`, `update_hash_from_stream()`, `sign_embeddable()`) and the `EmbeddableWorkflow` state machine perform the same operations. The difference is enforcement: the flat API checks call order at runtime (errors come from the Rust library), while `EmbeddableWorkflow` checks at compile time.
+The "flat" `Builder` methods (`placeholder()`, `set_data_hash_exclusions()`, `update_hash_from_stream()`, `sign_embeddable()`) and the `EmbeddableWorkflow` state machine perform the same operations. The difference is enforcement: the "flat" APIz check call order at runtime (errors come from the Rust library), while `EmbeddableWorkflow` checks at compile time.
 
-#### DataHash migration (JPEG, PNG, etc.)
+#### DataHash migration
 
 Flat API:
 
@@ -830,7 +838,6 @@ Flat API:
 auto builder = c2pa::Builder(context, manifest_json);
 
 auto placeholder_bytes = builder.placeholder("image/jpeg");
-// ... embed placeholder at insert_offset ...
 builder.set_data_hash_exclusions({{insert_offset, placeholder_bytes.size()}});
 
 std::ifstream stream("output.jpg", std::ios::binary);
@@ -847,8 +854,8 @@ auto builder = c2pa::Builder(context, manifest_json);
 auto wf = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
 
 auto wf_ph = std::move(wf).create_placeholder();
-// ... embed wf_ph.placeholder_bytes() at insert_offset ...
-auto wf_ex = std::move(wf_ph).set_data_hash_exclusions({{insert_offset, wf_ph.placeholder_bytes().size()}});
+auto placeholder_size = wf_ph.placeholder_bytes().size();
+auto wf_ex = std::move(wf_ph).set_data_hash_exclusions({{insert_offset, placeholder_size}});
 
 std::ifstream stream("output.jpg", std::ios::binary);
 auto wf_hashed = std::move(wf_ex).hash_from_stream(stream);
@@ -858,7 +865,7 @@ auto wf_signed = std::move(wf_hashed).sign();
 auto signed_manifest = wf_signed.signed_bytes();
 ```
 
-#### BmffHash migration (MP4, AVIF, HEIF)
+#### BmffHash migration
 
 Flat API:
 
@@ -866,7 +873,6 @@ Flat API:
 auto builder = c2pa::Builder(context, manifest_json);
 
 auto placeholder_bytes = builder.placeholder("video/mp4");
-// ... embed placeholder into MP4 container ...
 
 std::ifstream stream("output.mp4", std::ios::binary);
 builder.update_hash_from_stream("video/mp4", stream);
@@ -882,7 +888,6 @@ auto builder = c2pa::Builder(context, manifest_json);
 auto wf = c2pa::enter_embeddable_workflow(std::move(builder), "video/mp4");
 
 auto wf_ph = std::move(wf).create_placeholder();
-// ... embed wf_ph.placeholder_bytes() into MP4 container ...
 
 std::ifstream stream("output.mp4", std::ios::binary);
 auto wf_hashed = std::move(wf_ph).hash_from_stream(stream);
@@ -892,7 +897,7 @@ auto wf_signed = std::move(wf_hashed).sign();
 auto signed_manifest = wf_signed.signed_bytes();
 ```
 
-#### Key differences
+#### Difference compared to "flat" embeddable APis
 
 The format string is captured once at construction (`enter_embeddable_workflow(builder, format)`) instead of passed to each method call.
 
