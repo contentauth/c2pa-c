@@ -158,6 +158,10 @@ namespace c2pa
         return context_builder;
     }
 
+    C2paContextBuilder* Context::ContextBuilder::release() noexcept {
+        return std::exchange(context_builder, nullptr);
+    }
+
     Context Context::ContextBuilder::create_context() {
         if (!is_valid()) {
             throw C2paException("ContextBuilder is invalid (moved from)");
