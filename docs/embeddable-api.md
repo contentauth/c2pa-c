@@ -609,12 +609,6 @@ stateDiagram-v2
 
     note right of Init
         Call needs_placeholder to choose path.
-        Format string stored at construction.
-    end note
-
-    note right of PlaceholderCreated
-        placeholder_bytes available here.
-        Embed them in the asset before proceeding.
     end note
 ```
 
