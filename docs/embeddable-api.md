@@ -684,7 +684,6 @@ Transition methods require an exact state.
 | `set_data_hash_exclusions()` | `placeholder_created` |
 | `hash_from_stream()` | `init` (BoxHash), `placeholder_created` (BmffHash), `exclusions_configured` (DataHash) |
 | `sign()` | `hashed` |
-| `add_ingredient()`, `add_resource()`, `add_action()`, `with_definition()`, `to_archive()` | `init` |
 
 Accessors are restricted to the states where the data is relevant.
 
