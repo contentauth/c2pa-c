@@ -18,6 +18,22 @@
 #include "c2pa.hpp"
 #include "c2pa_internal.hpp"
 
+namespace {
+
+template <typename F>
+std::optional<c2pa::Reader> reader_from_asset_impl(F&& construct_reader) {
+    try {
+        return construct_reader();
+    } catch (const c2pa::C2paException& e) {
+        if (c2pa::detail::error_indicates_manifest_not_found(e.what())) {
+            return std::nullopt;
+        }
+        throw;
+    }
+}
+
+} // namespace
+
 namespace c2pa
 {
     /// Reader class for reading manifests
@@ -153,5 +169,13 @@ namespace c2pa
       uintptr_t count = 0;
       auto ptr = c2pa_reader_supported_mime_types(&count);
       return detail::c_mime_types_to_vector(ptr, count);
+    }
+
+    std::optional<Reader> Reader::from_asset(IContextProvider& context, const std::filesystem::path& source_path) {
+        return reader_from_asset_impl([&]() { return Reader(context, source_path); });
+    }
+
+    std::optional<Reader> Reader::from_asset(IContextProvider& context, const std::string& format, std::istream& stream) {
+        return reader_from_asset_impl([&]() { return Reader(context, format, stream); });
     }
 } // namespace c2pa

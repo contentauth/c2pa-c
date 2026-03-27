@@ -86,7 +86,7 @@ namespace c2pa
         if (result == nullptr)
         {
             auto C2paException = c2pa::C2paException();
-            if (strstr(C2paException.what(), "ManifestNotFound") != nullptr)
+            if (detail::error_indicates_manifest_not_found(C2paException.what()))
             {
                 return std::nullopt;
             }
