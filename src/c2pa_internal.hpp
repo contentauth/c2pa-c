@@ -31,6 +31,11 @@
 namespace c2pa {
 namespace detail {
 
+/// @brief True if the C2PA error message indicates no JUMBF / manifest in the asset (ManifestNotFound).
+inline bool error_indicates_manifest_not_found(const char* message) noexcept {
+    return message != nullptr && std::strstr(message, "ManifestNotFound") != nullptr;
+}
+
 /// @brief Converts a C array of C strings to a std::vector of std::string.
 /// @param mime_types Pointer to an array of C strings (const char*).
 /// @param count Number of elements in the array.
