@@ -825,14 +825,14 @@ TEST_F(EmbeddableWorkflowTest, ExposedBuilderMethodsWork) {
     auto workflow= c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
         std::move(builder), "image/jpeg");
 
-    // c2pa_builder() available via using declaration
+    // c2pa_builder() available in all states
     EXPECT_NE(workflow.c2pa_builder(), nullptr);
 
     // needs_placeholder() available in Init
     EXPECT_TRUE(workflow.needs_placeholder());
 
-    // as_builder() provides raw Builder access
-    EXPECT_NE(workflow.as_builder().c2pa_builder(), nullptr);
+    // builder() gives access to the underlying Builder in Init state
+    EXPECT_NE(workflow.builder().c2pa_builder(), nullptr);
 }
 
 TEST_F(EmbeddableWorkflowTest, ToArchiveAvailableInInit) {
@@ -1048,7 +1048,7 @@ TEST_F(EmbeddableWorkflowTest, BuilderAndWorkflowProduceSameManifestContent) {
             std::move(builder), "image/jpeg");
         workflow.add_ingredient(ingredient_json, ingredient_path);
         workflow.add_action(action_json);
-        workflow.sign(source_path, dest_workflow_path);
+        std::move(workflow).into_builder().sign(source_path, dest_workflow_path);
     }
 
     // Read both manifests back
@@ -1122,4 +1122,36 @@ TEST_F(EmbeddableWorkflowTest, BuilderAndWorkflowProduceSameManifestContent) {
             ingredients_workflow[i].value("relationship", ""))
             << "Ingredient " << i << " relationship mismatch";
     }
+}
+
+TEST_F(EmbeddableWorkflowTest, EnterEmbeddableWorkflowFactory) {
+    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+
+    auto context = c2pa::Context::ContextBuilder()
+        .with_signer(c2pa_test::create_test_signer())
+        .create_context();
+    auto builder = c2pa::Builder(context, manifest_json);
+
+    auto workflow = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
+
+    EXPECT_STREQ(workflow.get_current_state(), "Init");
+    EXPECT_EQ(workflow.format(), "image/jpeg");
+    EXPECT_NE(workflow.c2pa_builder(), nullptr);
+}
+
+TEST_F(EmbeddableWorkflowTest, InitHashFromStreamThrowsWhenPlaceholderRequired) {
+    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
+
+    auto context = c2pa::Context::ContextBuilder()
+        .with_signer(c2pa_test::create_test_signer())
+        .create_context();
+    auto builder = c2pa::Builder(context, manifest_json);
+
+    auto workflow = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
+
+    // JPEG without prefer_box_hash requires a placeholder, so Init->Hashed should throw
+    std::ifstream asset_stream(source_asset, std::ios::binary);
+    ASSERT_TRUE(asset_stream.is_open());
+    EXPECT_THROW((void)std::move(workflow).hash_from_stream(asset_stream), c2pa::C2paException);
 }

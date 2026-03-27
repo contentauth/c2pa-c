@@ -505,7 +505,7 @@ auto manifest_bytes = builder.sign_embeddable("image/jpeg");
 
 ## Class relationships
 
-This is a partial class diagram showing only the classes and methods relevant to the embeddable APIs. For the full API reference, see the [c2pa.hpp](../include/c2pa.hpp) header file.
+This is a partial class diagram showing only the clases and methods relevant to the embeddable APIs. For the full API reference, see the [c2pa.hpp](../include/c2pa.hpp) header file.
 
 ```mermaid
 classDiagram
@@ -539,42 +539,19 @@ classDiagram
     Signer --o ContextBuilder : moved into via with_signer()
     ContextBuilder --> Context : creates via create_context()
     Context --> Builder : passed to constructor
-
-    class EmbeddableWorkflow~State~ {
-        +EmbeddableWorkflow(Builder&&, format)
-        +get_current_state() const char* [all]
-        +format() const string& [all]
-        +as_builder() Builder& [all]
-        +into_builder() Builder [Init]
-        +needs_placeholder() bool [Init]
-        +create_placeholder() EmbeddableWorkflow~PlaceholderCreated~ [Init]
-        +hash_from_stream(stream) EmbeddableWorkflow~Hashed~ [Init|PlaceholderCreated|ExclusionsSet]
-        +placeholder_bytes() const vector~uint8~& [PlaceholderCreated|ExclusionsSet|Hashed|Signed]
-        +set_data_hash_exclusions(exclusions) EmbeddableWorkflow~ExclusionsSet~ [PlaceholderCreated]
-        +sign() EmbeddableWorkflow~Signed~ [Hashed]
-        +signed_bytes() const vector~uint8~& [Signed]
-        +data_hash_exclusions() const vector~pair~ [ExclusionsSet|Hashed|Signed]
-        +add_ingredient() [Init]
-        +add_resource() [Init]
-        +add_action() [Init]
-        +to_archive() [Init]
-        +sign(standard) [Init]
-    }
-
-    Builder <|.. EmbeddableWorkflow~State~ : private inheritance
 ```
 
 ## State machine based embeddable API (`EmbeddableWorkflow`)
 
 The methods described in the [API summary](#api-summary) above are available as "flat" methods on `Builder`. They can be called in any order, and calling them out of order produces a runtime error from the underlying (native Rust) library. The `EmbeddableWorkflow<State>` class template provides compile-time enforcement of the correct calling order.
 
-`EmbeddableWorkflow<State>` uses private inheritance from `Builder`. Builder methods that mutate the manifest definition (`add_ingredient`, `add_resource`, `add_action`, `with_definition`, `sign`, `to_archive`, etc.) are only available in the Init state, before `create_placeholder()` locks the definition. After that, only `c2pa_builder()`, `set_intent()`, and `set_base_path()` remain available. Use `as_builder()` for direct Builder access when needed. Transition methods consume the current object via `std::move()` and return a new object in the next state of the workflow.
+`EmbeddableWorkflow<State>` holds a `Builder` by composition. Builder methods that mutate the manifest definition (`add_ingredient`, `add_resource`, `add_action`, `with_definition`, `to_archive`, etc.) are forwarded and only available in the Init state. Once `create_placeholder()` locks the definition, only `c2pa_builder()` and state-specific accessors remain. In Init state, `builder()` returns a reference to the underlying `Builder` for direct access. Transition methods consume the current object via `std::move()` and return a new object in the next state. Call `needs_placeholder()` to determine whether the format requires a placeholder step.
 
 ### State diagram
 
 ```mermaid
 stateDiagram-embeddable-as-state-machine
-    [*] --> Init : EmbeddableWorkflow(std::move(builder), format)
+    [*] --> Init : enter_embeddable_workflow(std::move(builder), format)
 
     Init --> PlaceholderCreated : create_placeholder()
     Init --> Hashed : hash_from_stream() [BoxHash]
@@ -600,7 +577,7 @@ stateDiagram-embeddable-as-state-machine
 
 ### Getting started
 
-Construct an `EmbeddableWorkflow<Init>` from a `Builder`:
+Use `enter_embeddable_workflow()` to create a workflow from a `Builder`:
 
 ```cpp
 #include "c2pa.hpp"
@@ -611,20 +588,18 @@ auto context = c2pa::Context::ContextBuilder()
 
 auto builder = c2pa::Builder(context, manifest_json);
 
-// The "original" Builder is consumed when entering the workflow.
-auto workflow = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-    std::move(builder), "image/jpeg");
+// The Builder is consumed when entering the workflow.
+auto workflow = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
 ```
 
-After this, the original `Builder` instance is in a moved-from state and must not be used directly by itself anymore. The `EmbeddableWorkflow` owns the underlying `C2paBuilder*` pointer.
+After this call, the original `Builder` instance is in a moved-from state. The `EmbeddableWorkflow` owns it. To get the `Builder` back (for example, to use `Builder::sign()` instead), call `std::move(workflow).into_builder()` while still in Init state.
 
 ### Adding ingredients, resources, and actions in Init
 
 Ingredients, resources, and actions can be added directly on the `EmbeddableWorkflow` while it is in the Init state (and only while in the Init state). Once `create_placeholder()` is called, these methods are no longer available because modifying the manifest definition may invalidate the committed placeholder size.
 
 ```cpp
-auto workflow = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-    std::move(builder), "image/jpeg");
+auto workflow = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
 
 // Add an ingredient from a file
 workflow.add_ingredient(
@@ -663,8 +638,7 @@ auto builder = c2pa::Builder(context, manifest_json);
 builder.add_ingredient(ingredient_json, "source.jpg");
 builder.add_resource("thumbnail", "thumb.jpg");
 
-auto workflow = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-    std::move(builder), "image/jpeg");
+auto workflow = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
 // The ingredients and resources carry over into the workflow.
 ```
 
@@ -673,8 +647,7 @@ At this point in the workflow, both approaches produce the same manifest content
 ### EmbeddableWorkflow DataHash example
 
 ```cpp
-auto workflow_init = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-    std::move(builder), "image/jpeg");
+auto workflow_init = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
 
 assert(workflow_init.needs_placeholder());
 
@@ -703,8 +676,7 @@ auto workflow_signed = std::move(workflow_hashed).sign();
 ### EmbeddableWorkflow BmffHash example
 
 ```cpp
-auto workflow_init = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-    std::move(builder), "video/mp4");
+auto workflow_init = c2pa::enter_embeddable_workflow(std::move(builder), "video/mp4");
 
 auto workflow_placeholder = std::move(workflow_init).create_placeholder();
 // Embed placeholder into MP4 container...
@@ -721,8 +693,7 @@ auto manifest_bytes = workflow_signed.signed_bytes();
 ### EmbeddableWorkflow BoxHash example
 
 ```cpp
-auto workflow_init = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-    std::move(builder), "image/jpeg");
+auto workflow_init = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
 
 assert(!workflow_init.needs_placeholder());
 
@@ -740,8 +711,7 @@ auto manifest_bytes = workflow_signed.signed_bytes();
 Use `get_current_state()` to retrieve the current state at runtime:
 
 ```cpp
-auto init = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-    std::move(builder), "image/jpeg");
+auto init = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
 
 init.get_current_state();  // "Init"
 
@@ -769,8 +739,7 @@ auto context_a = c2pa::Context::ContextBuilder().create_context();
 auto builder = c2pa::Builder(context_a, manifest_json);
 builder.add_ingredient(ingredient_json, source_path);
 
-auto workflow = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-    std::move(builder), "image/jpeg");
+auto workflow = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
 
 // Archive while still in Init — manifest definition is not yet locked
 workflow.to_archive("manifest.c2pa");
@@ -789,8 +758,7 @@ auto context_b = c2pa::Context::ContextBuilder()
 auto signing_builder = c2pa::Builder(context_b, restored_manifest_json);
 signing_builder.with_archive("manifest.c2pa");
 
-auto workflow = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-    std::move(signing_builder), "image/jpeg");
+auto workflow = c2pa::enter_embeddable_workflow(std::move(signing_builder), "image/jpeg");
 
 auto workflow_placeholder = std::move(workflow).create_placeholder();
 // ... embed, set exclusions, hash, sign as usual ...
@@ -808,15 +776,13 @@ builder.to_archive("template.c2pa");
 
 // Sign asset A
 auto builder_a = c2pa::Builder::from_archive("template.c2pa");
-auto workflow_a = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-    std::move(builder_a), "image/jpeg");
+auto workflow_a = c2pa::enter_embeddable_workflow(std::move(builder_a), "image/jpeg");
 auto signed_a = std::move(workflow_a).create_placeholder()
     // ... complete the DataHash flow for asset A ...
 
 // Sign asset B from the same template
 auto builder_b = c2pa::Builder::from_archive("template.c2pa");
-auto workflow_b = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-    std::move(builder_b), "image/jpeg");
+auto workflow_b = c2pa::enter_embeddable_workflow(std::move(builder_b), "image/jpeg");
 auto signed_b = std::move(workflow_b).create_placeholder()
     // ... complete the DataHash flow for asset B ...
 ```
@@ -830,8 +796,7 @@ After `create_placeholder()`, the builder's internal state includes a committed 
 Calling a method in the wrong state results in a compilation error:
 
 ```cpp
-auto init = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-    std::move(builder), "image/jpeg");
+auto init = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
 
 // init.sign();                       // COMPILE ERROR: sign() only available in Hashed state
 // init.set_data_hash_exclusions({}); // COMPILE ERROR: only available in PlaceholderCreated
@@ -840,3 +805,87 @@ auto ph = std::move(init).create_placeholder();
 // ph.create_placeholder();           // COMPILE ERROR: only available in Init
 // ph.sign();                         // COMPILE ERROR: only available in Hashed
 ```
+
+### Migrating from the flat Builder API
+
+The flat `Builder` methods (`placeholder()`, `set_data_hash_exclusions()`, `update_hash_from_stream()`, `sign_embeddable()`) and the `EmbeddableWorkflow` state machine perform the same operations. The difference is enforcement: the flat API checks call order at runtime (errors come from the Rust library), while `EmbeddableWorkflow` checks at compile time.
+
+#### DataHash migration (JPEG, PNG, etc.)
+
+Flat API:
+
+```cpp
+auto builder = c2pa::Builder(context, manifest_json);
+
+auto placeholder_bytes = builder.placeholder("image/jpeg");
+// ... embed placeholder at insert_offset ...
+builder.set_data_hash_exclusions({{insert_offset, placeholder_bytes.size()}});
+
+std::ifstream stream("output.jpg", std::ios::binary);
+builder.update_hash_from_stream("image/jpeg", stream);
+stream.close();
+
+auto signed_manifest = builder.sign_embeddable("image/jpeg");
+```
+
+State machine equivalent:
+
+```cpp
+auto builder = c2pa::Builder(context, manifest_json);
+auto wf = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
+
+auto wf_ph = std::move(wf).create_placeholder();
+// ... embed wf_ph.placeholder_bytes() at insert_offset ...
+auto wf_ex = std::move(wf_ph).set_data_hash_exclusions({{insert_offset, wf_ph.placeholder_bytes().size()}});
+
+std::ifstream stream("output.jpg", std::ios::binary);
+auto wf_hashed = std::move(wf_ex).hash_from_stream(stream);
+stream.close();
+
+auto wf_signed = std::move(wf_hashed).sign();
+auto signed_manifest = wf_signed.signed_bytes();
+```
+
+#### BmffHash migration (MP4, AVIF, HEIF)
+
+Flat API:
+
+```cpp
+auto builder = c2pa::Builder(context, manifest_json);
+
+auto placeholder_bytes = builder.placeholder("video/mp4");
+// ... embed placeholder into MP4 container ...
+
+std::ifstream stream("output.mp4", std::ios::binary);
+builder.update_hash_from_stream("video/mp4", stream);
+stream.close();
+
+auto signed_manifest = builder.sign_embeddable("video/mp4");
+```
+
+State machine equivalent:
+
+```cpp
+auto builder = c2pa::Builder(context, manifest_json);
+auto wf = c2pa::enter_embeddable_workflow(std::move(builder), "video/mp4");
+
+auto wf_ph = std::move(wf).create_placeholder();
+// ... embed wf_ph.placeholder_bytes() into MP4 container ...
+
+std::ifstream stream("output.mp4", std::ios::binary);
+auto wf_hashed = std::move(wf_ph).hash_from_stream(stream);
+stream.close();
+
+auto wf_signed = std::move(wf_hashed).sign();
+auto signed_manifest = wf_signed.signed_bytes();
+```
+
+#### Key differences
+
+The format string is captured once at construction (`enter_embeddable_workflow(builder, format)`) instead of passed to each method call.
+
+Placeholder bytes, exclusion ranges, and signed manifest bytes are available as accessors on the current state object (`placeholder_bytes()`, `data_hash_exclusions()`, `signed_bytes()`) rather than stored in separate local variables.
+
+The `Builder` is consumed when entering the workflow. To use standard `Builder::sign()` instead, call `std::move(workflow).into_builder()` from Init state to get it back.
+
+Adding ingredients, resources, and actions works the same way on the workflow as on the builder (`workflow.add_ingredient(...)` in Init state). You can also add them to the `Builder` before entering the workflow.
