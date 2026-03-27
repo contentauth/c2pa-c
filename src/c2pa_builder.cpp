@@ -417,4 +417,5 @@ namespace c2pa
       auto ptr = c2pa_builder_supported_mime_types(&count);
       return detail::c_mime_types_to_vector(ptr, count);
     }
+
 } // namespace c2pa

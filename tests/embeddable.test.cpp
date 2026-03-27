@@ -556,8 +556,8 @@ TEST_F(EmbeddableTest, BoxHashNeedsPlaceholderReturnsFalse) {
         << "JPEG with prefer_box_hash should not require a placeholder";
 }
 
-// BoxHash: embeddable API workflow (update_hash_from_stream + sign_embeddable)
-TEST_F(EmbeddableTest, BoxHashEmbeddableWorkflow) {
+// BoxHash: embeddable API pipeline (update_hash_from_stream + sign_embeddable)
+TEST_F(EmbeddableTest, BoxHashEmbeddablePipeline) {
     auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
     auto source_asset = c2pa_test::get_fixture_path("A.jpg");
 
@@ -647,11 +647,7 @@ TEST_F(EmbeddableTest, DirectEmbeddingWithFormat) {
         << "Direct JPEG format output matches placeholder size";
 }
 
-// ---------------------------------------------------------------------------
-// EmbeddableWorkflowTest — type-state workflow API tests
-// ---------------------------------------------------------------------------
-
-class EmbeddableWorkflowTest : public ::testing::Test {
+class EmbeddablePipelineTest : public ::testing::Test {
 protected:
     std::vector<fs::path> temp_files;
 
@@ -661,7 +657,7 @@ protected:
         if (!fs::exists(build_dir)) {
             fs::create_directories(build_dir);
         }
-        fs::path temp_path = build_dir / ("embeddable_wf-" + name);
+        fs::path temp_path = build_dir / ("pipeline-" + name);
         temp_files.push_back(temp_path);
         return temp_path;
     }
@@ -674,484 +670,332 @@ protected:
         }
         temp_files.clear();
     }
+
+    c2pa::EmbeddablePipeline make_pipeline(const std::string& format = "image/jpeg") {
+        auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+        auto context = c2pa::Context::ContextBuilder()
+            .with_signer(c2pa_test::create_test_signer())
+            .create_context();
+        auto builder = c2pa::Builder(context, manifest_json);
+        return c2pa::EmbeddablePipeline(std::move(builder), format);
+    }
+
+    c2pa::EmbeddablePipeline make_boxhash_pipeline() {
+        auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+        auto context = c2pa::Context::ContextBuilder()
+            .with_signer(c2pa_test::create_test_signer())
+            .with_json(R"({
+                "builder": {
+                    "prefer_box_hash": true
+                }
+            })")
+            .create_context();
+        auto builder = c2pa::Builder(context, manifest_json);
+        return c2pa::EmbeddablePipeline(std::move(builder), "image/jpeg");
+    }
 };
 
-TEST_F(EmbeddableWorkflowTest, InitStateReportsCorrectly) {
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(c2pa_test::create_test_signer())
-        .create_context();
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-    auto builder = c2pa::Builder(context, manifest_json);
-
-    auto workflow= c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-        std::move(builder), "image/jpeg");
-
-    EXPECT_STREQ(workflow.get_current_state(), "Init");
-    EXPECT_EQ(workflow.format(), "image/jpeg");
-}
-
-TEST_F(EmbeddableWorkflowTest, DataHashFullWorkflow) {
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+TEST_F(EmbeddablePipelineTest, DataHashFullWorkflow) {
+    auto pipeline = make_pipeline("image/jpeg");
     auto source_asset = c2pa_test::get_fixture_path("A.jpg");
 
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(c2pa_test::create_test_signer())
-        .create_context();
-    auto builder = c2pa::Builder(context, manifest_json);
+    ASSERT_TRUE(pipeline.needs_placeholder());
+    EXPECT_STREQ(pipeline.current_state(), "init");
 
-    // Enter the workflow
-    auto workflow_init = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-        std::move(builder), "image/jpeg");
+    auto& placeholder = pipeline.create_placeholder();
+    EXPECT_STREQ(pipeline.current_state(), "placeholder_created");
+    ASSERT_GT(placeholder.size(), 0u);
+    size_t placeholder_size = placeholder.size();
 
-    ASSERT_TRUE(workflow_init.needs_placeholder());
-    EXPECT_STREQ(workflow_init.get_current_state(), "Init");
-
-    // Init -> PlaceholderCreated
-    auto workflow_placeholder = std::move(workflow_init).create_placeholder();
-    EXPECT_STREQ(workflow_placeholder.get_current_state(), "PlaceholderCreated");
-    ASSERT_GT(workflow_placeholder.placeholder_bytes().size(), 0u);
-    size_t placeholder_size = workflow_placeholder.placeholder_bytes().size();
-
-    // PlaceholderCreated -> ExclusionsSet
     uint64_t embed_offset = 20;
-    auto workflow_exclusions = std::move(workflow_placeholder)
-        .set_data_hash_exclusions({{embed_offset, placeholder_size}});
-    EXPECT_STREQ(workflow_exclusions.get_current_state(), "ExclusionsSet");
+    pipeline.set_data_hash_exclusions({{embed_offset, placeholder_size}});
+    EXPECT_STREQ(pipeline.current_state(), "exclusions_configured");
 
-    // Verify exclusions are stored
-    ASSERT_EQ(workflow_exclusions.data_hash_exclusions().size(), 1u);
-    EXPECT_EQ(workflow_exclusions.data_hash_exclusions()[0].first, embed_offset);
-    EXPECT_EQ(workflow_exclusions.data_hash_exclusions()[0].second, placeholder_size);
-
-    // ExclusionsSet -> Hashed
     std::ifstream asset_stream(source_asset, std::ios::binary);
     ASSERT_TRUE(asset_stream.is_open());
-    auto workflow_hashed = std::move(workflow_exclusions).hash_from_stream(asset_stream);
+    pipeline.hash_from_stream(asset_stream);
     asset_stream.close();
-    EXPECT_STREQ(workflow_hashed.get_current_state(), "Hashed");
+    EXPECT_STREQ(pipeline.current_state(), "hashed");
 
-    // Verify exclusions survive the transition to Hashed
-    ASSERT_EQ(workflow_hashed.data_hash_exclusions().size(), 1u);
-    EXPECT_EQ(workflow_hashed.data_hash_exclusions()[0].first, embed_offset);
-
-    // Hashed -> Signed
-    auto workflow_signed = std::move(workflow_hashed).sign();
-    EXPECT_STREQ(workflow_signed.get_current_state(), "Signed");
-    ASSERT_GT(workflow_signed.signed_bytes().size(), 0u);
-    EXPECT_EQ(workflow_signed.signed_bytes().size(), placeholder_size)
+    auto& manifest = pipeline.sign();
+    EXPECT_STREQ(pipeline.current_state(), "pipeline_signed");
+    ASSERT_GT(manifest.size(), 0u);
+    EXPECT_EQ(manifest.size(), placeholder_size)
         << "Signed manifest must match placeholder size for in-place patching";
-
-    // Verify exclusions survive through to Signed state
-    ASSERT_EQ(workflow_signed.data_hash_exclusions().size(), 1u);
-    EXPECT_EQ(workflow_signed.data_hash_exclusions()[0].first, embed_offset);
-    EXPECT_EQ(workflow_signed.data_hash_exclusions()[0].second, placeholder_size);
 }
 
-TEST_F(EmbeddableWorkflowTest, BmffHashNeedsPlaceholder) {
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+TEST_F(EmbeddablePipelineTest, BmffHashFullWorkflow) {
+    auto pipeline = make_pipeline("video/mp4");
+    auto source_asset = c2pa_test::get_fixture_path("video1.mp4");
 
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(c2pa_test::create_test_signer())
-        .create_context();
-    auto builder = c2pa::Builder(context, manifest_json);
+    ASSERT_TRUE(pipeline.needs_placeholder());
 
-    auto workflow= c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-        std::move(builder), "video/mp4");
+    pipeline.create_placeholder();
+    EXPECT_STREQ(pipeline.current_state(), "placeholder_created");
 
-    ASSERT_TRUE(workflow.needs_placeholder())
-        << "MP4 must always require a placeholder";
-}
-
-TEST_F(EmbeddableWorkflowTest, BoxHashFullWorkflow) {
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
-
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(c2pa_test::create_test_signer())
-        .with_json(R"({
-            "builder": {
-                "prefer_box_hash": true
-            }
-        })")
-        .create_context();
-    auto builder = c2pa::Builder(context, manifest_json);
-
-    auto workflow_init = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-        std::move(builder), "image/jpeg");
-
-    ASSERT_FALSE(workflow_init.needs_placeholder());
-
-    // Init -> Hashed (BoxHash: skip placeholder)
     std::ifstream asset_stream(source_asset, std::ios::binary);
     ASSERT_TRUE(asset_stream.is_open());
-    auto workflow_hashed = std::move(workflow_init).hash_from_stream(asset_stream);
+    pipeline.hash_from_stream(asset_stream);
     asset_stream.close();
-    EXPECT_STREQ(workflow_hashed.get_current_state(), "Hashed");
+    EXPECT_STREQ(pipeline.current_state(), "hashed");
 
-    // Hashed -> Signed
-    auto workflow_signed = std::move(workflow_hashed).sign();
-    EXPECT_STREQ(workflow_signed.get_current_state(), "Signed");
-    ASSERT_GT(workflow_signed.signed_bytes().size(), 0u);
+    auto& manifest = pipeline.sign();
+    EXPECT_STREQ(pipeline.current_state(), "pipeline_signed");
+    ASSERT_GT(manifest.size(), 0u);
 }
 
-TEST_F(EmbeddableWorkflowTest, BoxHashBmffAlwaysRequiresPlaceholder) {
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(c2pa_test::create_test_signer())
-        .with_json(R"({
-            "builder": {
-                "prefer_box_hash": true
-            }
-        })")
-        .create_context();
-    auto builder = c2pa::Builder(context, manifest_json);
-
-    auto workflow= c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-        std::move(builder), "video/mp4");
-
-    ASSERT_TRUE(workflow.needs_placeholder())
-        << "MP4 must require a placeholder regardless of prefer_box_hash";
-}
-
-TEST_F(EmbeddableWorkflowTest, ExposedBuilderMethodsWork) {
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(c2pa_test::create_test_signer())
-        .create_context();
-    auto builder = c2pa::Builder(context, manifest_json);
-
-    auto workflow= c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-        std::move(builder), "image/jpeg");
-
-    // c2pa_builder() available in all states
-    EXPECT_NE(workflow.c2pa_builder(), nullptr);
-
-    // needs_placeholder() available in Init
-    EXPECT_TRUE(workflow.needs_placeholder());
-
-    // builder() gives access to the underlying Builder in Init state
-    EXPECT_NE(workflow.builder().c2pa_builder(), nullptr);
-}
-
-TEST_F(EmbeddableWorkflowTest, ToArchiveAvailableInInit) {
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(c2pa_test::create_test_signer())
-        .create_context();
-    auto builder = c2pa::Builder(context, manifest_json);
-
-    auto workflow= c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-        std::move(builder), "image/jpeg");
-
-    auto archive_path = get_temp_path("archive_test.c2pa");
-    ASSERT_NO_THROW(workflow.to_archive(archive_path));
-    EXPECT_TRUE(fs::exists(archive_path));
-}
-
-TEST_F(EmbeddableWorkflowTest, IntoBuilderRecoversBuilder) {
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(c2pa_test::create_test_signer())
-        .create_context();
-    auto builder = c2pa::Builder(context, manifest_json);
-
-    auto workflow= c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-        std::move(builder), "image/jpeg");
-
-    auto recovered = std::move(workflow).into_builder();
-    EXPECT_NE(recovered.c2pa_builder(), nullptr);
-}
-
-TEST_F(EmbeddableWorkflowTest, FormatPreservedThroughTransitions) {
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(c2pa_test::create_test_signer())
-        .create_context();
-    auto builder = c2pa::Builder(context, manifest_json);
-
-    auto workflow_init = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-        std::move(builder), "image/jpeg");
-    EXPECT_EQ(workflow_init.format(), "image/jpeg");
-
-    auto workflow_placeholder = std::move(workflow_init).create_placeholder();
-    EXPECT_EQ(workflow_placeholder.format(), "image/jpeg");
-}
-
-TEST_F(EmbeddableWorkflowTest, PlaceholderBytesAvailableInLaterStates) {
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+TEST_F(EmbeddablePipelineTest, BoxHashFullWorkflow) {
+    auto pipeline = make_boxhash_pipeline();
     auto source_asset = c2pa_test::get_fixture_path("A.jpg");
 
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(c2pa_test::create_test_signer())
-        .create_context();
-    auto builder = c2pa::Builder(context, manifest_json);
+    ASSERT_FALSE(pipeline.needs_placeholder());
 
-    auto workflow_init = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-        std::move(builder), "image/jpeg");
-    auto workflow_placeholder = std::move(workflow_init).create_placeholder();
-    size_t placeholder_size = workflow_placeholder.placeholder_bytes().size();
-    ASSERT_GT(placeholder_size, 0u);
-
-    // placeholder_bytes() available in ExclusionsSet
-    auto workflow_exclusions = std::move(workflow_placeholder).set_data_hash_exclusions({{2, placeholder_size}});
-    EXPECT_EQ(workflow_exclusions.placeholder_bytes().size(), placeholder_size);
-
-    // placeholder_bytes() available in Hashed
-    std::ifstream stream(source_asset, std::ios::binary);
-    auto workflow_hashed = std::move(workflow_exclusions).hash_from_stream(stream);
-    stream.close();
-    EXPECT_EQ(workflow_hashed.placeholder_bytes().size(), placeholder_size);
-
-    // placeholder_bytes() available in Signed
-    auto workflow_signed = std::move(workflow_hashed).sign();
-    EXPECT_EQ(workflow_signed.placeholder_bytes().size(), placeholder_size);
-}
-
-TEST_F(EmbeddableWorkflowTest, AddIngredientInInitState) {
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(c2pa_test::create_test_signer())
-        .create_context();
-    auto builder = c2pa::Builder(context, manifest_json);
-
-    auto workflow_init = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-        std::move(builder), "image/jpeg");
-
-    // Add an ingredient from a file while in Init state
-    workflow_init.add_ingredient(
-        R"({"title": "A.jpg", "relationship": "parentOf"})",
-        c2pa_test::get_fixture_path("A.jpg"));
-
-    // Add an ingredient from a stream while in Init state
-    std::ifstream ingredient_stream(c2pa_test::get_fixture_path("C.jpg"), std::ios::binary);
-    ASSERT_TRUE(ingredient_stream.is_open());
-    workflow_init.add_ingredient(
-        R"({"title": "C.jpg", "relationship": "componentOf"})",
-        "image/jpeg",
-        ingredient_stream);
-    ingredient_stream.close();
-
-    // Placeholder creation succeeds with ingredients added
-    auto workflow_placeholder = std::move(workflow_init).create_placeholder();
-    EXPECT_STREQ(workflow_placeholder.get_current_state(), "PlaceholderCreated");
-    ASSERT_GT(workflow_placeholder.placeholder_bytes().size(), 0u);
-}
-
-TEST_F(EmbeddableWorkflowTest, AddResourceInInitState) {
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
-
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(c2pa_test::create_test_signer())
-        .create_context();
-    auto builder = c2pa::Builder(context, manifest_json);
-
-    auto workflow_init = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-        std::move(builder), "image/jpeg");
-
-    // Add a resource from a file while in Init state
-    workflow_init.add_resource("thumbnail", c2pa_test::get_fixture_path("C.jpg"));
-
-    // Add a resource from a stream while in Init state
-    std::ifstream resource_stream(c2pa_test::get_fixture_path("A.jpg"), std::ios::binary);
-    ASSERT_TRUE(resource_stream.is_open());
-    workflow_init.add_resource("source_image", resource_stream);
-    resource_stream.close();
-
-    // The workflow should still complete after adding resources
-    auto workflow_placeholder = std::move(workflow_init).create_placeholder();
-    ASSERT_GT(workflow_placeholder.placeholder_bytes().size(), 0u);
-}
-
-TEST_F(EmbeddableWorkflowTest, AddActionInInitState) {
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(c2pa_test::create_test_signer())
-        .create_context();
-    auto builder = c2pa::Builder(context, manifest_json);
-
-    auto workflow_init = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-        std::move(builder), "image/jpeg");
-
-    // Add an action while in Init state
-    workflow_init.add_action(R"({
-        "action": "c2pa.edited",
-        "softwareAgent": "EmbeddableWorkflow Test"
-    })");
-
-    auto workflow_placeholder = std::move(workflow_init).create_placeholder();
-    ASSERT_GT(workflow_placeholder.placeholder_bytes().size(), 0u);
-}
-
-// Strip fields that differ between two independent sign operations (instance IDs, timestamps,
-// signature bytes, hash values) so the remaining manifest content can be compared.
-static json strip_volatile_fields(json j) {
-    std::vector<std::string> volatile_keys = {
-        "instance_id", "instanceId",
-        "time", "when",
-        "signature", "pad",
-        "hash", "value",
-        "url"
-    };
-
-    if (j.is_object()) {
-        for (const auto& key : volatile_keys) {
-            j.erase(key);
-        }
-        for (auto& [key, val] : j.items()) {
-            j[key] = strip_volatile_fields(val);
-        }
-    } else if (j.is_array()) {
-        for (size_t i = 0; i < j.size(); ++i) {
-            j[i] = strip_volatile_fields(j[i]);
-        }
-    }
-    return j;
-}
-
-TEST_F(EmbeddableWorkflowTest, BuilderAndWorkflowProduceSameManifestContent) {
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-    auto source_path = c2pa_test::get_fixture_path("A.jpg");
-    auto ingredient_path = c2pa_test::get_fixture_path("C.jpg");
-
-    auto ingredient_json = R"({"title": "C.jpg", "relationship": "parentOf"})";
-    auto action_json = R"({"action": "c2pa.edited", "softwareAgent": "EquivalenceTest"})";
-
-    // Path A: add ingredient and action on Builder, then sign
-    auto dest_builder_path = get_temp_path("signed_via_builder.jpg");
-    {
-        auto context = c2pa::Context::ContextBuilder()
-            .with_signer(c2pa_test::create_test_signer())
-            .create_context();
-        auto builder = c2pa::Builder(context, manifest_json);
-        builder.add_ingredient(ingredient_json, ingredient_path);
-        builder.add_action(action_json);
-        builder.sign(source_path, dest_builder_path);
-    }
-
-    // Path B: add ingredient and action on EmbeddableWorkflow in Init, then sign
-    auto dest_workflow_path = get_temp_path("signed_via_workflow.jpg");
-    {
-        auto context = c2pa::Context::ContextBuilder()
-            .with_signer(c2pa_test::create_test_signer())
-            .create_context();
-        auto builder = c2pa::Builder(context, manifest_json);
-
-        auto workflow = c2pa::EmbeddableWorkflow<c2pa::embeddable::Init>(
-            std::move(builder), "image/jpeg");
-        workflow.add_ingredient(ingredient_json, ingredient_path);
-        workflow.add_action(action_json);
-        std::move(workflow).into_builder().sign(source_path, dest_workflow_path);
-    }
-
-    // Read both manifests back
-    auto context_reader = c2pa::Context();
-    auto reader_from_builder = c2pa::Reader(context_reader, dest_builder_path);
-    auto reader_from_workflow = c2pa::Reader(context_reader, dest_workflow_path);
-
-    auto parsed_builder = json::parse(reader_from_builder.json());
-    auto parsed_workflow = json::parse(reader_from_workflow.json());
-
-    // Extract active manifest from each using the active_manifest label
-    ASSERT_TRUE(parsed_builder.contains("active_manifest"));
-    ASSERT_TRUE(parsed_workflow.contains("active_manifest"));
-
-    std::string label_builder = parsed_builder["active_manifest"];
-    std::string label_workflow = parsed_workflow["active_manifest"];
-
-    auto manifest_builder = parsed_builder["manifests"][label_builder];
-    auto manifest_workflow = parsed_workflow["manifests"][label_workflow];
-
-    // Compare assertions count
-    ASSERT_TRUE(manifest_builder.contains("assertions"));
-    ASSERT_TRUE(manifest_workflow.contains("assertions"));
-
-    auto assertions_builder = manifest_builder["assertions"];
-    auto assertions_workflow = manifest_workflow["assertions"];
-
-    EXPECT_EQ(assertions_builder.size(), assertions_workflow.size())
-        << "Both paths should produce the same number of assertions";
-
-    // Find c2pa.actions assertions and compare
-    json actions_builder, actions_workflow;
-    for (const auto& assertion : assertions_builder) {
-        if (assertion.contains("label") &&
-            assertion["label"].get<std::string>().find("c2pa.actions") != std::string::npos) {
-            actions_builder = assertion;
-        }
-    }
-    for (const auto& assertion : assertions_workflow) {
-        if (assertion.contains("label") &&
-            assertion["label"].get<std::string>().find("c2pa.actions") != std::string::npos) {
-            actions_workflow = assertion;
-        }
-    }
-
-    ASSERT_FALSE(actions_builder.is_null())
-        << "Builder manifest should contain a c2pa.actions assertion";
-    ASSERT_FALSE(actions_workflow.is_null())
-        << "Workflow manifest should contain a c2pa.actions assertion";
-    EXPECT_EQ(strip_volatile_fields(actions_builder),
-              strip_volatile_fields(actions_workflow))
-        << "Action assertions should match between both paths";
-
-    // Compare ingredients
-    ASSERT_TRUE(manifest_builder.contains("ingredients"));
-    ASSERT_TRUE(manifest_workflow.contains("ingredients"));
-
-    auto ingredients_builder = manifest_builder["ingredients"];
-    auto ingredients_workflow = manifest_workflow["ingredients"];
-
-    ASSERT_EQ(ingredients_builder.size(), ingredients_workflow.size());
-
-    // Compare ingredient titles and relationships (instance_id will differ)
-    for (size_t i = 0; i < ingredients_builder.size(); ++i) {
-        EXPECT_EQ(
-            ingredients_builder[i].value("title", ""),
-            ingredients_workflow[i].value("title", ""))
-            << "Ingredient " << i << " title mismatch";
-        EXPECT_EQ(
-            ingredients_builder[i].value("relationship", ""),
-            ingredients_workflow[i].value("relationship", ""))
-            << "Ingredient " << i << " relationship mismatch";
-    }
-}
-
-TEST_F(EmbeddableWorkflowTest, EnterEmbeddableWorkflowFactory) {
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(c2pa_test::create_test_signer())
-        .create_context();
-    auto builder = c2pa::Builder(context, manifest_json);
-
-    auto workflow = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
-
-    EXPECT_STREQ(workflow.get_current_state(), "Init");
-    EXPECT_EQ(workflow.format(), "image/jpeg");
-    EXPECT_NE(workflow.c2pa_builder(), nullptr);
-}
-
-TEST_F(EmbeddableWorkflowTest, InitHashFromStreamThrowsWhenPlaceholderRequired) {
-    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
-
-    auto context = c2pa::Context::ContextBuilder()
-        .with_signer(c2pa_test::create_test_signer())
-        .create_context();
-    auto builder = c2pa::Builder(context, manifest_json);
-
-    auto workflow = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
-
-    // JPEG without prefer_box_hash requires a placeholder, so Init->Hashed should throw
     std::ifstream asset_stream(source_asset, std::ios::binary);
     ASSERT_TRUE(asset_stream.is_open());
-    EXPECT_THROW((void)std::move(workflow).hash_from_stream(asset_stream), c2pa::C2paException);
+    pipeline.hash_from_stream(asset_stream);
+    asset_stream.close();
+    EXPECT_STREQ(pipeline.current_state(), "hashed");
+
+    auto& manifest = pipeline.sign();
+    EXPECT_STREQ(pipeline.current_state(), "pipeline_signed");
+    ASSERT_GT(manifest.size(), 0u);
+}
+
+TEST_F(EmbeddablePipelineTest, PlaceholderBytesAccessor) {
+    auto pipeline = make_pipeline();
+    auto& placeholder = pipeline.create_placeholder();
+    EXPECT_EQ(&pipeline.placeholder_bytes(), &placeholder);
+    EXPECT_EQ(pipeline.placeholder_bytes().size(), placeholder.size());
+}
+
+TEST_F(EmbeddablePipelineTest, SignedBytesAccessor) {
+    auto pipeline = make_boxhash_pipeline();
+    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
+
+    std::ifstream asset_stream(source_asset, std::ios::binary);
+    pipeline.hash_from_stream(asset_stream);
+    asset_stream.close();
+
+    auto& manifest = pipeline.sign();
+    EXPECT_EQ(&pipeline.signed_bytes(), &manifest);
+    EXPECT_GT(pipeline.signed_bytes().size(), 0u);
+}
+
+TEST_F(EmbeddablePipelineTest, FormatPreservedThroughStates) {
+    auto pipeline = make_pipeline("image/jpeg");
+    EXPECT_EQ(pipeline.format(), "image/jpeg");
+
+    pipeline.create_placeholder();
+    EXPECT_EQ(pipeline.format(), "image/jpeg");
+
+    pipeline.set_data_hash_exclusions({{0, 100}});
+    EXPECT_EQ(pipeline.format(), "image/jpeg");
+}
+
+TEST_F(EmbeddablePipelineTest, CurrentStateReporting) {
+    auto pipeline = make_pipeline();
+    EXPECT_STREQ(pipeline.current_state(), "init");
+
+    pipeline.create_placeholder();
+    EXPECT_STREQ(pipeline.current_state(), "placeholder_created");
+
+    pipeline.set_data_hash_exclusions({{0, 100}});
+    EXPECT_STREQ(pipeline.current_state(), "exclusions_configured");
+
+    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
+    std::ifstream stream(source_asset, std::ios::binary);
+    pipeline.hash_from_stream(stream);
+    stream.close();
+    EXPECT_STREQ(pipeline.current_state(), "hashed");
+
+    pipeline.sign();
+    EXPECT_STREQ(pipeline.current_state(), "pipeline_signed");
+}
+
+TEST_F(EmbeddablePipelineTest, IntoBuilderFromInit) {
+    auto pipeline = make_pipeline();
+    auto builder = std::move(pipeline).into_builder();
+    // Builder should be valid — can call needs_placeholder on it
+    EXPECT_NO_THROW(builder.needs_placeholder("image/jpeg"));
+}
+
+TEST_F(EmbeddablePipelineTest, InitStateForwarding) {
+    auto pipeline = make_pipeline();
+    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
+
+    EXPECT_NO_THROW(pipeline.add_ingredient(
+        R"({"title": "photo.jpg", "relationship": "parentOf"})",
+        source_asset));
+
+    EXPECT_NO_THROW(pipeline.add_action(R"({
+        "action": "c2pa.edited",
+        "softwareAgent": "Test/1.0"
+    })"));
+}
+
+TEST_F(EmbeddablePipelineTest, SignInInitState) {
+    auto pipeline = make_pipeline();
+    EXPECT_THROW(pipeline.sign(), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, SignInPlaceholderCreatedState) {
+    auto pipeline = make_pipeline();
+    pipeline.create_placeholder();
+    EXPECT_THROW(pipeline.sign(), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, HashBeforePlaceholderWhenRequired) {
+    auto pipeline = make_pipeline("image/jpeg");
+    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
+
+    ASSERT_TRUE(pipeline.needs_placeholder());
+    std::ifstream stream(source_asset, std::ios::binary);
+    EXPECT_THROW(pipeline.hash_from_stream(stream), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, SetExclusionsInInitState) {
+    auto pipeline = make_pipeline();
+    EXPECT_THROW(pipeline.set_data_hash_exclusions({{0, 100}}), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, SetExclusionsInExclusionsSetState) {
+    auto pipeline = make_pipeline();
+    pipeline.create_placeholder();
+    pipeline.set_data_hash_exclusions({{0, 100}});
+    // Already in exclusions_configured, calling again should fail
+    EXPECT_THROW(pipeline.set_data_hash_exclusions({{0, 100}}), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, CreatePlaceholderTwice) {
+    auto pipeline = make_pipeline();
+    pipeline.create_placeholder();
+    EXPECT_THROW(pipeline.create_placeholder(), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, HashAfterSign) {
+    auto pipeline = make_boxhash_pipeline();
+    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
+
+    std::ifstream stream(source_asset, std::ios::binary);
+    pipeline.hash_from_stream(stream);
+    stream.close();
+    pipeline.sign();
+
+    std::ifstream stream2(source_asset, std::ios::binary);
+    EXPECT_THROW(pipeline.hash_from_stream(stream2), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, AddIngredientAfterPlaceholder) {
+    auto pipeline = make_pipeline();
+    pipeline.create_placeholder();
+    EXPECT_THROW(
+        pipeline.add_ingredient(R"({"title": "x.jpg", "relationship": "parentOf"})", "x.jpg"),
+        c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, AddResourceAfterPlaceholder) {
+    auto pipeline = make_pipeline();
+    pipeline.create_placeholder();
+    std::istringstream data("fake data");
+    EXPECT_THROW(pipeline.add_resource("thumb", data), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, AddActionAfterHash) {
+    auto pipeline = make_boxhash_pipeline();
+    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
+
+    std::ifstream stream(source_asset, std::ios::binary);
+    pipeline.hash_from_stream(stream);
+    stream.close();
+
+    EXPECT_THROW(pipeline.add_action(R"({"action": "c2pa.edited"})"), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, ToArchiveAfterPlaceholder) {
+    auto pipeline = make_pipeline();
+    pipeline.create_placeholder();
+    auto path = get_temp_path("archive-fail.c2pa");
+    EXPECT_THROW(pipeline.to_archive(path), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, IntoBuilderAfterPlaceholder) {
+    auto pipeline = make_pipeline();
+    pipeline.create_placeholder();
+    EXPECT_THROW((void)std::move(pipeline).into_builder(), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, PlaceholderBytesInInitState) {
+    auto pipeline = make_pipeline();
+    EXPECT_THROW(pipeline.placeholder_bytes(), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, PlaceholderBytesAvailableAfterCreation) {
+    auto pipeline = make_pipeline();
+    pipeline.create_placeholder();
+    auto size = pipeline.placeholder_bytes().size();
+    ASSERT_GT(size, 0u);
+
+    // Still available after exclusions_configured
+    pipeline.set_data_hash_exclusions({{0, size}});
+    EXPECT_EQ(pipeline.placeholder_bytes().size(), size);
+
+    // Still available after hashed
+    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
+    std::ifstream stream(source_asset, std::ios::binary);
+    pipeline.hash_from_stream(stream);
+    stream.close();
+    EXPECT_EQ(pipeline.placeholder_bytes().size(), size);
+
+    // Still available after signed
+    pipeline.sign();
+    EXPECT_EQ(pipeline.placeholder_bytes().size(), size);
+}
+
+TEST_F(EmbeddablePipelineTest, ExclusionsInInitState) {
+    auto pipeline = make_pipeline();
+    EXPECT_THROW(pipeline.data_hash_exclusions(), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, ExclusionsInPlaceholderCreatedState) {
+    auto pipeline = make_pipeline();
+    pipeline.create_placeholder();
+    EXPECT_THROW(pipeline.data_hash_exclusions(), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, ExclusionsAvailableAfterSet) {
+    auto pipeline = make_pipeline();
+    pipeline.create_placeholder();
+    pipeline.set_data_hash_exclusions({{10, 200}});
+
+    ASSERT_EQ(pipeline.data_hash_exclusions().size(), 1u);
+    EXPECT_EQ(pipeline.data_hash_exclusions()[0].first, 10u);
+    EXPECT_EQ(pipeline.data_hash_exclusions()[0].second, 200u);
+
+    // Still available after hashed
+    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
+    std::ifstream stream(source_asset, std::ios::binary);
+    pipeline.hash_from_stream(stream);
+    stream.close();
+    EXPECT_EQ(pipeline.data_hash_exclusions().size(), 1u);
+
+    // Still available after signed
+    pipeline.sign();
+    EXPECT_EQ(pipeline.data_hash_exclusions().size(), 1u);
+}
+
+TEST_F(EmbeddablePipelineTest, SignedBytesBeforeSign) {
+    auto pipeline = make_boxhash_pipeline();
+    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
+
+    std::ifstream stream(source_asset, std::ios::binary);
+    pipeline.hash_from_stream(stream);
+    stream.close();
+
+    // In hashed state — signed_bytes not yet available
+    EXPECT_THROW(pipeline.signed_bytes(), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, SignedBytesInInitState) {
+    auto pipeline = make_pipeline();
+    EXPECT_THROW(pipeline.signed_bytes(), c2pa::C2paException);
 }
