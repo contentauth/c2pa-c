@@ -505,7 +505,7 @@ auto manifest_bytes = builder.sign_embeddable("image/jpeg");
 
 ## Class relationships
 
-This is a partial class diagram showing only the clases and methods relevant to the embeddable APIs. For the full API reference, see the [c2pa.hpp](../include/c2pa.hpp) header file.
+This is a partial class diagram showing only the classes and methods relevant to the embeddable APIs. For the full API reference, see the [c2pa.hpp](../include/c2pa.hpp) header file.
 
 ```mermaid
 classDiagram
@@ -612,6 +612,66 @@ stateDiagram-v2
     end note
 ```
 
+### Methods by state
+
+```mermaid
+classDiagram
+    class AllStates {
+        +get_current_state() const char*
+        +format() const string&
+        +c2pa_builder() C2paBuilder*
+    }
+
+    class Init {
+        +builder() Builder&
+        +into_builder() Builder
+        +needs_placeholder() bool
+        +create_placeholder() PlaceholderCreated
+        +hash_from_stream(stream) Hashed
+        +add_ingredient(json, fmt, stream)
+        +add_ingredient(json, path)
+        +add_resource(uri, stream)
+        +add_resource(uri, path)
+        +add_action(json)
+        +with_definition(json)
+        +set_no_embed()
+        +set_remote_url(url)
+        +to_archive(dest)
+    }
+
+    class PlaceholderCreated {
+        +placeholder_bytes() const vector~uint8~&
+        +set_data_hash_exclusions(excl) ExclusionsSet
+        +hash_from_stream(stream) Hashed
+    }
+
+    class ExclusionsSet {
+        +placeholder_bytes() const vector~uint8~&
+        +data_hash_exclusions() const vector&
+        +hash_from_stream(stream) Hashed
+    }
+
+    class Hashed {
+        +placeholder_bytes() const vector~uint8~&
+        +data_hash_exclusions() const vector&
+        +sign() Signed
+    }
+
+    class Signed {
+        +placeholder_bytes() const vector~uint8~&
+        +data_hash_exclusions() const vector&
+        +signed_bytes() const vector~uint8~&
+    }
+
+    AllStates <|-- Init
+    AllStates <|-- PlaceholderCreated
+    AllStates <|-- ExclusionsSet
+    AllStates <|-- Hashed
+    AllStates <|-- Signed
+```
+
+Note: this diagram groups methods by which state enables them. In the implementation, `EmbeddableWorkflow` is a single class template parameterized on a state tag — not a class hierarchy. The inheritance arrows represent "includes these methods", not actual C++ inheritance.
+
 ### Entering workflow
 
 Use `enter_embeddable_workflow()` to create a workflow from a `Builder`:
@@ -633,7 +693,20 @@ After this call, the original `Builder` instance is in a moved-from state. The `
 
 ### Adding ingredients, resources, and actions in Init
 
-Ingredients, resources, and actions can be added directly on the `EmbeddableWorkflow` while it is in the Init state (and only while in the Init state). Once `create_placeholder()` is called, these methods are no longer available because modifying the manifest definition may invalidate the committed placeholder size.
+Ingredients and resources should be added on the `Builder` before entering the workflow:
+
+```cpp
+auto builder = c2pa::Builder(context, manifest_json);
+builder.add_ingredient(ingredient_json, "source.jpg");
+builder.add_resource("thumbnail", "thumb.jpg");
+
+auto workflow = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
+// The ingredients and resources carry over into the workflow.
+```
+
+But ingredients, resources, and actions can also be added directly on the `EmbeddableWorkflow` while it is in the Init state (and only while in the Init state).
+
+Once `create_placeholder()` is called, these methods are no longer available because modifying the manifest definition may invalidate the committed placeholder size.
 
 ```cpp
 auto workflow = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
@@ -665,21 +738,8 @@ workflow.add_action(R"({
 
 // Now proceed with the embeddable workflow
 auto workflow_placeholder = std::move(workflow).create_placeholder();
-// workflow.add_ingredient(...) would not compile here — Init-only method
+// workflow.add_ingredient(...) would not compile here, Init-only method
 ```
-
-You can also add ingredients and resources on the `Builder` before entering the workflow:
-
-```cpp
-auto builder = c2pa::Builder(context, manifest_json);
-builder.add_ingredient(ingredient_json, "source.jpg");
-builder.add_resource("thumbnail", "thumb.jpg");
-
-auto workflow = c2pa::enter_embeddable_workflow(std::move(builder), "image/jpeg");
-// The ingredients and resources carry over into the workflow.
-```
-
-At this point in the workflow, both approaches produce the same manifest content (assertions, ingredients, relationships).
 
 ### EmbeddableWorkflow DataHash example
 
