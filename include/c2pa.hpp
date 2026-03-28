@@ -238,20 +238,50 @@ namespace c2pa
         C2paSettings* settings_ptr;
     };
 
+     /// @brief Phase values reported to the ProgressCallbackFunc.
+    ///
+    /// @details A scoped C++ mirror of `C2paProgressPhase` from c2pa.h.
+    ///          Values are verified at compile time to match the C enum, so any
+    ///          future divergence in c2pa-rs will be caught as a build error.
+    ///
+    ///          Phases emitted during a typical sign cycle (in order):
+    ///            AddingIngredient → Thumbnail → Hashing → Signing → Embedding →
+    ///            (if verify_after_sign) VerifyingManifest → VerifyingSignature →
+    ///            VerifyingAssetHash → VerifyingIngredient
+    ///
+    ///          Phases emitted during reading:
+    ///            Reading → VerifyingManifest → VerifyingSignature →
+    ///            VerifyingAssetHash → VerifyingIngredient
+    enum class ProgressPhase : uint8_t {
+        Reading               = 0,
+        VerifyingManifest     = 1,
+        VerifyingSignature    = 2,
+        VerifyingIngredient   = 3,
+        VerifyingAssetHash    = 4,
+        AddingIngredient      = 5,
+        Thumbnail             = 6,
+        Hashing               = 7,
+        Signing               = 8,
+        Embedding             = 9,
+        FetchingRemoteManifest = 10,
+        Writing               = 11,
+        FetchingOCSP          = 12,
+        FetchingTimestamp     = 13,
+    };
+
     /// @brief Type alias for the progress callback passed to ContextBuilder::with_progress_callback().
     ///
     /// @details The callback is invoked at each major phase of signing and reading operations.
     ///          Returning false from the callback aborts the operation with an
     ///          OperationCancelled error (equivalent to calling Context::cancel()).
     ///
-    /// @param phase  Current operation phase (C2paProgressPhase value from c2pa.h).
-    /// @param step   1-based step index within the phase; 0 when indeterminate.
-    /// @param total  Total steps in the phase; 0 when indeterminate.
+    /// @param phase  Current operation phase.
+    /// @param step   1-based step index within the phase.
+    ///               0 = indeterminate (use as liveness signal); resets to 1 at each new phase.
+    /// @param total  0 = indeterminate; 1 = single-shot; >1 = determinate (step/total = fraction).
     /// @return true to continue the operation, false to request cancellation.
     ///
-    /// @note This feature requires c2pa-rs >= 0.79.0. Build with C2PA_BUILD_FROM_SOURCE
-    ///       pointing to a c2pa-rs checkout that includes the progress/cancel feature.
-    using ProgressCallbackFunc = std::function<bool(C2paProgressPhase phase, uint32_t step, uint32_t total)>;
+    using ProgressCallbackFunc = std::function<bool(ProgressPhase phase, uint32_t step, uint32_t total)>;
 
     /// @brief C2PA context implementing IContextProvider.
     /// @details Context objects manage C2PA SDK configuration and state.
@@ -344,12 +374,11 @@ namespace c2pa
             ///          VerifyingAssetHash → VerifyingIngredient
             ///
             /// @param callback A callable matching ProgressCallbackFunc. The callback is
-            ///        heap-allocated and owned by the resulting Context. If called more than
-            ///        once the previous callback is replaced.
+            ///        heap-allocated and owned by the resulting Context. Calling this method
+            ///        more than once on the same builder replaces the previous callback.
             /// @return Reference to this ContextBuilder for method chaining.
             /// @throws C2paException if the builder is invalid or the C API call fails.
             ///
-            /// @note Requires c2pa-rs >= 0.79.0 (progress/cancel feature).
             ContextBuilder& with_progress_callback(ProgressCallbackFunc callback);
 
             /// @brief Create a Context from the current builder configuration.
@@ -418,7 +447,6 @@ namespace c2pa
         ///          OperationCancelled error at the next progress checkpoint.
         ///          Has no effect if no operation is currently in progress.
         ///
-        /// @note Requires c2pa-rs >= 0.79.0 (progress/cancel feature).
         void cancel() noexcept;
 
     private:

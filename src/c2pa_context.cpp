@@ -166,13 +166,31 @@ namespace c2pa
         return *this;
     }
 
-    // C trampoline: delegates to the ProgressCallbackFunc stored in user_data.
-    static bool progress_callback_trampoline(void* user_data,
-                                             C2paProgressPhase phase,
-                                             uint32_t step,
-                                             uint32_t total) {
-        auto* cb = static_cast<ProgressCallbackFunc*>(user_data);
-        return (*cb)(phase, step, total);
+    // Verify our C++ enum class stays in sync with the C enum from c2pa.h.
+    // If c2pa-rs adds or reorders variants, these will catch it at compile time.
+    static_assert(static_cast<uint8_t>(ProgressPhase::Reading)               == Reading,               "ProgressPhase::Reading mismatch");
+    static_assert(static_cast<uint8_t>(ProgressPhase::VerifyingManifest)     == VerifyingManifest,     "ProgressPhase::VerifyingManifest mismatch");
+    static_assert(static_cast<uint8_t>(ProgressPhase::VerifyingSignature)    == VerifyingSignature,    "ProgressPhase::VerifyingSignature mismatch");
+    static_assert(static_cast<uint8_t>(ProgressPhase::VerifyingIngredient)   == VerifyingIngredient,   "ProgressPhase::VerifyingIngredient mismatch");
+    static_assert(static_cast<uint8_t>(ProgressPhase::VerifyingAssetHash)    == VerifyingAssetHash,    "ProgressPhase::VerifyingAssetHash mismatch");
+    static_assert(static_cast<uint8_t>(ProgressPhase::AddingIngredient)      == AddingIngredient,      "ProgressPhase::AddingIngredient mismatch");
+    static_assert(static_cast<uint8_t>(ProgressPhase::Thumbnail)             == Thumbnail,             "ProgressPhase::Thumbnail mismatch");
+    static_assert(static_cast<uint8_t>(ProgressPhase::Hashing)               == Hashing,               "ProgressPhase::Hashing mismatch");
+    static_assert(static_cast<uint8_t>(ProgressPhase::Signing)               == Signing,               "ProgressPhase::Signing mismatch");
+    static_assert(static_cast<uint8_t>(ProgressPhase::Embedding)             == Embedding,             "ProgressPhase::Embedding mismatch");
+    static_assert(static_cast<uint8_t>(ProgressPhase::FetchingRemoteManifest)== FetchingRemoteManifest,"ProgressPhase::FetchingRemoteManifest mismatch");
+    static_assert(static_cast<uint8_t>(ProgressPhase::Writing)               == Writing,               "ProgressPhase::Writing mismatch");
+    static_assert(static_cast<uint8_t>(ProgressPhase::FetchingOCSP)          == FetchingOCSP,          "ProgressPhase::FetchingOCSP mismatch");
+    static_assert(static_cast<uint8_t>(ProgressPhase::FetchingTimestamp)     == FetchingTimestamp,     "ProgressPhase::FetchingTimestamp mismatch");
+
+    // C trampoline: bridges the C callback ABI to the stored std::function.
+    // Returns non-zero to continue, zero to cancel (matching ProgressCCallback convention).
+    static int progress_callback_trampoline(const void* user_data,
+                                            C2paProgressPhase phase,
+                                            uint32_t step,
+                                            uint32_t total) {
+        const auto* cb = static_cast<const ProgressCallbackFunc*>(user_data);
+        return (*cb)(static_cast<ProgressPhase>(phase), step, total) ? 1 : 0;
     }
 
     Context::ContextBuilder& Context::ContextBuilder::with_progress_callback(ProgressCallbackFunc callback) {

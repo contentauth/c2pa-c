@@ -1,0 +1,12 @@
+---
+description: Git commit and branch workflow preferences
+alwaysApply: true
+---
+
+# Git Workflow
+
+- **Never commit without explicit approval.** After making changes, show a summary and ask the user if they want to commit before running any `git commit` command.
+- **Run the project's unit tests and confirm they pass before proposing a commit.** If tests fail, fix them first. For this repo that is `make test`.
+- Never push to remote unless explicitly asked.
+- Never force-push.
+- Always show `git diff --stat` or a plain-language summary of changes before proposing a commit message.

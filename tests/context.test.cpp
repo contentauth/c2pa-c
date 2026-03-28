@@ -493,7 +493,7 @@ TEST(Context, ContextBuilderWithSettingsAndSigner) {
 }
 
 // --- Progress / Cancel API tests ---
-// These tests require c2pa-rs >= 0.79.0 built from source with the progress/cancel feature.
+// Progress/cancel tests — require c2pa-rs >= 0.78.7.
 
 // Helper: sign a file and return the signed path, using a context with a progress callback.
 static fs::path sign_with_progress_context(c2pa::IContextProvider& context, const fs::path& dest) {
@@ -513,7 +513,7 @@ TEST_F(ContextTest, ProgressCallback_InvokedDuringSigning) {
     std::atomic<int> call_count{0};
 
     auto context = c2pa::Context::ContextBuilder()
-        .with_progress_callback([&](C2paProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+        .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
             ++call_count;
             return true;
         })
@@ -535,7 +535,7 @@ TEST_F(ContextTest, ProgressCallback_InvokedDuringReading) {
     std::atomic<int> call_count{0};
 
     auto context = c2pa::Context::ContextBuilder()
-        .with_progress_callback([&](C2paProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+        .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
             ++call_count;
             return true;
         })
@@ -554,7 +554,7 @@ TEST_F(ContextTest, ProgressCallback_StepAndTotalValues) {
     bool saw_valid_step = false;
 
     auto context = c2pa::Context::ContextBuilder()
-        .with_progress_callback([&](C2paProgressPhase /*phase*/, uint32_t step, uint32_t total) {
+        .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t step, uint32_t total) {
             // step is 1-based when total > 0; both may be 0 for indeterminate phases.
             if (total > 0) {
                 EXPECT_GE(step, 1u);
@@ -574,7 +574,7 @@ TEST_F(ContextTest, ProgressCallback_StepAndTotalValues) {
 TEST_F(ContextTest, ProgressCallback_ReturnFalseCancels) {
     // Cancel on the very first callback invocation.
     auto context = c2pa::Context::ContextBuilder()
-        .with_progress_callback([](C2paProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+        .with_progress_callback([](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
             return false;  // request cancellation
         })
         .create_context();
@@ -589,7 +589,7 @@ TEST_F(ContextTest, ProgressCallback_ReturnFalseCancels) {
 // Context::cancel() called before an operation prevents that operation from completing.
 TEST_F(ContextTest, ProgressCallback_CancelMethodAbortsOperation) {
     auto context = c2pa::Context::ContextBuilder()
-        .with_progress_callback([](C2paProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+        .with_progress_callback([](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
             return true;
         })
         .create_context();
@@ -600,7 +600,7 @@ TEST_F(ContextTest, ProgressCallback_CancelMethodAbortsOperation) {
     c2pa::Context* ctx_ptr = &context;
     bool cancel_called = false;
     auto context2 = c2pa::Context::ContextBuilder()
-        .with_progress_callback([&](C2paProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+        .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
             if (!cancel_called) {
                 cancel_called = true;
                 ctx_ptr->cancel();
@@ -633,7 +633,7 @@ TEST_F(ContextTest, ProgressCallback_ChainWithSettings) {
 
     auto context = c2pa::Context::ContextBuilder()
         .with_settings(settings)
-        .with_progress_callback([&](C2paProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+        .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
             ++call_count;
             return true;
         })
@@ -650,7 +650,7 @@ TEST_F(ContextTest, ProgressCallback_SurvivesContextMove) {
     std::atomic<int> call_count{0};
 
     auto original = c2pa::Context::ContextBuilder()
-        .with_progress_callback([&](C2paProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+        .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
             ++call_count;
             return true;
         })
@@ -668,11 +668,11 @@ TEST_F(ContextTest, ProgressCallback_SurvivesContextMove) {
 TEST_F(ContextTest, ProgressCallback_SurvivesBuilderMove) {
     std::atomic<int> call_count{0};
 
-    auto b1 = c2pa::Context::ContextBuilder()
-        .with_progress_callback([&](C2paProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
-            ++call_count;
-            return true;
-        });
+    c2pa::Context::ContextBuilder b1;
+    b1.with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+        ++call_count;
+        return true;
+    });
 
     auto b2 = std::move(b1);
     EXPECT_FALSE(b1.is_valid());
