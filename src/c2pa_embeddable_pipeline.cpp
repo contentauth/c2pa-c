@@ -15,6 +15,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 
 #include "c2pa.hpp"
 
@@ -39,30 +40,33 @@ namespace c2pa {
 
     void EmbeddablePipeline::require_state(State expected, const char* method) const {
         if (state_ != expected) {
-            throw_wrong_state(method, "'" + std::string(state_name(expected)) + "'");
+            std::ostringstream expected_str;
+            expected_str << "'" << state_name(expected) << "'";
+            throw_wrong_state(method, expected_str.str());
         }
     }
 
     void EmbeddablePipeline::require_state_at_least(State minimum, const char* method) const {
         if (state_ < minimum) {
-            throw_wrong_state(method, "'" + std::string(state_name(minimum)) + "' or later");
+            std::ostringstream expected;
+            expected << "'" << state_name(minimum) << "' or later";
+            throw_wrong_state(method, expected.str());
         }
     }
 
-    void EmbeddablePipeline::require_state_one_of(
+    void EmbeddablePipeline::require_state_in(
             std::initializer_list<State> allowed, const char* method) const {
         for (auto s : allowed) {
             if (state_ == s) return;
         }
-        std::string expected = "one of {";
-        const char* sep = "";
-        for (auto s : allowed) {
-            expected += sep;
-            expected += state_name(s);
-            sep = ", ";
+        std::ostringstream expected;
+        expected << "one of {";
+        for (auto it = allowed.begin(); it != allowed.end(); ++it) {
+            if (it != allowed.begin()) expected << ", ";
+            expected << state_name(*it);
         }
-        expected += "}";
-        throw_wrong_state(method, expected);
+        expected << "}";
+        throw_wrong_state(method, expected.str());
     }
 
     EmbeddablePipeline::EmbeddablePipeline(Builder&& b, std::string format)
@@ -136,14 +140,13 @@ namespace c2pa {
     }
 
     void EmbeddablePipeline::hash_from_stream(std::istream& stream) {
-        require_state_one_of(
+        require_state_in(
             {State::init, State::placeholder_created, State::exclusions_configured},
             "hash_from_stream()");
         if (state_ == State::init && needs_placeholder()) {
             throw C2paException(
                 "hash_from_stream() cannot be called in 'init' state for this format "
-                "because it requires a placeholder. Call create_placeholder() first, "
-                "or enable prefer_box_hash for BoxHash mode.");
+                "because it requires a placeholder.");
         }
         builder_.update_hash_from_stream(format_, stream);
         state_ = State::hashed;
@@ -159,14 +162,18 @@ namespace c2pa {
     // Accessors
 
     const std::vector<unsigned char>& EmbeddablePipeline::placeholder_bytes() const {
-        require_state_one_of(
-            {State::placeholder_created, State::exclusions_configured},
-            "placeholder_bytes()");
+        require_state_at_least(State::placeholder_created, "placeholder_bytes()");
+        if (placeholder_.empty()) {
+            throw C2paException("placeholder_bytes() is not available because no placeholder was created on this pipeline path");
+        }
         return placeholder_;
     }
 
     const std::vector<std::pair<uint64_t, uint64_t>>& EmbeddablePipeline::data_hash_exclusions() const {
-        require_state(State::exclusions_configured, "data_hash_exclusions()");
+        require_state_at_least(State::exclusions_configured, "data_hash_exclusions()");
+        if (exclusions_.empty()) {
+            throw C2paException("data_hash_exclusions() is not available because no exclusions were set on this pipeline path");
+        }
         return exclusions_;
     }
 

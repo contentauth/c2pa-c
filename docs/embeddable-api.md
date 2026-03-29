@@ -685,12 +685,12 @@ Transition methods require an exact state.
 | `hash_from_stream()` | `init` (BoxHash), `placeholder_created` (BmffHash), `exclusions_configured` (DataHash) |
 | `sign()` | `hashed` |
 
-Accessors are restricted to the states where the data is relevant.
+Accessors are available from the state where the data is produced onward. Calling an accessor on a pipeline path that never produced the data (e.g. `placeholder_bytes()` on a BoxHash pipeline) throws `C2paException`.
 
-| Accessor | Allowed state(s) |
+| Accessor | Available from |
 | --- | --- |
-| `placeholder_bytes()` | `placeholder_created`, `exclusions_configured` |
-| `data_hash_exclusions()` | `exclusions_configured` |
+| `placeholder_bytes()` | `placeholder_created` and later |
+| `data_hash_exclusions()` | `exclusions_configured` and later |
 | `signed_bytes()` | `pipeline_signed` |
 
 Calling a method in the wrong state throws `C2paException`:

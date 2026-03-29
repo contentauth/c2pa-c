@@ -1142,7 +1142,7 @@ namespace c2pa
         void require_state_at_least(State minimum, const char* method) const;
 
         /// @brief Throws if current state is not one of the allowed states.
-        void require_state_one_of(std::initializer_list<State> allowed, const char* method) const;
+        void require_state_in(std::initializer_list<State> allowed, const char* method) const;
 
     public:
         /// @brief Construct a pipeline from a Builder and a MIME format string.
@@ -1181,6 +1181,7 @@ namespace c2pa
 
         /// @brief Check if the format requires a placeholder step.
         /// @return true if create_placeholder() must be called before hash_from_stream().
+        /// @note Non-const because Builder::needs_placeholder() is non-const (FFI constraint).
         bool needs_placeholder();
 
         /// @brief [init -> placeholder_created] Create the placeholder manifest bytes.
@@ -1203,11 +1204,13 @@ namespace c2pa
         const std::vector<unsigned char>& sign();
 
         /// @brief Returns the placeholder bytes.
-        /// Available in placeholder_created and exclusions_configured states only.
+        /// Available from placeholder_created state onward.
+        /// Throws if no placeholder was created (e.g. BoxHash path).
         const std::vector<unsigned char>& placeholder_bytes() const;
 
         /// @brief Returns the exclusion ranges.
-        /// Available in exclusions_configured state only.
+        /// Available from exclusions_configured state onward.
+        /// Throws if no exclusions were set (e.g. BmffHash path).
         const std::vector<std::pair<uint64_t, uint64_t>>& data_hash_exclusions() const;
 
         /// @brief Returns the signed manifest bytes.
