@@ -1128,6 +1128,7 @@ namespace c2pa
         std::vector<unsigned char> placeholder_;
         std::vector<std::pair<uint64_t, uint64_t>> exclusions_;
         std::vector<unsigned char> signed_manifest_;
+        bool faulted_ = false;
 
         /// @brief Returns a human-readable name for a state.
         static const char* state_name(State s) noexcept;
@@ -1143,6 +1144,9 @@ namespace c2pa
 
         /// @brief Throws if current state is not one of the allowed states.
         void require_state_in(std::initializer_list<State> allowed, const char* method) const;
+
+        /// @brief Throws if the pipeline has faulted.
+        void require_not_faulted(const char* method) const;
 
     public:
         /// @brief Construct a pipeline from a Builder and a MIME format string.
@@ -1222,6 +1226,10 @@ namespace c2pa
 
         /// @brief Returns the current state name as a string.
         const char* current_state() const noexcept;
+
+        /// @brief Check if the pipeline has faulted due to a failed operation.
+        /// A faulted pipeline cannot be reused; create a new one to retry.
+        bool is_faulted() const noexcept;
 
         /// @brief Recover the Builder, exiting the pipeline. Init state only.
         /// @throws C2paException if not in init state.

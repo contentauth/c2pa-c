@@ -22,20 +22,21 @@
 namespace c2pa {
     const char* EmbeddablePipeline::state_name(State s) noexcept {
         switch (s) {
-            case State::init:                return "init";
+            case State::init: return "init";
             case State::placeholder_created: return "placeholder_created";
-            case State::exclusions_configured:      return "exclusions_configured";
-            case State::hashed:              return "hashed";
-            case State::pipeline_signed:             return "pipeline_signed";
+            case State::exclusions_configured: return "exclusions_configured";
+            case State::hashed: return "hashed";
+            case State::pipeline_signed: return "pipeline_signed";
         }
         return "unknown";
     }
 
     [[noreturn]] void EmbeddablePipeline::throw_wrong_state(
             const char* method, const std::string& expected) const {
-        throw C2paException(std::string(method) + " requires state "
-            + expected + " but current state is '"
-            + state_name(state_) + "'");
+        std::ostringstream msg;
+        msg << method << " requires state " << expected
+            << " but current state is '" << state_name(state_) << "'";
+        throw C2paException(msg.str());
     }
 
     void EmbeddablePipeline::require_state(State expected, const char* method) const {
@@ -69,6 +70,16 @@ namespace c2pa {
         throw_wrong_state(method, expected.str());
     }
 
+    void EmbeddablePipeline::require_not_faulted(const char* method) const {
+        if (faulted_) {
+            std::ostringstream msg;
+            msg << method
+                << " cannot be called: pipeline faulted during a prior operation"
+                   " (create a new pipeline to retry)";
+            throw C2paException(msg.str());
+        }
+    }
+
     EmbeddablePipeline::EmbeddablePipeline(Builder&& b, std::string format)
         : builder_(std::move(b))
         , format_(std::move(format))
@@ -78,68 +89,135 @@ namespace c2pa {
     // Init-state forwarding
 
     void EmbeddablePipeline::add_ingredient(const std::string& json, const std::string& fmt, std::istream& source) {
+        require_not_faulted("add_ingredient()");
         require_state(State::init, "add_ingredient()");
-        builder_.add_ingredient(json, fmt, source);
+        try {
+            builder_.add_ingredient(json, fmt, source);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
     }
 
     void EmbeddablePipeline::add_ingredient(const std::string& json, const std::filesystem::path& path) {
+        require_not_faulted("add_ingredient()");
         require_state(State::init, "add_ingredient()");
-        builder_.add_ingredient(json, path);
+        try {
+            builder_.add_ingredient(json, path);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
     }
 
     void EmbeddablePipeline::add_resource(const std::string& uri, std::istream& source) {
+        require_not_faulted("add_resource()");
         require_state(State::init, "add_resource()");
-        builder_.add_resource(uri, source);
+        try {
+            builder_.add_resource(uri, source);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
     }
 
     void EmbeddablePipeline::add_resource(const std::string& uri, const std::filesystem::path& path) {
+        require_not_faulted("add_resource()");
         require_state(State::init, "add_resource()");
-        builder_.add_resource(uri, path);
+        try {
+            builder_.add_resource(uri, path);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
     }
 
     void EmbeddablePipeline::add_action(const std::string& json) {
+        require_not_faulted("add_action()");
         require_state(State::init, "add_action()");
-        builder_.add_action(json);
+        try {
+            builder_.add_action(json);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
     }
 
     EmbeddablePipeline& EmbeddablePipeline::with_definition(const std::string& json) {
+        require_not_faulted("with_definition()");
         require_state(State::init, "with_definition()");
-        builder_.with_definition(json);
+        try {
+            builder_.with_definition(json);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
         return *this;
     }
 
     void EmbeddablePipeline::to_archive(std::ostream& dest) {
+        require_not_faulted("to_archive()");
         require_state(State::init, "to_archive()");
-        builder_.to_archive(dest);
+        try {
+            builder_.to_archive(dest);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
     }
 
     void EmbeddablePipeline::to_archive(const std::filesystem::path& path) {
+        require_not_faulted("to_archive()");
         require_state(State::init, "to_archive()");
-        builder_.to_archive(path);
+        try {
+            builder_.to_archive(path);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
     }
 
     // Workflow transitions
 
     bool EmbeddablePipeline::needs_placeholder() {
-        return builder_.needs_placeholder(format_);
+        require_not_faulted("needs_placeholder()");
+        try {
+            return builder_.needs_placeholder(format_);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
     }
 
     const std::vector<unsigned char>& EmbeddablePipeline::create_placeholder() {
+        require_not_faulted("create_placeholder()");
         require_state(State::init, "create_placeholder()");
-        placeholder_ = builder_.placeholder(format_);
+        try {
+            placeholder_ = builder_.placeholder(format_);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
         state_ = State::placeholder_created;
         return placeholder_;
     }
 
     void EmbeddablePipeline::set_data_hash_exclusions(
             const std::vector<std::pair<uint64_t, uint64_t>>& exclusions) {
+        require_not_faulted("set_data_hash_exclusions()");
         require_state(State::placeholder_created, "set_data_hash_exclusions()");
-        builder_.set_data_hash_exclusions(exclusions);
+        try {
+            builder_.set_data_hash_exclusions(exclusions);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
         exclusions_ = exclusions;
         state_ = State::exclusions_configured;
     }
 
     void EmbeddablePipeline::hash_from_stream(std::istream& stream) {
+        require_not_faulted("hash_from_stream()");
         require_state_in(
             {State::init, State::placeholder_created, State::exclusions_configured},
             "hash_from_stream()");
@@ -148,13 +226,24 @@ namespace c2pa {
                 "hash_from_stream() cannot be called in 'init' state for this format "
                 "because it requires a placeholder.");
         }
-        builder_.update_hash_from_stream(format_, stream);
+        try {
+            builder_.update_hash_from_stream(format_, stream);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
         state_ = State::hashed;
     }
 
     const std::vector<unsigned char>& EmbeddablePipeline::sign() {
+        require_not_faulted("sign()");
         require_state(State::hashed, "sign()");
-        signed_manifest_ = builder_.sign_embeddable(format_);
+        try {
+            signed_manifest_ = builder_.sign_embeddable(format_);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
         state_ = State::pipeline_signed;
         return signed_manifest_;
     }
@@ -192,7 +281,12 @@ namespace c2pa {
         return state_name(state_);
     }
 
+    bool EmbeddablePipeline::is_faulted() const noexcept {
+        return faulted_;
+    }
+
     Builder EmbeddablePipeline::into_builder() && {
+        require_not_faulted("into_builder()");
         require_state(State::init, "into_builder()");
         return std::move(builder_);
     }

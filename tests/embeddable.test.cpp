@@ -1054,3 +1054,66 @@ TEST_F(EmbeddablePipelineTest, PlaceholderBytesThrowsOnBoxHashPath) {
     pipeline.sign();
     EXPECT_THROW(pipeline.placeholder_bytes(), c2pa::C2paException);
 }
+
+TEST_F(EmbeddablePipelineTest, NotFaultedOnSuccess) {
+    auto pipeline = make_pipeline("image/jpeg");
+    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
+
+    EXPECT_FALSE(pipeline.is_faulted());
+
+    pipeline.create_placeholder();
+    EXPECT_FALSE(pipeline.is_faulted());
+
+    pipeline.set_data_hash_exclusions({{20, pipeline.placeholder_bytes().size()}});
+    EXPECT_FALSE(pipeline.is_faulted());
+
+    std::ifstream stream(source_asset, std::ios::binary);
+    pipeline.hash_from_stream(stream);
+    stream.close();
+    EXPECT_FALSE(pipeline.is_faulted());
+
+    pipeline.sign();
+    EXPECT_FALSE(pipeline.is_faulted());
+}
+
+TEST_F(EmbeddablePipelineTest, FaultedAfterFailedOperation) {
+    // Use a bogus format to force create_placeholder() to fail at the FFI layer
+    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto context = c2pa::Context::ContextBuilder()
+        .with_signer(c2pa_test::create_test_signer())
+        .create_context();
+    auto builder = c2pa::Builder(context, manifest_json);
+    auto pipeline = c2pa::EmbeddablePipeline(std::move(builder), "bogus/format");
+
+    EXPECT_FALSE(pipeline.is_faulted());
+    EXPECT_THROW(pipeline.create_placeholder(), c2pa::C2paException);
+    EXPECT_TRUE(pipeline.is_faulted());
+    EXPECT_STREQ(pipeline.current_state(), "init");
+}
+
+TEST_F(EmbeddablePipelineTest, FaultedPipelineBlocksAllMethods) {
+    // Force a fault via bogus format
+    auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto context = c2pa::Context::ContextBuilder()
+        .with_signer(c2pa_test::create_test_signer())
+        .create_context();
+    auto builder = c2pa::Builder(context, manifest_json);
+    auto pipeline = c2pa::EmbeddablePipeline(std::move(builder), "bogus/format");
+
+    EXPECT_THROW(pipeline.create_placeholder(), c2pa::C2paException);
+    ASSERT_TRUE(pipeline.is_faulted());
+
+    // All builder-delegating methods should throw the faulted message
+    EXPECT_THROW(pipeline.create_placeholder(), c2pa::C2paException);
+    EXPECT_THROW(pipeline.needs_placeholder(), c2pa::C2paException);
+
+    std::istringstream dummy("data");
+    EXPECT_THROW(pipeline.hash_from_stream(dummy), c2pa::C2paException);
+    EXPECT_THROW(pipeline.sign(), c2pa::C2paException);
+    EXPECT_THROW(pipeline.add_action("{}"), c2pa::C2paException);
+    EXPECT_THROW(std::move(pipeline).into_builder(), c2pa::C2paException);
+
+    // Read-only accessors still work (they don't touch the builder)
+    EXPECT_STREQ(pipeline.current_state(), "init");
+    EXPECT_EQ(pipeline.format(), "bogus/format");
+}
