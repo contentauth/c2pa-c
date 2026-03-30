@@ -393,6 +393,13 @@ namespace c2pa
             /// @note This consumes the builder. After calling this, is_valid() returns false.
             [[nodiscard]] Context create_context();
 
+            /// @brief Release ownership of the underlying C2paContextBuilder pointer.
+            ///        After this call, the ContextBuilder no longer owns the pointer
+            ///        and is_valid() returns false. The caller is responsible for managing
+            ///        the lifetime of the returned pointer.
+            /// @return Pointer to the C2paContextBuilder object, or nullptr if moved from.
+            C2paContextBuilder* release() noexcept;
+
         private:
             C2paContextBuilder* context_builder;
             std::unique_ptr<ProgressCallbackFunc> pending_callback_;
@@ -744,6 +751,17 @@ namespace c2pa
         /// @note Prefer using the streaming APIs if possible.
         [[deprecated("Use Reader(IContextProvider& context, source_path) instead")]]
         Reader(const std::filesystem::path &source_path);
+
+        /// @brief Try to open a Reader from a context and file path when the asset may lack C2PA data.
+        /// @return A Reader if JUMBF (c2pa/manifest) data is present; std::nullopt if none.
+        /// @throws C2paException for errors other than a missing manifest (e.g. invalid asset).
+        /// @throws std::system_error if the file cannot be opened.
+        static std::optional<Reader> from_asset(IContextProvider& context, const std::filesystem::path &source_path);
+
+        /// @brief Try to create a Reader from a context and stream when the asset may lack C2PA data.
+        /// @return A Reader if JUMBF (c2pa/manifest) data is present; std::nullopt if none.
+        /// @throws C2paException for errors other than a missing manifest.
+        static std::optional<Reader> from_asset(IContextProvider& context, const std::string &format, std::istream &stream);
 
         // Non-copyable
         Reader(const Reader&) = delete;
