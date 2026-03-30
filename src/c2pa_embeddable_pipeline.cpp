@@ -11,10 +11,8 @@
 // each license.
 
 /// @file   c2pa_embeddable_pipeline.cpp
-/// @brief  EmbeddablePipeline class implementation.
+/// @brief  EmbeddablePipeline and derived pipeline implementations.
 
-#include <filesystem>
-#include <fstream>
 #include <sstream>
 
 #include "c2pa.hpp"
@@ -80,152 +78,16 @@ namespace c2pa {
         }
     }
 
-    EmbeddablePipeline::EmbeddablePipeline(Builder&& b, std::string format)
-        : builder_(std::move(b))
+    EmbeddablePipeline::EmbeddablePipeline(Builder&& builder, std::string format)
+        : builder_(std::move(builder))
         , format_(std::move(format))
     {
     }
 
-    // Init-state forwarding
+    // Workflow methods
 
-    void EmbeddablePipeline::add_ingredient(const std::string& json, const std::string& fmt, std::istream& source) {
-        require_not_faulted("add_ingredient()");
-        require_state(State::init, "add_ingredient()");
-        try {
-            builder_.add_ingredient(json, fmt, source);
-        } catch (...) {
-            faulted_ = true;
-            throw;
-        }
-    }
-
-    void EmbeddablePipeline::add_ingredient(const std::string& json, const std::filesystem::path& path) {
-        require_not_faulted("add_ingredient()");
-        require_state(State::init, "add_ingredient()");
-        try {
-            builder_.add_ingredient(json, path);
-        } catch (...) {
-            faulted_ = true;
-            throw;
-        }
-    }
-
-    void EmbeddablePipeline::add_resource(const std::string& uri, std::istream& source) {
-        require_not_faulted("add_resource()");
-        require_state(State::init, "add_resource()");
-        try {
-            builder_.add_resource(uri, source);
-        } catch (...) {
-            faulted_ = true;
-            throw;
-        }
-    }
-
-    void EmbeddablePipeline::add_resource(const std::string& uri, const std::filesystem::path& path) {
-        require_not_faulted("add_resource()");
-        require_state(State::init, "add_resource()");
-        try {
-            builder_.add_resource(uri, path);
-        } catch (...) {
-            faulted_ = true;
-            throw;
-        }
-    }
-
-    void EmbeddablePipeline::add_action(const std::string& json) {
-        require_not_faulted("add_action()");
-        require_state(State::init, "add_action()");
-        try {
-            builder_.add_action(json);
-        } catch (...) {
-            faulted_ = true;
-            throw;
-        }
-    }
-
-    EmbeddablePipeline& EmbeddablePipeline::with_definition(const std::string& json) {
-        require_not_faulted("with_definition()");
-        require_state(State::init, "with_definition()");
-        try {
-            builder_.with_definition(json);
-        } catch (...) {
-            faulted_ = true;
-            throw;
-        }
-        return *this;
-    }
-
-    void EmbeddablePipeline::to_archive(std::ostream& dest) {
-        require_not_faulted("to_archive()");
-        require_state(State::init, "to_archive()");
-        try {
-            builder_.to_archive(dest);
-        } catch (...) {
-            faulted_ = true;
-            throw;
-        }
-    }
-
-    void EmbeddablePipeline::to_archive(const std::filesystem::path& path) {
-        require_not_faulted("to_archive()");
-        require_state(State::init, "to_archive()");
-        try {
-            builder_.to_archive(path);
-        } catch (...) {
-            faulted_ = true;
-            throw;
-        }
-    }
-
-    // Workflow transitions
-
-    bool EmbeddablePipeline::needs_placeholder() {
-        require_not_faulted("needs_placeholder()");
-        try {
-            return builder_.needs_placeholder(format_);
-        } catch (...) {
-            faulted_ = true;
-            throw;
-        }
-    }
-
-    const std::vector<unsigned char>& EmbeddablePipeline::create_placeholder() {
-        require_not_faulted("create_placeholder()");
-        require_state(State::init, "create_placeholder()");
-        try {
-            placeholder_ = builder_.placeholder(format_);
-        } catch (...) {
-            faulted_ = true;
-            throw;
-        }
-        state_ = State::placeholder_created;
-        return placeholder_;
-    }
-
-    void EmbeddablePipeline::set_data_hash_exclusions(
-            const std::vector<std::pair<uint64_t, uint64_t>>& exclusions) {
-        require_not_faulted("set_data_hash_exclusions()");
-        require_state(State::placeholder_created, "set_data_hash_exclusions()");
-        try {
-            builder_.set_data_hash_exclusions(exclusions);
-        } catch (...) {
-            faulted_ = true;
-            throw;
-        }
-        exclusions_ = exclusions;
-        state_ = State::exclusions_configured;
-    }
-
-    void EmbeddablePipeline::hash_from_stream(std::istream& stream) {
+    void EmbeddablePipeline::do_hash(std::istream& stream) {
         require_not_faulted("hash_from_stream()");
-        require_state_in(
-            {State::init, State::placeholder_created, State::exclusions_configured},
-            "hash_from_stream()");
-        if (state_ == State::init && needs_placeholder()) {
-            throw C2paException(
-                "hash_from_stream() cannot be called in 'init' state for this format "
-                "because it requires a placeholder.");
-        }
         try {
             builder_.update_hash_from_stream(format_, stream);
         } catch (...) {
@@ -250,28 +112,10 @@ namespace c2pa {
 
     // Accessors
 
-    const std::vector<unsigned char>& EmbeddablePipeline::placeholder_bytes() const {
-        require_state_at_least(State::placeholder_created, "placeholder_bytes()");
-        if (placeholder_.empty()) {
-            throw C2paException("placeholder_bytes() is not available because no placeholder was created on this pipeline path");
-        }
-        return placeholder_;
-    }
-
-    const std::vector<std::pair<uint64_t, uint64_t>>& EmbeddablePipeline::data_hash_exclusions() const {
-        require_state_at_least(State::exclusions_configured, "data_hash_exclusions()");
-        if (exclusions_.empty()) {
-            throw C2paException("data_hash_exclusions() is not available because no exclusions were set on this pipeline path");
-        }
-        return exclusions_;
-    }
-
     const std::vector<unsigned char>& EmbeddablePipeline::signed_bytes() const {
         require_state(State::pipeline_signed, "signed_bytes()");
         return signed_manifest_;
     }
-
-    // Utilities
 
     const std::string& EmbeddablePipeline::format() const noexcept {
         return format_;
@@ -285,10 +129,98 @@ namespace c2pa {
         return faulted_;
     }
 
-    Builder EmbeddablePipeline::into_builder() && {
-        require_not_faulted("into_builder()");
-        require_state(State::init, "into_builder()");
-        return std::move(builder_);
+    // Specialized class: DataHashPipeline
+
+    DataHashPipeline::DataHashPipeline(Builder&& builder, std::string format)
+        : EmbeddablePipeline(std::move(builder), std::move(format))
+    {
+    }
+
+    const std::vector<unsigned char>& DataHashPipeline::create_placeholder() {
+        require_not_faulted("create_placeholder()");
+        require_state(State::init, "create_placeholder()");
+        try {
+            placeholder_ = builder_.placeholder(format_);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
+        state_ = State::placeholder_created;
+        return placeholder_;
+    }
+
+    void DataHashPipeline::set_exclusions(
+            const std::vector<std::pair<uint64_t, uint64_t>>& exclusions) {
+        require_not_faulted("set_exclusions()");
+        require_state(State::placeholder_created, "set_exclusions()");
+        try {
+            builder_.set_data_hash_exclusions(exclusions);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
+        exclusions_ = exclusions;
+        state_ = State::exclusions_configured;
+    }
+
+    void DataHashPipeline::hash_from_stream(std::istream& stream) {
+        require_not_faulted("hash_from_stream()");
+        require_state(State::exclusions_configured, "hash_from_stream()");
+        do_hash(stream);
+    }
+
+    const std::vector<unsigned char>& DataHashPipeline::placeholder_bytes() const {
+        require_state_at_least(State::placeholder_created, "placeholder_bytes()");
+        return placeholder_;
+    }
+
+    const std::vector<std::pair<uint64_t, uint64_t>>& DataHashPipeline::exclusion_ranges() const {
+        require_state_at_least(State::exclusions_configured, "exclusion_ranges()");
+        return exclusions_;
+    }
+
+    // Specialized class: BmffHashPipeline
+
+    BmffHashPipeline::BmffHashPipeline(Builder&& builder, std::string format)
+        : EmbeddablePipeline(std::move(builder), std::move(format))
+    {
+    }
+
+    const std::vector<unsigned char>& BmffHashPipeline::create_placeholder() {
+        require_not_faulted("create_placeholder()");
+        require_state(State::init, "create_placeholder()");
+        try {
+            placeholder_ = builder_.placeholder(format_);
+        } catch (...) {
+            faulted_ = true;
+            throw;
+        }
+        state_ = State::placeholder_created;
+        return placeholder_;
+    }
+
+    void BmffHashPipeline::hash_from_stream(std::istream& stream) {
+        require_not_faulted("hash_from_stream()");
+        require_state(State::placeholder_created, "hash_from_stream()");
+        do_hash(stream);
+    }
+
+    const std::vector<unsigned char>& BmffHashPipeline::placeholder_bytes() const {
+        require_state_at_least(State::placeholder_created, "placeholder_bytes()");
+        return placeholder_;
+    }
+
+    // Specialized class: BoxHashPipeline
+
+    BoxHashPipeline::BoxHashPipeline(Builder&& builder, std::string format)
+        : EmbeddablePipeline(std::move(builder), std::move(format))
+    {
+    }
+
+    void BoxHashPipeline::hash_from_stream(std::istream& stream) {
+        require_not_faulted("hash_from_stream()");
+        require_state(State::init, "hash_from_stream()");
+        do_hash(stream);
     }
 
 } // namespace c2pa
