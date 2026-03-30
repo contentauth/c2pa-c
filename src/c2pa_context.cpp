@@ -13,8 +13,9 @@
 /// @file   c2pa_context.cpp
 /// @brief  Context and ContextBuilder implementation.
 
-#include <utility>
+#include <exception>
 #include <fstream>
+#include <utility>
 
 #include "c2pa.hpp"
 #include "c2pa_internal.hpp"
@@ -185,12 +186,20 @@ namespace c2pa
 
     // C trampoline: bridges the C callback ABI to the stored std::function.
     // Returns non-zero to continue, zero to cancel (matching ProgressCCallback convention).
+    // Exceptions must not unwind into Rust/C: treat any throw like cancellation (return 0).
+    // Callers should not throw from the callback; a future c2pa-rs API may surface errors explicitly.
     static int progress_callback_trampoline(const void* user_data,
                                             C2paProgressPhase phase,
                                             uint32_t step,
                                             uint32_t total) {
-        const auto* cb = static_cast<const ProgressCallbackFunc*>(user_data);
-        return (*cb)(static_cast<ProgressPhase>(phase), step, total) ? 1 : 0;
+        try {
+            const auto* cb = static_cast<const ProgressCallbackFunc*>(user_data);
+            return (*cb)(static_cast<ProgressPhase>(phase), step, total) ? 1 : 0;
+        } catch (const std::exception&) {
+            return 0;
+        } catch (...) {
+            return 0;
+        }
     }
 
     Context::ContextBuilder& Context::ContextBuilder::with_progress_callback(ProgressCallbackFunc callback) {

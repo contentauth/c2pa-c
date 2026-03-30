@@ -281,6 +281,11 @@ namespace c2pa
     /// @param total  0 = indeterminate; 1 = single-shot; >1 = determinate (step/total = fraction).
     /// @return true to continue the operation, false to request cancellation.
     ///
+    /// @note The callback must not throw. If it throws, the implementation catches the
+    ///       exception and reports cancellation to the underlying library (same as returning
+    ///       false); the original exception is not propagated. Prefer returning false or
+    ///       using Context::cancel() instead of throwing.
+    ///
     using ProgressCallbackFunc = std::function<bool(ProgressPhase phase, uint32_t step, uint32_t total)>;
 
     /// @brief C2PA context implementing IContextProvider.
@@ -376,6 +381,7 @@ namespace c2pa
             /// @param callback A callable matching ProgressCallbackFunc. The callback is
             ///        heap-allocated and owned by the resulting Context. Calling this method
             ///        more than once on the same builder replaces the previous callback.
+            ///        The callable must not throw when invoked (see ProgressCallbackFunc).
             /// @return Reference to this ContextBuilder for method chaining.
             /// @throws C2paException if the builder is invalid or the C API call fails.
             ///
@@ -442,10 +448,12 @@ namespace c2pa
 
         /// @brief Request cancellation of any in-progress operation on this context.
         ///
-        /// @details May be called safely from another thread while a signing or reading
-        ///          operation is running. The operation is aborted with an
-        ///          OperationCancelled error at the next progress checkpoint.
-        ///          Has no effect if no operation is currently in progress.
+        /// @details Safe to call from another thread while this Context remains valid
+        ///          and is not being destroyed or moved concurrently with this call.
+        ///          While a signing or reading operation is running on a valid Context,
+        ///          the operation is aborted with an OperationCancelled error at the
+        ///          next progress checkpoint. Has no effect if no operation is currently
+        ///          in progress, or if this object is moved-from (is_valid() is false).
         ///
         void cancel() noexcept;
 

@@ -203,9 +203,11 @@ bool callback(c2pa::ProgressPhase phase, uint32_t step, uint32_t total);
 - **`total`** — `0` = indeterminate (show a spinner); `1` = single-shot phase; `> 1` = determinate (`step / total` gives a completion fraction).
 - **Return value** — return `true` to continue, `false` to request cancellation (same effect as calling `context.cancel()`).
 
+**Do not throw** from the progress callback. Exceptions cannot cross the C/Rust boundary safely; if your callback throws, the wrapper catches it and the operation is aborted as a cancellation (you do not get your exception back at the call site). Use `return false`, `context.cancel()`, or application-side state instead.
+
 ### Cancelling from another thread
 
-Call `Context::cancel()` from any thread to abort the current operation. The SDK returns a `C2paException` with an `OperationCancelled` error at the next progress checkpoint:
+You may call `Context::cancel()` from another thread while the same `Context` remains valid and is not being destroyed or moved concurrently with that call. The SDK returns a `C2paException` with an `OperationCancelled` error at the next progress checkpoint:
 
 ```cpp
 #include <thread>
@@ -232,7 +234,7 @@ try {
 cancel_thread.join();
 ```
 
-`cancel()` is safe to call even if no operation is in progress — it is a no-op in that case.
+`cancel()` is safe to call when no operation is in progress — it is a no-op in that case (and a no-op if the `Context` is moved-from).
 
 ### `ProgressPhase` values
 

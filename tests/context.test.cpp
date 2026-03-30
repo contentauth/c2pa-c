@@ -493,7 +493,7 @@ TEST(Context, ContextBuilderWithSettingsAndSigner) {
 }
 
 // --- Progress / Cancel API tests ---
-// Progress/cancel tests — require c2pa-rs >= 0.78.7.
+// Progress/cancel tests, available since c2pa-rs == 0.78.7.
 
 // Helper: sign a file and return the signed path, using a context with a progress callback.
 static fs::path sign_with_progress_context(c2pa::IContextProvider& context, const fs::path& dest) {
