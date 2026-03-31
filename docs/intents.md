@@ -209,7 +209,7 @@ Enum values are in the global namespace:
 
 ### Using `set_intent`
 
-Use the `Builder` [`set_intent`](https://contentauth.github.io/c2pa-c/da/db7/classc2pa_1_1Builder.html#ac3ca980a43f44c9349ac0d6de50a088c) method to specify the intent:
+Use the `Builder` [`set_intent`](https://contentauth.github.io/c2pa-cpp/da/db7/classc2pa_1_1Builder.html#ac3ca980a43f44c9349ac0d6de50a088c) method to specify the intent:
 
 ```cpp
 void Builder::set_intent(

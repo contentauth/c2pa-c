@@ -1,5 +1,5 @@
-PROJECT_NAME           = "c2pa-c"
-PROJECT_BRIEF          = "C++ API for c2pa-c library"
+PROJECT_NAME           = "c2pa-cpp"
+PROJECT_BRIEF          = "C++ API for the C2PA SDK"
 OUTPUT_DIRECTORY       = api-docs/_build
 CREATE_SUBDIRS         = YES
 GENERATE_HTML          = YES
