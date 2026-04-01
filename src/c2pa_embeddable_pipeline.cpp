@@ -13,6 +13,7 @@
 /// @file   c2pa_embeddable_pipeline.cpp
 /// @brief  EmbeddablePipeline and derived pipeline implementations.
 
+#include <memory>
 #include <sstream>
 
 #include "c2pa.hpp"
@@ -221,6 +222,23 @@ namespace c2pa {
         require_not_faulted("hash_from_stream()");
         require_state(State::init, "hash_from_stream()");
         do_hash(stream);
+    }
+
+    // Factory
+
+    std::unique_ptr<EmbeddablePipeline> EmbeddablePipeline::create(
+            Builder&& builder, const std::string& format) {
+        // Query hash type before moving builder
+        HashType ht = builder.hash_type(format);
+        switch (ht) {
+            case HashType::Data:
+                return std::make_unique<DataHashPipeline>(std::move(builder), format);
+            case HashType::Bmff:
+                return std::make_unique<BmffHashPipeline>(std::move(builder), format);
+            case HashType::Box:
+                return std::make_unique<BoxHashPipeline>(std::move(builder), format);
+        }
+        throw C2paException("Unknown hash type");
     }
 
 } // namespace c2pa

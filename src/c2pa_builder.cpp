@@ -354,6 +354,22 @@ namespace c2pa
         return detail::to_byte_vector(c2pa_manifest_bytes, result);
     }
 
+    HashType Builder::hash_type(const std::string &format)
+    {
+        C2paHashType c_hash_type;
+        int result = c2pa_builder_hash_type(builder, format.c_str(), &c_hash_type);
+        if (result < 0)
+        {
+            throw C2paException();
+        }
+        switch (c_hash_type) {
+            case DataHash: return HashType::Data;
+            case BmffHash: return HashType::Bmff;
+            case BoxHash:  return HashType::Box;
+            default: throw C2paException("Unknown hash type returned from C API");
+        }
+    }
+
     bool Builder::needs_placeholder(const std::string &format)
     {
         int result = c2pa_builder_needs_placeholder(builder, format.c_str());

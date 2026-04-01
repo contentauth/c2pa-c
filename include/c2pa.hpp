@@ -73,6 +73,13 @@ namespace c2pa
         NoBufferSpace = ENOBUFS
     };
 
+    /// @brief Hash binding type for embeddable signing workflows.
+    enum class HashType {
+        Data,   ///< Placeholder + exclusions + hash + sign (JPEG, PNG, etc.)
+        Bmff,   ///< Placeholder + hash + sign (MP4, AVIF, HEIF/HEIC)
+        Box,    ///< Hash + sign, no placeholder needed
+    };
+
     /// @brief Set errno from StreamError and return error sentinel.
     /// @param e The StreamError value to convert to errno.
     /// @return OperationResult::Error (-1) for use as C API error return.
@@ -1035,6 +1042,12 @@ namespace c2pa
         /// @return A formatted copy of the data.
         static std::vector<unsigned char> format_embeddable(const std::string &format, std::vector<unsigned char> &data);
 
+        /// @brief Query which hash binding type the builder will use for the given format.
+        /// @param format The MIME type or extension of the asset.
+        /// @return The HashType that will be used for embeddable signing.
+        /// @throws C2paException on error.
+        HashType hash_type(const std::string &format);
+
         /// @brief Check if the given format requires a placeholder embedding step.
         /// @details Returns false for BoxHash-capable formats when prefer_box_hash is enabled in
         ///          the context settings (no placeholder needed — hash covers the full asset).
@@ -1113,6 +1126,13 @@ namespace c2pa
         enum class State { init, placeholder_created, exclusions_configured, hashed, pipeline_signed };
 
         virtual ~EmbeddablePipeline() = default;
+
+        /// @brief Factory: create the correct pipeline subclass for the given format.
+        /// @param builder Builder to consume (moved from). Configure it before calling.
+        /// @param format MIME type of the target asset (e.g. "image/jpeg", "video/mp4").
+        /// @return A unique_ptr to the correct EmbeddablePipeline subclass.
+        /// @throws C2paException if the hash type query fails.
+        static std::unique_ptr<EmbeddablePipeline> create(Builder&& builder, const std::string& format);
 
         EmbeddablePipeline(EmbeddablePipeline&&) noexcept = default;
         EmbeddablePipeline& operator=(EmbeddablePipeline&&) noexcept = default;
