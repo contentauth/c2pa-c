@@ -130,12 +130,32 @@ namespace c2pa {
         return faulted_;
     }
 
+    // Base class default implementations (throw for unsupported hash types)
+
+    const std::vector<unsigned char>& EmbeddablePipeline::create_placeholder() {
+        throw C2paException("create_placeholder() is not supported for this hash type");
+    }
+
+    void EmbeddablePipeline::set_exclusions(const std::vector<std::pair<uint64_t, uint64_t>>&) {
+        throw C2paException("set_exclusions() is not supported for this hash type");
+    }
+
+    const std::vector<unsigned char>& EmbeddablePipeline::placeholder_bytes() const {
+        throw C2paException("placeholder_bytes() is not supported for this hash type");
+    }
+
+    const std::vector<std::pair<uint64_t, uint64_t>>& EmbeddablePipeline::exclusion_ranges() const {
+        throw C2paException("exclusion_ranges() is not supported for this hash type");
+    }
+
     // Specialized class: DataHashPipeline
 
     DataHashPipeline::DataHashPipeline(Builder&& builder, std::string format)
         : EmbeddablePipeline(std::move(builder), std::move(format))
     {
     }
+
+    HashType DataHashPipeline::hash_type() const { return HashType::Data; }
 
     const std::vector<unsigned char>& DataHashPipeline::create_placeholder() {
         require_not_faulted("create_placeholder()");
@@ -187,6 +207,8 @@ namespace c2pa {
     {
     }
 
+    HashType BmffHashPipeline::hash_type() const { return HashType::Bmff; }
+
     const std::vector<unsigned char>& BmffHashPipeline::create_placeholder() {
         require_not_faulted("create_placeholder()");
         require_state(State::init, "create_placeholder()");
@@ -217,6 +239,8 @@ namespace c2pa {
         : EmbeddablePipeline(std::move(builder), std::move(format))
     {
     }
+
+    HashType BoxHashPipeline::hash_type() const { return HashType::Box; }
 
     void BoxHashPipeline::hash_from_stream(std::istream& stream) {
         require_not_faulted("hash_from_stream()");

@@ -1162,6 +1162,27 @@ namespace c2pa
         /// A faulted pipeline cannot be reused. Create a new one to retry.
         bool is_faulted() const noexcept;
 
+        /// @brief Returns the hash binding type for this pipeline.
+        virtual HashType hash_type() const = 0;
+
+        /// @brief [init -> placeholder_created] Create the placeholder manifest bytes.
+        /// @return Reference to the placeholder bytes (valid for the lifetime of this object).
+        /// @throws C2paException if not supported by this hash type, or not in init state.
+        virtual const std::vector<unsigned char>& create_placeholder();
+
+        /// @brief [placeholder_created -> exclusions_configured] Register where the placeholder was embedded.
+        /// @param exclusions Vector of (offset, length) pairs.
+        /// @throws C2paException if not supported by this hash type, or not in placeholder_created state.
+        virtual void set_exclusions(const std::vector<std::pair<uint64_t, uint64_t>>& exclusions);
+
+        /// @brief Returns the placeholder bytes. Available from placeholder_created state onward.
+        /// @throws C2paException if not supported by this hash type, or not in required state.
+        virtual const std::vector<unsigned char>& placeholder_bytes() const;
+
+        /// @brief Returns the exclusion ranges. Available from exclusions_configured state onward.
+        /// @throws C2paException if not supported by this hash type, or not in required state.
+        virtual const std::vector<std::pair<uint64_t, uint64_t>>& exclusion_ranges() const;
+
     protected:
         /// @brief Construct the base pipeline from a Builder and a MIME format string.
         EmbeddablePipeline(Builder&& builder, std::string format);
@@ -1190,29 +1211,14 @@ namespace c2pa
     /// Workflow: create_placeholder() -> set_exclusions() -> hash_from_stream() -> sign()
     class C2PA_CPP_API DataHashPipeline : public EmbeddablePipeline {
     public:
-        /// @param builder Builder to consume (moved from). Configure it before constructing.
-        /// @param format MIME type of the target asset (e.g. "image/jpeg").
         DataHashPipeline(Builder&& builder, std::string format);
 
-        /// @brief [init -> placeholder_created] Create the placeholder manifest bytes.
-        /// @return Reference to the placeholder bytes (valid for the lifetime of this object).
-        /// @throws C2paException if not in init state, or on library error.
-        const std::vector<unsigned char>& create_placeholder();
-
-        /// @brief [placeholder_created -> exclusions_configured] Register where the placeholder was embedded.
-        /// @param exclusions Vector of (offset, length) pairs.
-        /// @throws C2paException if not in placeholder_created state, or on library error.
-        void set_exclusions(const std::vector<std::pair<uint64_t, uint64_t>>& exclusions);
-
-        /// @brief [exclusions_configured -> hashed] Hash the asset stream.
-        /// @throws C2paException if not in exclusions_configured state, or on library error.
+        HashType hash_type() const override;
+        const std::vector<unsigned char>& create_placeholder() override;
+        void set_exclusions(const std::vector<std::pair<uint64_t, uint64_t>>& exclusions) override;
         void hash_from_stream(std::istream& stream) override;
-
-        /// @brief Returns the placeholder bytes. Available from placeholder_created state onward.
-        const std::vector<unsigned char>& placeholder_bytes() const;
-
-        /// @brief Returns the exclusion ranges. Available from exclusions_configured state onward.
-        const std::vector<std::pair<uint64_t, uint64_t>>& exclusion_ranges() const;
+        const std::vector<unsigned char>& placeholder_bytes() const override;
+        const std::vector<std::pair<uint64_t, uint64_t>>& exclusion_ranges() const override;
     };
 
 
@@ -1221,36 +1227,23 @@ namespace c2pa
     /// Exclusions are handled automatically by the BMFF assertion.
     class C2PA_CPP_API BmffHashPipeline : public EmbeddablePipeline {
     public:
-        /// @param builder Builder to consume (moved from). Configure it before constructing.
-        /// @param format MIME type of the target asset (e.g. "video/mp4").
         BmffHashPipeline(Builder&& builder, std::string format);
 
-        /// @brief [init -> placeholder_created] Create the placeholder manifest bytes.
-        /// @return Reference to the placeholder bytes (valid for the lifetime of this object).
-        /// @throws C2paException if not in init state, or on library error.
-        const std::vector<unsigned char>& create_placeholder();
-
-        /// @brief [placeholder_created -> hashed] Hash the asset stream.
-        /// @throws C2paException if not in placeholder_created state, or on library error.
+        HashType hash_type() const override;
+        const std::vector<unsigned char>& create_placeholder() override;
         void hash_from_stream(std::istream& stream) override;
-
-        /// @brief Returns the placeholder bytes. Available from placeholder_created state onward.
-        const std::vector<unsigned char>& placeholder_bytes() const;
+        const std::vector<unsigned char>& placeholder_bytes() const override;
     };
 
 
     /// @brief BoxHash embeddable pipeline for when prefer_box_hash is enabled.
-    ///
     /// Workflow: hash_from_stream() -> sign()
     /// No placeholder or exclusions needed.
     class C2PA_CPP_API BoxHashPipeline : public EmbeddablePipeline {
     public:
-        /// @param builder Builder to consume (moved from). Configure it before constructing.
-        /// @param format MIME type of the target asset (e.g. "image/jpeg").
         BoxHashPipeline(Builder&& builder, std::string format);
 
-        /// @brief [init -> hashed] Hash the asset stream.
-        /// @throws C2paException if not in init state, or on library error.
+        HashType hash_type() const override;
         void hash_from_stream(std::istream& stream) override;
     };
 }
