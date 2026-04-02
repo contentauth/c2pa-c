@@ -633,7 +633,7 @@ classDiagram
 
 `EmbeddablePipeline::create(builder, format)` queries the builder for the hash type matching the given MIME format and returns the correct pipeline subclass (`DataHashPipeline`, `BmffHashPipeline`, or `BoxHashPipeline`) as a `std::unique_ptr<EmbeddablePipeline>`. The factory selects the subclass based on the format string and the builder's context settings (e.g. `prefer_box_hash`).
 
-Not every pipeline subclass supports every method. Calling an unsupported method (e.g. `create_placeholder()` on a BoxHash pipeline, or `set_exclusions()` on a BmffHash pipeline) throws `C2paUnsupportedOperationException`, a subclass of `C2paException`. A single `try`/`catch` block can wrap the optional steps:
+Not every pipeline subclass supports every method. Calling an unsupported method (e.g. `create_placeholder()` on a BoxHash pipeline, or `set_exclusions()` on a BmffHash pipeline) throws `C2paUnsupportedOperationException`, a subclass of `C2paException`. Each optional step can be wrapped in its own `try`/`catch`:
 
 ```cpp
 auto pipeline = c2pa::EmbeddablePipeline::create(std::move(builder), format);
