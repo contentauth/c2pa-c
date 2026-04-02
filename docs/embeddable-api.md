@@ -541,7 +541,7 @@ classDiagram
     Context --> Builder : passed to constructor
 ```
 
-## Pipeline API (`EmbeddablePipeline`)
+## Embeddable pipeline/workflow API (`EmbeddablePipeline`)
 
 `EmbeddablePipeline` wraps the flat `Builder` embeddable methods behind a single mutable object with runtime state enforcement. The format string is captured once at construction, and calling a method in the wrong state throws `C2paException` with a message describing the required and current state.
 
@@ -554,7 +554,7 @@ stateDiagram-v2
     init --> placeholder_created : create_placeholder
     init --> hashed : hash_from_stream [BoxHash]
 
-    placeholder_created --> exclusions_configured : set_data_hash_exclusions [DataHash]
+    placeholder_created --> exclusions_configured : set_exclusions [DataHash]
     placeholder_created --> hashed : hash_from_stream [BmffHash]
 
     exclusions_configured --> hashed : hash_from_stream
@@ -563,7 +563,7 @@ stateDiagram-v2
     pipeline_signed --> [*]
 
     note right of init
-        Call needs_placeholder to choose path.
+        Use hash_type() to determine which path applies.
     end note
 ```
 
@@ -581,7 +581,8 @@ classDiagram
         +format() const string&
         +current_state() State
         +state_name(State) const char*$
-        +needs_placeholder() bool
+        +hash_type() HashType*
+        +is_faulted() bool
     }
 
     class init {
@@ -598,7 +599,7 @@ classDiagram
     }
 
     class placeholder_created {
-        +set_data_hash_exclusions(excl)
+        +set_exclusions(excl)
         +hash_from_stream(stream) [BmffHash]
         +placeholder_bytes() const vector~uint8~&
     }
@@ -606,19 +607,19 @@ classDiagram
     class exclusions_configured {
         +hash_from_stream(stream) [DataHash]
         +placeholder_bytes() const vector~uint8~&
-        +data_hash_exclusions() const vector&
+        +exclusion_ranges() const vector&
     }
 
     class hashed {
         +sign() const vector~uint8~&
         +placeholder_bytes() const vector~uint8~&
-        +data_hash_exclusions() const vector&
+        +exclusion_ranges() const vector&
     }
 
     class pipeline_signed {
         +signed_bytes() const vector~uint8~&
         +placeholder_bytes() const vector~uint8~&
-        +data_hash_exclusions() const vector&
+        +exclusion_ranges() const vector&
     }
 
     EmbeddablePipeline -- init : state = init
@@ -628,17 +629,52 @@ classDiagram
     EmbeddablePipeline -- pipeline_signed : state = pipeline_signed
 ```
 
+### Factory construction
+
+`EmbeddablePipeline::create(builder, format)` queries the builder for the hash type matching the given MIME format and returns the correct pipeline subclass (`DataHashPipeline`, `BmffHashPipeline`, or `BoxHashPipeline`) as a `std::unique_ptr<EmbeddablePipeline>`. The factory selects the subclass based on the format string and the builder's context settings (e.g. `prefer_box_hash`).
+
+Not every pipeline subclass supports every method. Calling an unsupported method (e.g. `create_placeholder()` on a BoxHash pipeline, or `set_exclusions()` on a BmffHash pipeline) throws `C2paUnsupportedOperationException`, a subclass of `C2paException`. A single `try`/`catch` block can wrap the optional steps:
+
+```cpp
+auto pipeline = c2pa::EmbeddablePipeline::create(std::move(builder), format);
+
+try {
+    auto& placeholder = pipeline->create_placeholder();
+    // embed placeholder into asset at offset ...
+} catch (const c2pa::C2paUnsupportedOperationException&) {
+    // BoxHash does not use placeholders
+}
+
+try {
+    pipeline->set_exclusions({{offset, placeholder_size}});
+} catch (const c2pa::C2paUnsupportedOperationException&) {
+    // BmffHash and BoxHash do not use exclusions
+}
+
+std::ifstream stream(asset_path, std::ios::binary);
+pipeline->hash_from_stream(stream);
+stream.close();
+
+auto& manifest = pipeline->sign();
+```
+
+When the pipeline type is known at compile time, the concrete subclass can be constructed directly:
+
+```cpp
+auto pipeline = c2pa::DataHashPipeline(std::move(builder), "image/jpeg");
+```
+
 ### Pipeline DataHash example (JPEG, PNG)
 
 ```cpp
-auto pipeline = c2pa::EmbeddablePipeline(std::move(builder), "image/jpeg");
+auto pipeline = c2pa::DataHashPipeline(std::move(builder), "image/jpeg");
 
 auto& placeholder = pipeline.create_placeholder();
 uint64_t offset = 2;
 auto size = placeholder.size();
 // embed placeholder into asset at offset
 
-pipeline.set_data_hash_exclusions({{offset, size}});
+pipeline.set_exclusions({{offset, size}});
 
 std::ifstream stream("output.jpg", std::ios::binary);
 pipeline.hash_from_stream(stream);
@@ -651,7 +687,7 @@ auto& manifest = pipeline.sign();
 ### Pipeline BmffHash example (MP4, AVIF, HEIF)
 
 ```cpp
-auto pipeline = c2pa::EmbeddablePipeline(std::move(builder), "video/mp4");
+auto pipeline = c2pa::BmffHashPipeline(std::move(builder), "video/mp4");
 
 auto& placeholder = pipeline.create_placeholder();
 // embed into container
@@ -666,7 +702,7 @@ auto& manifest = pipeline.sign();
 ### Pipeline BoxHash example
 
 ```cpp
-auto pipeline = c2pa::EmbeddablePipeline(std::move(builder), "image/jpeg");
+auto pipeline = c2pa::BoxHashPipeline(std::move(builder), "image/jpeg");
 
 std::ifstream stream("input.jpg", std::ios::binary);
 pipeline.hash_from_stream(stream);
@@ -682,7 +718,7 @@ Transition methods require an exact state.
 | Method | Allowed state(s) |
 | --- | --- |
 | `create_placeholder()` | `init` |
-| `set_data_hash_exclusions()` | `placeholder_created` |
+| `set_exclusions()` | `placeholder_created` |
 | `hash_from_stream()` | `init` (BoxHash), `placeholder_created` (BmffHash), `exclusions_configured` (DataHash) |
 | `sign()` | `hashed` |
 
@@ -691,7 +727,7 @@ Accessors are available from the state where the data is produced onward. Callin
 | Accessor | Available from |
 | --- | --- |
 | `placeholder_bytes()` | `placeholder_created` and later |
-| `data_hash_exclusions()` | `exclusions_configured` and later |
+| `exclusion_ranges()` | `exclusions_configured` and later |
 | `signed_bytes()` | `pipeline_signed` |
 
 Calling a method in the wrong state throws `C2paException`:

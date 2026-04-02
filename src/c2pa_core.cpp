@@ -43,6 +43,11 @@ namespace c2pa
         return message_.c_str();
     }
 
+    C2paUnsupportedOperationException::C2paUnsupportedOperationException(std::string message)
+        : C2paException(std::move(message))
+    {
+    }
+
     /// Returns the version of the C2PA library.
     std::string version()
     {

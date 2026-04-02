@@ -133,19 +133,19 @@ namespace c2pa {
     // Base class default implementations (throw for unsupported hash types)
 
     const std::vector<unsigned char>& EmbeddablePipeline::create_placeholder() {
-        throw C2paException("create_placeholder() is not supported for this hash type");
+        throw C2paUnsupportedOperationException("create_placeholder() is not supported for this hash type");
     }
 
     void EmbeddablePipeline::set_exclusions(const std::vector<std::pair<uint64_t, uint64_t>>&) {
-        throw C2paException("set_exclusions() is not supported for this hash type");
+        throw C2paUnsupportedOperationException("set_exclusions() is not supported for this hash type");
     }
 
     const std::vector<unsigned char>& EmbeddablePipeline::placeholder_bytes() const {
-        throw C2paException("placeholder_bytes() is not supported for this hash type");
+        throw C2paUnsupportedOperationException("placeholder_bytes() is not supported for this hash type");
     }
 
     const std::vector<std::pair<uint64_t, uint64_t>>& EmbeddablePipeline::exclusion_ranges() const {
-        throw C2paException("exclusion_ranges() is not supported for this hash type");
+        throw C2paUnsupportedOperationException("exclusion_ranges() is not supported for this hash type");
     }
 
     // Specialized class: DataHashPipeline

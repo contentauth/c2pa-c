@@ -119,6 +119,16 @@ namespace c2pa
         std::string message_;
     };
 
+    /// @brief Exception thrown when a pipeline method is not supported by the current hash type.
+    /// @details Subclass of C2paException. Thrown by EmbeddablePipeline base class defaults
+    ///          (e.g. create_placeholder() on BoxHashPipeline). Allows callers to catch
+    ///          unsupported operations separately from other C2PA errors.
+    class C2PA_CPP_API C2paUnsupportedOperationException : public C2paException {
+    public:
+        explicit C2paUnsupportedOperationException(std::string message);
+        ~C2paUnsupportedOperationException() override = default;
+    };
+
     /// @brief Interface for types that can provide C2PA context functionality.
     /// @details This interface can be implemented by external libraries to provide
     ///          custom context implementations (e.g. AdobeContext wrappers).

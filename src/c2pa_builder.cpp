@@ -366,7 +366,7 @@ namespace c2pa
             case DataHash: return HashType::Data;
             case BmffHash: return HashType::Bmff;
             case BoxHash:  return HashType::Box;
-            default: throw C2paException("Unknown hash type returned from C API");
+            default: throw C2paException("Unsupported hash type");
         }
     }
 
