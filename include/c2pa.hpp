@@ -1155,8 +1155,11 @@ namespace c2pa
         /// @brief Returns the MIME format string.
         const std::string& format() const noexcept;
 
-        /// @brief Returns the current state name as a string.
-        const char* current_state() const noexcept;
+        /// @brief Returns the current pipeline state.
+        State current_state() const noexcept;
+
+        /// @brief Returns the current state name as a human-readable string.
+        static const char* state_name(State s) noexcept;
 
         /// @brief Check if the pipeline has faulted due to a failed operation.
         /// A faulted pipeline cannot be reused. Create a new one to retry.
@@ -1198,7 +1201,6 @@ namespace c2pa
         std::vector<unsigned char> signed_manifest_;
         bool faulted_ = false;
 
-        static const char* state_name(State s) noexcept;
         [[noreturn]] void throw_wrong_state(const char* method, const std::string& expected) const;
         void require_state(State expected, const char* method) const;
         void require_state_at_least(State minimum, const char* method) const;

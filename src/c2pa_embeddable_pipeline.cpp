@@ -122,8 +122,8 @@ namespace c2pa {
         return format_;
     }
 
-    const char* EmbeddablePipeline::current_state() const noexcept {
-        return state_name(state_);
+    EmbeddablePipeline::State EmbeddablePipeline::current_state() const noexcept {
+        return state_;
     }
 
     bool EmbeddablePipeline::is_faulted() const noexcept {

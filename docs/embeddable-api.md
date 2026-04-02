@@ -579,7 +579,8 @@ classDiagram
         -State state_
         +EmbeddablePipeline(Builder&&, string format)
         +format() const string&
-        +current_state() const char*
+        +current_state() State
+        +state_name(State) const char*$
         +needs_placeholder() bool
     }
 
