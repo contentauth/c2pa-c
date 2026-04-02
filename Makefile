@@ -22,8 +22,9 @@ clean:
 
 # Debug build
 debug:
-	cmake -S . -B $(DEBUG_BUILD_DIR) -G "Ninja" -DCMAKE_BUILD_TYPE=Debug $(CMAKE_OPTS)
+	cmake -S . -B $(DEBUG_BUILD_DIR) -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON $(CMAKE_OPTS)
 	cmake --build $(DEBUG_BUILD_DIR)
+	@ln -sf $(DEBUG_BUILD_DIR)/compile_commands.json compile_commands.json
 
 # Release build
 release:
@@ -120,9 +121,57 @@ training: release
 	cmake --build $(RELEASE_BUILD_DIR) --target training
 	$(RELEASE_BUILD_DIR)/examples/training
 
+# Build the Emscripten example (requires emsdk)
+# Downloads prebuilt wasm library from c2pa-rs releases.
+C2PA_VERSION := $(shell grep 'set.C2PA_VERSION' CMakeLists.txt | sed 's/[^"]*"//;s/".*//')
+EMSCRIPTEN_PREBUILT_URL = https://github.com/contentauth/c2pa-rs/releases/download/c2pa-v$(C2PA_VERSION)/c2pa-v$(C2PA_VERSION)-wasm32-unknown-emscripten.zip
+EMSCRIPTEN_PREBUILT_DIR = $(BUILD_DIR)/emscripten-prebuilt
+EMSCRIPTEN_OUTPUT_DIR = $(BUILD_DIR)/emscripten-example
+
+emscripten-example:
+	@command -v emcc >/dev/null 2>&1 || { echo "Error: emcc not found. Install the Emscripten SDK and source emsdk_env.sh."; exit 1; }
+	@mkdir -p $(EMSCRIPTEN_PREBUILT_DIR) $(EMSCRIPTEN_OUTPUT_DIR)
+	@if [ ! -f "$(EMSCRIPTEN_PREBUILT_DIR)/lib/libc2pa_c.a" ]; then \
+		echo "Downloading prebuilt wasm library (c2pa v$(C2PA_VERSION))..."; \
+		curl -sL "$(EMSCRIPTEN_PREBUILT_URL)" -o "$(EMSCRIPTEN_PREBUILT_DIR)/c2pa-wasm.zip" || \
+			{ echo "Error: failed to download $(EMSCRIPTEN_PREBUILT_URL)"; exit 1; }; \
+		unzip -qo "$(EMSCRIPTEN_PREBUILT_DIR)/c2pa-wasm.zip" -d "$(EMSCRIPTEN_PREBUILT_DIR)"; \
+		rm "$(EMSCRIPTEN_PREBUILT_DIR)/c2pa-wasm.zip"; \
+	fi
+	emcc src/c2pa_core.cpp src/c2pa_context.cpp src/c2pa_reader.cpp src/c2pa_streams.cpp \
+		src/c2pa_settings.cpp src/c2pa_signer.cpp src/c2pa_builder.cpp \
+		examples/emscripten_example.cpp \
+		-I include -I "$(EMSCRIPTEN_PREBUILT_DIR)/include" \
+		"$(EMSCRIPTEN_PREBUILT_DIR)/lib/libc2pa_c.a" \
+		-o $(EMSCRIPTEN_OUTPUT_DIR)/c2pa_example.js \
+		-pthread -fwasm-exceptions \
+		-s WASM=1 -s USE_PTHREADS=1 -s ALLOW_MEMORY_GROWTH=1 \
+		-s INITIAL_MEMORY=256MB -s MAXIMUM_MEMORY=2GB \
+		-s EXPORTED_FUNCTIONS='["_main"]' \
+		-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","FS"]' \
+		-s FETCH=1 -s ENVIRONMENT='node,worker' -s NODERAWFS=1 \
+		-std=c++17 -O3
+	@echo ""
+	@echo "Build complete: $(EMSCRIPTEN_OUTPUT_DIR)/c2pa_example.js"
+	@echo "Run with: node $(EMSCRIPTEN_OUTPUT_DIR)/c2pa_example.js path/to/image.jpg"
+	@# Append emscripten example to compile_commands.json for LSP support
+	@if [ -f compile_commands.json ]; then \
+		EMSYSROOT=$$(emcc --cflags 2>/dev/null | grep -o '\-\-sysroot=[^ ]*' | cut -d= -f2); \
+		if [ -n "$$EMSYSROOT" ]; then \
+			python3 -c " \
+import json, os; \
+ccdb = json.load(open('compile_commands.json')); \
+src = os.path.abspath('examples/emscripten_example.cpp'); \
+ccdb = [e for e in ccdb if e.get('file') != src]; \
+ccdb.append({'directory': os.getcwd(), 'file': src, \
+  'command': 'c++ -std=c++17 -I include -I $(EMSCRIPTEN_PREBUILT_DIR)/include -isysroot $$EMSYSROOT -I $$EMSYSROOT/include examples/emscripten_example.cpp'}); \
+json.dump(ccdb, open('compile_commands.json','w'), indent=2)"; \
+		fi; \
+	fi
+
 examples: training demo
 
-.PHONY: all debug release cmake test test-release test-san test-c test-cpp test-coverage demo training examples clean
+.PHONY: all debug release cmake test test-release test-san test-c test-cpp test-coverage demo training examples emscripten-example clean
 
 # Build C API docs with Doxygen
 docs:
