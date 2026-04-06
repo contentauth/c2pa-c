@@ -21,6 +21,7 @@
 namespace c2pa {
     const char* EmbeddablePipeline::state_name(State s) noexcept {
         switch (s) {
+            case State::faulted: return "faulted";
             case State::init: return "init";
             case State::placeholder_created: return "placeholder_created";
             case State::exclusions_configured: return "exclusions_configured";
@@ -39,6 +40,7 @@ namespace c2pa {
     }
 
     void EmbeddablePipeline::require_state(State expected, const char* method) const {
+        if (state_ == State::faulted) throw_faulted(method);
         if (state_ != expected) {
             std::ostringstream expected_str;
             expected_str << "'" << state_name(expected) << "'";
@@ -47,6 +49,7 @@ namespace c2pa {
     }
 
     void EmbeddablePipeline::require_state_at_least(State minimum, const char* method) const {
+        if (state_ == State::faulted) throw_faulted(method);
         if (state_ < minimum) {
             std::ostringstream expected;
             expected << "'" << state_name(minimum) << "' or later";
@@ -56,6 +59,7 @@ namespace c2pa {
 
     void EmbeddablePipeline::require_state_in(
             std::initializer_list<State> allowed, const char* method) const {
+        if (state_ == State::faulted) throw_faulted(method);
         for (auto s : allowed) {
             if (state_ == s) return;
         }
@@ -69,14 +73,12 @@ namespace c2pa {
         throw_wrong_state(method, expected.str());
     }
 
-    void EmbeddablePipeline::require_not_faulted(const char* method) const {
-        if (faulted_) {
-            std::ostringstream msg;
-            msg << method
-                << " cannot be called: pipeline faulted during a prior operation"
-                   " (create a new pipeline to retry)";
-            throw C2paException(msg.str());
-        }
+    [[noreturn]] void EmbeddablePipeline::throw_faulted(const char* method) const {
+        std::ostringstream msg;
+        msg << method
+            << " cannot be called: pipeline faulted during a prior operation"
+               " (create a new pipeline to retry)";
+        throw C2paException(msg.str());
     }
 
     EmbeddablePipeline::EmbeddablePipeline(Builder&& builder, std::string format)
@@ -88,23 +90,21 @@ namespace c2pa {
     // Workflow methods
 
     void EmbeddablePipeline::do_hash(std::istream& stream) {
-        require_not_faulted("hash_from_stream()");
         try {
             builder_.update_hash_from_stream(format_, stream);
         } catch (...) {
-            faulted_ = true;
+            state_ = State::faulted;
             throw;
         }
         state_ = State::hashed;
     }
 
     const std::vector<unsigned char>& EmbeddablePipeline::sign() {
-        require_not_faulted("sign()");
         require_state(State::hashed, "sign()");
         try {
             signed_manifest_ = builder_.sign_embeddable(format_);
         } catch (...) {
-            faulted_ = true;
+            state_ = State::faulted;
             throw;
         }
         state_ = State::pipeline_signed;
@@ -127,7 +127,7 @@ namespace c2pa {
     }
 
     bool EmbeddablePipeline::is_faulted() const noexcept {
-        return faulted_;
+        return state_ == State::faulted;
     }
 
     // Base class default implementations (throw for unsupported hash types)
@@ -158,12 +158,11 @@ namespace c2pa {
     HashType DataHashPipeline::hash_type() const { return HashType::Data; }
 
     const std::vector<unsigned char>& DataHashPipeline::create_placeholder() {
-        require_not_faulted("create_placeholder()");
         require_state(State::init, "create_placeholder()");
         try {
             placeholder_ = builder_.placeholder(format_);
         } catch (...) {
-            faulted_ = true;
+            state_ = State::faulted;
             throw;
         }
         state_ = State::placeholder_created;
@@ -172,12 +171,11 @@ namespace c2pa {
 
     void DataHashPipeline::set_exclusions(
             const std::vector<std::pair<uint64_t, uint64_t>>& exclusions) {
-        require_not_faulted("set_exclusions()");
         require_state(State::placeholder_created, "set_exclusions()");
         try {
             builder_.set_data_hash_exclusions(exclusions);
         } catch (...) {
-            faulted_ = true;
+            state_ = State::faulted;
             throw;
         }
         exclusions_ = exclusions;
@@ -185,7 +183,6 @@ namespace c2pa {
     }
 
     void DataHashPipeline::hash_from_stream(std::istream& stream) {
-        require_not_faulted("hash_from_stream()");
         require_state(State::exclusions_configured, "hash_from_stream()");
         do_hash(stream);
     }
@@ -210,12 +207,11 @@ namespace c2pa {
     HashType BmffHashPipeline::hash_type() const { return HashType::Bmff; }
 
     const std::vector<unsigned char>& BmffHashPipeline::create_placeholder() {
-        require_not_faulted("create_placeholder()");
         require_state(State::init, "create_placeholder()");
         try {
             placeholder_ = builder_.placeholder(format_);
         } catch (...) {
-            faulted_ = true;
+            state_ = State::faulted;
             throw;
         }
         state_ = State::placeholder_created;
@@ -223,7 +219,6 @@ namespace c2pa {
     }
 
     void BmffHashPipeline::hash_from_stream(std::istream& stream) {
-        require_not_faulted("hash_from_stream()");
         require_state(State::placeholder_created, "hash_from_stream()");
         do_hash(stream);
     }
@@ -243,7 +238,6 @@ namespace c2pa {
     HashType BoxHashPipeline::hash_type() const { return HashType::Box; }
 
     void BoxHashPipeline::hash_from_stream(std::istream& stream) {
-        require_not_faulted("hash_from_stream()");
         require_state(State::init, "hash_from_stream()");
         do_hash(stream);
     }

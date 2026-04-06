@@ -1243,7 +1243,8 @@ namespace c2pa
     class C2PA_CPP_API EmbeddablePipeline {
     public:
         /// @brief Pipeline states, ordered for comparison.
-        enum class State { init, placeholder_created, exclusions_configured, hashed, pipeline_signed };
+        /// `faulted` is placed first so that require_state_at_least(State::init, ...) naturally rejects it.
+        enum class State { faulted, init, placeholder_created, exclusions_configured, hashed, pipeline_signed };
 
         virtual ~EmbeddablePipeline() = default;
 
@@ -1283,6 +1284,7 @@ namespace c2pa
 
         /// @brief Check if the pipeline has faulted due to a failed operation.
         /// A faulted pipeline cannot be reused. Create a new one to retry.
+        /// @details Equivalent to `current_state() == State::faulted`.
         bool is_faulted() const noexcept;
 
         /// @brief Returns the hash binding type for this pipeline.
@@ -1319,13 +1321,12 @@ namespace c2pa
         std::vector<unsigned char> placeholder_;
         std::vector<std::pair<uint64_t, uint64_t>> exclusions_;
         std::vector<unsigned char> signed_manifest_;
-        bool faulted_ = false;
 
         [[noreturn]] void throw_wrong_state(const char* method, const std::string& expected) const;
+        [[noreturn]] void throw_faulted(const char* method) const;
         void require_state(State expected, const char* method) const;
         void require_state_at_least(State minimum, const char* method) const;
         void require_state_in(std::initializer_list<State> allowed, const char* method) const;
-        void require_not_faulted(const char* method) const;
     };
 
 

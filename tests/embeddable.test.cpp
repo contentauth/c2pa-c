@@ -753,7 +753,7 @@ TEST_F(EmbeddablePipelineTest, DataHashFaultedAfterFailedOperation) {
     EXPECT_FALSE(pipeline.is_faulted());
     EXPECT_THROW(pipeline.create_placeholder(), c2pa::C2paException);
     EXPECT_TRUE(pipeline.is_faulted());
-    EXPECT_EQ(pipeline.current_state(), PipelineState::init);
+    EXPECT_EQ(pipeline.current_state(), PipelineState::faulted);
 }
 
 TEST_F(EmbeddablePipelineTest, DataHashFaultedPipelineBlocksAllMethods) {
@@ -769,7 +769,7 @@ TEST_F(EmbeddablePipelineTest, DataHashFaultedPipelineBlocksAllMethods) {
     EXPECT_THROW(pipeline.sign(), c2pa::C2paException);
 
     // Read-only accessors still work
-    EXPECT_EQ(pipeline.current_state(), PipelineState::init);
+    EXPECT_EQ(pipeline.current_state(), PipelineState::faulted);
     EXPECT_EQ(pipeline.format(), "bogus/format");
 }
 
@@ -826,7 +826,7 @@ TEST_F(EmbeddablePipelineTest, BoxHashFaultedAfterFailedOperation) {
 
     EXPECT_THROW(pipeline.sign(), c2pa::C2paException);
     EXPECT_TRUE(pipeline.is_faulted());
-    EXPECT_EQ(pipeline.current_state(), PipelineState::hashed);
+    EXPECT_EQ(pipeline.current_state(), PipelineState::faulted);
 }
 
 TEST_F(EmbeddablePipelineTest, BoxHashFaultedPipelineBlocksAllMethods) {
@@ -844,7 +844,7 @@ TEST_F(EmbeddablePipelineTest, BoxHashFaultedPipelineBlocksAllMethods) {
     EXPECT_THROW(pipeline.sign(), c2pa::C2paException);
 
     // Read-only accessors still work
-    EXPECT_EQ(pipeline.current_state(), PipelineState::hashed);
+    EXPECT_EQ(pipeline.current_state(), PipelineState::faulted);
     EXPECT_EQ(pipeline.format(), "bogus/format");
 }
 
@@ -897,7 +897,7 @@ TEST_F(EmbeddablePipelineTest, BmffHashFaultedAfterFailedOperation) {
     EXPECT_FALSE(pipeline.is_faulted());
     EXPECT_THROW(pipeline.create_placeholder(), c2pa::C2paException);
     EXPECT_TRUE(pipeline.is_faulted());
-    EXPECT_EQ(pipeline.current_state(), PipelineState::init);
+    EXPECT_EQ(pipeline.current_state(), PipelineState::faulted);
 }
 
 TEST_F(EmbeddablePipelineTest, BmffHashFaultedPipelineBlocksAllMethods) {
@@ -913,7 +913,7 @@ TEST_F(EmbeddablePipelineTest, BmffHashFaultedPipelineBlocksAllMethods) {
     EXPECT_THROW(pipeline.sign(), c2pa::C2paException);
 
     // Read-only accessors still work
-    EXPECT_EQ(pipeline.current_state(), PipelineState::init);
+    EXPECT_EQ(pipeline.current_state(), PipelineState::faulted);
     EXPECT_EQ(pipeline.format(), "bogus/format");
 }
 

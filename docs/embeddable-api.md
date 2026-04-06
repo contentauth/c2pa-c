@@ -562,8 +562,17 @@ stateDiagram-v2
     hashed --> pipeline_signed : sign
     pipeline_signed --> [*]
 
+    init --> faulted : operation throws
+    placeholder_created --> faulted : operation throws
+    exclusions_configured --> faulted : operation throws
+    hashed --> faulted : operation throws
+
     note right of init
         Use hash_type() to determine which path applies.
+    end note
+
+    note right of faulted
+        Terminal state. Create a new pipeline to retry.
     end note
 ```
 
@@ -581,21 +590,13 @@ classDiagram
         +format() const string&
         +current_state() State
         +state_name(State) const char*$
-        +hash_type() HashType*
+        +hash_type() HashType
         +is_faulted() bool
     }
 
     class init {
         +create_placeholder() const vector~uint8~&
         +hash_from_stream(stream) [BoxHash]
-        +add_ingredient(json, fmt, stream)
-        +add_ingredient(json, path)
-        +add_resource(uri, stream)
-        +add_resource(uri, path)
-        +add_action(json)
-        +with_definition(json)
-        +to_archive(dest)
-        +into_builder() Builder
     }
 
     class placeholder_created {
@@ -629,9 +630,17 @@ classDiagram
     EmbeddablePipeline -- pipeline_signed : state = pipeline_signed
 ```
 
+### When to use `EmbeddablePipeline` vs the flat API
+
+`EmbeddablePipeline` wraps the flat Builder embeddable methods (`placeholder`, `set_data_hash_exclusions`, `update_hash_from_stream`, `sign_embeddable`) with format capture, state enforcement, and polymorphic dispatch.
+
+Use the pipeline when the asset format is determined at runtime and the caller wants the factory to select the correct workflow type automatically. The pipeline stores the format string once at construction and passes it to every internal Builder call, which removes the risk of inconsistent format strings across the multi-step workflow. Each method validates the current state before proceeding and throws `C2paException` with a message naming both the required and current states, which is more useful than the errors that surface from the Rust FFI layer when flat Builder methods are called out of order. If any operation fails, the pipeline transitions to a terminal `faulted` state and rejects all subsequent calls (see [Faulted state](#faulted-state)).
+
+Use the flat Builder methods when the caller manages its own orchestration, needs to interleave other Builder operations (like `add_ingredient` or `add_resource`) between embeddable steps, or needs to archive the builder mid-workflow. The pipeline consumes the Builder at construction via move semantics, so these operations are not available after that point. See also [Archiving](#archiving).
+
 ### Factory construction
 
-`EmbeddablePipeline::create(builder, format)` queries the builder for the hash type matching the given MIME format and returns the correct pipeline subclass (`DataHashPipeline`, `BmffHashPipeline`, or `BoxHashPipeline`) as a `std::unique_ptr<EmbeddablePipeline>`. The factory selects the subclass based on the format string and the builder's context settings (e.g. `prefer_box_hash`).
+`EmbeddablePipeline::create(builder, format)` calls `Builder::hash_type(format)` to determine the hard-binding strategy. This method calls the C API function `c2pa_builder_hash_type()`, which returns a `C2paHashType` enum value (`DataHash = 0`, `BmffHash = 1`, or `BoxHash = 2`). The C++ wrapper maps these to `HashType::Data`, `HashType::Bmff`, and `HashType::Box`, and the factory constructs the matching subclass (`DataHashPipeline`, `BmffHashPipeline`, or `BoxHashPipeline`). The result is returned as a `std::unique_ptr<EmbeddablePipeline>`.
 
 Not every pipeline subclass supports every method. Calling an unsupported method (e.g. `create_placeholder()` on a BoxHash pipeline, or `set_exclusions()` on a BmffHash pipeline) throws `C2paUnsupportedOperationException`, a subclass of `C2paException`. Each optional step can be wrapped in its own `try`/`catch`:
 
@@ -658,7 +667,7 @@ stream.close();
 auto& manifest = pipeline->sign();
 ```
 
-When the pipeline type is known at compile time, the concrete subclass can be constructed directly:
+If the hash type is known at compile time, construct the concrete subclass directly to avoid the factory's runtime dispatch:
 
 ```cpp
 auto pipeline = c2pa::DataHashPipeline(std::move(builder), "image/jpeg");
@@ -733,5 +742,52 @@ Accessors are available from the state where the data is produced onward. Callin
 Calling a method in the wrong state throws `C2paException`:
 
 ```text
-sign() requires state 'hashed' but current pipeline state is 'init'
+sign() requires state 'hashed' but current state is 'init'
+```
+
+### Faulted state
+
+If any pipeline operation (`create_placeholder`, `set_exclusions`, `hash_from_stream`, or `sign`) throws, the pipeline transitions to the `faulted` state. `faulted` is part of the `State` enum and is returned by `current_state()`. The `is_faulted()` convenience method returns `true` when `current_state() == State::faulted`.
+
+A faulted pipeline rejects all subsequent mutation calls with a specific error message:
+
+```text
+hash_from_stream() cannot be called: pipeline faulted during a prior operation
+```
+
+The faulted state exists because a failed operation may leave the internal Builder partially modified, for example with a half-written placeholder or an incomplete hash. Allowing further operations on that state would produce incorrect manifests or confusing errors from the FFI layer.
+
+The faulted pipeline cannot be reset, and the Builder it consumed is no longer accessible. To allow retries, archive the Builder before constructing the pipeline (see [Archiving](#archiving)). On fault, restore from the archive and create a new pipeline.
+
+```cpp
+// Archive the builder before creating the pipeline
+builder.to_archive(archive_stream);
+auto pipeline = c2pa::EmbeddablePipeline::create(std::move(builder), format);
+
+try {
+    pipeline->hash_from_stream(stream);
+} catch (const c2pa::C2paException& e) {
+    assert(pipeline->is_faulted());
+    // Restore from archive and retry
+    auto restored = c2pa::Builder::from_archive(archive_stream);
+    pipeline = c2pa::EmbeddablePipeline::create(std::move(restored), format);
+}
+```
+
+### Archiving
+
+The pipeline does not support archiving. `EmbeddablePipeline` consumes the Builder at construction and does not expose `to_archive()`. The pipeline's workflow state (current state, cached placeholder bytes, exclusion ranges) is not part of the Builder's archive format.
+
+To interrupt and resume later, archive the Builder before constructing the pipeline:
+
+```cpp
+auto builder = c2pa::Builder(context, manifest_json);
+builder.add_ingredient(ingredient_json, "image/jpeg", ingredient_stream);
+
+// Archive before entering the pipeline
+builder.to_archive(archive_stream);
+
+// Later: restore and create pipeline
+auto restored = c2pa::Builder::from_archive(archive_stream);
+auto pipeline = c2pa::EmbeddablePipeline::create(std::move(restored), format);
 ```
