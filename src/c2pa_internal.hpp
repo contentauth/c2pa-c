@@ -230,6 +230,19 @@ inline std::string c_string_to_string(T* c_result) {
     return str;
 }
 
+/// @brief Read the last C API error and throw the appropriate exception type.
+/// @details Throws C2paCancelledException if the error message contains
+///          "operation cancelled", otherwise throws C2paException.
+[[noreturn]] inline void throw_from_last_error() {
+    auto result = c2pa_error();
+    std::string msg = result ? std::string(result) : std::string();
+    c2pa_free(result);
+    if (msg.find("operation cancelled") != std::string::npos) {
+        throw C2paCancelledException(std::move(msg));
+    }
+    throw C2paException(std::move(msg));
+}
+
 /// @brief Convert C byte array result to C++ vector
 /// @param data Raw byte array from C API
 /// @param size Size of the byte array (result from C API call)
@@ -240,7 +253,7 @@ inline std::string c_string_to_string(T* c_result) {
 inline std::vector<unsigned char> to_byte_vector(const unsigned char* data, int64_t size) {
     if (size < 0 || data == nullptr) {
         c2pa_free(data);  // May be null or allocated, c2pa_free handles both
-        throw C2paException();
+        throw_from_last_error();
     }
 
     auto result = std::vector<unsigned char>(data, data + size);

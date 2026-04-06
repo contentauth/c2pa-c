@@ -48,6 +48,11 @@ namespace c2pa
     {
     }
 
+    C2paCancelledException::C2paCancelledException(std::string message)
+        : C2paException(std::move(message))
+    {
+    }
+
     /// Returns the version of the C2PA library.
     std::string version()
     {

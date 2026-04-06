@@ -806,9 +806,115 @@ if (pipeline->is_faulted()) {
 }
 ```
 
+### Progress reporting and cancellation
+
+Progress callbacks and cancellation are configured on the Context (set on the Builder), not on the pipeline. The pipeline's Builder holds a reference to the Context, so a callback registered via `ContextBuilder::with_progress_callback` fires automatically during `hash_from_stream()` and `sign()`. For callback semantics, `ProgressPhase` values, and thread-safe cancellation, see [Progress callbacks and cancellation](context-settings.md#progress-callbacks-and-cancellation).
+
+#### Phases emitted during the pipeline
+
+| Pipeline method | `ProgressPhase` values emitted |
+| --- | --- |
+| `hash_from_stream()` | `Hashing` |
+| `sign()` | `Signing`, `Embedding` |
+
+`create_placeholder()` and `set_exclusions()` are local operations that complete quickly and do not emit progress events.
+
+#### Reporting progress
+
+Register a callback on the Context before constructing the pipeline:
+
+```cpp
+std::atomic<bool> saw_hashing{false};
+
+auto context = c2pa::Context::ContextBuilder()
+    .with_signer(c2pa::Signer("Es256", certs, private_key, "http://timestamp.digicert.com"))
+    .with_progress_callback([&](c2pa::ProgressPhase phase, uint32_t step, uint32_t total) {
+        if (phase == c2pa::ProgressPhase::Hashing) {
+            saw_hashing.store(true);
+        }
+        return true;  // continue
+    })
+    .create_context();
+
+auto builder = c2pa::Builder(context, manifest_json);
+auto pipeline = c2pa::BmffHashPipeline(std::move(builder), "video/mp4");
+
+auto& placeholder = pipeline.create_placeholder();
+// insert placeholder into container ...
+
+std::ifstream stream("output.mp4", std::ios::binary);
+pipeline.hash_from_stream(stream);  // Hashing progress events fire here
+stream.close();
+
+auto& manifest = pipeline.sign();   // Signing/Embedding events fire here
+```
+
+> [!IMPORTANT]
+> The Context must remain valid for the lifetime of the pipeline. The progress callback is owned by the Context, and destroying the Context while the pipeline is still in use causes undefined behavior.
+
+#### Cancelling via callback
+
+Return `false` from the progress callback to cancel the current operation. The pipeline throws `C2paCancelledException` (a subclass of `C2paException`) and transitions to the `cancelled` state:
+
+```cpp
+std::atomic<bool> should_cancel{false};
+
+auto context = c2pa::Context::ContextBuilder()
+    .with_signer(std::move(signer))
+    .with_progress_callback([&](c2pa::ProgressPhase, uint32_t, uint32_t) {
+        return !should_cancel.load();
+    })
+    .create_context();
+
+auto builder = c2pa::Builder(context, manifest_json);
+auto pipeline = c2pa::BmffHashPipeline(std::move(builder), "video/mp4");
+pipeline.create_placeholder();
+// insert placeholder ...
+
+should_cancel.store(true);  // e.g. user clicked Cancel
+
+try {
+    std::ifstream stream("output.mp4", std::ios::binary);
+    pipeline.hash_from_stream(stream);
+} catch (const c2pa::C2paCancelledException&) {
+    // pipeline.current_state() == State::cancelled
+    // pipeline.is_faulted()    == false
+}
+```
+
+#### Cancelling via `Context::cancel()`
+
+Call `Context::cancel()` from another thread to abort a running operation. The Context must remain valid and must not be destroyed or moved concurrently with this call:
+
+```cpp
+// context must outlive the pipeline and remain valid during cancel()
+std::thread cancel_thread([&context]() {
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    context.cancel();
+});
+
+try {
+    std::ifstream stream("output.mp4", std::ios::binary);
+    pipeline.hash_from_stream(stream);
+    auto& manifest = pipeline.sign();
+} catch (const c2pa::C2paCancelledException&) {
+    // pipeline is now cancelled
+}
+
+cancel_thread.join();
+```
+
+Both cancellation paths produce the same result: the pipeline transitions to `cancelled`, throws `C2paCancelledException`, and rejects all subsequent workflow calls with `C2paCancelledException`. Recover the Builder with `release_builder()` or restore from an archive (see [Archiving](#archiving)).
+
 ### Cancelled state
 
-Calling `release_builder()` on a non-faulted pipeline transitions it to the `cancelled` state. This is distinct from `faulted`: `cancelled` means the caller chose to cancel, not that an operation failed. Like `faulted`, a cancelled pipeline rejects all subsequent workflow calls.
+The pipeline transitions to the `cancelled` state when:
+
+- `release_builder()` is called on a non-faulted pipeline, or
+- a progress callback returns `false`, or
+- `Context::cancel()` is called during an operation.
+
+This is distinct from `faulted`: `cancelled` means the caller chose to stop, not that an operation failed. Like `faulted`, a cancelled pipeline rejects all subsequent workflow calls, but it throws `C2paCancelledException` instead of `C2paException`.
 
 ### Archiving
 

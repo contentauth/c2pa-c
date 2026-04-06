@@ -76,6 +76,10 @@ namespace c2pa {
 
     [[noreturn]] void EmbeddablePipeline::throw_faulted(const char* method) const {
         std::ostringstream msg;
+        if (state_ == State::cancelled) {
+            msg << method << " cannot be called: pipeline was cancelled";
+            throw C2paCancelledException(msg.str());
+        }
         msg << method
             << " cannot be called: pipeline faulted during a prior operation";
         throw C2paException(msg.str());
@@ -92,6 +96,9 @@ namespace c2pa {
     void EmbeddablePipeline::do_hash(std::istream& stream) {
         try {
             builder_.update_hash_from_stream(format_, stream);
+        } catch (const C2paCancelledException&) {
+            state_ = State::cancelled;
+            throw;
         } catch (...) {
             faulted_from_ = state_;
             state_ = State::faulted;
@@ -104,6 +111,9 @@ namespace c2pa {
         require_state(State::hashed, "sign()");
         try {
             signed_manifest_ = builder_.sign_embeddable(format_);
+        } catch (const C2paCancelledException&) {
+            state_ = State::cancelled;
+            throw;
         } catch (...) {
             faulted_from_ = state_;
             state_ = State::faulted;
@@ -180,6 +190,9 @@ namespace c2pa {
         require_state(State::init, "create_placeholder()");
         try {
             placeholder_ = builder_.placeholder(format_);
+        } catch (const C2paCancelledException&) {
+            state_ = State::cancelled;
+            throw;
         } catch (...) {
             faulted_from_ = state_;
             state_ = State::faulted;
@@ -194,6 +207,9 @@ namespace c2pa {
         require_state(State::placeholder_created, "set_exclusions()");
         try {
             builder_.set_data_hash_exclusions(exclusions);
+        } catch (const C2paCancelledException&) {
+            state_ = State::cancelled;
+            throw;
         } catch (...) {
             faulted_from_ = state_;
             state_ = State::faulted;
@@ -231,6 +247,9 @@ namespace c2pa {
         require_state(State::init, "create_placeholder()");
         try {
             placeholder_ = builder_.placeholder(format_);
+        } catch (const C2paCancelledException&) {
+            state_ = State::cancelled;
+            throw;
         } catch (...) {
             faulted_from_ = state_;
             state_ = State::faulted;

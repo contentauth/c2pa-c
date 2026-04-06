@@ -130,6 +130,16 @@ namespace c2pa
         ~C2paUnsupportedOperationException() override = default;
     };
 
+    /// @brief Exception thrown when a C2PA operation is cancelled.
+    /// @details Subclass of C2paException. Thrown when a progress callback returns false,
+    ///          Context::cancel() is called, or a method is invoked on a cancelled pipeline.
+    ///          Allows callers to distinguish user-initiated cancellation from actual errors.
+    class C2PA_CPP_API C2paCancelledException : public C2paException {
+    public:
+        explicit C2paCancelledException(std::string message);
+        ~C2paCancelledException() override = default;
+    };
+
     /// @brief Interface for types that can provide C2PA context functionality.
     /// @details This interface can be implemented by external libraries to provide
     ///          custom context implementations (e.g. AdobeContext wrappers).

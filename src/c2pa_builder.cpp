@@ -410,7 +410,7 @@ namespace c2pa
         int result = c2pa_builder_update_hash_from_stream(builder, format.c_str(), c_stream.c_stream);
         if (result < 0)
         {
-            throw C2paException();
+            detail::throw_from_last_error();
         }
     }
 
