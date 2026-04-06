@@ -73,6 +73,7 @@ This will download the [pre-build libraries published with c2pa releases](https:
 The Makefile has a number of other targets; for example:
 - `test` to run unit tests
 - `examples` to build and run the C++ examples.
+- `emscripten-example` to build the Emscripten/WebAssembly example (see below).
 - `all` to build and run everything.
 
 Results are saved in the `build` directory.
@@ -100,6 +101,25 @@ export DYLD_LIBRARY_PATH="$(pwd)/build/release/tests:$DYLD_LIBRARY_PATH"
 # Linux: Set built library path for running tests
 export LD_LIBRARY_PATH="$(pwd)/build/release/tests:$LD_LIBRARY_PATH"
 ```
+
+### Building the Emscripten/WebAssembly example
+
+The [`examples/emscripten_example.cpp`](examples/emscripten_example.cpp) file demonstrates using the c2pa C++ library compiled to WebAssembly via Emscripten. It includes reading manifests from files, streams, and using a custom HTTP resolver with `emscripten_fetch`.
+
+Prerequisites: Install the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) (4.x or later recommended) and activate it in your shell:
+
+```sh
+source /path/to/emsdk/emsdk_env.sh
+```
+
+Build and run:
+
+```sh
+make emscripten-example
+node build/emscripten-example/c2pa_example.js path/to/image.jpg
+```
+
+This downloads prebuilt wasm libraries from the c2pa-rs release, compiles the C++ sources with `emcc`, and produces a Node.js-runnable output. The HTTP resolver example requires a Web Worker in the browser but works without restriction under Node.js.
 
 ### Testing
 

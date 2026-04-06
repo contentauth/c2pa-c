@@ -167,6 +167,25 @@ namespace c2pa
         return *this;
     }
 
+    Context::ContextBuilder& Context::ContextBuilder::with_http_resolver(
+        void* user_data, C2paHttpResolverCallback callback) {
+        if (!is_valid()) {
+            throw C2paException("ContextBuilder is invalid (moved from)");
+        }
+        if (!callback) {
+            throw C2paException("HTTP resolver callback must not be null");
+        }
+        C2paHttpResolver* resolver = c2pa_http_resolver_create(user_data, callback);
+        if (!resolver) {
+            throw C2paException("Failed to create HTTP resolver");
+        }
+        if (c2pa_context_builder_set_http_resolver(context_builder, resolver) != 0) {
+            c2pa_free(resolver);
+            throw C2paException();
+        }
+        return *this;
+    }
+
     // Verify our C++ enum class stays in sync with the C enum from c2pa.h.
     // If c2pa-rs adds or reorders variants, these will catch it at compile time.
     static_assert(static_cast<uint8_t>(ProgressPhase::Reading)               == Reading,               "ProgressPhase::Reading mismatch");

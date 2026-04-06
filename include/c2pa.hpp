@@ -387,6 +387,17 @@ namespace c2pa
             ///
             ContextBuilder& with_progress_callback(ProgressCallbackFunc callback);
 
+            /// @brief Set a custom HTTP resolver callback on the context being built.
+            /// @details The callback is invoked synchronously whenever the SDK needs to
+            ///          make an HTTP request (remote manifest fetch, OCSP, timestamp, etc.).
+            ///          The callback receives a C2paHttpRequest and must fill in a C2paHttpResponse.
+            ///          The response body must be allocated with malloc(); the underlying native library will call free().
+            /// @param user_data Opaque user pointer passed to every callback invocation (may be nullptr).
+            /// @param callback Function pointer matching C2paHttpResolverCallback.
+            /// @return Reference to this ContextBuilder for method chaining.
+            /// @throws C2paException if the resolver could not be set or callback is null.
+            ContextBuilder& with_http_resolver(void* user_data, C2paHttpResolverCallback callback);
+
             /// @brief Create a Context from the current builder configuration.
             /// @return A new Context instance.
             /// @throws C2paException if context creation fails.
