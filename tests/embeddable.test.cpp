@@ -1075,3 +1075,166 @@ TEST_F(EmbeddablePipelineTest, BoxHashFullWorkflowViaFactory) {
     EXPECT_EQ(pipeline->current_state(), PipelineState::pipeline_signed);
     ASSERT_GT(manifest.size(), 0u);
 }
+
+// --- release_builder() tests ---
+
+TEST_F(EmbeddablePipelineTest, ReleaseBuilderFromInitState) {
+    auto pipeline = c2pa::DataHashPipeline(make_builder(), "image/jpeg");
+    EXPECT_EQ(pipeline.current_state(), PipelineState::init);
+
+    auto builder = pipeline.release_builder();
+    EXPECT_EQ(pipeline.current_state(), PipelineState::cancelled);
+    EXPECT_FALSE(pipeline.is_faulted());
+}
+
+TEST_F(EmbeddablePipelineTest, ReleaseBuilderFromPlaceholderCreated) {
+    auto pipeline = c2pa::DataHashPipeline(make_builder(), "image/jpeg");
+    pipeline.create_placeholder();
+    EXPECT_EQ(pipeline.current_state(), PipelineState::placeholder_created);
+
+    auto builder = pipeline.release_builder();
+    EXPECT_EQ(pipeline.current_state(), PipelineState::cancelled);
+}
+
+TEST_F(EmbeddablePipelineTest, ReleaseBuilderFromFaultedState) {
+    auto pipeline = c2pa::DataHashPipeline(make_builder(), "bogus/format");
+    EXPECT_THROW(pipeline.create_placeholder(), c2pa::C2paException);
+    ASSERT_TRUE(pipeline.is_faulted());
+
+    auto builder = pipeline.release_builder();
+    // State stays faulted (not cancelled) because the fault came from an operation
+    EXPECT_EQ(pipeline.current_state(), PipelineState::faulted);
+}
+
+TEST_F(EmbeddablePipelineTest, ReleaseBuilderFromPipelineSigned) {
+    auto pipeline = c2pa::DataHashPipeline(make_builder(), "image/jpeg");
+    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
+
+    auto& placeholder = pipeline.create_placeholder();
+    pipeline.set_exclusions({{20, placeholder.size()}});
+
+    std::ifstream stream(source_asset, std::ios::binary);
+    pipeline.hash_from_stream(stream);
+    stream.close();
+
+    pipeline.sign();
+    EXPECT_EQ(pipeline.current_state(), PipelineState::pipeline_signed);
+
+    auto builder = pipeline.release_builder();
+    EXPECT_EQ(pipeline.current_state(), PipelineState::cancelled);
+}
+
+TEST_F(EmbeddablePipelineTest, DoubleReleaseThrows) {
+    auto pipeline = c2pa::DataHashPipeline(make_builder(), "image/jpeg");
+    auto builder = pipeline.release_builder();
+
+    EXPECT_THROW(pipeline.release_builder(), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, PipelineOperationsThrowAfterRelease) {
+    auto pipeline = c2pa::DataHashPipeline(make_builder(), "image/jpeg");
+    auto builder = pipeline.release_builder();
+    EXPECT_EQ(pipeline.current_state(), PipelineState::cancelled);
+
+    EXPECT_THROW(pipeline.create_placeholder(), c2pa::C2paException);
+
+    std::istringstream dummy("data");
+    EXPECT_THROW(pipeline.hash_from_stream(dummy), c2pa::C2paException);
+    EXPECT_THROW(pipeline.sign(), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, FactoryPipelineRelease) {
+    auto pipeline = c2pa::EmbeddablePipeline::create(make_builder(), "image/jpeg");
+    auto builder = pipeline->release_builder();
+    EXPECT_EQ(pipeline->current_state(), PipelineState::cancelled);
+
+    EXPECT_THROW(pipeline->create_placeholder(), c2pa::C2paException);
+}
+
+TEST_F(EmbeddablePipelineTest, ArchiveRecoveryAfterFault) {
+    auto source_asset = c2pa_test::get_fixture_path("A.jpg");
+
+    // Archive the builder before creating the pipeline
+    std::ostringstream archive_stream;
+    {
+        auto builder = make_builder();
+        builder.to_archive(archive_stream);
+    }
+
+    // Create a pipeline that will fault
+    {
+        auto pipeline = c2pa::DataHashPipeline(make_builder(), "bogus/format");
+        EXPECT_THROW(pipeline.create_placeholder(), c2pa::C2paException);
+        ASSERT_TRUE(pipeline.is_faulted());
+    }
+
+    // Restore from archive into a builder that has a signer context
+    // (from_archive alone loses the signer; use with_archive on a context-bearing builder)
+    auto context = c2pa::Context::ContextBuilder()
+        .with_signer(c2pa_test::create_test_signer())
+        .create_context();
+    auto restored = c2pa::Builder(context);
+    std::istringstream restore(archive_stream.str());
+    restored.with_archive(restore);
+
+    auto pipeline = c2pa::DataHashPipeline(std::move(restored), "image/jpeg");
+
+    auto& placeholder = pipeline.create_placeholder();
+    ASSERT_GT(placeholder.size(), 0u);
+
+    pipeline.set_exclusions({{20, placeholder.size()}});
+
+    std::ifstream stream(source_asset, std::ios::binary);
+    pipeline.hash_from_stream(stream);
+    stream.close();
+
+    auto& manifest = pipeline.sign();
+    ASSERT_GT(manifest.size(), 0u);
+    EXPECT_EQ(manifest.size(), placeholder.size());
+}
+
+// --- faulted_from() tests ---
+
+TEST_F(EmbeddablePipelineTest, FaultedFromReturnsInitOnPlaceholderFault) {
+    auto pipeline = c2pa::DataHashPipeline(make_builder(), "bogus/format");
+    EXPECT_THROW(pipeline.create_placeholder(), c2pa::C2paException);
+    ASSERT_TRUE(pipeline.is_faulted());
+
+    auto from = pipeline.faulted_from();
+    ASSERT_TRUE(from.has_value());
+    EXPECT_EQ(*from, PipelineState::init);
+}
+
+TEST_F(EmbeddablePipelineTest, FaultedFromReturnsHashedOnSignFault) {
+    auto pipeline = c2pa::BoxHashPipeline(make_boxhash_builder(), "bogus/format");
+
+    std::istringstream dummy("data");
+    pipeline.hash_from_stream(dummy);
+    EXPECT_EQ(pipeline.current_state(), PipelineState::hashed);
+
+    EXPECT_THROW(pipeline.sign(), c2pa::C2paException);
+    ASSERT_TRUE(pipeline.is_faulted());
+
+    auto from = pipeline.faulted_from();
+    ASSERT_TRUE(from.has_value());
+    EXPECT_EQ(*from, PipelineState::hashed);
+}
+
+TEST_F(EmbeddablePipelineTest, FaultedFromReturnsNulloptWhenNotFaulted) {
+    auto pipeline = c2pa::DataHashPipeline(make_builder(), "image/jpeg");
+    EXPECT_FALSE(pipeline.faulted_from().has_value());
+
+    pipeline.create_placeholder();
+    EXPECT_FALSE(pipeline.faulted_from().has_value());
+
+    pipeline.set_exclusions({{0, 100}});
+    EXPECT_FALSE(pipeline.faulted_from().has_value());
+}
+
+TEST_F(EmbeddablePipelineTest, FaultedFromReturnsNulloptAfterCancellation) {
+    auto pipeline = c2pa::DataHashPipeline(make_builder(), "image/jpeg");
+    auto builder = pipeline.release_builder();
+
+    EXPECT_EQ(pipeline.current_state(), PipelineState::cancelled);
+    EXPECT_FALSE(pipeline.faulted_from().has_value());
+}

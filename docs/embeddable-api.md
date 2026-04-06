@@ -567,12 +567,23 @@ stateDiagram-v2
     exclusions_configured --> faulted : operation throws
     hashed --> faulted : operation throws
 
+    init --> cancelled : release_builder
+    placeholder_created --> cancelled : release_builder
+    exclusions_configured --> cancelled : release_builder
+    hashed --> cancelled : release_builder
+    pipeline_signed --> cancelled : release_builder
+
     note right of init
         Use hash_type() to determine which path applies.
     end note
 
     note right of faulted
-        Terminal state. Create a new pipeline to retry.
+        Call release_builder() to recover the Builder.
+        Check faulted_from() to see which operation failed.
+    end note
+
+    note right of cancelled
+        User called release_builder().
     end note
 ```
 
@@ -592,6 +603,8 @@ classDiagram
         +state_name(State) const char*$
         +hash_type() HashType
         +is_faulted() bool
+        +release_builder() Builder
+        +faulted_from() optional~State~
     }
 
     class init {
@@ -634,7 +647,7 @@ classDiagram
 
 `EmbeddablePipeline` wraps the flat Builder embeddable methods (`placeholder`, `set_data_hash_exclusions`, `update_hash_from_stream`, `sign_embeddable`) with format capture, state enforcement, and polymorphic dispatch.
 
-Use the pipeline when the asset format is determined at runtime and the caller wants the factory to select the correct workflow type automatically. The pipeline stores the format string once at construction and passes it to every internal Builder call, which removes the risk of inconsistent format strings across the multi-step workflow. Each method validates the current state before proceeding and throws `C2paException` with a message naming both the required and current states, which is more useful than the errors that surface from the Rust FFI layer when flat Builder methods are called out of order. If any operation fails, the pipeline transitions to a terminal `faulted` state and rejects all subsequent calls (see [Faulted state](#faulted-state)).
+Use the pipeline when the asset format is determined at runtime and the caller wants the factory to select the correct workflow type automatically. The pipeline stores the format string once at construction and passes it to every internal Builder call, which removes the risk of inconsistent format strings across the multi-step workflow. Each method validates the current state before proceeding and throws `C2paException` with a message naming both the required and current states, which is more useful than the errors that surface from the Rust FFI layer when flat Builder methods are called out of order. If any operation fails, the pipeline transitions to a terminal `faulted` state and rejects all subsequent calls (see [Faulted state and recovery](#faulted-state-and-recovery)).
 
 Use the flat Builder methods when the caller manages its own orchestration, needs to interleave other Builder operations (like `add_ingredient` or `add_resource`) between embeddable steps, or needs to archive the builder mid-workflow. The pipeline consumes the Builder at construction via move semantics, so these operations are not available after that point. See also [Archiving](#archiving).
 
@@ -738,6 +751,8 @@ Accessors are available from the state where the data is produced onward. Callin
 | `placeholder_bytes()` | `placeholder_created` and later |
 | `exclusion_ranges()` | `exclusions_configured` and later |
 | `signed_bytes()` | `pipeline_signed` |
+| `release_builder()` | any state (throws if already released) |
+| `faulted_from()` | any state (returns `std::nullopt` if not faulted) |
 
 Calling a method in the wrong state throws `C2paException`:
 
@@ -745,49 +760,91 @@ Calling a method in the wrong state throws `C2paException`:
 sign() requires state 'hashed' but current state is 'init'
 ```
 
-### Faulted state
+### Faulted state and recovery
 
-If any pipeline operation (`create_placeholder`, `set_exclusions`, `hash_from_stream`, or `sign`) throws, the pipeline transitions to the `faulted` state. `faulted` is part of the `State` enum and is returned by `current_state()`. The `is_faulted()` convenience method returns `true` when `current_state() == State::faulted`.
-
-A faulted pipeline rejects all subsequent mutation calls with a specific error message:
+If any pipeline operation (`create_placeholder`, `set_exclusions`, `hash_from_stream`, or `sign`) throws, the pipeline transitions to the `faulted` state. `faulted` is part of the `State` enum and is returned by `current_state()`. The `is_faulted()` convenience method returns `true` when `current_state() == State::faulted`. A faulted pipeline rejects all subsequent workflow calls:
 
 ```text
 hash_from_stream() cannot be called: pipeline faulted during a prior operation
 ```
 
-The faulted state exists because a failed operation may leave the internal Builder partially modified, for example with a half-written placeholder or an incomplete hash. Allowing further operations on that state would produce incorrect manifests or confusing errors from the FFI layer.
+Call `release_builder()` to move the Builder out of a faulted (or any) pipeline. When called on a non-faulted pipeline, the state transitions to `cancelled`. When called on a faulted pipeline, the state stays `faulted`. Calling `release_builder()` a second time throws `C2paException`.
 
-The faulted pipeline cannot be reset, and the Builder it consumed is no longer accessible. To allow retries, archive the Builder before constructing the pipeline (see [Archiving](#archiving)). On fault, restore from the archive and create a new pipeline.
+#### Builder safety after a fault
+
+A failed operation may leave the Builder's internal assertion list in an inconsistent state. `faulted_from()` returns the state the pipeline was in when the fault occurred, which determines whether the recovered Builder is safe to reuse directly or should be restored from an archive.
+
+| `faulted_from()` | Failed operation | Builder safe to reuse? |
+| --- | --- | --- |
+| `init` | `create_placeholder()` or `hash_from_stream()` (BoxHash) | No |
+| `placeholder_created` | `set_exclusions()` | Yes |
+| `placeholder_created` | `hash_from_stream()` (BmffHash) | No |
+| `exclusions_configured` | `hash_from_stream()` (DataHash) | No |
+| `hashed` | `sign()` | Yes |
+
+`placeholder()` and `update_hash_from_stream()` add and remove assertions from the Builder without rollback. A failure partway through can leave duplicate or missing assertion entries. `set_data_hash_exclusions()` only sets ranges on existing assertions without structural changes. `sign_embeddable()` creates a fresh internal store and does not mutate the Builder, so failures during signing are always safe to retry.
+
+#### Recovery via archive (recommended)
+
+Archive the Builder before creating the pipeline. On fault, restore from the archive for a clean retry regardless of which operation failed.
 
 ```cpp
-// Archive the builder before creating the pipeline
+std::ostringstream archive_stream;
 builder.to_archive(archive_stream);
 auto pipeline = c2pa::EmbeddablePipeline::create(std::move(builder), format);
 
 try {
+    pipeline->create_placeholder();
+    // embed placeholder, set exclusions ...
     pipeline->hash_from_stream(stream);
+    auto& manifest = pipeline->sign();
 } catch (const c2pa::C2paException& e) {
-    assert(pipeline->is_faulted());
-    // Restore from archive and retry
-    auto restored = c2pa::Builder::from_archive(archive_stream);
-    pipeline = c2pa::EmbeddablePipeline::create(std::move(restored), format);
+    if (pipeline->is_faulted()) {
+        // Restore from archive with the same signer context
+        std::istringstream restore(archive_stream.str());
+        auto clean_builder = c2pa::Builder(context);
+        clean_builder.with_archive(restore);
+        pipeline = c2pa::EmbeddablePipeline::create(std::move(clean_builder), format);
+    }
 }
 ```
 
+#### Recovery via release_builder()
+
+When archiving is not available, `release_builder()` recovers the Builder directly. Check `faulted_from()` to determine whether the Builder is safe to reuse.
+
+```cpp
+if (pipeline->is_faulted()) {
+    auto from = pipeline->faulted_from();
+    auto builder = pipeline->release_builder();
+
+    if (from == c2pa::EmbeddablePipeline::State::hashed) {
+        // sign() did not mutate the builder; retry with it directly
+        auto retry = c2pa::EmbeddablePipeline::create(std::move(builder), format);
+    } else {
+        // placeholder() or hash_from_stream() may have left inconsistent
+        // assertions in the builder; restore from archive instead
+    }
+}
+```
+
+### Cancelled state
+
+Calling `release_builder()` on a non-faulted pipeline transitions it to the `cancelled` state. This is distinct from `faulted`: `cancelled` means the caller chose to bail out, not that an operation failed. Like `faulted`, a cancelled pipeline rejects all subsequent workflow calls.
+
 ### Archiving
 
-The pipeline does not support archiving. `EmbeddablePipeline` consumes the Builder at construction and does not expose `to_archive()`. The pipeline's workflow state (current state, cached placeholder bytes, exclusion ranges) is not part of the Builder's archive format.
-
-To interrupt and resume later, archive the Builder before constructing the pipeline:
+The pipeline does not expose `to_archive()`. The pipeline's workflow state (current state, cached placeholder bytes, exclusion ranges) is not part of the Builder's archive format. Archive the Builder before constructing the pipeline if you need the ability to restore to a clean state later.
 
 ```cpp
 auto builder = c2pa::Builder(context, manifest_json);
 builder.add_ingredient(ingredient_json, "image/jpeg", ingredient_stream);
 
-// Archive before entering the pipeline
+// Archive before creating the pipeline
 builder.to_archive(archive_stream);
 
-// Later: restore and create pipeline
-auto restored = c2pa::Builder::from_archive(archive_stream);
+// Later: restore into a builder with the same context (signer included)
+auto restored = c2pa::Builder(context);
+restored.with_archive(archive_stream);
 auto pipeline = c2pa::EmbeddablePipeline::create(std::move(restored), format);
 ```

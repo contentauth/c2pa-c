@@ -22,6 +22,7 @@ namespace c2pa {
     const char* EmbeddablePipeline::state_name(State s) noexcept {
         switch (s) {
             case State::faulted: return "faulted";
+            case State::cancelled: return "cancelled";
             case State::init: return "init";
             case State::placeholder_created: return "placeholder_created";
             case State::exclusions_configured: return "exclusions_configured";
@@ -40,7 +41,7 @@ namespace c2pa {
     }
 
     void EmbeddablePipeline::require_state(State expected, const char* method) const {
-        if (state_ == State::faulted) throw_faulted(method);
+        if (state_ == State::faulted || state_ == State::cancelled) throw_faulted(method);
         if (state_ != expected) {
             std::ostringstream expected_str;
             expected_str << "'" << state_name(expected) << "'";
@@ -49,7 +50,7 @@ namespace c2pa {
     }
 
     void EmbeddablePipeline::require_state_at_least(State minimum, const char* method) const {
-        if (state_ == State::faulted) throw_faulted(method);
+        if (state_ == State::faulted || state_ == State::cancelled) throw_faulted(method);
         if (state_ < minimum) {
             std::ostringstream expected;
             expected << "'" << state_name(minimum) << "' or later";
@@ -59,7 +60,7 @@ namespace c2pa {
 
     void EmbeddablePipeline::require_state_in(
             std::initializer_list<State> allowed, const char* method) const {
-        if (state_ == State::faulted) throw_faulted(method);
+        if (state_ == State::faulted || state_ == State::cancelled) throw_faulted(method);
         for (auto s : allowed) {
             if (state_ == s) return;
         }
@@ -76,8 +77,7 @@ namespace c2pa {
     [[noreturn]] void EmbeddablePipeline::throw_faulted(const char* method) const {
         std::ostringstream msg;
         msg << method
-            << " cannot be called: pipeline faulted during a prior operation"
-               " (create a new pipeline to retry)";
+            << " cannot be called: pipeline faulted during a prior operation";
         throw C2paException(msg.str());
     }
 
@@ -93,6 +93,7 @@ namespace c2pa {
         try {
             builder_.update_hash_from_stream(format_, stream);
         } catch (...) {
+            faulted_from_ = state_;
             state_ = State::faulted;
             throw;
         }
@@ -104,6 +105,7 @@ namespace c2pa {
         try {
             signed_manifest_ = builder_.sign_embeddable(format_);
         } catch (...) {
+            faulted_from_ = state_;
             state_ = State::faulted;
             throw;
         }
@@ -128,6 +130,23 @@ namespace c2pa {
 
     bool EmbeddablePipeline::is_faulted() const noexcept {
         return state_ == State::faulted;
+    }
+
+    Builder EmbeddablePipeline::release_builder() {
+        if (builder_released_) {
+            throw C2paException("release_builder() cannot be called: Builder has already been released");
+        }
+        builder_released_ = true;
+        Builder released = std::move(builder_);
+        if (state_ != State::faulted) {
+            state_ = State::cancelled;
+        }
+        return released;
+    }
+
+    std::optional<EmbeddablePipeline::State> EmbeddablePipeline::faulted_from() const noexcept {
+        if (state_ != State::faulted) return std::nullopt;
+        return faulted_from_;
     }
 
     // Base class default implementations (throw for unsupported hash types)
@@ -162,6 +181,7 @@ namespace c2pa {
         try {
             placeholder_ = builder_.placeholder(format_);
         } catch (...) {
+            faulted_from_ = state_;
             state_ = State::faulted;
             throw;
         }
@@ -175,6 +195,7 @@ namespace c2pa {
         try {
             builder_.set_data_hash_exclusions(exclusions);
         } catch (...) {
+            faulted_from_ = state_;
             state_ = State::faulted;
             throw;
         }
@@ -211,6 +232,7 @@ namespace c2pa {
         try {
             placeholder_ = builder_.placeholder(format_);
         } catch (...) {
+            faulted_from_ = state_;
             state_ = State::faulted;
             throw;
         }

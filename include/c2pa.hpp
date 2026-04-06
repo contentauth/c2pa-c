@@ -1243,8 +1243,9 @@ namespace c2pa
     class C2PA_CPP_API EmbeddablePipeline {
     public:
         /// @brief Pipeline states, ordered for comparison.
-        /// `faulted` is placed first so that require_state_at_least(State::init, ...) naturally rejects it.
-        enum class State { faulted, init, placeholder_created, exclusions_configured, hashed, pipeline_signed };
+        /// `faulted` and `cancelled` are placed before `init` so that
+        /// require_state_at_least(State::init, ...) naturally rejects both.
+        enum class State { faulted, cancelled, init, placeholder_created, exclusions_configured, hashed, pipeline_signed };
 
         virtual ~EmbeddablePipeline() = default;
 
@@ -1283,9 +1284,23 @@ namespace c2pa
         static const char* state_name(State s) noexcept;
 
         /// @brief Check if the pipeline has faulted due to a failed operation.
-        /// A faulted pipeline cannot be reused. Create a new one to retry.
         /// @details Equivalent to `current_state() == State::faulted`.
+        ///          Call release_builder() to recover the Builder, or restore from an archive.
         bool is_faulted() const noexcept;
+
+        /// @brief Move the Builder out of this pipeline.
+        /// @details Available from any state. Transitions to cancelled if not already
+        ///          faulted. The pipeline rejects all subsequent workflow calls.
+        /// @warning After a fault, the recovered Builder may have partially modified
+        ///          assertions. Restore from an archive for a clean retry.
+        ///          See faulted_from() to check which operation failed.
+        /// @return The Builder that was consumed at construction.
+        /// @throws C2paException if the Builder has already been released.
+        Builder release_builder();
+
+        /// @brief Returns the state the pipeline was in when it faulted.
+        /// @return The pre-fault state, or std::nullopt if the pipeline has not faulted.
+        std::optional<State> faulted_from() const noexcept;
 
         /// @brief Returns the hash binding type for this pipeline.
         virtual HashType hash_type() const = 0;
@@ -1321,6 +1336,8 @@ namespace c2pa
         std::vector<unsigned char> placeholder_;
         std::vector<std::pair<uint64_t, uint64_t>> exclusions_;
         std::vector<unsigned char> signed_manifest_;
+        State faulted_from_ = State::init;
+        bool builder_released_ = false;
 
         [[noreturn]] void throw_wrong_state(const char* method, const std::string& expected) const;
         [[noreturn]] void throw_faulted(const char* method) const;
