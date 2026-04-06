@@ -106,7 +106,7 @@ export LD_LIBRARY_PATH="$(pwd)/build/release/tests:$LD_LIBRARY_PATH"
 
 The [`examples/emscripten_example.cpp`](examples/emscripten_example.cpp) file demonstrates using the c2pa C++ library compiled to WebAssembly via Emscripten. It includes reading manifests from files, streams, and using a custom HTTP resolver with `emscripten_fetch`.
 
-Prerequisites: Install the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) and activate it in your shell:
+Prerequisites: Install the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) (4.x or later recommended) and activate it in your shell:
 
 ```sh
 source /path/to/emsdk/emsdk_env.sh

@@ -62,22 +62,25 @@ static void read_from_stream(const std::vector<uint8_t>& data) {
 
 // Parse "Name: Value\n..." into a NULL-terminated char* array for
 // emscripten_fetch_attr_t::requestHeaders.
-static std::vector<const char*> parse_headers(const std::string& raw) {
-    static std::vector<std::string> storage;
-    storage.clear();
-    std::vector<const char*> result;
+struct ParsedHeaders {
+    std::vector<std::string> storage;
+    std::vector<const char*> ptrs;
+};
+
+static ParsedHeaders parse_headers(const std::string& raw) {
+    ParsedHeaders h;
     std::istringstream ss(raw);
     std::string line;
     while (std::getline(ss, line)) {
         if (line.empty()) continue;
         auto colon = line.find(':');
         if (colon == std::string::npos) continue;
-        storage.push_back(line.substr(0, colon));
-        storage.push_back(line.substr(colon + 2));
+        h.storage.push_back(line.substr(0, colon));
+        h.storage.push_back(line.substr(colon + 2));
     }
-    for (auto& s : storage) result.push_back(s.c_str());
-    result.push_back(nullptr);
-    return result;
+    for (auto& s : h.storage) h.ptrs.push_back(s.c_str());
+    h.ptrs.push_back(nullptr);
+    return h;
 }
 
 static int emscripten_http_handler(
@@ -92,16 +95,21 @@ static int emscripten_http_handler(
         attr.requestData     = reinterpret_cast<const char*>(req->body);
         attr.requestDataSize = req->body_len;
     }
-    auto header_vec = parse_headers(req->headers ? req->headers : "");
-    if (header_vec.size() > 1) attr.requestHeaders = header_vec.data();
+    auto headers = parse_headers(req->headers ? req->headers : "");
+    if (headers.ptrs.size() > 1) attr.requestHeaders = headers.ptrs.data();
 
     emscripten_fetch_t* fetch = emscripten_fetch(&attr, req->url);
     if (!fetch) { c2pa_error_set_last("emscripten_fetch returned null"); return -1; }
 
     resp->status   = static_cast<int32_t>(fetch->status);
     resp->body_len = static_cast<size_t>(fetch->numBytes);
-    resp->body     = static_cast<uint8_t*>(malloc(resp->body_len));
-    memcpy(resp->body, fetch->data, resp->body_len);
+    if (resp->body_len > 0 && fetch->data) {
+        resp->body = static_cast<uint8_t*>(malloc(resp->body_len));
+        memcpy(resp->body, fetch->data, resp->body_len);
+    } else {
+        resp->body     = nullptr;
+        resp->body_len = 0;
+    }
     emscripten_fetch_close(fetch);
     return 0;
 }

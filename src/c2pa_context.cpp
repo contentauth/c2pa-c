@@ -168,11 +168,14 @@ namespace c2pa
     }
 
     Context::ContextBuilder& Context::ContextBuilder::with_http_resolver(
-        void* context, C2paHttpResolverCallback callback) {
+        void* user_data, C2paHttpResolverCallback callback) {
         if (!is_valid()) {
             throw C2paException("ContextBuilder is invalid (moved from)");
         }
-        C2paHttpResolver* resolver = c2pa_http_resolver_create(context, callback);
+        if (!callback) {
+            throw C2paException("HTTP resolver callback must not be null");
+        }
+        C2paHttpResolver* resolver = c2pa_http_resolver_create(user_data, callback);
         if (!resolver) {
             throw C2paException("Failed to create HTTP resolver");
         }
