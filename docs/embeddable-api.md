@@ -562,28 +562,8 @@ stateDiagram-v2
     hashed --> pipeline_signed : sign
     pipeline_signed --> [*]
 
-    init --> faulted : operation throws
-    placeholder_created --> faulted : operation throws
-    exclusions_configured --> faulted : operation throws
-    hashed --> faulted : operation throws
-
-    init --> cancelled : release_builder
-    placeholder_created --> cancelled : release_builder
-    exclusions_configured --> cancelled : release_builder
-    hashed --> cancelled : release_builder
-    pipeline_signed --> cancelled : release_builder
-
     note right of init
         Use hash_type() to determine which path applies.
-    end note
-
-    note right of faulted
-        Call release_builder() to recover the Builder.
-        Check faulted_from() to see which operation failed.
-    end note
-
-    note right of cancelled
-        User called release_builder().
     end note
 ```
 
@@ -686,7 +666,7 @@ If the hash type is known at compile time, construct the concrete subclass direc
 auto pipeline = c2pa::DataHashPipeline(std::move(builder), "image/jpeg");
 ```
 
-### Pipeline DataHash example (JPEG, PNG)
+### Pipeline DataHash example
 
 ```cpp
 auto pipeline = c2pa::DataHashPipeline(std::move(builder), "image/jpeg");
@@ -706,7 +686,7 @@ auto& manifest = pipeline.sign();
 // patch the placeholder in place
 ```
 
-### Pipeline BmffHash example (MP4, AVIF, HEIF)
+### Pipeline BmffHash example
 
 ```cpp
 auto pipeline = c2pa::BmffHashPipeline(std::move(builder), "video/mp4");
@@ -735,7 +715,7 @@ auto& manifest = pipeline.sign();
 
 ### State gating
 
-Transition methods require an exact state.
+Transition methods require an exact state. Calling any transition method on a `faulted` or `cancelled` pipeline throws `C2paException`.
 
 | Method | Allowed state(s) |
 | --- | --- |
@@ -782,9 +762,7 @@ A failed operation may leave the Builder's internal assertion list in an inconsi
 | `exclusions_configured` | `hash_from_stream()` (DataHash) | No |
 | `hashed` | `sign()` | Yes |
 
-`placeholder()` and `update_hash_from_stream()` add and remove assertions from the Builder without rollback. A failure partway through can leave duplicate or missing assertion entries. `set_data_hash_exclusions()` only sets ranges on existing assertions without structural changes. `sign_embeddable()` creates a fresh internal store and does not mutate the Builder, so failures during signing are always safe to retry.
-
-#### Recovery via archive (recommended)
+#### Recovery via archive
 
 Archive the Builder before creating the pipeline. On fault, restore from the archive for a clean retry regardless of which operation failed.
 
@@ -830,11 +808,11 @@ if (pipeline->is_faulted()) {
 
 ### Cancelled state
 
-Calling `release_builder()` on a non-faulted pipeline transitions it to the `cancelled` state. This is distinct from `faulted`: `cancelled` means the caller chose to bail out, not that an operation failed. Like `faulted`, a cancelled pipeline rejects all subsequent workflow calls.
+Calling `release_builder()` on a non-faulted pipeline transitions it to the `cancelled` state. This is distinct from `faulted`: `cancelled` means the caller chose to cancel, not that an operation failed. Like `faulted`, a cancelled pipeline rejects all subsequent workflow calls.
 
 ### Archiving
 
-The pipeline does not expose `to_archive()`. The pipeline's workflow state (current state, cached placeholder bytes, exclusion ranges) is not part of the Builder's archive format. Archive the Builder before constructing the pipeline if you need the ability to restore to a clean state later.
+The pipeline does not expose `to_archive()`. The pipeline's workflow state (current state, cached placeholder bytes, exclusion ranges) is not part of the Builder's archive format. Archive the Builder before constructing the pipeline if you need the ability to restore to a clean state later. Because archiving captures the Builder before any embeddable operations modify it, restoring from an archive is also the simplest way to retry a failed or cancelled pipeline from scratch.
 
 ```cpp
 auto builder = c2pa::Builder(context, manifest_json);
