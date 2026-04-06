@@ -543,7 +543,7 @@ classDiagram
 
 ## Embeddable pipeline/workflow API (`EmbeddablePipeline`)
 
-`EmbeddablePipeline` wraps the flat `Builder` embeddable methods behind a single mutable object with runtime state enforcement. The format string is captured once at construction, and calling a method in the wrong state throws `C2paException` with a message describing the required and current state.
+`EmbeddablePipeline` abstract the "flat" embeddable API `Builder` methods behind a mutable object with runtime state enforcement. The format string is captured once at construction, and calling a method in the wrong state throws `C2paException` with a message describing the required and current state.
 
 ### State diagram
 

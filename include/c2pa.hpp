@@ -35,6 +35,7 @@
 #include <filesystem>
 #include <fstream>
 #include <initializer_list>
+#include <functional>
 #include <istream>
 #include <ostream>
 #include <string>
@@ -255,6 +256,56 @@ namespace c2pa
         C2paSettings* settings_ptr;
     };
 
+     /// @brief Phase values reported to the ProgressCallbackFunc.
+    ///
+    /// @details A scoped C++ mirror of `C2paProgressPhase` from c2pa.h.
+    ///          Values are verified at compile time to match the C enum, so any
+    ///          future divergence in c2pa-rs will be caught as a build error.
+    ///
+    ///          Phases emitted during a typical sign cycle (in order):
+    ///            AddingIngredient → Thumbnail → Hashing → Signing → Embedding →
+    ///            (if verify_after_sign) VerifyingManifest → VerifyingSignature →
+    ///            VerifyingAssetHash → VerifyingIngredient
+    ///
+    ///          Phases emitted during reading:
+    ///            Reading → VerifyingManifest → VerifyingSignature →
+    ///            VerifyingAssetHash → VerifyingIngredient
+    enum class ProgressPhase : uint8_t {
+        Reading               = 0,
+        VerifyingManifest     = 1,
+        VerifyingSignature    = 2,
+        VerifyingIngredient   = 3,
+        VerifyingAssetHash    = 4,
+        AddingIngredient      = 5,
+        Thumbnail             = 6,
+        Hashing               = 7,
+        Signing               = 8,
+        Embedding             = 9,
+        FetchingRemoteManifest = 10,
+        Writing               = 11,
+        FetchingOCSP          = 12,
+        FetchingTimestamp     = 13,
+    };
+
+    /// @brief Type alias for the progress callback passed to ContextBuilder::with_progress_callback().
+    ///
+    /// @details The callback is invoked at each major phase of signing and reading operations.
+    ///          Returning false from the callback aborts the operation with an
+    ///          OperationCancelled error (equivalent to calling Context::cancel()).
+    ///
+    /// @param phase  Current operation phase.
+    /// @param step   1-based step index within the phase.
+    ///               0 = indeterminate (use as liveness signal); resets to 1 at each new phase.
+    /// @param total  0 = indeterminate; 1 = single-shot; >1 = determinate (step/total = fraction).
+    /// @return true to continue the operation, false to request cancellation.
+    ///
+    /// @note The callback must not throw. If it throws, the implementation catches the
+    ///       exception and reports cancellation to the underlying library (same as returning
+    ///       false); the original exception is not propagated. Prefer returning false or
+    ///       using Context::cancel() instead of throwing.
+    ///
+    using ProgressCallbackFunc = std::function<bool(ProgressPhase phase, uint32_t step, uint32_t total)>;
+
     /// @brief C2PA context implementing IContextProvider.
     /// @details Context objects manage C2PA SDK configuration and state.
     ///          Contexts can be created via direct construction or the ContextBuilder:
@@ -329,14 +380,47 @@ namespace c2pa
             /// @throws C2paException if the builder or signer is invalid.
             ContextBuilder& with_signer(Signer&& signer);
 
+            /// @brief Attach a progress callback to the context being built.
+            ///
+            /// @details The callback is invoked at each major phase of signing and
+            ///          reading operations performed with the resulting context.
+            ///          Return false from the callback to abort the current operation
+            ///          with an OperationCancelled error.
+            ///
+            ///          Phases emitted during a typical sign cycle (in order):
+            ///          VerifyingIngredient → VerifyingManifest → VerifyingSignature →
+            ///          VerifyingAssetHash → Thumbnail → Hashing → Signing → Embedding →
+            ///          (if verify_after_sign) VerifyingManifest → … → VerifyingIngredient
+            ///
+            ///          Phases emitted during reading:
+            ///          Reading → VerifyingManifest → VerifyingSignature →
+            ///          VerifyingAssetHash → VerifyingIngredient
+            ///
+            /// @param callback A callable matching ProgressCallbackFunc. The callback is
+            ///        heap-allocated and owned by the resulting Context. Calling this method
+            ///        more than once on the same builder replaces the previous callback.
+            ///        The callable must not throw when invoked (see ProgressCallbackFunc).
+            /// @return Reference to this ContextBuilder for method chaining.
+            /// @throws C2paException if the builder is invalid or the C API call fails.
+            ///
+            ContextBuilder& with_progress_callback(ProgressCallbackFunc callback);
+
             /// @brief Create a Context from the current builder configuration.
             /// @return A new Context instance.
             /// @throws C2paException if context creation fails.
             /// @note This consumes the builder. After calling this, is_valid() returns false.
             [[nodiscard]] Context create_context();
 
+            /// @brief Release ownership of the underlying C2paContextBuilder pointer.
+            ///        After this call, the ContextBuilder no longer owns the pointer
+            ///        and is_valid() returns false. The caller is responsible for managing
+            ///        the lifetime of the returned pointer.
+            /// @return Pointer to the C2paContextBuilder object, or nullptr if moved from.
+            C2paContextBuilder* release() noexcept;
+
         private:
             C2paContextBuilder* context_builder;
+            std::unique_ptr<ProgressCallbackFunc> pending_callback_;
         };
 
         // Direct construction
@@ -387,8 +471,23 @@ namespace c2pa
         /// @throws C2paException if ctx is nullptr.
         explicit Context(C2paContext* ctx);
 
+        /// @brief Request cancellation of any in-progress operation on this context.
+        ///
+        /// @details Safe to call from another thread while this Context remains valid
+        ///          and is not being destroyed or moved concurrently with this call.
+        ///          While a signing or reading operation is running on a valid Context,
+        ///          the operation is aborted with an OperationCancelled error at the
+        ///          next progress checkpoint. Has no effect if no operation is currently
+        ///          in progress, or if this object is moved-from (is_valid() is false).
+        ///
+        void cancel() noexcept;
+
     private:
         C2paContext* context;
+
+        /// Heap-owned ProgressCallbackFunc; non-null only when set via
+        /// ContextBuilder::with_progress_callback().  Deleted in the destructor.
+        void* callback_owner_ = nullptr;
     };
 
     /// @brief Get the version of the C2PA library.
@@ -670,6 +769,17 @@ namespace c2pa
         /// @note Prefer using the streaming APIs if possible.
         [[deprecated("Use Reader(IContextProvider& context, source_path) instead")]]
         Reader(const std::filesystem::path &source_path);
+
+        /// @brief Try to open a Reader from a context and file path when the asset may lack C2PA data.
+        /// @return A Reader if JUMBF (c2pa/manifest) data is present; std::nullopt if none.
+        /// @throws C2paException for errors other than a missing manifest (e.g. invalid asset).
+        /// @throws std::system_error if the file cannot be opened.
+        static std::optional<Reader> from_asset(IContextProvider& context, const std::filesystem::path &source_path);
+
+        /// @brief Try to create a Reader from a context and stream when the asset may lack C2PA data.
+        /// @return A Reader if JUMBF (c2pa/manifest) data is present; std::nullopt if none.
+        /// @throws C2paException for errors other than a missing manifest.
+        static std::optional<Reader> from_asset(IContextProvider& context, const std::string &format, std::istream &stream);
 
         // Non-copyable
         Reader(const Reader&) = delete;

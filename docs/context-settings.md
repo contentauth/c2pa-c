@@ -162,7 +162,131 @@ auto context = c2pa::Context::ContextBuilder()
 | `with_settings(settings)` | Apply a `Settings` object |
 | `with_json(json_string)` | Apply settings from a JSON string |
 | `with_json_settings_file(path)` | Load and apply settings from a JSON file |
+| `with_signer(signer)` | Store a `Signer` in the context (consumed; used by `Builder::sign` with no explicit signer) |
+| `with_progress_callback(callback)` | Register a progress/cancel callback (see [Progress callbacks and cancellation](#progress-callbacks-and-cancellation)) |
 | `create_context()` | Build and return the `Context` (consumes the builder) |
+
+## Progress callbacks and cancellation
+
+You can register a callback on a `Context` to receive progress notifications during signing and reading operations, and to cancel an operation in flight.
+
+### Registering a callback
+
+Use `ContextBuilder::with_progress_callback` to attach a callback before building the context:
+
+```cpp
+#include <atomic>
+
+std::atomic<int> phase_count{0};
+
+auto context = c2pa::Context::ContextBuilder()
+    .with_progress_callback([&](c2pa::ProgressPhase phase, uint32_t step, uint32_t total) {
+        ++phase_count;
+        // Return true to continue, false to cancel.
+        return true;
+    })
+    .create_context();
+
+// Use the context normally — the callback fires automatically.
+c2pa::Builder builder(context, manifest_json);
+builder.sign("source.jpg", "output.jpg", signer);
+```
+
+The callback signature is:
+
+```cpp
+bool callback(c2pa::ProgressPhase phase, uint32_t step, uint32_t total);
+```
+
+- **`phase`** — which stage the SDK is in (see [`ProgressPhase` values](#progressphase-values) below).
+- **`step`** — monotonically increasing counter within the current phase, starting at `1`. Resets to `1` at the start of each new phase. Use as a liveness signal: a rising `step` means the SDK is making forward progress.
+- **`total`** — `0` = indeterminate (show a spinner); `1` = single-shot phase; `> 1` = determinate (`step / total` gives a completion fraction).
+- **Return value** — return `true` to continue, `false` to request cancellation (same effect as calling `context.cancel()`).
+
+**Do not throw** from the progress callback. Exceptions cannot cross the C/Rust boundary safely; if your callback throws, the wrapper catches it and the operation is aborted as a cancellation (you do not get your exception back at the call site). Use `return false`, `context.cancel()`, or application-side state instead.
+
+### Cancelling from another thread
+
+You may call `Context::cancel()` from another thread while the same `Context` remains valid and is not being destroyed or moved concurrently with that call. The SDK returns a `C2paException` with an `OperationCancelled` error at the next progress checkpoint:
+
+```cpp
+#include <thread>
+
+auto context = c2pa::Context::ContextBuilder()
+    .with_progress_callback([](c2pa::ProgressPhase, uint32_t, uint32_t) {
+        return true;  // Don't cancel from the callback — use cancel() instead.
+    })
+    .create_context();
+
+// Kick off a cancel after 500 ms from a background thread.
+std::thread cancel_thread([&context]() {
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    context.cancel();
+});
+
+try {
+    c2pa::Builder builder(context, manifest_json);
+    builder.sign("large_file.jpg", "output.jpg", signer);
+} catch (const c2pa::C2paException& e) {
+    // "OperationCancelled" if cancel() fired before signing completed.
+}
+
+cancel_thread.join();
+```
+
+`cancel()` is safe to call when no operation is in progress — it is a no-op in that case (and a no-op if the `Context` is moved-from).
+
+### `ProgressPhase` values
+
+| Phase | When emitted |
+|-------|-------------|
+| `Reading` | Start of a read/verification pass |
+| `VerifyingManifest` | Manifest structure is being validated |
+| `VerifyingSignature` | COSE signature is being verified |
+| `VerifyingIngredient` | An ingredient manifest is being verified |
+| `VerifyingAssetHash` | Asset hash is being computed and checked |
+| `AddingIngredient` | An ingredient is being embedded |
+| `Thumbnail` | A thumbnail is being generated |
+| `Hashing` | Asset data is being hashed for signing |
+| `Signing` | Claim is being signed |
+| `Embedding` | Signed manifest is being embedded into the asset |
+| `FetchingRemoteManifest` | A remote manifest URL is being fetched |
+| `Writing` | Output is being written |
+| `FetchingOCSP` | OCSP certificate status is being fetched |
+| `FetchingTimestamp` | A timestamp is being fetched from a TSA |
+
+**Typical phase sequence during signing:**
+
+```
+AddingIngredient → Thumbnail → Hashing → Signing → Embedding
+```
+
+If `verify_after_sign` is enabled, verification phases follow:
+
+```
+→ VerifyingManifest → VerifyingSignature → VerifyingAssetHash → VerifyingIngredient
+```
+
+**Typical phase sequence during reading:**
+
+```
+Reading → VerifyingManifest → VerifyingSignature → VerifyingAssetHash → VerifyingIngredient
+```
+
+### Combining with other settings
+
+`with_progress_callback` chains with other `ContextBuilder` methods:
+
+```cpp
+auto context = c2pa::Context::ContextBuilder()
+    .with_settings(settings)
+    .with_signer(std::move(signer))
+    .with_progress_callback([](c2pa::ProgressPhase phase, uint32_t step, uint32_t total) {
+        // Update a UI progress bar, log phases, etc.
+        return true;
+    })
+    .create_context();
+```
 
 ## Common configuration patterns
 
@@ -316,12 +440,12 @@ The `Settings` class provides methods for creating and manipulating configuratio
 
 | Method | Description |
 |--------|-------------|
-| [`Settings()`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#a70274281f05d59ddcfda4aa21397b896) | Create default settings |
-| [`Settings(data, format)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#a695e6e8c5a8cf16e40d6522af1fc13dd) | Parse settings from a string. Format is `"json"` or `"toml"` |
-| [`set(path, json_value)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#a13810c5df3183aa2b0132e3c7c8edd1c) | Set a value by dot-separated path (e.g., `"verify.verify_after_sign"`). Value must be JSON-encoded. Returns `*this` for chaining |
-| [`update(data)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#a1bd09762fb2e6c4c937c814500826ecc) | Merge JSON configuration (same as `update(data, "json")`) |
-| [`update(data, format)`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#a80a12a51569bd89cc18231c7c9c36242) | Merge configuration from a string with specified format |
-| [`is_valid()`](https://contentauth.github.io/c2pa-c/da/d96/classc2pa_1_1Settings.html#add51c3e2ef459978be035b86803b338e) | Returns `true` if the object is valid (not moved-from) |
+| [`Settings()`](https://contentauth.github.io/c2pa-cpp/da/d96/classc2pa_1_1Settings.html#a70274281f05d59ddcfda4aa21397b896) | Create default settings |
+| [`Settings(data, format)`](https://contentauth.github.io/c2pa-cpp/da/d96/classc2pa_1_1Settings.html#a695e6e8c5a8cf16e40d6522af1fc13dd) | Parse settings from a string. Format is `"json"` or `"toml"` |
+| [`set(path, json_value)`](https://contentauth.github.io/c2pa-cpp/da/d96/classc2pa_1_1Settings.html#a13810c5df3183aa2b0132e3c7c8edd1c) | Set a value by dot-separated path (e.g., `"verify.verify_after_sign"`). Value must be JSON-encoded. Returns `*this` for chaining |
+| [`update(data)`](https://contentauth.github.io/c2pa-cpp/da/d96/classc2pa_1_1Settings.html#a1bd09762fb2e6c4c937c814500826ecc) | Merge JSON configuration (same as `update(data, "json")`) |
+| [`update(data, format)`](https://contentauth.github.io/c2pa-cpp/da/d96/classc2pa_1_1Settings.html#a80a12a51569bd89cc18231c7c9c36242) | Merge configuration from a string with specified format |
+| [`is_valid()`](https://contentauth.github.io/c2pa-cpp/da/d96/classc2pa_1_1Settings.html#add51c3e2ef459978be035b86803b338e) | Returns `true` if the object is valid (not moved-from) |
 
 > [!NOTE]
 > 

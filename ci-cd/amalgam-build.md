@@ -1,4 +1,4 @@
-# c2pa-c amalgam build
+# c2pa-cpp amalgam build
 
 ## Overview
 
@@ -160,7 +160,7 @@ the shared library at runtime without needing `LD_LIBRARY_PATH`.
 Add this project as a subdirectory in the CMakeLists.txt:
 
 ```cmake
-add_subdirectory(path/to/c2pa-c)
+add_subdirectory(path/to/c2pa-cpp)
 target_link_libraries(your_target PRIVATE c2pa_cpp)
 ```
 

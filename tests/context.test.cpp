@@ -12,9 +12,11 @@
 
 #include <gtest/gtest.h>
 #include <algorithm>
+#include <atomic>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <nlohmann/json.hpp>
 
 #include "c2pa.hpp"
@@ -488,4 +490,197 @@ TEST(Context, ContextBuilderWithSettingsAndSigner) {
         .with_signer(std::move(signer))
         .create_context();
     EXPECT_TRUE(context.is_valid());
+}
+
+// --- Progress / Cancel API tests ---
+// Progress/cancel tests, available since c2pa-rs == 0.78.7.
+
+// Helper: sign a file and return the signed path, using a context with a progress callback.
+static fs::path sign_with_progress_context(c2pa::IContextProvider& context, const fs::path& dest) {
+    auto manifest   = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto certs      = c2pa_test::read_text_file(c2pa_test::get_fixture_path("es256_certs.pem"));
+    auto private_key = c2pa_test::read_text_file(c2pa_test::get_fixture_path("es256_private.key"));
+    auto asset_path = c2pa_test::get_fixture_path("A.jpg");
+
+    c2pa::Builder builder(context, manifest);
+    c2pa::Signer signer("es256", certs, private_key);
+    builder.sign(asset_path, dest, signer);
+    return dest;
+}
+
+// Callback is invoked at least once during a sign operation.
+TEST_F(ContextTest, ProgressCallback_InvokedDuringSigning) {
+    std::atomic<int> call_count{0};
+
+    auto context = c2pa::Context::ContextBuilder()
+        .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+            ++call_count;
+            return true;
+        })
+        .create_context();
+
+    ASSERT_TRUE(context.is_valid());
+    EXPECT_NO_THROW(sign_with_progress_context(context, get_temp_path("progress_signing.jpg")));
+    EXPECT_GT(call_count.load(), 0);
+}
+
+// Callback is invoked at least once during a read operation.
+TEST_F(ContextTest, ProgressCallback_InvokedDuringReading) {
+    // First sign a file without a callback so we have something to read.
+    {
+        c2pa::Context sign_ctx;
+        sign_with_progress_context(sign_ctx, get_temp_path("progress_read_src.jpg"));
+    }
+
+    std::atomic<int> call_count{0};
+
+    auto context = c2pa::Context::ContextBuilder()
+        .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+            ++call_count;
+            return true;
+        })
+        .create_context();
+
+    ASSERT_TRUE(context.is_valid());
+    EXPECT_NO_THROW({
+        c2pa::Reader reader(context, get_temp_path("progress_read_src.jpg"));
+        (void)reader.json();
+    });
+    EXPECT_GT(call_count.load(), 0);
+}
+
+// Callback receives non-negative step and total values.
+TEST_F(ContextTest, ProgressCallback_StepAndTotalValues) {
+    bool saw_valid_step = false;
+
+    auto context = c2pa::Context::ContextBuilder()
+        .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t step, uint32_t total) {
+            // step is 1-based when total > 0; both may be 0 for indeterminate phases.
+            if (total > 0) {
+                EXPECT_GE(step, 1u);
+                EXPECT_LE(step, total);
+                saw_valid_step = true;
+            }
+            return true;
+        })
+        .create_context();
+
+    ASSERT_TRUE(context.is_valid());
+    EXPECT_NO_THROW(sign_with_progress_context(context, get_temp_path("progress_step_total.jpg")));
+    EXPECT_TRUE(saw_valid_step);
+}
+
+// Returning false from the callback causes the operation to be cancelled.
+TEST_F(ContextTest, ProgressCallback_ReturnFalseCancels) {
+    // Cancel on the very first callback invocation.
+    auto context = c2pa::Context::ContextBuilder()
+        .with_progress_callback([](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+            return false;  // request cancellation
+        })
+        .create_context();
+
+    ASSERT_TRUE(context.is_valid());
+    EXPECT_THROW(
+        sign_with_progress_context(context, get_temp_path("progress_cancel_false.jpg")),
+        c2pa::C2paException
+    );
+}
+
+// Context::cancel() called before an operation prevents that operation from completing.
+TEST_F(ContextTest, ProgressCallback_CancelMethodAbortsOperation) {
+    auto context = c2pa::Context::ContextBuilder()
+        .with_progress_callback([](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+            return true;
+        })
+        .create_context();
+
+    ASSERT_TRUE(context.is_valid());
+
+    // Cancel is called from within the callback (simulates a cross-thread cancel).
+    c2pa::Context* ctx_ptr = &context;
+    bool cancel_called = false;
+    auto context2 = c2pa::Context::ContextBuilder()
+        .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+            if (!cancel_called) {
+                cancel_called = true;
+                ctx_ptr->cancel();
+            }
+            return true;  // continue returning true; cancellation is handled via cancel()
+        })
+        .create_context();
+
+    ASSERT_TRUE(context2.is_valid());
+    ctx_ptr = &context2;
+    EXPECT_THROW(
+        sign_with_progress_context(context2, get_temp_path("progress_cancel_method.jpg")),
+        c2pa::C2paException
+    );
+}
+
+// Context::cancel() is safe to call on a context without a callback.
+TEST(Context, CancelWithoutCallback_IsNoOp) {
+    c2pa::Context context;
+    ASSERT_TRUE(context.is_valid());
+    EXPECT_NO_THROW(context.cancel());
+}
+
+// with_progress_callback can be chained with with_settings.
+TEST_F(ContextTest, ProgressCallback_ChainWithSettings) {
+    std::atomic<int> call_count{0};
+
+    c2pa::Settings settings;
+    settings.set("builder.thumbnail.enabled", "false");
+
+    auto context = c2pa::Context::ContextBuilder()
+        .with_settings(settings)
+        .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+            ++call_count;
+            return true;
+        })
+        .create_context();
+
+    ASSERT_TRUE(context.is_valid());
+    auto manifest_json = sign_with_context(context, get_temp_path("progress_chain_settings.jpg"));
+    EXPECT_GT(call_count.load(), 0);
+    EXPECT_FALSE(has_thumbnail(manifest_json));
+}
+
+// Context with a progress callback can be move-constructed; callback is still valid.
+TEST_F(ContextTest, ProgressCallback_SurvivesContextMove) {
+    std::atomic<int> call_count{0};
+
+    auto original = c2pa::Context::ContextBuilder()
+        .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+            ++call_count;
+            return true;
+        })
+        .create_context();
+
+    c2pa::Context moved_to(std::move(original));
+    EXPECT_FALSE(original.is_valid());
+    ASSERT_TRUE(moved_to.is_valid());
+
+    EXPECT_NO_THROW(sign_with_progress_context(moved_to, get_temp_path("progress_move.jpg")));
+    EXPECT_GT(call_count.load(), 0);
+}
+
+// ContextBuilder with a progress callback can be move-constructed; callback is transferred.
+TEST_F(ContextTest, ProgressCallback_SurvivesBuilderMove) {
+    std::atomic<int> call_count{0};
+
+    c2pa::Context::ContextBuilder b1;
+    b1.with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
+        ++call_count;
+        return true;
+    });
+
+    auto b2 = std::move(b1);
+    EXPECT_FALSE(b1.is_valid());
+    ASSERT_TRUE(b2.is_valid());
+
+    auto context = b2.create_context();
+    ASSERT_TRUE(context.is_valid());
+
+    EXPECT_NO_THROW(sign_with_progress_context(context, get_temp_path("progress_builder_move.jpg")));
+    EXPECT_GT(call_count.load(), 0);
 }
