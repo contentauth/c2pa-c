@@ -917,8 +917,6 @@ TEST_F(EmbeddablePipelineTest, BmffHashFaultedPipelineBlocksAllMethods) {
     EXPECT_EQ(pipeline.format(), "bogus/format");
 }
 
-// --- Unsupported operation tests ---
-
 TEST_F(EmbeddablePipelineTest, BoxHashThrowsOnCreatePlaceholder) {
     auto pipeline = c2pa::BoxHashPipeline(make_boxhash_builder(), "image/jpeg");
     EXPECT_THROW(pipeline.create_placeholder(), c2pa::C2paUnsupportedOperationException);
@@ -948,8 +946,6 @@ TEST_F(EmbeddablePipelineTest, BmffHashThrowsOnExclusionRanges) {
     auto pipeline = c2pa::BmffHashPipeline(make_builder(), "video/mp4");
     EXPECT_THROW(pipeline.exclusion_ranges(), c2pa::C2paUnsupportedOperationException);
 }
-
-// --- Full workflows ---
 
 TEST_F(EmbeddablePipelineTest, DataHashFullWorkflow) {
     auto pipeline = c2pa::DataHashPipeline(make_builder(), "image/jpeg");
