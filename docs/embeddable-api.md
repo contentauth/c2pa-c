@@ -635,7 +635,7 @@ Use the flat Builder methods when the caller manages its own orchestration, need
 
 `EmbeddablePipeline::create(builder, format)` calls `Builder::hash_type(format)` to determine the hard-binding strategy. This method calls the C API function `c2pa_builder_hash_type()`, which returns a `C2paHashType` enum value (`DataHash = 0`, `BmffHash = 1`, or `BoxHash = 2`). The C++ wrapper maps these to `HashType::Data`, `HashType::Bmff`, and `HashType::Box`, and the factory constructs the matching subclass (`DataHashPipeline`, `BmffHashPipeline`, or `BoxHashPipeline`). The result is returned as a `std::unique_ptr<EmbeddablePipeline>`.
 
-Not every pipeline subclass supports every method. Calling an unsupported method (e.g. `create_placeholder()` on a BoxHash pipeline, or `set_exclusions()` on a BmffHash pipeline) throws `C2paUnsupportedOperationException`, a subclass of `C2paException`. Each optional step can be wrapped in its own `try`/`catch`:
+Not every pipeline subclass supports every method. Calling an unsupported method throws `C2paUnsupportedOperationException`, a subclass of `C2paException`. Each optional step can be wrapped in its own `try`/`catch`:
 
 ```cpp
 auto pipeline = c2pa::EmbeddablePipeline::create(std::move(builder), format);
@@ -701,18 +701,6 @@ stream.close();
 auto& manifest = pipeline.sign();
 ```
 
-### Pipeline BoxHash example
-
-```cpp
-auto pipeline = c2pa::BoxHashPipeline(std::move(builder), "image/jpeg");
-
-std::ifstream stream("input.jpg", std::ios::binary);
-pipeline.hash_from_stream(stream);
-stream.close();
-
-auto& manifest = pipeline.sign();
-```
-
 ### State gating
 
 Transition methods require an exact state. Calling any transition method on a `faulted` or `cancelled` pipeline throws `C2paException`.
@@ -742,17 +730,15 @@ sign() requires state 'hashed' but current state is 'init'
 
 ### Faulted state and recovery
 
-If any pipeline operation (`create_placeholder`, `set_exclusions`, `hash_from_stream`, or `sign`) throws, the pipeline transitions to the `faulted` state. `faulted` is part of the `State` enum and is returned by `current_state()`. The `is_faulted()` convenience method returns `true` when `current_state() == State::faulted`. A faulted pipeline rejects all subsequent workflow calls:
+If any pipeline operation throws, the pipeline transitions to the `faulted` state. `faulted` is part of the `State` enum and is returned by `current_state()`. The `is_faulted()` convenience method returns `true` when `current_state() == State::faulted`. A faulted pipeline rejects all subsequent workflow calls:
 
 ```text
 hash_from_stream() cannot be called: pipeline faulted during a prior operation
 ```
 
-Call `release_builder()` to move the Builder out of a faulted (or any) pipeline. When called on a non-faulted pipeline, the state transitions to `cancelled`. When called on a faulted pipeline, the state stays `faulted`. Calling `release_builder()` a second time throws `C2paException`.
-
 #### Builder safety after a fault
 
-A failed operation may leave the Builder's internal assertion list in an inconsistent state. `faulted_from()` returns the state the pipeline was in when the fault occurred, which determines whether the recovered Builder is safe to reuse directly or should be restored from an archive.
+A failed operation may leave the Builder in an inconsistent state. `faulted_from()` returns the state the pipeline was in when the fault occurred, which determines whether the recovered Builder is safe to reuse directly or should be restored from an archive.
 
 | `faulted_from()` | Failed operation | Builder safe to reuse? |
 | --- | --- | --- |
@@ -764,7 +750,7 @@ A failed operation may leave the Builder's internal assertion list in an inconsi
 
 #### Recovery via archive
 
-Archive the Builder before creating the pipeline. On fault, restore from the archive for a clean retry regardless of which operation failed.
+Archive the Builder before creating the pipeline. On fault, restore from the archive for a retry regardless of which operation failed.
 
 ```cpp
 std::ostringstream archive_stream;
@@ -808,16 +794,7 @@ if (pipeline->is_faulted()) {
 
 ### Progress reporting and cancellation
 
-Progress callbacks and cancellation are configured on the Context (set on the Builder), not on the pipeline. The pipeline's Builder holds a reference to the Context, so a callback registered via `ContextBuilder::with_progress_callback` fires automatically during `hash_from_stream()` and `sign()`. For callback semantics, `ProgressPhase` values, and thread-safe cancellation, see [Progress callbacks and cancellation](context-settings.md#progress-callbacks-and-cancellation).
-
-#### Phases emitted during the pipeline
-
-| Pipeline method | `ProgressPhase` values emitted |
-| --- | --- |
-| `hash_from_stream()` | `Hashing` |
-| `sign()` | `Signing`, `Embedding` |
-
-`create_placeholder()` and `set_exclusions()` are local operations that complete quickly and do not emit progress events.
+Progress callbacks and cancellation are configured on the Context (set on the Builder), not on the pipeline. The pipeline's Builder holds a reference to the Context, so a callback registered via `ContextBuilder::with_progress_callback` fires automatically during `hash_from_stream()` and `sign()`. See [Progress callbacks and cancellation](context-settings.md#progress-callbacks-and-cancellation) for details on progress callbacks.
 
 #### Reporting progress
 
@@ -918,7 +895,7 @@ This is distinct from `faulted`: `cancelled` means the caller chose to stop, not
 
 ### Archiving
 
-The pipeline does not expose `to_archive()`. The pipeline's workflow state (current state, cached placeholder bytes, exclusion ranges) is not part of the Builder's archive format. Archive the Builder before constructing the pipeline if you need the ability to restore to a clean state later. Because archiving captures the Builder before any embeddable operations modify it, restoring from an archive is also the simplest way to retry a failed or cancelled pipeline from scratch.
+The pipeline does not expose `to_archive()`. The pipeline's workflow state (current state, cached placeholder bytes, exclusion ranges) is not part of the Builder's archive format. Archive the Builder before constructing the pipeline if you need the ability to restore a Builder later (e.g. for retries on failure).
 
 ```cpp
 auto builder = c2pa::Builder(context, manifest_json);
