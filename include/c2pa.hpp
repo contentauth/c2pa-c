@@ -112,6 +112,56 @@ namespace c2pa
         std::string message_;
     };
 
+    /// @brief Phase values reported to the ProgressCallbackFunc.
+    ///
+    /// @details A scoped C++ mirror of `C2paProgressPhase` from c2pa.h.
+    ///          Values are verified at compile time to match the C enum, so any
+    ///          future divergence in c2pa-rs will be caught as a build error.
+    ///
+    ///          Phases emitted during a typical sign cycle (in order):
+    ///            AddingIngredient → Thumbnail → Hashing → Signing → Embedding →
+    ///            (if verify_after_sign) VerifyingManifest → VerifyingSignature →
+    ///            VerifyingAssetHash → VerifyingIngredient
+    ///
+    ///          Phases emitted during reading:
+    ///            Reading → VerifyingManifest → VerifyingSignature →
+    ///            VerifyingAssetHash → VerifyingIngredient
+    enum class ProgressPhase : uint8_t {
+        Reading               = 0,
+        VerifyingManifest     = 1,
+        VerifyingSignature    = 2,
+        VerifyingIngredient   = 3,
+        VerifyingAssetHash    = 4,
+        AddingIngredient      = 5,
+        Thumbnail             = 6,
+        Hashing               = 7,
+        Signing               = 8,
+        Embedding             = 9,
+        FetchingRemoteManifest = 10,
+        Writing               = 11,
+        FetchingOCSP          = 12,
+        FetchingTimestamp     = 13,
+    };
+
+    /// @brief Type alias for the progress callback passed to ContextBuilder::with_progress_callback().
+    ///
+    /// @details The callback is invoked at each major phase of signing and reading operations.
+    ///          Returning false from the callback aborts the operation with an
+    ///          OperationCancelled error (equivalent to calling Context::cancel()).
+    ///
+    /// @param phase  Current operation phase.
+    /// @param step   1-based step index within the phase.
+    ///               0 = indeterminate (use as liveness signal); resets to 1 at each new phase.
+    /// @param total  0 = indeterminate; 1 = single-shot; >1 = determinate (step/total = fraction).
+    /// @return true to continue the operation, false to request cancellation.
+    ///
+    /// @note The callback must not throw. If it throws, the implementation catches the
+    ///       exception and reports cancellation to the underlying library (same as returning
+    ///       false); the original exception is not propagated. Prefer returning false or
+    ///       using Context::cancel() instead of throwing.
+    ///
+    using ProgressCallbackFunc = std::function<bool(ProgressPhase phase, uint32_t step, uint32_t total)>;
+
     /// @brief Interface for types that can provide C2PA context functionality.
     /// @details This interface can be implemented by external libraries to provide
     ///          custom context implementations (e.g. AdobeContext wrappers).
@@ -165,11 +215,23 @@ namespace c2pa
         /// @warning Implementations must ensure is_valid() == true implies c_context() != nullptr.
         [[nodiscard]] virtual bool is_valid() const noexcept = 0;
 
+        /// @brief Get shared ownership of the progress callback, if any.
+        /// @return shared_ptr to the callback, or empty if none was set.
+        [[nodiscard]] std::shared_ptr<ProgressCallbackFunc> callback_guard() const noexcept {
+            return callback_owner_;
+        }
+
     protected:
         IContextProvider() = default;
 
         IContextProvider(const IContextProvider&) = delete;
         IContextProvider& operator=(const IContextProvider&) = delete;
+
+        /// Shared-owned progress callback. Non-empty only when a progress callback
+        /// has been configured (e.g. via ContextBuilder::with_progress_callback()).
+        /// Builder and Reader copy this at construction to extend the callback's
+        /// lifetime beyond the originating context.
+        std::shared_ptr<ProgressCallbackFunc> callback_owner_;
     };
 
     /// @brief (C2PA SDK) Settings configuration object for creating contexts.
@@ -237,56 +299,6 @@ namespace c2pa
     private:
         C2paSettings* settings_ptr;
     };
-
-     /// @brief Phase values reported to the ProgressCallbackFunc.
-    ///
-    /// @details A scoped C++ mirror of `C2paProgressPhase` from c2pa.h.
-    ///          Values are verified at compile time to match the C enum, so any
-    ///          future divergence in c2pa-rs will be caught as a build error.
-    ///
-    ///          Phases emitted during a typical sign cycle (in order):
-    ///            AddingIngredient → Thumbnail → Hashing → Signing → Embedding →
-    ///            (if verify_after_sign) VerifyingManifest → VerifyingSignature →
-    ///            VerifyingAssetHash → VerifyingIngredient
-    ///
-    ///          Phases emitted during reading:
-    ///            Reading → VerifyingManifest → VerifyingSignature →
-    ///            VerifyingAssetHash → VerifyingIngredient
-    enum class ProgressPhase : uint8_t {
-        Reading               = 0,
-        VerifyingManifest     = 1,
-        VerifyingSignature    = 2,
-        VerifyingIngredient   = 3,
-        VerifyingAssetHash    = 4,
-        AddingIngredient      = 5,
-        Thumbnail             = 6,
-        Hashing               = 7,
-        Signing               = 8,
-        Embedding             = 9,
-        FetchingRemoteManifest = 10,
-        Writing               = 11,
-        FetchingOCSP          = 12,
-        FetchingTimestamp     = 13,
-    };
-
-    /// @brief Type alias for the progress callback passed to ContextBuilder::with_progress_callback().
-    ///
-    /// @details The callback is invoked at each major phase of signing and reading operations.
-    ///          Returning false from the callback aborts the operation with an
-    ///          OperationCancelled error (equivalent to calling Context::cancel()).
-    ///
-    /// @param phase  Current operation phase.
-    /// @param step   1-based step index within the phase.
-    ///               0 = indeterminate (use as liveness signal); resets to 1 at each new phase.
-    /// @param total  0 = indeterminate; 1 = single-shot; >1 = determinate (step/total = fraction).
-    /// @return true to continue the operation, false to request cancellation.
-    ///
-    /// @note The callback must not throw. If it throws, the implementation catches the
-    ///       exception and reports cancellation to the underlying library (same as returning
-    ///       false); the original exception is not propagated. Prefer returning false or
-    ///       using Context::cancel() instead of throwing.
-    ///
-    using ProgressCallbackFunc = std::function<bool(ProgressPhase phase, uint32_t step, uint32_t total)>;
 
     /// @brief C2PA context implementing IContextProvider.
     /// @details Context objects manage C2PA SDK configuration and state.
@@ -464,14 +476,6 @@ namespace c2pa
         /// @throws C2paException if ctx is nullptr.
         explicit Context(C2paContext* ctx);
 
-        /// @brief Extract shared callback ownership from a provider, if it is a Context.
-        /// @details Uses dynamic_cast to check if the provider is a Context with a
-        ///          progress callback. Builder and Reader call this at construction to
-        ///          extend the callback's lifetime beyond the originating Context.
-        /// @param provider The context provider to extract from.
-        /// @return shared_ptr to the callback if provider is a Context with a callback; empty otherwise.
-        [[nodiscard]] static std::shared_ptr<ProgressCallbackFunc> extract_callback(IContextProvider& provider) noexcept;
-
         /// @brief Request cancellation of any in-progress operation on this context.
         ///
         /// @details Safe to call from another thread while this Context remains valid
@@ -485,12 +489,6 @@ namespace c2pa
 
     private:
         C2paContext* context;
-
-        /// Shared-owned ProgressCallbackFunc; non-empty only when set via
-        /// ContextBuilder::with_progress_callback().
-        /// Shared so that Builder/Reader can extend the callback's lifetime
-        /// beyond the Context that originally created it.
-        std::shared_ptr<ProgressCallbackFunc> callback_owner_;
     };
 
     /// @brief Get the version of the C2PA library.

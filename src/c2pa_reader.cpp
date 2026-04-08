@@ -49,7 +49,7 @@ namespace c2pa
         if (c2pa_reader == nullptr) {
             throw C2paException("Failed to create reader from context");
         }
-        callback_guard_ = Context::extract_callback(context);
+        callback_guard_ = context.callback_guard();
 
         cpp_stream = std::make_unique<CppIStream>(stream);
         // Update reader with stream.
@@ -74,7 +74,7 @@ namespace c2pa
         if (c2pa_reader == nullptr) {
             throw C2paException("Failed to create reader from context");
         }
-        callback_guard_ = Context::extract_callback(context);
+        callback_guard_ = context.callback_guard();
 
         // Create owned stream that will live as long as the Reader
         owned_stream = std::make_unique<std::ifstream>(source_path, std::ios::binary);

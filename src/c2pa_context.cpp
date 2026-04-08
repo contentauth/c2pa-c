@@ -39,8 +39,8 @@ namespace c2pa
     }
 
     Context::Context(Context&& other) noexcept
-        : context(std::exchange(other.context, nullptr)),
-          callback_owner_(std::move(other.callback_owner_)) {
+        : context(std::exchange(other.context, nullptr)) {
+        callback_owner_ = std::move(other.callback_owner_);
     }
 
     Context& Context::operator=(Context&& other) noexcept {
@@ -68,13 +68,6 @@ namespace c2pa
 
     bool Context::is_valid() const noexcept {
         return context != nullptr;
-    }
-
-    std::shared_ptr<ProgressCallbackFunc> Context::extract_callback(IContextProvider& provider) noexcept {
-        if (auto* ctx = dynamic_cast<Context*>(&provider)) {
-            return ctx->callback_owner_;
-        }
-        return {};
     }
 
     Context::Context(const std::string& json) : Context(Settings(json, "json")) {
