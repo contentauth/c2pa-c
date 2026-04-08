@@ -464,6 +464,14 @@ namespace c2pa
         /// @throws C2paException if ctx is nullptr.
         explicit Context(C2paContext* ctx);
 
+        /// @brief Extract shared callback ownership from a provider, if it is a Context.
+        /// @details Uses dynamic_cast to check if the provider is a Context with a
+        ///          progress callback. Builder and Reader call this at construction to
+        ///          extend the callback's lifetime beyond the originating Context.
+        /// @param provider The context provider to extract from.
+        /// @return shared_ptr to the callback if provider is a Context with a callback; empty otherwise.
+        [[nodiscard]] static std::shared_ptr<ProgressCallbackFunc> extract_callback(IContextProvider& provider) noexcept;
+
         /// @brief Request cancellation of any in-progress operation on this context.
         ///
         /// @details Safe to call from another thread while this Context remains valid
@@ -478,9 +486,11 @@ namespace c2pa
     private:
         C2paContext* context;
 
-        /// Heap-owned ProgressCallbackFunc; non-null only when set via
-        /// ContextBuilder::with_progress_callback().  Deleted in the destructor.
-        void* callback_owner_ = nullptr;
+        /// Shared-owned ProgressCallbackFunc; non-empty only when set via
+        /// ContextBuilder::with_progress_callback().
+        /// Shared so that Builder/Reader can extend the callback's lifetime
+        /// beyond the Context that originally created it.
+        std::shared_ptr<ProgressCallbackFunc> callback_owner_;
     };
 
     /// @brief Get the version of the C2PA library.
@@ -728,6 +738,7 @@ namespace c2pa
         C2paReader *c2pa_reader;
         std::unique_ptr<std::ifstream> owned_stream;       // Owns file stream when created from path
         std::unique_ptr<CppIStream> cpp_stream;            // Wraps stream for C API; destroyed before owned_stream
+        std::shared_ptr<ProgressCallbackFunc> callback_guard_;
 
     public:
         /// @brief Create a Reader from a context and stream.
@@ -782,7 +793,8 @@ namespace c2pa
         Reader(Reader&& other) noexcept
             : c2pa_reader(std::exchange(other.c2pa_reader, nullptr)),
               owned_stream(std::move(other.owned_stream)),
-              cpp_stream(std::move(other.cpp_stream)) {
+              cpp_stream(std::move(other.cpp_stream)),
+              callback_guard_(std::move(other.callback_guard_)) {
         }
 
         Reader& operator=(Reader&& other) noexcept {
@@ -791,6 +803,7 @@ namespace c2pa
                 c2pa_reader = std::exchange(other.c2pa_reader, nullptr);
                 owned_stream = std::move(other.owned_stream);
                 cpp_stream = std::move(other.cpp_stream);
+                callback_guard_ = std::move(other.callback_guard_);
             }
             return *this;
         }
@@ -939,6 +952,7 @@ namespace c2pa
     {
     private:
         C2paBuilder *builder;
+        std::shared_ptr<ProgressCallbackFunc> callback_guard_;
 
     public:
         /// @brief Create a Builder from a context with an empty manifest.
@@ -970,13 +984,16 @@ namespace c2pa
 
         Builder& operator=(const Builder&) = delete;
 
-        Builder(Builder&& other) noexcept : builder(std::exchange(other.builder, nullptr)) {
+        Builder(Builder&& other) noexcept
+            : builder(std::exchange(other.builder, nullptr)),
+              callback_guard_(std::move(other.callback_guard_)) {
         }
 
         Builder& operator=(Builder&& other) noexcept {
             if (this != &other) {
                 c2pa_free(builder);
                 builder = std::exchange(other.builder, nullptr);
+                callback_guard_ = std::move(other.callback_guard_);
             }
             return *this;
         }

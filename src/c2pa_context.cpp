@@ -40,22 +40,20 @@ namespace c2pa
 
     Context::Context(Context&& other) noexcept
         : context(std::exchange(other.context, nullptr)),
-          callback_owner_(std::exchange(other.callback_owner_, nullptr)) {
+          callback_owner_(std::move(other.callback_owner_)) {
     }
 
     Context& Context::operator=(Context&& other) noexcept {
         if (this != &other) {
             c2pa_free(context);
-            delete static_cast<ProgressCallbackFunc*>(callback_owner_);
             context = std::exchange(other.context, nullptr);
-            callback_owner_ = std::exchange(other.callback_owner_, nullptr);
+            callback_owner_ = std::move(other.callback_owner_);
         }
         return *this;
     }
 
     Context::~Context() noexcept {
         c2pa_free(context);
-        delete static_cast<ProgressCallbackFunc*>(callback_owner_);
     }
 
     void Context::cancel() noexcept {
@@ -70,6 +68,13 @@ namespace c2pa
 
     bool Context::is_valid() const noexcept {
         return context != nullptr;
+    }
+
+    std::shared_ptr<ProgressCallbackFunc> Context::extract_callback(IContextProvider& provider) noexcept {
+        if (auto* ctx = dynamic_cast<Context*>(&provider)) {
+            return ctx->callback_owner_;
+        }
+        return {};
     }
 
     Context::Context(const std::string& json) : Context(Settings(json, "json")) {
@@ -257,9 +262,9 @@ namespace c2pa
         context_builder = nullptr;
 
         Context result(ctx);
-        // Transfer progress callback heap ownership to the Context so it is freed
-        // when the Context is destroyed (the C side holds a raw pointer to it).
-        result.callback_owner_ = pending_callback_.release();
+        // Transfer progress callback heap ownership to the Context.
+        // Using shared_ptr so Builder/Reader can extend the callback's lifetime.
+        result.callback_owner_ = std::move(pending_callback_);
         return result;
     }
 } // namespace c2pa

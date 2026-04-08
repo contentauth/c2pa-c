@@ -684,3 +684,60 @@ TEST_F(ContextTest, ProgressCallback_SurvivesBuilderMove) {
     EXPECT_NO_THROW(sign_with_progress_context(context, get_temp_path("progress_builder_move.jpg")));
     EXPECT_GT(call_count.load(), 0);
 }
+
+// Context destroyed before Builder is used; callback must still work.
+TEST_F(ContextTest, ProgressCallback_SurvivesContextDestruction_Builder) {
+    std::atomic<int> call_count{0};
+
+    // Build a Builder inside a nested scope so the Context is destroyed first.
+    c2pa::Builder builder = [&]() {
+        auto context = c2pa::Context::ContextBuilder()
+            .with_progress_callback([&](c2pa::ProgressPhase, uint32_t, uint32_t) {
+                ++call_count;
+                return true;
+            })
+            .create_context();
+
+        auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+        return c2pa::Builder(context, manifest);
+        // context is destroyed here
+    }();
+
+    auto certs       = c2pa_test::read_text_file(c2pa_test::get_fixture_path("es256_certs.pem"));
+    auto private_key = c2pa_test::read_text_file(c2pa_test::get_fixture_path("es256_private.key"));
+    auto asset_path  = c2pa_test::get_fixture_path("A.jpg");
+    c2pa::Signer signer("es256", certs, private_key);
+
+    // Context is already destroyed; signing must not crash.
+    EXPECT_NO_THROW(builder.sign(asset_path, get_temp_path("callback_survives_builder.jpg"), signer));
+    EXPECT_GT(call_count.load(), 0);
+}
+
+// Context destroyed before Reader is used; callback must still work.
+TEST_F(ContextTest, ProgressCallback_SurvivesContextDestruction_Reader) {
+    // First sign a file so we have something to read.
+    {
+        c2pa::Context sign_ctx;
+        sign_with_progress_context(sign_ctx, get_temp_path("progress_read_survive_src.jpg"));
+    }
+
+    std::atomic<int> call_count{0};
+    auto signed_path = get_temp_path("progress_read_survive_src.jpg");
+
+    // Build a Reader inside a nested scope so the Context is destroyed first.
+    c2pa::Reader reader = [&]() {
+        auto context = c2pa::Context::ContextBuilder()
+            .with_progress_callback([&](c2pa::ProgressPhase, uint32_t, uint32_t) {
+                ++call_count;
+                return true;
+            })
+            .create_context();
+
+        return c2pa::Reader(context, signed_path);
+        // context is destroyed here
+    }();
+
+    // Context is already destroyed; accessing the reader must not crash.
+    EXPECT_NO_THROW((void)reader.json());
+    EXPECT_GT(call_count.load(), 0);
+}

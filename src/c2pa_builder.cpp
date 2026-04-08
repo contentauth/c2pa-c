@@ -41,6 +41,7 @@ namespace c2pa
         if (builder == nullptr) {
             throw C2paException("Failed to create builder from context");
         }
+        callback_guard_ = Context::extract_callback(context);
     }
 
     Builder::Builder(IContextProvider& context, const std::string &manifest_json)
@@ -54,6 +55,7 @@ namespace c2pa
         if (builder == nullptr) {
             throw C2paException("Failed to create builder from context");
         }
+        callback_guard_ = Context::extract_callback(context);
 
         // Apply the manifest definition to the Builder.
         // Note: c2pa_builder_with_definition always consumes the builder pointer,
