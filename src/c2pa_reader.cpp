@@ -94,6 +94,18 @@ namespace c2pa
         c2pa_reader = updated;
     }
 
+    Reader::Reader(std::shared_ptr<IContextProvider> context, const std::string &format, std::istream &stream)
+        : Reader(*context, format, stream)
+    {
+        context_ref_ = std::move(context);
+    }
+
+    Reader::Reader(std::shared_ptr<IContextProvider> context, const std::filesystem::path &source_path)
+        : Reader(*context, source_path)
+    {
+        context_ref_ = std::move(context);
+    }
+
     Reader::Reader(const std::string &format, std::istream &stream)
     {
         cpp_stream = std::make_unique<CppIStream>(stream);
@@ -177,5 +189,13 @@ namespace c2pa
 
     std::optional<Reader> Reader::from_asset(IContextProvider& context, const std::string& format, std::istream& stream) {
         return reader_from_asset_impl([&]() { return Reader(context, format, stream); });
+    }
+
+    std::optional<Reader> Reader::from_asset(std::shared_ptr<IContextProvider> context, const std::filesystem::path& source_path) {
+        return reader_from_asset_impl([&]() { return Reader(std::move(context), source_path); });
+    }
+
+    std::optional<Reader> Reader::from_asset(std::shared_ptr<IContextProvider> context, const std::string& format, std::istream& stream) {
+        return reader_from_asset_impl([&]() { return Reader(std::move(context), format, stream); });
     }
 } // namespace c2pa

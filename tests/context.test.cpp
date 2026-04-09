@@ -684,3 +684,82 @@ TEST_F(ContextTest, ProgressCallback_SurvivesBuilderMove) {
     EXPECT_NO_THROW(sign_with_progress_context(context, get_temp_path("progress_builder_move.jpg")));
     EXPECT_GT(call_count.load(), 0);
 }
+
+// Builder keeps the Context alive via shared_ptr; callback works after original shared_ptr is gone.
+TEST_F(ContextTest, BuilderKeepsContextAlive) {
+    std::atomic<int> call_count{0};
+
+    c2pa::Builder builder = [&]() {
+        auto ctx = std::make_shared<c2pa::Context>(
+            c2pa::Context::ContextBuilder()
+                .with_progress_callback([&](c2pa::ProgressPhase, uint32_t, uint32_t) {
+                    ++call_count;
+                    return true;
+                })
+                .create_context()
+        );
+        auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+        return c2pa::Builder(ctx, manifest);
+        // ctx goes out of scope here
+    }();
+
+    auto certs       = c2pa_test::read_text_file(c2pa_test::get_fixture_path("es256_certs.pem"));
+    auto private_key = c2pa_test::read_text_file(c2pa_test::get_fixture_path("es256_private.key"));
+    c2pa::Signer signer("es256", certs, private_key);
+
+    EXPECT_NO_THROW(builder.sign(c2pa_test::get_fixture_path("A.jpg"), get_temp_path("shared_ptr_builder.jpg"), signer));
+    EXPECT_GT(call_count.load(), 0);
+}
+
+// Reader keeps the Context alive via shared_ptr.
+TEST_F(ContextTest, ReaderKeepsContextAlive) {
+    // Sign a file first so we have something to read.
+    {
+        c2pa::Context sign_ctx;
+        sign_with_progress_context(sign_ctx, get_temp_path("shared_ptr_reader_src.jpg"));
+    }
+
+    std::atomic<int> call_count{0};
+
+    c2pa::Reader reader = [&]() {
+        auto ctx = std::make_shared<c2pa::Context>(
+            c2pa::Context::ContextBuilder()
+                .with_progress_callback([&](c2pa::ProgressPhase, uint32_t, uint32_t) {
+                    ++call_count;
+                    return true;
+                })
+                .create_context()
+        );
+        return c2pa::Reader(ctx, get_temp_path("shared_ptr_reader_src.jpg"));
+        // ctx goes out of scope, but reader holds a copy
+    }();
+
+    EXPECT_NO_THROW((void)reader.json());
+    EXPECT_GT(call_count.load(), 0);
+}
+
+// Move-constructing a Builder transfers the shared context reference.
+TEST_F(ContextTest, SharedPtrContextMoveTransfersOwnership) {
+    auto ctx = std::make_shared<c2pa::Context>();
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+
+    c2pa::Builder b1(ctx, manifest);
+    EXPECT_EQ(ctx.use_count(), 2);
+
+    c2pa::Builder b2 = std::move(b1);
+    EXPECT_EQ(ctx.use_count(), 2);  // b1 released, b2 took over
+}
+
+// Reader::from_asset works with shared_ptr context.
+TEST_F(ContextTest, SharedPtrContext_FromAsset) {
+    // Sign a file first so we have something with C2PA data.
+    {
+        c2pa::Context sign_ctx;
+        sign_with_progress_context(sign_ctx, get_temp_path("shared_ptr_from_asset_src.jpg"));
+    }
+
+    auto ctx = std::make_shared<c2pa::Context>();
+    auto reader = c2pa::Reader::from_asset(ctx, get_temp_path("shared_ptr_from_asset_src.jpg"));
+    EXPECT_TRUE(reader.has_value());
+    EXPECT_EQ(ctx.use_count(), 2);  // ctx + reader
+}

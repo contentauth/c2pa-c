@@ -728,6 +728,7 @@ namespace c2pa
         C2paReader *c2pa_reader;
         std::unique_ptr<std::ifstream> owned_stream;       // Owns file stream when created from path
         std::unique_ptr<CppIStream> cpp_stream;            // Wraps stream for C API; destroyed before owned_stream
+        std::shared_ptr<IContextProvider> context_ref_;
 
     public:
         /// @brief Create a Reader from a context and stream.
@@ -745,6 +746,23 @@ namespace c2pa
         ///         or for other errors encountered by the C2PA library.
         /// @note Prefer using the streaming APIs if possible.
         Reader(IContextProvider& context, const std::filesystem::path &source_path);
+
+        /// @brief Create a Reader from a shared context and stream.
+        /// @details The Reader retains a shared reference to the context, keeping it
+        ///          alive for the lifetime of the Reader.
+        /// @param context Shared context provider.
+        /// @param format The mime format of the stream.
+        /// @param stream The input stream to read from.
+        /// @throws C2paException if context is null or context->is_valid() returns false.
+        Reader(std::shared_ptr<IContextProvider> context, const std::string &format, std::istream &stream);
+
+        /// @brief Create a Reader from a shared context and file path.
+        /// @details The Reader retains a shared reference to the context, keeping it
+        ///          alive for the lifetime of the Reader.
+        /// @param context Shared context provider.
+        /// @param source_path The path to the file to read.
+        /// @throws C2paException if context is null or context->is_valid() returns false.
+        Reader(std::shared_ptr<IContextProvider> context, const std::filesystem::path &source_path);
 
         /// @brief Create a Reader from a stream (will use global settings if any loaded).
         /// @details The validation_status field in the JSON contains validation results.
@@ -774,6 +792,18 @@ namespace c2pa
         /// @throws C2paException for errors other than a missing manifest.
         static std::optional<Reader> from_asset(IContextProvider& context, const std::string &format, std::istream &stream);
 
+        /// @brief Try to open a Reader from a shared context and file path when the asset may lack C2PA data.
+        /// @details The Reader retains a shared reference to the context if C2PA data is found.
+        /// @return A Reader if JUMBF (c2pa/manifest) data is present; std::nullopt if none.
+        /// @throws C2paException for errors other than a missing manifest.
+        static std::optional<Reader> from_asset(std::shared_ptr<IContextProvider> context, const std::filesystem::path &source_path);
+
+        /// @brief Try to create a Reader from a shared context and stream when the asset may lack C2PA data.
+        /// @details The Reader retains a shared reference to the context if C2PA data is found.
+        /// @return A Reader if JUMBF (c2pa/manifest) data is present; std::nullopt if none.
+        /// @throws C2paException for errors other than a missing manifest.
+        static std::optional<Reader> from_asset(std::shared_ptr<IContextProvider> context, const std::string &format, std::istream &stream);
+
         // Non-copyable
         Reader(const Reader&) = delete;
 
@@ -782,7 +812,8 @@ namespace c2pa
         Reader(Reader&& other) noexcept
             : c2pa_reader(std::exchange(other.c2pa_reader, nullptr)),
               owned_stream(std::move(other.owned_stream)),
-              cpp_stream(std::move(other.cpp_stream)) {
+              cpp_stream(std::move(other.cpp_stream)),
+              context_ref_(std::move(other.context_ref_)) {
         }
 
         Reader& operator=(Reader&& other) noexcept {
@@ -791,6 +822,7 @@ namespace c2pa
                 c2pa_reader = std::exchange(other.c2pa_reader, nullptr);
                 owned_stream = std::move(other.owned_stream);
                 cpp_stream = std::move(other.cpp_stream);
+                context_ref_ = std::move(other.context_ref_);
             }
             return *this;
         }
@@ -939,6 +971,7 @@ namespace c2pa
     {
     private:
         C2paBuilder *builder;
+        std::shared_ptr<IContextProvider> context_ref_;
 
     public:
         /// @brief Create a Builder from a context with an empty manifest.
@@ -953,6 +986,22 @@ namespace c2pa
         /// @throws C2paException if context.is_valid() returns false,
         ///         or for other errors encountered by the C2PA library.
         Builder(IContextProvider& context, const std::string &manifest_json);
+
+        /// @brief Create a Builder from a shared context with an empty manifest.
+        /// @details The Builder retains a shared reference to the context, keeping it
+        ///          alive for the lifetime of the Builder. This is the preferred
+        ///          constructor when the Context may be destroyed before the Builder.
+        /// @param context Shared context provider.
+        /// @throws C2paException if context is null or context->is_valid() returns false.
+        explicit Builder(std::shared_ptr<IContextProvider> context);
+
+        /// @brief Create a Builder from a shared context and manifest JSON string.
+        /// @details The Builder retains a shared reference to the context, keeping it
+        ///          alive for the lifetime of the Builder.
+        /// @param context Shared context provider.
+        /// @param manifest_json The manifest JSON string.
+        /// @throws C2paException if context is null or context->is_valid() returns false.
+        Builder(std::shared_ptr<IContextProvider> context, const std::string &manifest_json);
 
         /// @brief Create a Builder from a manifest JSON string (will use global settings if any loaded).
         /// @param manifest_json The manifest JSON string.
@@ -970,13 +1019,16 @@ namespace c2pa
 
         Builder& operator=(const Builder&) = delete;
 
-        Builder(Builder&& other) noexcept : builder(std::exchange(other.builder, nullptr)) {
+        Builder(Builder&& other) noexcept
+            : builder(std::exchange(other.builder, nullptr)),
+              context_ref_(std::move(other.context_ref_)) {
         }
 
         Builder& operator=(Builder&& other) noexcept {
             if (this != &other) {
                 c2pa_free(builder);
                 builder = std::exchange(other.builder, nullptr);
+                context_ref_ = std::move(other.context_ref_);
             }
             return *this;
         }

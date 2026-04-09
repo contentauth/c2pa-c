@@ -66,6 +66,18 @@ namespace c2pa
         builder = updated;
     }
 
+    Builder::Builder(std::shared_ptr<IContextProvider> context)
+        : Builder(*context)
+    {
+        context_ref_ = std::move(context);
+    }
+
+    Builder::Builder(std::shared_ptr<IContextProvider> context, const std::string &manifest_json)
+        : Builder(*context, manifest_json)
+    {
+        context_ref_ = std::move(context);
+    }
+
     Builder::Builder(const std::string &manifest_json)
         : builder(nullptr)
     {
