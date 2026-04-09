@@ -728,7 +728,7 @@ namespace c2pa
         C2paReader *c2pa_reader;
         std::unique_ptr<std::ifstream> owned_stream;       // Owns file stream when created from path
         std::unique_ptr<CppIStream> cpp_stream;            // Wraps stream for C API; destroyed before owned_stream
-        std::shared_ptr<IContextProvider> context_ref_;
+        std::shared_ptr<IContextProvider> context_ref;
 
     public:
         /// @brief Create a Reader from a context and stream.
@@ -813,7 +813,7 @@ namespace c2pa
             : c2pa_reader(std::exchange(other.c2pa_reader, nullptr)),
               owned_stream(std::move(other.owned_stream)),
               cpp_stream(std::move(other.cpp_stream)),
-              context_ref_(std::move(other.context_ref_)) {
+              context_ref(std::move(other.context_ref)) {
         }
 
         Reader& operator=(Reader&& other) noexcept {
@@ -822,7 +822,7 @@ namespace c2pa
                 c2pa_reader = std::exchange(other.c2pa_reader, nullptr);
                 owned_stream = std::move(other.owned_stream);
                 cpp_stream = std::move(other.cpp_stream);
-                context_ref_ = std::move(other.context_ref_);
+                context_ref = std::move(other.context_ref);
             }
             return *this;
         }
@@ -971,7 +971,7 @@ namespace c2pa
     {
     private:
         C2paBuilder *builder;
-        std::shared_ptr<IContextProvider> context_ref_;
+        std::shared_ptr<IContextProvider> context_ref;
 
     public:
         /// @brief Create a Builder from a context with an empty manifest.
@@ -1021,14 +1021,14 @@ namespace c2pa
 
         Builder(Builder&& other) noexcept
             : builder(std::exchange(other.builder, nullptr)),
-              context_ref_(std::move(other.context_ref_)) {
+              context_ref(std::move(other.context_ref)) {
         }
 
         Builder& operator=(Builder&& other) noexcept {
             if (this != &other) {
                 c2pa_free(builder);
                 builder = std::exchange(other.builder, nullptr);
-                context_ref_ = std::move(other.context_ref_);
+                context_ref = std::move(other.context_ref);
             }
             return *this;
         }

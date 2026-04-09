@@ -97,13 +97,13 @@ namespace c2pa
     Reader::Reader(std::shared_ptr<IContextProvider> context, const std::string &format, std::istream &stream)
         : Reader(*context, format, stream)
     {
-        context_ref_ = std::move(context);
+        context_ref = std::move(context);
     }
 
     Reader::Reader(std::shared_ptr<IContextProvider> context, const std::filesystem::path &source_path)
         : Reader(*context, source_path)
     {
-        context_ref_ = std::move(context);
+        context_ref = std::move(context);
     }
 
     Reader::Reader(const std::string &format, std::istream &stream)
