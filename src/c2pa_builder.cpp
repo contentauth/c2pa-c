@@ -30,8 +30,9 @@ namespace c2pa
         }
     }
 
-    Builder::Builder(IContextProvider& context)
-        : builder(nullptr)
+    // Shared initialization from any IContextProvider, used by both the
+    // overloads, so neither calls the other.
+    void Builder::init_from_context(IContextProvider& context)
     {
         if (!context.is_valid()) {
             throw C2paException("Invalid Context provider IContextProvider");
@@ -43,17 +44,11 @@ namespace c2pa
         }
     }
 
-    Builder::Builder(IContextProvider& context, const std::string &manifest_json)
-        : builder(nullptr)
+    // Shared initialization from any IContextProvider, used by both the
+    // overloads, so neither calls the other.
+    void Builder::init_from_context(IContextProvider& context, const std::string &manifest_json)
     {
-        if (!context.is_valid()) {
-            throw C2paException("Invalid Context provider IContextProvider");
-        }
-
-        builder = c2pa_builder_from_context(context.c_context());
-        if (builder == nullptr) {
-            throw C2paException("Failed to create builder from context");
-        }
+        init_from_context(context);
 
         // Apply the manifest definition to the Builder.
         // Note: c2pa_builder_with_definition always consumes the builder pointer,
@@ -66,15 +61,29 @@ namespace c2pa
         builder = updated;
     }
 
-    Builder::Builder(std::shared_ptr<IContextProvider> context)
-        : Builder(*context)
+    Builder::Builder(IContextProvider& context)
+        : builder(nullptr)
     {
+        init_from_context(context);
+    }
+
+    Builder::Builder(IContextProvider& context, const std::string &manifest_json)
+        : builder(nullptr)
+    {
+        init_from_context(context, manifest_json);
+    }
+
+    Builder::Builder(std::shared_ptr<IContextProvider> context)
+        : builder(nullptr)
+    {
+        init_from_context(*context);
         context_ref = std::move(context);
     }
 
     Builder::Builder(std::shared_ptr<IContextProvider> context, const std::string &manifest_json)
-        : Builder(*context, manifest_json)
+        : builder(nullptr)
     {
+        init_from_context(*context, manifest_json);
         context_ref = std::move(context);
     }
 

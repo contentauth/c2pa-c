@@ -730,6 +730,9 @@ namespace c2pa
         std::unique_ptr<CppIStream> cpp_stream;            // Wraps stream for C API; destroyed before owned_stream
         std::shared_ptr<IContextProvider> context_ref;
 
+        void init_from_context(IContextProvider& context, const std::string &format, std::istream &stream);
+        void init_from_context(IContextProvider& context, const std::filesystem::path &source_path);
+
     public:
         /// @brief Create a Reader from a context and stream.
         /// @param context Context provider; used at construction to configure settings.
@@ -737,6 +740,12 @@ namespace c2pa
         /// @param stream The input stream to read from.
         /// @throws C2paException if context.is_valid() returns false,
         ///         or for other errors encountered by the C2PA library.
+        /// @deprecated Use Reader(std::shared_ptr<IContextProvider>, format, stream) instead.
+        ///             The reference overload does not extend the lifetime of the context, which can
+        ///             be problematic when progress callbacks fire after the context is destroyed.
+        [[deprecated("Use Reader(std::shared_ptr<IContextProvider>, format, stream) instead. "
+                     "The reference overload does not extend the lifetime of the context, which can "
+                     "be problematic when progress callbacks fire after the context is destroyed.")]]
         Reader(IContextProvider& context, const std::string &format, std::istream &stream);
 
         /// @brief Create a Reader from a context and file path.
@@ -745,6 +754,12 @@ namespace c2pa
         /// @throws C2paException if context.is_valid() returns false,
         ///         or for other errors encountered by the C2PA library.
         /// @note Prefer using the streaming APIs if possible.
+        /// @deprecated Use Reader(std::shared_ptr<IContextProvider>, source_path) instead.
+        ///             The reference overload does not extend the lifetime of the context, which can
+        ///             be problematic when progress callbacks fire after the context is destroyed.
+        [[deprecated("Use Reader(std::shared_ptr<IContextProvider>, source_path) instead. "
+                     "The reference overload does not extend the lifetime of the context, which can "
+                     "be problematic when progress callbacks fire after the context is destroyed.")]]
         Reader(IContextProvider& context, const std::filesystem::path &source_path);
 
         /// @brief Create a Reader from a shared context and stream.
@@ -785,11 +800,25 @@ namespace c2pa
         /// @return A Reader if JUMBF (c2pa/manifest) data is present; std::nullopt if none.
         /// @throws C2paException for errors other than a missing manifest (e.g. invalid asset).
         /// @throws std::system_error if the file cannot be opened.
+        /// @deprecated Use from_asset(std::shared_ptr<IContextProvider>, source_path) instead.
+        ///             The reference overload does not extend the lifetime of the context, which can
+        ///             cause a use-after-free crash when progress callbacks fire after the context is
+        ///             destroyed.
+        [[deprecated("Use from_asset(std::shared_ptr<IContextProvider>, source_path) instead. "
+                     "The reference overload does not extend the lifetime of the context, which can "
+                     "be problematic when progress callbacks fire after the context is destroyed.")]]
         static std::optional<Reader> from_asset(IContextProvider& context, const std::filesystem::path &source_path);
 
         /// @brief Try to create a Reader from a context and stream when the asset may lack C2PA data.
         /// @return A Reader if JUMBF (c2pa/manifest) data is present; std::nullopt if none.
         /// @throws C2paException for errors other than a missing manifest.
+        /// @deprecated Use from_asset(std::shared_ptr<IContextProvider>, format, stream) instead.
+        ///             The reference overload does not extend the lifetime of the context, which can
+        ///             cause a use-after-free crash when progress callbacks fire after the context is
+        ///             destroyed.
+        [[deprecated("Use from_asset(std::shared_ptr<IContextProvider>, format, stream) instead. "
+                     "The reference overload does not extend the lifetime of the context, which can "
+                     "be problematic when progress callbacks fire after the context is destroyed.")]]
         static std::optional<Reader> from_asset(IContextProvider& context, const std::string &format, std::istream &stream);
 
         /// @brief Try to open a Reader from a shared context and file path when the asset may lack C2PA data.
@@ -973,11 +1002,20 @@ namespace c2pa
         C2paBuilder *builder;
         std::shared_ptr<IContextProvider> context_ref;
 
+        void init_from_context(IContextProvider& context);
+        void init_from_context(IContextProvider& context, const std::string &manifest_json);
+
     public:
         /// @brief Create a Builder from a context with an empty manifest.
         /// @param context Context provider; used at construction to configure settings.
         /// @throws C2paException if context.is_valid() returns false,
         ///         or for other errors encountered by the C2PA library.
+        /// @deprecated Use Builder(std::shared_ptr<IContextProvider>) instead.
+        ///             The reference overload does not extend the lifetime of the context, which can
+        ///             be problematic when progress callbacks fire after the context is destroyed.
+        [[deprecated("Use Builder(std::shared_ptr<IContextProvider>) instead. "
+                     "The reference overload does not extend the lifetime of the context, which can "
+                     "be problematic when progress callbacks fire after the context is destroyed.")]]
         explicit Builder(IContextProvider& context);
 
         /// @brief Create a Builder from a context and manifest JSON string.
@@ -985,6 +1023,12 @@ namespace c2pa
         /// @param manifest_json The manifest JSON string.
         /// @throws C2paException if context.is_valid() returns false,
         ///         or for other errors encountered by the C2PA library.
+        /// @deprecated Use Builder(std::shared_ptr<IContextProvider>, manifest_json) instead.
+        ///             The reference overload does not extend the lifetime of the context, which can
+        ///             be problematic when progress callbacks fire after the context is destroyed.
+        [[deprecated("Use Builder(std::shared_ptr<IContextProvider>, manifest_json) instead. "
+                     "The reference overload does not extend the lifetime of the context, which can "
+                     "be problematic when progress callbacks fire after the context is destroyed.")]]
         Builder(IContextProvider& context, const std::string &manifest_json);
 
         /// @brief Create a Builder from a shared context with an empty manifest.
