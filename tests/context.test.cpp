@@ -685,7 +685,7 @@ TEST_F(ContextTest, ProgressCallback_SurvivesBuilderMove) {
     EXPECT_GT(call_count.load(), 0);
 }
 
-// Builder keeps the Context alive via shared_ptr; callback works after original shared_ptr is gone.
+// Builder keeps the Context alive to use progress callbacks
 TEST_F(ContextTest, BuilderKeepsContextAlive) {
     std::atomic<int> call_count{0};
 
