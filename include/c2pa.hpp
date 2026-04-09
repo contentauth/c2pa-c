@@ -732,6 +732,7 @@ namespace c2pa
 
         void init_from_context(IContextProvider& context, const std::string &format, std::istream &stream);
         void init_from_context(IContextProvider& context, const std::filesystem::path &source_path);
+        Reader() : c2pa_reader(nullptr) {}
 
     public:
         /// @brief Create a Reader from a context and stream.

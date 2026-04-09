@@ -200,11 +200,19 @@ namespace c2pa
     }
 
     std::optional<Reader> Reader::from_asset(IContextProvider& context, const std::filesystem::path& source_path) {
-        return reader_from_asset_impl([&]() { return Reader(context, source_path); });
+        return reader_from_asset_impl([&]() {
+            Reader r;
+            r.init_from_context(context, source_path);
+            return r;
+        });
     }
 
     std::optional<Reader> Reader::from_asset(IContextProvider& context, const std::string& format, std::istream& stream) {
-        return reader_from_asset_impl([&]() { return Reader(context, format, stream); });
+        return reader_from_asset_impl([&]() {
+            Reader r;
+            r.init_from_context(context, format, stream);
+            return r;
+        });
     }
 
     std::optional<Reader> Reader::from_asset(std::shared_ptr<IContextProvider> context, const std::filesystem::path& source_path) {

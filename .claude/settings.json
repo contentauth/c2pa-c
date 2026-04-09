@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmake --build /tmp/c2pa_build)"
+    ]
+  }
+}
