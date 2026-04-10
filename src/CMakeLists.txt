@@ -239,7 +239,10 @@ if(MSVC)
         /sdl
         /guard:cf
         /GS
-        /DYNAMICBASE)
+        /DYNAMICBASE
+        # c2pa_cpp wraps the deprecated C API surface; silence C4996 so the
+        # wrapper still builds cleanly while end users still see the warning.
+        /wd4996)
 
     target_link_options(c2pa_cpp PRIVATE
         /DYNAMICBASE
@@ -254,6 +257,10 @@ else()
         -Wstack-protector
         -fstack-protector-strong
         -fPIC
+        # c2pa_cpp wraps the deprecated C API surface; silence the warning
+        # here so the wrapper still builds with -Werror while end users still
+        # see the deprecation warning when they call the C functions directly.
+        -Wno-deprecated-declarations
     )
 
     if(APPLE)

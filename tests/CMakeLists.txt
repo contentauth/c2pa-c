@@ -182,6 +182,10 @@ if(WIN32)
 else()
     # On Unix systems, link directly to the shared library
     target_link_libraries(ctest PRIVATE "${C2PA_C_LIB}")
+    # c-app-test deliberately exercises the deprecated C API so we can keep
+    # testing it; silence the resulting -Wdeprecated-declarations so -Werror
+    # does not fail the build.
+    target_compile_options(ctest PRIVATE -Wno-deprecated-declarations)
 endif()
 target_include_directories(ctest PRIVATE
     "${C2PA_PREBUILT_INCLUDE_DIR}"
