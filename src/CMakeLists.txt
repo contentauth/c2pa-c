@@ -240,7 +240,7 @@ if(MSVC)
         /guard:cf
         /GS
         /DYNAMICBASE
-        # c2pa_cpp wraps the deprecated C API surface; silence C4996 so the
+        # c2pa_cpp wraps the deprecated C API surface, silence C4996 so the
         # wrapper still builds cleanly while end users still see the warning.
         /wd4996)
 
@@ -257,9 +257,9 @@ else()
         -Wstack-protector
         -fstack-protector-strong
         -fPIC
-        # c2pa_cpp wraps the deprecated C API surface; silence the warning
+        # c2pa_cpp wraps the deprecated C API surface, silence the warning
         # here so the wrapper still builds with -Werror while end users still
-        # see the deprecation warning when they call the C functions directly.
+        # see the deprecation warning.
         -Wno-deprecated-declarations
     )
 
