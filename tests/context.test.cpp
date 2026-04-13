@@ -98,8 +98,9 @@ TEST(Context, SettingsDefaultConstruction)
     c2pa::Context context;
 
     // Should not crash when building with default settings
+    auto ctx = std::make_shared<c2pa::Context>();
     EXPECT_NO_THROW({
-        c2pa::Builder builder(context, manifest);
+        c2pa::Builder builder(ctx, manifest);
     });
 }
 
@@ -133,8 +134,9 @@ TEST(Context, MoveConstructor)
 
     // Moved-to context is usable
     auto manifest = load_fixture("training.json");
+    auto ctx = std::make_shared<c2pa::Context>(std::move(moved_to));
     EXPECT_NO_THROW({
-        c2pa::Builder builder(moved_to, manifest);
+        c2pa::Builder builder(ctx, manifest);
     });
 }
 
@@ -164,8 +166,9 @@ TEST(Context, MoveAssignmentOverwrites)
     EXPECT_FALSE(b.is_valid());
     // Use a to ensure the adopted context works (no double-free of old a)
     auto manifest = load_fixture("training.json");
+    auto ctx = std::make_shared<c2pa::Context>(std::move(a));
     EXPECT_NO_THROW({
-        c2pa::Builder builder(a, manifest);
+        c2pa::Builder builder(ctx, manifest);
     });
 }
 
@@ -176,8 +179,8 @@ static bool has_thumbnail(const std::string& manifest_json) {
     return parsed["manifests"][active].contains("thumbnail");
 }
 
-// Helper function to sign with context and return manifest JSON
-static std::string sign_with_context(c2pa::IContextProvider& context, const fs::path& dest_path) {
+// Helper function to sign with context and return manifest JSON.
+static std::string sign_with_context(std::shared_ptr<c2pa::IContextProvider> context, const fs::path& dest_path) {
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
     auto certs = c2pa_test::read_text_file(c2pa_test::get_fixture_path("es256_certs.pem"));
     auto private_key = c2pa_test::read_text_file(c2pa_test::get_fixture_path("es256_private.key"));
@@ -199,7 +202,7 @@ TEST_F(ContextTest, SetOverridesLastWins) {
     settings.set("builder.thumbnail.enabled", "true");
     settings.set("builder.thumbnail.enabled", "false");
 
-    auto context = c2pa::Context::ContextBuilder().with_settings(settings).create_context();
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder().with_settings(settings).create_context());
     auto manifest_json = sign_with_context(context, get_temp_path("set_overrides_last_wins.jpg"));
 
     EXPECT_FALSE(has_thumbnail(manifest_json));
@@ -212,7 +215,7 @@ TEST_F(ContextTest, UpdateOverridesSetJson) {
     settings.set("builder.thumbnail.enabled", "true");
     settings.update(settings_json, "json");
 
-    auto context = c2pa::Context::ContextBuilder().with_settings(settings).create_context();
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder().with_settings(settings).create_context());
     auto manifest_json = sign_with_context(context, get_temp_path("update_overrides_set_json.jpg"));
 
     EXPECT_FALSE(has_thumbnail(manifest_json));
@@ -225,7 +228,7 @@ TEST_F(ContextTest, SetOverridesUpdateJson) {
     settings.update(settings_json, "json");
     settings.set("builder.thumbnail.enabled", "true");
 
-    auto context = c2pa::Context::ContextBuilder().with_settings(settings).create_context();
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder().with_settings(settings).create_context());
     auto manifest_json = sign_with_context(context, get_temp_path("set_overrides_update_json.jpg"));
 
     EXPECT_TRUE(has_thumbnail(manifest_json));
@@ -237,10 +240,10 @@ TEST_F(ContextTest, WithSettingsThenWithJson) {
     c2pa::Settings settings;
     settings.set("builder.thumbnail.enabled", "true");
 
-    auto context = c2pa::Context::ContextBuilder()
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
         .with_settings(settings)
         .with_json(settings_json)
-        .create_context();
+        .create_context());
 
     auto manifest_json = sign_with_context(context, get_temp_path("with_settings_then_json.jpg"));
     EXPECT_FALSE(has_thumbnail(manifest_json));
@@ -252,10 +255,10 @@ TEST_F(ContextTest, WithJsonThenWithSettings) {
     c2pa::Settings settings;
     settings.set("builder.thumbnail.enabled", "false");
 
-    auto context = c2pa::Context::ContextBuilder()
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
         .with_json(settings_json)
         .with_settings(settings)
-        .create_context();
+        .create_context());
 
     auto manifest_json = sign_with_context(context, get_temp_path("with_json_then_settings.jpg"));
     EXPECT_FALSE(has_thumbnail(manifest_json));
@@ -354,8 +357,7 @@ TEST(Context, DirectConstructWithSettings) {
 // Default constructor can be used with Builder
 TEST(Context, DirectConstructDefaultWithBuilder) {
     auto manifest = load_fixture("training.json");
-    c2pa::Context context;
-
+    auto context = std::make_shared<c2pa::Context>();
     EXPECT_NO_THROW({
         c2pa::Builder builder(context, manifest);
     });
@@ -366,7 +368,7 @@ TEST_F(ContextTest, DirectConstructSettingsSignVerify) {
     c2pa::Settings settings;
     settings.set("builder.thumbnail.enabled", "false");
 
-    c2pa::Context context(settings);
+    auto context = std::make_shared<c2pa::Context>(settings);
     auto manifest_json = sign_with_context(context, get_temp_path("direct_construct_settings.jpg"));
 
     EXPECT_FALSE(has_thumbnail(manifest_json));
@@ -374,7 +376,7 @@ TEST_F(ContextTest, DirectConstructSettingsSignVerify) {
 
 // 2) Direct default construction: sign and verify thumbnail is enabled (default)
 TEST_F(ContextTest, DirectConstructDefaultSignVerify) {
-    c2pa::Context context;
+    auto context = std::make_shared<c2pa::Context>();
     auto manifest_json = sign_with_context(context, get_temp_path("direct_construct_default.jpg"));
 
     EXPECT_TRUE(has_thumbnail(manifest_json));
@@ -382,7 +384,7 @@ TEST_F(ContextTest, DirectConstructDefaultSignVerify) {
 
 // 3) JSON string constructor: sign and verify thumbnail is disabled
 TEST_F(ContextTest, JsonConstructorSignVerify) {
-    c2pa::Context context(R"({"builder": {"thumbnail": {"enabled": false}}})");
+    auto context = std::make_shared<c2pa::Context>(R"({"builder": {"thumbnail": {"enabled": false}}})");
     auto manifest_json = sign_with_context(context, get_temp_path("json_constructor.jpg"));
 
     EXPECT_FALSE(has_thumbnail(manifest_json));
@@ -393,9 +395,9 @@ TEST_F(ContextTest, ContextBuilderWithSettingsSignVerify) {
     c2pa::Settings settings;
     settings.set("builder.thumbnail.enabled", "false");
 
-    auto context = c2pa::Context::ContextBuilder()
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
         .with_settings(settings)
-        .create_context();
+        .create_context());
     auto manifest_json = sign_with_context(context, get_temp_path("builder_with_settings.jpg"));
 
     EXPECT_FALSE(has_thumbnail(manifest_json));
@@ -403,9 +405,9 @@ TEST_F(ContextTest, ContextBuilderWithSettingsSignVerify) {
 
 // 5) ContextBuilder with JSON: sign and verify thumbnail is disabled
 TEST_F(ContextTest, ContextBuilderWithJsonSignVerify) {
-    auto context = c2pa::Context::ContextBuilder()
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
         .with_json(R"({"builder": {"thumbnail": {"enabled": false}}})")
-        .create_context();
+        .create_context());
     auto manifest_json = sign_with_context(context, get_temp_path("builder_with_json.jpg"));
 
     EXPECT_FALSE(has_thumbnail(manifest_json));
@@ -413,7 +415,7 @@ TEST_F(ContextTest, ContextBuilderWithJsonSignVerify) {
 
 // 6) ContextBuilder empty (default): sign and verify thumbnail is enabled (default)
 TEST_F(ContextTest, ContextBuilderDefaultSignVerify) {
-    auto context = c2pa::Context::ContextBuilder().create_context();
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder().create_context());
     auto manifest_json = sign_with_context(context, get_temp_path("builder_default.jpg"));
 
     EXPECT_TRUE(has_thumbnail(manifest_json));
@@ -424,7 +426,7 @@ TEST_F(ContextTest, DirectConstructSettingsEnableThumbnailSignVerify) {
     c2pa::Settings settings;
     settings.set("builder.thumbnail.enabled", "true");
 
-    c2pa::Context context(settings);
+    auto context = std::make_shared<c2pa::Context>(settings);
     auto manifest_json = sign_with_context(context, get_temp_path("direct_construct_enable_thumb.jpg"));
 
     EXPECT_TRUE(has_thumbnail(manifest_json));
@@ -434,9 +436,9 @@ TEST_F(ContextTest, DirectConstructSettingsEnableThumbnailSignVerify) {
 TEST_F(ContextTest, ContextBuilderWithJsonSettingsFile) {
     auto settings_path = c2pa_test::get_fixture_path("settings/test_settings_no_thumbnail.json");
 
-    auto context = c2pa::Context::ContextBuilder()
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
         .with_json_settings_file(settings_path)
-        .create_context();
+        .create_context());
 
     auto manifest_json = sign_with_context(context, get_temp_path("with_json_settings_file.jpg"));
     EXPECT_FALSE(has_thumbnail(manifest_json));
@@ -458,25 +460,25 @@ TEST_F(ContextTest, ContextBuilderWithJsonSettingsFileChaining) {
     c2pa::Settings override_settings;
     override_settings.set("builder.thumbnail.enabled", "false");
 
-    auto context = c2pa::Context::ContextBuilder()
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
         .with_json_settings_file(settings_path)
         .with_settings(override_settings)
-        .create_context();
+        .create_context());
 
     auto manifest_json = sign_with_context(context, get_temp_path("with_json_settings_file_chained.jpg"));
     EXPECT_FALSE(has_thumbnail(manifest_json));
 }
 
-// Context is copied at construction, Reader still works after context goes out of scope
+// Reader retains a shared reference to the context, keeping it alive for the lifetime of the Reader.
 TEST_F(ContextTest, ReaderWorksAfterContextOutOfScope) {
     fs::path signed_path = get_temp_path("reader_after_context_scope.jpg");
     std::unique_ptr<c2pa::Reader> reader;
     {
-        c2pa::Context context;
+        auto context = std::make_shared<c2pa::Context>();
         sign_with_context(context, signed_path);
         reader = std::make_unique<c2pa::Reader>(context, signed_path);
+        // context goes out of scope here, but reader holds a shared reference
     }
-    // context is out of scope, implementation copies context state so reader still works
     EXPECT_NO_THROW(reader->json());
 }
 
@@ -496,7 +498,7 @@ TEST(Context, ContextBuilderWithSettingsAndSigner) {
 // Progress/cancel tests, available since c2pa-rs == 0.78.7.
 
 // Helper: sign a file and return the signed path, using a context with a progress callback.
-static fs::path sign_with_progress_context(c2pa::IContextProvider& context, const fs::path& dest) {
+static fs::path sign_with_progress_context(std::shared_ptr<c2pa::IContextProvider> context, const fs::path& dest) {
     auto manifest   = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
     auto certs      = c2pa_test::read_text_file(c2pa_test::get_fixture_path("es256_certs.pem"));
     auto private_key = c2pa_test::read_text_file(c2pa_test::get_fixture_path("es256_private.key"));
@@ -512,14 +514,14 @@ static fs::path sign_with_progress_context(c2pa::IContextProvider& context, cons
 TEST_F(ContextTest, ProgressCallback_InvokedDuringSigning) {
     std::atomic<int> call_count{0};
 
-    auto context = c2pa::Context::ContextBuilder()
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
         .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
             ++call_count;
             return true;
         })
-        .create_context();
+        .create_context());
 
-    ASSERT_TRUE(context.is_valid());
+    ASSERT_TRUE(context->is_valid());
     EXPECT_NO_THROW(sign_with_progress_context(context, get_temp_path("progress_signing.jpg")));
     EXPECT_GT(call_count.load(), 0);
 }
@@ -528,20 +530,20 @@ TEST_F(ContextTest, ProgressCallback_InvokedDuringSigning) {
 TEST_F(ContextTest, ProgressCallback_InvokedDuringReading) {
     // First sign a file without a callback so we have something to read.
     {
-        c2pa::Context sign_ctx;
+        auto sign_ctx = std::make_shared<c2pa::Context>();
         sign_with_progress_context(sign_ctx, get_temp_path("progress_read_src.jpg"));
     }
 
     std::atomic<int> call_count{0};
 
-    auto context = c2pa::Context::ContextBuilder()
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
         .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
             ++call_count;
             return true;
         })
-        .create_context();
+        .create_context());
 
-    ASSERT_TRUE(context.is_valid());
+    ASSERT_TRUE(context->is_valid());
     EXPECT_NO_THROW({
         c2pa::Reader reader(context, get_temp_path("progress_read_src.jpg"));
         (void)reader.json();
@@ -553,7 +555,7 @@ TEST_F(ContextTest, ProgressCallback_InvokedDuringReading) {
 TEST_F(ContextTest, ProgressCallback_StepAndTotalValues) {
     bool saw_valid_step = false;
 
-    auto context = c2pa::Context::ContextBuilder()
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
         .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t step, uint32_t total) {
             // step is 1-based when total > 0; both may be 0 for indeterminate phases.
             if (total > 0) {
@@ -563,9 +565,9 @@ TEST_F(ContextTest, ProgressCallback_StepAndTotalValues) {
             }
             return true;
         })
-        .create_context();
+        .create_context());
 
-    ASSERT_TRUE(context.is_valid());
+    ASSERT_TRUE(context->is_valid());
     EXPECT_NO_THROW(sign_with_progress_context(context, get_temp_path("progress_step_total.jpg")));
     EXPECT_TRUE(saw_valid_step);
 }
@@ -573,13 +575,13 @@ TEST_F(ContextTest, ProgressCallback_StepAndTotalValues) {
 // Returning false from the callback causes the operation to be cancelled.
 TEST_F(ContextTest, ProgressCallback_ReturnFalseCancels) {
     // Cancel on the very first callback invocation.
-    auto context = c2pa::Context::ContextBuilder()
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
         .with_progress_callback([](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
             return false;  // request cancellation
         })
-        .create_context();
+        .create_context());
 
-    ASSERT_TRUE(context.is_valid());
+    ASSERT_TRUE(context->is_valid());
     EXPECT_THROW(
         sign_with_progress_context(context, get_temp_path("progress_cancel_false.jpg")),
         c2pa::C2paException
@@ -588,31 +590,24 @@ TEST_F(ContextTest, ProgressCallback_ReturnFalseCancels) {
 
 // Context::cancel() called before an operation prevents that operation from completing.
 TEST_F(ContextTest, ProgressCallback_CancelMethodAbortsOperation) {
-    auto context = c2pa::Context::ContextBuilder()
-        .with_progress_callback([](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
-            return true;
-        })
-        .create_context();
-
-    ASSERT_TRUE(context.is_valid());
-
-    // Cancel is called from within the callback (simulates a cross-thread cancel).
-    c2pa::Context* ctx_ptr = &context;
+    // ctx is declared before the lambda so the lambda can capture it by reference.
+    // It is assigned after construction since the context must be built first.
+    std::shared_ptr<c2pa::Context> ctx;
     bool cancel_called = false;
-    auto context2 = c2pa::Context::ContextBuilder()
+
+    ctx = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
         .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
             if (!cancel_called) {
                 cancel_called = true;
-                ctx_ptr->cancel();
+                ctx->cancel();
             }
             return true;  // continue returning true; cancellation is handled via cancel()
         })
-        .create_context();
+        .create_context());
 
-    ASSERT_TRUE(context2.is_valid());
-    ctx_ptr = &context2;
+    ASSERT_TRUE(ctx->is_valid());
     EXPECT_THROW(
-        sign_with_progress_context(context2, get_temp_path("progress_cancel_method.jpg")),
+        sign_with_progress_context(ctx, get_temp_path("progress_cancel_method.jpg")),
         c2pa::C2paException
     );
 }
@@ -631,15 +626,15 @@ TEST_F(ContextTest, ProgressCallback_ChainWithSettings) {
     c2pa::Settings settings;
     settings.set("builder.thumbnail.enabled", "false");
 
-    auto context = c2pa::Context::ContextBuilder()
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
         .with_settings(settings)
         .with_progress_callback([&](c2pa::ProgressPhase /*phase*/, uint32_t /*step*/, uint32_t /*total*/) {
             ++call_count;
             return true;
         })
-        .create_context();
+        .create_context());
 
-    ASSERT_TRUE(context.is_valid());
+    ASSERT_TRUE(context->is_valid());
     auto manifest_json = sign_with_context(context, get_temp_path("progress_chain_settings.jpg"));
     EXPECT_GT(call_count.load(), 0);
     EXPECT_FALSE(has_thumbnail(manifest_json));
@@ -656,9 +651,9 @@ TEST_F(ContextTest, ProgressCallback_SurvivesContextMove) {
         })
         .create_context();
 
-    c2pa::Context moved_to(std::move(original));
+    auto moved_to = std::make_shared<c2pa::Context>(std::move(original));
     EXPECT_FALSE(original.is_valid());
-    ASSERT_TRUE(moved_to.is_valid());
+    ASSERT_TRUE(moved_to->is_valid());
 
     EXPECT_NO_THROW(sign_with_progress_context(moved_to, get_temp_path("progress_move.jpg")));
     EXPECT_GT(call_count.load(), 0);
@@ -678,9 +673,88 @@ TEST_F(ContextTest, ProgressCallback_SurvivesBuilderMove) {
     EXPECT_FALSE(b1.is_valid());
     ASSERT_TRUE(b2.is_valid());
 
-    auto context = b2.create_context();
-    ASSERT_TRUE(context.is_valid());
+    auto context = std::make_shared<c2pa::Context>(b2.create_context());
+    ASSERT_TRUE(context->is_valid());
 
     EXPECT_NO_THROW(sign_with_progress_context(context, get_temp_path("progress_builder_move.jpg")));
     EXPECT_GT(call_count.load(), 0);
+}
+
+// Builder keeps the Context alive to use progress callbacks
+TEST_F(ContextTest, BuilderKeepsContextAlive) {
+    std::atomic<int> call_count{0};
+
+    c2pa::Builder builder = [&]() {
+        auto ctx = std::make_shared<c2pa::Context>(
+            c2pa::Context::ContextBuilder()
+                .with_progress_callback([&](c2pa::ProgressPhase, uint32_t, uint32_t) {
+                    ++call_count;
+                    return true;
+                })
+                .create_context()
+        );
+        auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+        return c2pa::Builder(ctx, manifest);
+        // ctx goes out of scope here
+    }();
+
+    auto certs       = c2pa_test::read_text_file(c2pa_test::get_fixture_path("es256_certs.pem"));
+    auto private_key = c2pa_test::read_text_file(c2pa_test::get_fixture_path("es256_private.key"));
+    c2pa::Signer signer("es256", certs, private_key);
+
+    EXPECT_NO_THROW(builder.sign(c2pa_test::get_fixture_path("A.jpg"), get_temp_path("shared_ptr_builder.jpg"), signer));
+    EXPECT_GT(call_count.load(), 0);
+}
+
+// Reader keeps the Context alive via shared_ptr.
+TEST_F(ContextTest, ReaderKeepsContextAlive) {
+    // Sign a file first so we have something to read.
+    {
+        auto sign_ctx = std::make_shared<c2pa::Context>();
+        sign_with_progress_context(sign_ctx, get_temp_path("shared_ptr_reader_src.jpg"));
+    }
+
+    std::atomic<int> call_count{0};
+
+    c2pa::Reader reader = [&]() {
+        auto ctx = std::make_shared<c2pa::Context>(
+            c2pa::Context::ContextBuilder()
+                .with_progress_callback([&](c2pa::ProgressPhase, uint32_t, uint32_t) {
+                    ++call_count;
+                    return true;
+                })
+                .create_context()
+        );
+        return c2pa::Reader(ctx, get_temp_path("shared_ptr_reader_src.jpg"));
+        // ctx goes out of scope, but reader holds a copy
+    }();
+
+    EXPECT_NO_THROW((void)reader.json());
+    EXPECT_GT(call_count.load(), 0);
+}
+
+// Move-constructing a Builder transfers the shared context reference.
+TEST_F(ContextTest, SharedPtrContextMoveTransfersOwnership) {
+    auto ctx = std::make_shared<c2pa::Context>();
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+
+    c2pa::Builder b1(ctx, manifest);
+    EXPECT_EQ(ctx.use_count(), 2);
+
+    c2pa::Builder b2 = std::move(b1);
+    EXPECT_EQ(ctx.use_count(), 2);  // b1 released, b2 took over
+}
+
+// Reader::from_asset works with shared_ptr context.
+TEST_F(ContextTest, SharedPtrContext_FromAsset) {
+    // Sign a file first so we have something with C2PA data.
+    {
+        auto sign_ctx = std::make_shared<c2pa::Context>();
+        sign_with_progress_context(sign_ctx, get_temp_path("shared_ptr_from_asset_src.jpg"));
+    }
+
+    auto ctx = std::make_shared<c2pa::Context>();
+    auto reader = c2pa::Reader::from_asset(ctx, get_temp_path("shared_ptr_from_asset_src.jpg"));
+    EXPECT_TRUE(reader.has_value());
+    EXPECT_EQ(ctx.use_count(), 2);  // ctx + reader
 }

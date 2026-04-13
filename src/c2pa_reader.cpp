@@ -38,8 +38,9 @@ namespace c2pa
 {
     /// Reader class for reading manifests
 
-    Reader::Reader(IContextProvider& context, const std::string &format, std::istream &stream)
-        : c2pa_reader(nullptr)
+    // Shared initialization from any IContextProvider, used by both the
+    // overloads, so neither calls the other.
+    void Reader::init_from_context(IContextProvider& context, const std::string &format, std::istream &stream)
     {
         if (!context.is_valid()) {
             throw C2paException("Invalid Context provider IContextProvider");
@@ -62,8 +63,9 @@ namespace c2pa
         c2pa_reader = updated;
     }
 
-    Reader::Reader(IContextProvider& context, const std::filesystem::path &source_path)
-        : c2pa_reader(nullptr)
+    // Shared initialization from any IContextProvider, used by both the
+    // overloads, so neither calls the other.
+    void Reader::init_from_context(IContextProvider& context, const std::filesystem::path &source_path)
     {
         if (!context.is_valid()) {
             throw C2paException("Invalid Context provider IContextProvider");
@@ -92,6 +94,32 @@ namespace c2pa
             throw C2paException();
         }
         c2pa_reader = updated;
+    }
+
+    Reader::Reader(IContextProvider& context, const std::string &format, std::istream &stream)
+        : c2pa_reader(nullptr)
+    {
+        init_from_context(context, format, stream);
+    }
+
+    Reader::Reader(IContextProvider& context, const std::filesystem::path &source_path)
+        : c2pa_reader(nullptr)
+    {
+        init_from_context(context, source_path);
+    }
+
+    Reader::Reader(std::shared_ptr<IContextProvider> context, const std::string &format, std::istream &stream)
+        : c2pa_reader(nullptr)
+    {
+        init_from_context(*context, format, stream);
+        context_ref = std::move(context);
+    }
+
+    Reader::Reader(std::shared_ptr<IContextProvider> context, const std::filesystem::path &source_path)
+        : c2pa_reader(nullptr)
+    {
+        init_from_context(*context, source_path);
+        context_ref = std::move(context);
     }
 
     Reader::Reader(const std::string &format, std::istream &stream)
@@ -172,10 +200,26 @@ namespace c2pa
     }
 
     std::optional<Reader> Reader::from_asset(IContextProvider& context, const std::filesystem::path& source_path) {
-        return reader_from_asset_impl([&]() { return Reader(context, source_path); });
+        return reader_from_asset_impl([&]() {
+            Reader r;
+            r.init_from_context(context, source_path);
+            return r;
+        });
     }
 
     std::optional<Reader> Reader::from_asset(IContextProvider& context, const std::string& format, std::istream& stream) {
-        return reader_from_asset_impl([&]() { return Reader(context, format, stream); });
+        return reader_from_asset_impl([&]() {
+            Reader r;
+            r.init_from_context(context, format, stream);
+            return r;
+        });
+    }
+
+    std::optional<Reader> Reader::from_asset(std::shared_ptr<IContextProvider> context, const std::filesystem::path& source_path) {
+        return reader_from_asset_impl([&]() { return Reader(std::move(context), source_path); });
+    }
+
+    std::optional<Reader> Reader::from_asset(std::shared_ptr<IContextProvider> context, const std::string& format, std::istream& stream) {
+        return reader_from_asset_impl([&]() { return Reader(std::move(context), format, stream); });
     }
 } // namespace c2pa
