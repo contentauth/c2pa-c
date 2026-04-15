@@ -239,7 +239,8 @@ if(MSVC)
         /sdl
         /guard:cf
         /GS
-        /DYNAMICBASE)
+        /DYNAMICBASE
+        /wd4996)
 
     target_link_options(c2pa_cpp PRIVATE
         /DYNAMICBASE
@@ -254,6 +255,7 @@ else()
         -Wstack-protector
         -fstack-protector-strong
         -fPIC
+        -Wno-deprecated-declarations
     )
 
     if(APPLE)

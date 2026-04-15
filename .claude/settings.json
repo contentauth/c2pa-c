@@ -4,7 +4,8 @@
       "Bash(cmake --build build/debug --target c2pa_cpp)",
       "Bash(make test-san:*)",
       "Bash(git checkout:*)",
-      "Bash(build/debug/tests/c2pa_c_tests --gtest_filter='BuilderTest.SignWithTwoPngIngredientArchives*')"
+      "Bash(build/debug/tests/c2pa_c_tests --gtest_filter='BuilderTest.SignWithTwoPngIngredientArchives*')",
+      "Bash(ctest --test-dir build/debug -R c_test --output-on-failure)"
     ]
   }
 }
