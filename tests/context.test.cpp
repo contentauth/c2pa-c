@@ -850,7 +850,7 @@ TEST_F(ContextTest, ContextBuilderCreateContextAtomicHandoff) {
 
 // Context move-assignment must free the destination's native context
 // before releasing its old callback storage, and must leave the survivor
-// with a valid callback bound to its (new) native context.
+// with a valid callback bound to its new context.
 TEST_F(ContextTest, ContextMoveAssignWithCallbackPreservesInvocation) {
     std::atomic<int> lhs{0};
     std::atomic<int> rhs{0};
