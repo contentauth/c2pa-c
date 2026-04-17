@@ -765,8 +765,7 @@ TEST_F(ContextTest, ContextBuilderReleaseCarriesCallbackOwner) {
     std::atomic<int> call_count{0};
 
     // Minimal external IContextProvider that adopts the ReleasedBuilder
-    // pieces and preserves the required destruction order (native context
-    // first, then callback storage).
+    // pieces and preserves the required destruction order.
     class AdoptingProvider : public c2pa::IContextProvider {
     public:
         AdoptingProvider(c2pa::Context::ContextBuilder::ReleasedBuilder rb) {
@@ -783,7 +782,6 @@ TEST_F(ContextTest, ContextBuilderReleaseCarriesCallbackOwner) {
             if (ctx_) {
                 c2pa_free(ctx_);
             }
-            // callback_owner_ destructs after this body -- correct order.
         }
         AdoptingProvider(const AdoptingProvider&) = delete;
         AdoptingProvider& operator=(const AdoptingProvider&) = delete;
@@ -822,9 +820,9 @@ TEST_F(ContextTest, ContextBuilderDroppedAfterCallbackNoUAF) {
             ++call_count;
             return true;
         });
-        // Intentionally no create_context(); let b destruct here.
+        // Intentionally no create_context(), let b destruct here.
     }
-    // Nothing crashed, nothing leaked. ASan is the real judge.
+
     SUCCEED();
 }
 
@@ -833,9 +831,6 @@ TEST_F(ContextTest, ContextBuilderDroppedAfterCallbackNoUAF) {
 TEST_F(ContextTest, ContextBuilderCreateContextAtomicHandoff) {
     std::atomic<int> call_count{0};
 
-    // Builder goes out of scope the moment create_context() returns.
-    // If the handoff were not atomic, the callback heap block would be
-    // in a race with builder destruction.
     auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
         .with_progress_callback([&](c2pa::ProgressPhase, uint32_t, uint32_t) {
             ++call_count;
@@ -876,8 +871,6 @@ TEST_F(ContextTest, ContextMoveAssignWithCallbackPreservesInvocation) {
     auto sp = std::make_shared<c2pa::Context>(std::move(a));
     EXPECT_NO_THROW(sign_with_progress_context(sp, get_temp_path("move_assign_survivor.jpg")));
 
-    // a's callback block was freed when `a = std::move(b)` ran; it must
-    // not fire. Only b's (now owned by the survivor) may fire.
     EXPECT_EQ(lhs.load(), 0);
     EXPECT_GT(rhs.load(), 0);
 }
