@@ -115,9 +115,19 @@ namespace c2pa
     /// @brief Interface for types that can provide C2PA context functionality.
     /// @details This interface can be implemented by external libraries to provide
     ///          custom context implementations (e.g. AdobeContext wrappers).
-    ///          Reader and Builder take the context by reference and use it only at
-    ///          construction; the underlying implementation copies context state
-    ///          into the reader/builder, so the context does not need to outlive them.
+    ///          Reader and Builder accept a shared_ptr<IContextProvider> and extend
+    ///          the provider's lifetime for as long as the Reader/Builder exists.
+    ///
+    /// @par Progress callback lifetime (post-0322d67)
+    /// If the native C2paContext* held by the provider was configured with a progress
+    /// callback, the provider MUST keep the heap-owned ProgressCallbackFunc alive at
+    /// least as long as the native context. The native side stores only a raw pointer
+    /// into that heap block and will call it until the context is freed. Destroy
+    /// order inside the provider: free the native C2paContext* first (stops further
+    /// callback invocations), then release the callback storage. The built-in
+    /// Context class enforces this via member declaration order; external providers
+    /// that adopt a native context built via ContextBuilder::release() must do the
+    /// same.
     ///
     /// @par Move semantics
     /// Move construction and move assignment are defaulted. After move, the moved-from
@@ -404,16 +414,41 @@ namespace c2pa
             /// @note This consumes the builder. After calling this, is_valid() returns false.
             [[nodiscard]] Context create_context();
 
-            /// @brief Release ownership of the underlying C2paContextBuilder pointer.
-            ///        After this call, the ContextBuilder no longer owns the pointer
-            ///        and is_valid() returns false. The caller is responsible for managing
-            ///        the lifetime of the returned pointer.
-            /// @return Pointer to the C2paContextBuilder object, or nullptr if moved from.
-            C2paContextBuilder* release() noexcept;
+            /// @brief Result of ContextBuilder::release(): the raw native builder handle
+            ///        paired with the heap-owned progress callback (if any).
+            /// @details The caller takes joint ownership. If `callback_owner` is non-null,
+            ///          the native side stores a raw pointer into it and will invoke the
+            ///          callback until the native context built from `builder` is freed.
+            ///          Therefore `callback_owner` must remain alive at least until the
+            ///          native context returned by c2pa_context_builder_build(builder) is
+            ///          freed via c2pa_free(). Release order: native context first, then
+            ///          `callback_owner` goes out of scope.
+            struct ReleasedBuilder {
+                C2paContextBuilder* builder;
+                std::unique_ptr<ProgressCallbackFunc> callback_owner;
+            };
+
+            /// @brief Release ownership of the underlying C2paContextBuilder handle and
+            ///        its progress-callback heap block (if any) to the caller.
+            /// @details After this call is_valid() returns false. The previous
+            ///          C2paContextBuilder* overload was unsound when a progress callback
+            ///          was pending: the C++ builder destructor would free the heap
+            ///          ProgressCallbackFunc while the native side still held its pointer,
+            ///          yielding a use-after-free on the first progress tick.
+            ///          Callers must keep ReleasedBuilder::callback_owner alive for as
+            ///          long as the native context built from ReleasedBuilder::builder
+            ///          exists.
+            /// @return ReleasedBuilder holding both the native builder and (optionally)
+            ///         the owning unique_ptr for the progress callback. Fields are null
+            ///         when moved-from.
+            [[nodiscard]] ReleasedBuilder release() noexcept;
 
         private:
-            C2paContextBuilder* context_builder;
+            // pending_callback_ is declared before context_builder
+            // so destruction (reverse of declaration) frees context_builder first, while
+            // the callback heap block is still live, then releases pending_callback_.
             std::unique_ptr<ProgressCallbackFunc> pending_callback_;
+            C2paContextBuilder* context_builder;
         };
 
         // Direct construction
@@ -464,6 +499,13 @@ namespace c2pa
         /// @throws C2paException if ctx is nullptr.
         explicit Context(C2paContext* ctx);
 
+        /// @brief "Adopt" a native context together with its heap-owned progress callback.
+        /// @param ctx Native context pointer. Context takes ownership.
+        /// @param callback Heap-owned progress callback whose raw pointer the native
+        ///        context may hold. May be null.
+        Context(C2paContext* ctx,
+                std::unique_ptr<ProgressCallbackFunc> callback) noexcept;
+
         /// @brief Request cancellation of any in-progress operation on this context.
         ///
         /// @details Safe to call from another thread while this Context remains valid
@@ -476,11 +518,15 @@ namespace c2pa
         void cancel() noexcept;
 
     private:
+        // Member order matters: `context` is declared before `callback_owner_` so
+        // destruction (reverse of declaration) frees the heap callback block after
+        // the native context has been freed.
         C2paContext* context;
 
-        /// Heap-owned ProgressCallbackFunc; non-null only when set via
-        /// ContextBuilder::with_progress_callback().  Deleted in the destructor.
-        void* callback_owner_ = nullptr;
+        /// Heap-owned ProgressCallbackFunc, non-null only when the Context was built
+        /// with a progress callback via ContextBuilder::with_progress_callback().
+        /// Destroyed after `context`.
+        std::unique_ptr<ProgressCallbackFunc> callback_owner_;
     };
 
     /// @brief Get the version of the C2PA library.
