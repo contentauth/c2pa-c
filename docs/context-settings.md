@@ -165,6 +165,7 @@ auto context = c2pa::Context::ContextBuilder()
 | `with_signer(signer)` | Store a `Signer` in the context (consumed; used by `Builder::sign` with no explicit signer) |
 | `with_progress_callback(callback)` | Register a progress/cancel callback (see [Progress callbacks and cancellation](#progress-callbacks-and-cancellation)) |
 | `create_context()` | Build and return the `Context` (consumes the builder) |
+| `release()` | Release the raw `C2paContextBuilder*` together with its progress-callback heap owner (see also [Releasing to a custom IContextProvider](#releasing-to-a-custom-icontextprovider)) |
 
 ## Progress callbacks and cancellation
 
@@ -204,6 +205,9 @@ bool callback(c2pa::ProgressPhase phase, uint32_t step, uint32_t total);
 - **Return value** — return `true` to continue, `false` to request cancellation (same effect as calling `context.cancel()`).
 
 **Do not throw** from the progress callback. Exceptions cannot cross the C/Rust boundary safely; if your callback throws, the wrapper catches it and the operation is aborted as a cancellation (you do not get your exception back at the call site). Use `return false`, `context.cancel()`, or application-side state instead.
+
+> [!IMPORTANT]
+> A callback passed to `with_progress_callback` is copied onto the heap and its address is handed to the underlying library. The built-in `Context` owns that heap block and frees it only after the native context is freed. The free order is correct by construction when the callback flows through `create_context()` into a `shared_ptr<Context>`. When the native handle is transferred out of the builder via `release()`, the same contract must be maintained by the caller. See [Releasing to a custom IContextProvider](#releasing-to-a-custom-icontextprovider).
 
 ### Cancelling from another thread
 
@@ -977,6 +981,20 @@ The `shared_ptr` overloads accept any `shared_ptr<IContextProvider>`, so custom 
 `IContextProvider` is the interface that `Reader` and `Builder` constructors accept. `Context` is the SDK's built-in implementation. The deprecation warnings reference it in the suggested replacement (e.g., `"Use Reader(std::shared_ptr<IContextProvider>, ...)`").
 
 External libraries can implement `IContextProvider` to supply their own context objects. The interface requires a valid `C2paContext*` pointer and an `is_valid()` check. Wrap your implementation in a `shared_ptr` when passing to `Reader` or `Builder`.
+
+> [!IMPORTANT]
+> **Progress-callback lifetime in custom providers.** If the native `C2paContext*` was built with a progress callback, the underlying library stores a raw pointer into a heap-owned `ProgressCallbackFunc`. A provider implementation must keep that callback alive for at least as long as the native context. When destroying the provider, the `C2paContext*` must be freed first and the callback storage released after.
+
+#### Releasing to a custom IContextProvider
+
+`Context::ContextBuilder::release()` hands off both the native `C2paContextBuilder*` and the heap-owned progress callback (if any) to the caller. It is the entry point when application code needs to build the native context directly or adopt it into a custom `IContextProvider` implementation.
+
+`ReleasedBuilder` exposes two fields:
+
+- `builder`: the raw `C2paContextBuilder*`. It must be passed to `c2pa_context_builder_build` exactly once.
+- `callback_owner`: `std::unique_ptr<c2pa::ProgressCallbackFunc>`; `nullptr` when no progress callback was set. When non-null, it must remain alive at least as long as the native context built from `builder`. If it is destroyed earlier, the library will dereference freed memory on the next progress tick.
+
+When the built-in `Context` is sufficient, `create_context()` is preferred. It performs the same handoff internally and keeps the native handle and callback owner bound together.
 
 ### Builder::sign overloads
 

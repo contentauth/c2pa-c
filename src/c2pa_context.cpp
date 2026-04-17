@@ -40,22 +40,32 @@ namespace c2pa
 
     Context::Context(Context&& other) noexcept
         : context(std::exchange(other.context, nullptr)),
-          callback_owner_(std::exchange(other.callback_owner_, nullptr)) {
+          callback_owner_(std::move(other.callback_owner_)) {
     }
 
     Context& Context::operator=(Context&& other) noexcept {
         if (this != &other) {
-            c2pa_free(context);
-            delete static_cast<ProgressCallbackFunc*>(callback_owner_);
+            // Free the native context first so it stops invoking the callback,
+            // then release the heap block the callback lived in (move).
+            if (context) {
+                c2pa_free(context);
+            }
             context = std::exchange(other.context, nullptr);
-            callback_owner_ = std::exchange(other.callback_owner_, nullptr);
+            callback_owner_ = std::move(other.callback_owner_);
         }
         return *this;
     }
 
     Context::~Context() noexcept {
-        c2pa_free(context);
-        delete static_cast<ProgressCallbackFunc*>(callback_owner_);
+        // Free native context first, then let callback_owner_ destruct.
+        if (context) {
+            c2pa_free(context);
+        }
+    }
+
+    Context::Context(C2paContext* ctx,
+                     std::unique_ptr<ProgressCallbackFunc> callback) noexcept
+        : context(ctx), callback_owner_(std::move(callback)) {
     }
 
     void Context::cancel() noexcept {
@@ -91,13 +101,18 @@ namespace c2pa
     }
 
     Context::ContextBuilder::ContextBuilder(ContextBuilder&& other) noexcept
-        : context_builder(std::exchange(other.context_builder, nullptr)),
-          pending_callback_(std::move(other.pending_callback_)) {
+        : pending_callback_(std::move(other.pending_callback_)),
+          context_builder(std::exchange(other.context_builder, nullptr)) {
     }
 
     Context::ContextBuilder& Context::ContextBuilder::operator=(ContextBuilder&& other) noexcept {
         if (this != &other) {
-            c2pa_free(context_builder);
+            // Free the native builder before moving in the new pending_callback_ so
+            // the old native builder cannot touch its (about-to-be-replaced) callback
+            // block after we've dropped the old one.
+            if (context_builder) {
+                c2pa_free(context_builder);
+            }
             context_builder = std::exchange(other.context_builder, nullptr);
             pending_callback_ = std::move(other.pending_callback_);
         }
@@ -105,7 +120,12 @@ namespace c2pa
     }
 
     Context::ContextBuilder::~ContextBuilder() noexcept {
-        c2pa_free(context_builder);
+        // Member destruction order is reverse of declaration:
+        // context_builder freed first (stops FFI from calling the callback),
+        // then pending_callback_ is released.
+        if (context_builder) {
+            c2pa_free(context_builder);
+        }
     }
 
     bool Context::ContextBuilder::is_valid() const noexcept {
@@ -225,21 +245,27 @@ namespace c2pa
         if (!is_valid()) {
             throw C2paException("ContextBuilder is invalid (moved from)");
         }
-        // Heap-allocate the std::function so we can pass a stable pointer to the C API.
-        // The resulting Context takes ownership of this allocation.
-        pending_callback_ = std::make_unique<ProgressCallbackFunc>(std::move(callback));
+
+        // Two-stage swap: create the new heap block, register it with the FFI, and
+        // only after drop any previous pending_callback_.
+        auto fresh = std::make_unique<ProgressCallbackFunc>(std::move(callback));
         if (c2pa_context_builder_set_progress_callback(
                 context_builder,
-                pending_callback_.get(),
+                fresh.get(),
                 progress_callback_trampoline) != 0) {
-            pending_callback_.reset();
             throw C2paException();
         }
+        pending_callback_ = std::move(fresh);
         return *this;
     }
 
-    C2paContextBuilder* Context::ContextBuilder::release() noexcept {
-        return std::exchange(context_builder, nullptr);
+    Context::ContextBuilder::ReleasedBuilder Context::ContextBuilder::release() noexcept {
+        // Transfer both the native builder handle and the callback heap block to
+        // the caller atomically.
+        return ReleasedBuilder{
+            std::exchange(context_builder, nullptr),
+            std::move(pending_callback_),
+        };
     }
 
     Context Context::ContextBuilder::create_context() {
@@ -247,19 +273,13 @@ namespace c2pa
             throw C2paException("ContextBuilder is invalid (moved from)");
         }
 
-        // The C API consumes the context builder on build
+        // The C API consumes the context builder on build (success or failure).
         C2paContext* ctx = c2pa_context_builder_build(context_builder);
+        context_builder = nullptr;
         if (!ctx) {
             throw C2paException("Failed to build context");
         }
 
-        // Builder is consumed by the C API
-        context_builder = nullptr;
-
-        Context result(ctx);
-        // Transfer progress callback heap ownership to the Context so it is freed
-        // when the Context is destroyed (the C side holds a raw pointer to it).
-        result.callback_owner_ = pending_callback_.release();
-        return result;
+        return Context(ctx, std::move(pending_callback_));
     }
 } // namespace c2pa

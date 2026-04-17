@@ -758,3 +758,119 @@ TEST_F(ContextTest, SharedPtrContext_FromAsset) {
     EXPECT_TRUE(reader.has_value());
     EXPECT_EQ(ctx.use_count(), 2);  // ctx + reader
 }
+
+// ContextBuilder::release() must carry the progress-callback owner
+// alongside the raw native builder handle.
+TEST_F(ContextTest, ContextBuilderReleaseCarriesCallbackOwner) {
+    std::atomic<int> call_count{0};
+
+    // Minimal external IContextProvider that adopts the ReleasedBuilder
+    // pieces and preserves the required destruction order.
+    class AdoptingProvider : public c2pa::IContextProvider {
+    public:
+        AdoptingProvider(c2pa::Context::ContextBuilder::ReleasedBuilder rb) {
+            if (!rb.builder) {
+                throw c2pa::C2paException("AdoptingProvider: null builder");
+            }
+            ctx_ = c2pa_context_builder_build(rb.builder);
+            if (!ctx_) {
+                throw c2pa::C2paException("AdoptingProvider: build failed");
+            }
+            callback_owner_ = std::move(rb.callback_owner);
+        }
+        ~AdoptingProvider() noexcept override {
+            if (ctx_) {
+                c2pa_free(ctx_);
+            }
+        }
+        AdoptingProvider(const AdoptingProvider&) = delete;
+        AdoptingProvider& operator=(const AdoptingProvider&) = delete;
+
+        C2paContext* c_context() const noexcept override { return ctx_; }
+        bool is_valid() const noexcept override { return ctx_ != nullptr; }
+
+    private:
+        C2paContext* ctx_ = nullptr;
+        std::unique_ptr<c2pa::ProgressCallbackFunc> callback_owner_;
+    };
+
+    auto rb = c2pa::Context::ContextBuilder()
+        .with_progress_callback([&](c2pa::ProgressPhase, uint32_t, uint32_t) {
+            ++call_count;
+            return true;
+        })
+        .release();
+    ASSERT_NE(rb.builder, nullptr);
+    ASSERT_NE(rb.callback_owner, nullptr);
+
+    auto provider = std::make_shared<AdoptingProvider>(std::move(rb));
+    ASSERT_TRUE(provider->is_valid());
+
+    EXPECT_NO_THROW(sign_with_progress_context(provider, get_temp_path("release_adopting.jpg")));
+    EXPECT_GT(call_count.load(), 0);
+}
+
+// A ContextBuilder that has a progress callback set but is never
+// turned into a Context must destruct cleanly.
+TEST_F(ContextTest, ContextBuilderDroppedAfterCallbackNoUAF) {
+    std::atomic<int> call_count{0};
+    {
+        c2pa::Context::ContextBuilder b;
+        b.with_progress_callback([&](c2pa::ProgressPhase, uint32_t, uint32_t) {
+            ++call_count;
+            return true;
+        });
+        // Intentionally no create_context(), let b destruct here.
+    }
+
+    SUCCEED();
+}
+
+// Ccreate_context() must transfer callback ownership to the new
+// Context atomically.
+TEST_F(ContextTest, ContextBuilderCreateContextAtomicHandoff) {
+    std::atomic<int> call_count{0};
+
+    auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
+        .with_progress_callback([&](c2pa::ProgressPhase, uint32_t, uint32_t) {
+            ++call_count;
+            return true;
+        })
+        .create_context());
+
+    ASSERT_TRUE(context->is_valid());
+    EXPECT_NO_THROW(sign_with_progress_context(context, get_temp_path("atomic_handoff.jpg")));
+    EXPECT_GT(call_count.load(), 0);
+}
+
+// Context move-assignment must free the destination's native context
+// before releasing its old callback storage, and must leave the survivor
+// with a valid callback bound to its new context.
+TEST_F(ContextTest, ContextMoveAssignWithCallbackPreservesInvocation) {
+    std::atomic<int> lhs{0};
+    std::atomic<int> rhs{0};
+
+    c2pa::Context a = c2pa::Context::ContextBuilder()
+        .with_progress_callback([&](c2pa::ProgressPhase, uint32_t, uint32_t) {
+            ++lhs;
+            return true;
+        })
+        .create_context();
+
+    c2pa::Context b = c2pa::Context::ContextBuilder()
+        .with_progress_callback([&](c2pa::ProgressPhase, uint32_t, uint32_t) {
+            ++rhs;
+            return true;
+        })
+        .create_context();
+
+    a = std::move(b);
+    EXPECT_FALSE(b.is_valid());
+    ASSERT_TRUE(a.is_valid());
+
+    auto sp = std::make_shared<c2pa::Context>(std::move(a));
+    EXPECT_NO_THROW(sign_with_progress_context(sp, get_temp_path("move_assign_survivor.jpg")));
+
+    EXPECT_EQ(lhs.load(), 0);
+    EXPECT_GT(rhs.load(), 0);
+}
