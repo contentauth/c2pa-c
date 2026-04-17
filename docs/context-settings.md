@@ -165,7 +165,7 @@ auto context = c2pa::Context::ContextBuilder()
 | `with_signer(signer)` | Store a `Signer` in the context (consumed; used by `Builder::sign` with no explicit signer) |
 | `with_progress_callback(callback)` | Register a progress/cancel callback (see [Progress callbacks and cancellation](#progress-callbacks-and-cancellation)) |
 | `create_context()` | Build and return the `Context` (consumes the builder) |
-| `release()` | Release the raw `C2paContextBuilder*` together with its progress-callback heap owner (see [Releasing to a custom IContextProvider](#releasing-to-a-custom-icontextprovider)) |
+| `release()` | Release the raw `C2paContextBuilder*` together with its progress-callback heap owner (see also [Releasing to a custom IContextProvider](#releasing-to-a-custom-icontextprovider)) |
 
 ## Progress callbacks and cancellation
 
