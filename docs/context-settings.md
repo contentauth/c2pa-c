@@ -207,7 +207,7 @@ bool callback(c2pa::ProgressPhase phase, uint32_t step, uint32_t total);
 **Do not throw** from the progress callback. Exceptions cannot cross the C/Rust boundary safely; if your callback throws, the wrapper catches it and the operation is aborted as a cancellation (you do not get your exception back at the call site). Use `return false`, `context.cancel()`, or application-side state instead.
 
 > [!IMPORTANT]
-> **Callback lifetime.** A callback passed to `with_progress_callback` is copied onto the heap and its address is handed to the underlying library. The built-in `Context` owns that heap block and frees it only after the native context is freed. The free order is correct by construction when the callback flows through `create_context()` into a `shared_ptr<Context>`. When the native handle is transferred out of the builder via `release()`, the same contract must be maintained by the caller. See [Releasing to a custom IContextProvider](#releasing-to-a-custom-icontextprovider).
+> A callback passed to `with_progress_callback` is copied onto the heap and its address is handed to the underlying library. The built-in `Context` owns that heap block and frees it only after the native context is freed. The free order is correct by construction when the callback flows through `create_context()` into a `shared_ptr<Context>`. When the native handle is transferred out of the builder via `release()`, the same contract must be maintained by the caller. See [Releasing to a custom IContextProvider](#releasing-to-a-custom-icontextprovider).
 
 ### Cancelling from another thread
 
