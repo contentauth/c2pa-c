@@ -207,7 +207,7 @@ bool callback(c2pa::ProgressPhase phase, uint32_t step, uint32_t total);
 **Do not throw** from the progress callback. Exceptions cannot cross the C/Rust boundary safely; if your callback throws, the wrapper catches it and the operation is aborted as a cancellation (you do not get your exception back at the call site). Use `return false`, `context.cancel()`, or application-side state instead.
 
 > [!IMPORTANT]
-> **Callback lifetime.** The callback you pass to `with_progress_callback` is copied onto the heap and its address is handed to the underlying library. The built-in `Context` owns that heap block and frees it only after the native context is freed, so the call order (native context first, then the callback storage) is always correct when you use `create_context()` plus `shared_ptr<Context>`. If you instead transfer the native handle out of the builder via `release()`, you take over both halves of that contract; see [Releasing to a custom IContextProvider](#releasing-to-a-custom-icontextprovider).
+> **Callback lifetime.** A callback passed to `with_progress_callback` is copied onto the heap and its address is handed to the underlying library. The built-in `Context` owns that heap block and frees it only after the native context is freed. The free order is correct by construction when the callback flows through `create_context()` into a `shared_ptr<Context>`. When the native handle is transferred out of the builder via `release()`, the same contract must be maintained by the caller. See [Releasing to a custom IContextProvider](#releasing-to-a-custom-icontextprovider).
 
 ### Cancelling from another thread
 
@@ -983,11 +983,11 @@ The `shared_ptr` overloads accept any `shared_ptr<IContextProvider>`, so custom 
 External libraries can implement `IContextProvider` to supply their own context objects. The interface requires a valid `C2paContext*` pointer and an `is_valid()` check. Wrap your implementation in a `shared_ptr` when passing to `Reader` or `Builder`.
 
 > [!IMPORTANT]
-> **Progress-callback lifetime in custom providers.** If the native `C2paContext*` was built with a progress callback, the underlying library stores a raw pointer into a heap-owned `ProgressCallbackFunc`. Your provider MUST keep that callback alive for at least as long as the native context. When destroying the provider, free the `C2paContext*` first (so the library stops invoking the callback) and release the callback storage after. The built-in `Context` enforces this via member declaration order; custom providers must do the same.
+> **Progress-callback lifetime in custom providers.** If the native `C2paContext*` was built with a progress callback, the underlying library stores a raw pointer into a heap-owned `ProgressCallbackFunc`. A provider implementation must keep that callback alive for at least as long as the native context. When destroying the provider, the `C2paContext*` must be freed first and the callback storage released after.
 
 #### Releasing to a custom IContextProvider
 
-`Context::ContextBuilder::release()` hands off both the native `C2paContextBuilder*` and the heap-owned progress callback (if any) to the caller. Use it when you need to build the native context yourself or adopt it into a custom `IContextProvider`.
+`Context::ContextBuilder::release()` hands off both the native `C2paContextBuilder*` and the heap-owned progress callback (if any) to the caller. It is the entry point when application code needs to build the native context directly or adopt it into a custom `IContextProvider` implementation.
 
 ```cpp
 class MyContextProvider : public c2pa::IContextProvider {
@@ -1027,10 +1027,10 @@ c2pa::Reader reader(provider, "image.jpg");
 
 `ReleasedBuilder` exposes two fields:
 
-- `builder` — the raw `C2paContextBuilder*`. Pass to `c2pa_context_builder_build` exactly once.
-- `callback_owner` — `std::unique_ptr<c2pa::ProgressCallbackFunc>`; `nullptr` when no progress callback was set. Whenever it is non-null you must keep it alive at least as long as the native context built from `builder`, otherwise the library will dereference freed memory on the next progress tick.
+- `builder`: the raw `C2paContextBuilder*`. It must be passed to `c2pa_context_builder_build` exactly once.
+- `callback_owner`: `std::unique_ptr<c2pa::ProgressCallbackFunc>`; `nullptr` when no progress callback was set. When non-null, it must remain alive at least as long as the native context built from `builder`. If it is destroyed earlier, the library will dereference freed memory on the next progress tick.
 
-If you only need the built-in `Context`, prefer `create_context()` — it performs the same handoff internally and removes any chance of splitting the pair.
+When the built-in `Context` is sufficient, `create_context()` is preferred. It performs the same handoff internally and keeps the native handle and callback owner bound together.
 
 ### Builder::sign overloads
 

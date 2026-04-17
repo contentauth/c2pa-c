@@ -245,6 +245,7 @@ namespace c2pa
         if (!is_valid()) {
             throw C2paException("ContextBuilder is invalid (moved from)");
         }
+
         // Two-stage swap: create the new heap block, register it with the FFI, and
         // only after drop any previous pending_callback_.
         auto fresh = std::make_unique<ProgressCallbackFunc>(std::move(callback));
@@ -254,7 +255,6 @@ namespace c2pa
                 progress_callback_trampoline) != 0) {
             throw C2paException();
         }
-        // FFI now references `fresh`. Safe to drop any previous block.
         pending_callback_ = std::move(fresh);
         return *this;
     }
