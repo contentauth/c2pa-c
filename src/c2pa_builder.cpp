@@ -104,9 +104,20 @@ namespace c2pa
         : builder(nullptr)
     {
         CppIStream c_archive(archive);
-        builder = c2pa_builder_from_archive(c_archive.c_stream);
-        if (builder == nullptr)
-        {
+
+        C2paContext* ctx = c2pa_context_new();
+        if (ctx == nullptr) {
+            throw C2paException();
+        }
+
+        C2paBuilder* base = c2pa_builder_from_context(ctx);
+        c2pa_free(ctx);
+        if (base == nullptr) {
+            throw C2paException();
+        }
+
+        builder = c2pa_builder_with_archive(base, c_archive.c_stream);
+        if (builder == nullptr) {
             throw C2paException();
         }
     }

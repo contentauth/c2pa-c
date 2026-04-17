@@ -183,6 +183,9 @@ else()
     # On Unix systems, link directly to the shared library
     target_link_libraries(ctest PRIVATE "${C2PA_C_LIB}")
 endif()
+if(NOT MSVC)
+    target_compile_options(ctest PRIVATE -Wno-deprecated-declarations)
+endif()
 target_include_directories(ctest PRIVATE
     "${C2PA_PREBUILT_INCLUDE_DIR}"
     ${CMAKE_CURRENT_SOURCE_DIR}/c-app-test
