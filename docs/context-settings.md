@@ -989,42 +989,6 @@ External libraries can implement `IContextProvider` to supply their own context 
 
 `Context::ContextBuilder::release()` hands off both the native `C2paContextBuilder*` and the heap-owned progress callback (if any) to the caller. It is the entry point when application code needs to build the native context directly or adopt it into a custom `IContextProvider` implementation.
 
-```cpp
-class MyContextProvider : public c2pa::IContextProvider {
-public:
-    explicit MyContextProvider(c2pa::Context::ContextBuilder::ReleasedBuilder rb) {
-        // The builder and the callback owner come as a pair; take both.
-        ctx_ = c2pa_context_builder_build(rb.builder);
-        if (!ctx_) {
-            throw c2pa::C2paException("Failed to build context");
-        }
-        callback_owner_ = std::move(rb.callback_owner);
-    }
-
-    ~MyContextProvider() noexcept override {
-        // Order matters: free the native context FIRST (stops further callback
-        // invocations), then let callback_owner_ destruct.
-        if (ctx_) {
-            c2pa_free(ctx_);
-        }
-    }
-
-    C2paContext* c_context() const noexcept override { return ctx_; }
-    bool is_valid() const noexcept override { return ctx_ != nullptr; }
-
-private:
-    C2paContext* ctx_ = nullptr;
-    std::unique_ptr<c2pa::ProgressCallbackFunc> callback_owner_;
-};
-
-auto rb = c2pa::Context::ContextBuilder()
-    .with_progress_callback([](c2pa::ProgressPhase, uint32_t, uint32_t) { return true; })
-    .release();
-
-auto provider = std::make_shared<MyContextProvider>(std::move(rb));
-c2pa::Reader reader(provider, "image.jpg");
-```
-
 `ReleasedBuilder` exposes two fields:
 
 - `builder`: the raw `C2paContextBuilder*`. It must be passed to `c2pa_context_builder_build` exactly once.
