@@ -540,3 +540,372 @@ classDiagram
     ContextBuilder --> Context : creates via create_context()
     Context --> Builder : passed to constructor
 ```
+
+## Embeddable pipeline/workflow API (`EmbeddablePipeline`)
+
+`EmbeddablePipeline` abstract the "flat" embeddable API `Builder` methods behind a mutable object with runtime state enforcement. The format string is captured once at construction, and calling a method in the wrong state throws `C2paException` with a message describing the required and current state.
+
+### State diagram
+
+```mermaid
+stateDiagram-v2
+    [*] --> init : EmbeddablePipeline(builder, format)
+
+    init --> placeholder_created : create_placeholder
+    init --> hashed : hash_from_stream [BoxHash]
+
+    placeholder_created --> exclusions_configured : set_exclusions [DataHash]
+    placeholder_created --> hashed : hash_from_stream [BmffHash]
+
+    exclusions_configured --> hashed : hash_from_stream
+
+    hashed --> pipeline_signed : sign
+    pipeline_signed --> [*]
+
+    note right of init
+        Use hash_type() to determine which path applies.
+    end note
+```
+
+### Methods by state
+
+The following diagram groups methods by which state enables them. `EmbeddablePipeline` is a single class. The state groups show which methods are callable at runtime in each state, not separate C++ types.
+
+```mermaid
+classDiagram
+    class EmbeddablePipeline {
+        -Builder builder_
+        -string format_
+        -State state_
+        +EmbeddablePipeline(Builder&&, string format)
+        +format() const string&
+        +current_state() State
+        +state_name(State) const char*$
+        +hash_type() HashType
+        +is_faulted() bool
+        +release_builder() Builder
+        +faulted_from() optional~State~
+    }
+
+    class init {
+        +create_placeholder() const vector~uint8~&
+        +hash_from_stream(stream) [BoxHash]
+    }
+
+    class placeholder_created {
+        +set_exclusions(excl)
+        +hash_from_stream(stream) [BmffHash]
+        +placeholder_bytes() const vector~uint8~&
+    }
+
+    class exclusions_configured {
+        +hash_from_stream(stream) [DataHash]
+        +placeholder_bytes() const vector~uint8~&
+        +exclusion_ranges() const vector&
+    }
+
+    class hashed {
+        +sign() const vector~uint8~&
+        +placeholder_bytes() const vector~uint8~&
+        +exclusion_ranges() const vector&
+    }
+
+    class pipeline_signed {
+        +signed_bytes() const vector~uint8~&
+        +placeholder_bytes() const vector~uint8~&
+        +exclusion_ranges() const vector&
+    }
+
+    EmbeddablePipeline -- init : state = init
+    EmbeddablePipeline -- placeholder_created : state = placeholder_created
+    EmbeddablePipeline -- exclusions_configured : state = exclusions_configured
+    EmbeddablePipeline -- hashed : state = hashed
+    EmbeddablePipeline -- pipeline_signed : state = pipeline_signed
+```
+
+### When to use `EmbeddablePipeline` vs the flat API
+
+`EmbeddablePipeline` wraps the flat Builder embeddable methods (`placeholder`, `set_data_hash_exclusions`, `update_hash_from_stream`, `sign_embeddable`) with format capture, state enforcement, and polymorphic dispatch.
+
+Use the pipeline when the asset format is determined at runtime and the caller wants the factory to select the correct workflow type automatically. The pipeline stores the format string once at construction and passes it to every internal Builder call, which removes the risk of inconsistent format strings across the multi-step workflow. Each method validates the current state before proceeding and throws `C2paException` with a message naming both the required and current states, which is more useful than the errors that surface from the Rust FFI layer when flat Builder methods are called out of order. If any operation fails, the pipeline transitions to a terminal `faulted` state and rejects all subsequent calls (see [Faulted state and recovery](#faulted-state-and-recovery)).
+
+Use the flat Builder methods when the caller manages its own orchestration, needs to interleave other Builder operations (like `add_ingredient` or `add_resource`) between embeddable steps, or needs to archive the builder mid-workflow. The pipeline consumes the Builder at construction via move semantics, so these operations are not available after that point. See also [Archiving](#archiving).
+
+### Factory construction
+
+`EmbeddablePipeline::create(builder, format)` calls `Builder::hash_type(format)` to determine the hard-binding strategy. This method calls the C API function `c2pa_builder_hash_type()`, which returns a `C2paHashType` enum value (`DataHash = 0`, `BmffHash = 1`, or `BoxHash = 2`). The C++ wrapper maps these to `HashType::Data`, `HashType::Bmff`, and `HashType::Box`, and the factory constructs the matching subclass (`DataHashPipeline`, `BmffHashPipeline`, or `BoxHashPipeline`). The result is returned as a `std::unique_ptr<EmbeddablePipeline>`.
+
+Not every pipeline subclass supports every method. Calling an unsupported method throws `C2paUnsupportedOperationException`, a subclass of `C2paException`. Each optional step can be wrapped in its own `try`/`catch`:
+
+```cpp
+auto pipeline = c2pa::EmbeddablePipeline::create(std::move(builder), format);
+
+try {
+    auto& placeholder = pipeline->create_placeholder();
+    // embed placeholder into asset at offset ...
+} catch (const c2pa::C2paUnsupportedOperationException&) {
+    // BoxHash does not use placeholders
+}
+
+try {
+    pipeline->set_exclusions({{offset, placeholder_size}});
+} catch (const c2pa::C2paUnsupportedOperationException&) {
+    // BmffHash and BoxHash do not use exclusions
+}
+
+std::ifstream stream(asset_path, std::ios::binary);
+pipeline->hash_from_stream(stream);
+stream.close();
+
+auto& manifest = pipeline->sign();
+```
+
+If the hash type is known at compile time, construct the concrete subclass directly to avoid the factory's runtime dispatch:
+
+```cpp
+auto pipeline = c2pa::DataHashPipeline(std::move(builder), "image/jpeg");
+```
+
+### Pipeline DataHash example
+
+```cpp
+auto pipeline = c2pa::DataHashPipeline(std::move(builder), "image/jpeg");
+
+auto& placeholder = pipeline.create_placeholder();
+uint64_t offset = 2;
+auto size = placeholder.size();
+// embed placeholder into asset at offset
+
+pipeline.set_exclusions({{offset, size}});
+
+std::ifstream stream("output.jpg", std::ios::binary);
+pipeline.hash_from_stream(stream);
+stream.close();
+
+auto& manifest = pipeline.sign();
+// patch the placeholder in place
+```
+
+### Pipeline BmffHash example
+
+```cpp
+auto pipeline = c2pa::BmffHashPipeline(std::move(builder), "video/mp4");
+
+auto& placeholder = pipeline.create_placeholder();
+// embed into container
+
+std::ifstream stream("output.mp4", std::ios::binary);
+pipeline.hash_from_stream(stream);
+stream.close();
+
+auto& manifest = pipeline.sign();
+```
+
+### State gating
+
+Transition methods require an exact state. Calling any transition method on a `faulted` or `cancelled` pipeline throws `C2paException`.
+
+| Method | Allowed state(s) |
+| --- | --- |
+| `create_placeholder()` | `init` |
+| `set_exclusions()` | `placeholder_created` |
+| `hash_from_stream()` | `init` (BoxHash), `placeholder_created` (BmffHash), `exclusions_configured` (DataHash) |
+| `sign()` | `hashed` |
+
+Accessors are available from the state where the data is produced onward. Calling an accessor on a pipeline path that never produced the data (e.g. `placeholder_bytes()` on a BoxHash pipeline) throws `C2paException`.
+
+| Accessor | Available from |
+| --- | --- |
+| `placeholder_bytes()` | `placeholder_created` and later |
+| `exclusion_ranges()` | `exclusions_configured` and later |
+| `signed_bytes()` | `pipeline_signed` |
+| `release_builder()` | any state (throws if already released) |
+| `faulted_from()` | any state (returns `std::nullopt` if not faulted) |
+
+Calling a method in the wrong state throws `C2paException`:
+
+```text
+sign() requires state 'hashed' but current state is 'init'
+```
+
+### Faulted state and recovery
+
+If any pipeline operation throws, the pipeline transitions to the `faulted` state. `faulted` is part of the `State` enum and is returned by `current_state()`. The `is_faulted()` convenience method returns `true` when `current_state() == State::faulted`. A faulted pipeline rejects all subsequent workflow calls:
+
+```text
+hash_from_stream() cannot be called: pipeline faulted during a prior operation
+```
+
+#### Builder safety after a fault
+
+A failed operation may leave the Builder in an inconsistent state. `faulted_from()` returns the state the pipeline was in when the fault occurred, which determines whether the recovered Builder is safe to reuse directly or should be restored from an archive.
+
+| `faulted_from()` | Failed operation | Builder safe to reuse? |
+| --- | --- | --- |
+| `init` | `create_placeholder()` or `hash_from_stream()` (BoxHash) | No |
+| `placeholder_created` | `set_exclusions()` | Yes |
+| `placeholder_created` | `hash_from_stream()` (BmffHash) | No |
+| `exclusions_configured` | `hash_from_stream()` (DataHash) | No |
+| `hashed` | `sign()` | Yes |
+
+#### Recovery via archive
+
+Archive the Builder before creating the pipeline. On fault, restore from the archive for a retry regardless of which operation failed.
+
+```cpp
+std::ostringstream archive_stream;
+builder.to_archive(archive_stream);
+auto pipeline = c2pa::EmbeddablePipeline::create(std::move(builder), format);
+
+try {
+    pipeline->create_placeholder();
+    // embed placeholder, set exclusions ...
+    pipeline->hash_from_stream(stream);
+    auto& manifest = pipeline->sign();
+} catch (const c2pa::C2paException& e) {
+    if (pipeline->is_faulted()) {
+        // Restore from archive with the same signer context
+        std::istringstream restore(archive_stream.str());
+        auto clean_builder = c2pa::Builder(context);
+        clean_builder.with_archive(restore);
+        pipeline = c2pa::EmbeddablePipeline::create(std::move(clean_builder), format);
+    }
+}
+```
+
+#### Recovery via release_builder()
+
+When archiving is not available, `release_builder()` recovers the Builder directly. Check `faulted_from()` to determine whether the Builder is safe to reuse.
+
+```cpp
+if (pipeline->is_faulted()) {
+    auto from = pipeline->faulted_from();
+    auto builder = pipeline->release_builder();
+
+    if (from == c2pa::EmbeddablePipeline::State::hashed) {
+        // sign() did not mutate the builder; retry with it directly
+        auto retry = c2pa::EmbeddablePipeline::create(std::move(builder), format);
+    } else {
+        // placeholder() or hash_from_stream() may have left inconsistent
+        // assertions in the builder; restore from archive instead
+    }
+}
+```
+
+### Progress reporting and cancellation
+
+Progress callbacks and cancellation are configured on the Context (set on the Builder), not on the pipeline. The pipeline's Builder holds a reference to the Context, so a callback registered via `ContextBuilder::with_progress_callback` fires automatically during `hash_from_stream()` and `sign()`. See [Progress callbacks and cancellation](context-settings.md#progress-callbacks-and-cancellation) for details on progress callbacks.
+
+#### Reporting progress
+
+Register a callback on the Context before constructing the pipeline:
+
+```cpp
+std::atomic<bool> saw_hashing{false};
+
+auto context = c2pa::Context::ContextBuilder()
+    .with_signer(c2pa::Signer("Es256", certs, private_key, "http://timestamp.digicert.com"))
+    .with_progress_callback([&](c2pa::ProgressPhase phase, uint32_t step, uint32_t total) {
+        if (phase == c2pa::ProgressPhase::Hashing) {
+            saw_hashing.store(true);
+        }
+        return true;  // continue
+    })
+    .create_context();
+
+auto builder = c2pa::Builder(context, manifest_json);
+auto pipeline = c2pa::BmffHashPipeline(std::move(builder), "video/mp4");
+
+auto& placeholder = pipeline.create_placeholder();
+// insert placeholder into container ...
+
+std::ifstream stream("output.mp4", std::ios::binary);
+pipeline.hash_from_stream(stream);  // Hashing progress events fire here
+stream.close();
+
+auto& manifest = pipeline.sign();   // Signing/Embedding events fire here
+```
+
+> [!IMPORTANT]
+> The Context must remain valid for the lifetime of the pipeline. The progress callback is owned by the Context, and destroying the Context while the pipeline is still in use causes undefined behavior.
+
+#### Cancelling via callback
+
+Return `false` from the progress callback to cancel the current operation. The pipeline throws `C2paCancelledException` (a subclass of `C2paException`) and transitions to the `cancelled` state:
+
+```cpp
+std::atomic<bool> should_cancel{false};
+
+auto context = c2pa::Context::ContextBuilder()
+    .with_signer(std::move(signer))
+    .with_progress_callback([&](c2pa::ProgressPhase, uint32_t, uint32_t) {
+        return !should_cancel.load();
+    })
+    .create_context();
+
+auto builder = c2pa::Builder(context, manifest_json);
+auto pipeline = c2pa::BmffHashPipeline(std::move(builder), "video/mp4");
+pipeline.create_placeholder();
+// insert placeholder ...
+
+should_cancel.store(true);  // e.g. user clicked Cancel
+
+try {
+    std::ifstream stream("output.mp4", std::ios::binary);
+    pipeline.hash_from_stream(stream);
+} catch (const c2pa::C2paCancelledException&) {
+    // pipeline.current_state() == State::cancelled
+    // pipeline.is_faulted()    == false
+}
+```
+
+#### Cancelling via `Context::cancel()`
+
+Call `Context::cancel()` from another thread to abort a running operation. The Context must remain valid and must not be destroyed or moved concurrently with this call:
+
+```cpp
+// context must outlive the pipeline and remain valid during cancel()
+std::thread cancel_thread([&context]() {
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    context.cancel();
+});
+
+try {
+    std::ifstream stream("output.mp4", std::ios::binary);
+    pipeline.hash_from_stream(stream);
+    auto& manifest = pipeline.sign();
+} catch (const c2pa::C2paCancelledException&) {
+    // pipeline is now cancelled
+}
+
+cancel_thread.join();
+```
+
+Both cancellation paths produce the same result: the pipeline transitions to `cancelled`, throws `C2paCancelledException`, and rejects all subsequent workflow calls with `C2paCancelledException`. Recover the Builder with `release_builder()` or restore from an archive (see [Archiving](#archiving)).
+
+### Cancelled state
+
+The pipeline transitions to the `cancelled` state when:
+
+- `release_builder()` is called on a non-faulted pipeline, or
+- a progress callback returns `false`, or
+- `Context::cancel()` is called during an operation.
+
+This is distinct from `faulted`: `cancelled` means the caller chose to stop, not that an operation failed. Like `faulted`, a cancelled pipeline rejects all subsequent workflow calls, but it throws `C2paCancelledException` instead of `C2paException`.
+
+### Archiving
+
+The pipeline does not expose `to_archive()`. The pipeline's workflow state (current state, cached placeholder bytes, exclusion ranges) is not part of the Builder's archive format. Archive the Builder before constructing the pipeline if you need the ability to restore a Builder later (e.g. for retries on failure).
+
+```cpp
+auto builder = c2pa::Builder(context, manifest_json);
+builder.add_ingredient(ingredient_json, "image/jpeg", ingredient_stream);
+
+// Archive before creating the pipeline
+builder.to_archive(archive_stream);
+
+// Later: restore into a builder with the same context (signer included)
+auto restored = c2pa::Builder(context);
+restored.with_archive(archive_stream);
+auto pipeline = c2pa::EmbeddablePipeline::create(std::move(restored), format);
+```
