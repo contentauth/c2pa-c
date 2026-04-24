@@ -14,6 +14,7 @@
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -5857,4 +5858,172 @@ TEST_F(BuilderTest, CreateIntentViaContext)
         }
     }
     ASSERT_TRUE(found_created) << "Expected c2pa.created action in active manifest";
+}
+
+TEST_F(BuilderTest, ArchiveIngredientRoundTripAndReuse)
+{
+    auto context = c2pa::Context();
+    auto source_path = c2pa_test::get_fixture_path("A.jpg");
+
+    // Shared instance_id links the parentOf ingredient to a c2pa.opened action.
+    // Thos will make the archive valid
+    std::string instance_id = "xmp:iid:archive-roundtrip-0001";
+    json manifest_json = {
+        {"claim_generator_info", json::array({{{"name", "c2pa-test"}, {"version", "1.0"}}})},
+        {"assertions", json::array({
+            {
+                {"label", "c2pa.actions"},
+                {"data", {
+                    {"actions", json::array({
+                        {
+                            {"action", "c2pa.opened"},
+                            {"parameters", {
+                                {"ingredientIds", json::array({instance_id})}
+                            }}
+                        }
+                    })}
+                }}
+            }
+        })}
+    };
+
+    // 1. Builder1: add parentOf ingredient linked to c2pa.opened, no signing.
+    auto builder1 = c2pa::Builder(context, manifest_json.dump());
+    json ingredient = {
+        {"title", "A.jpg"},
+        {"relationship", "parentOf"},
+        {"instance_id", instance_id}
+    };
+    builder1.add_ingredient(ingredient.dump(), source_path);
+
+    // 2. Archive to .c2pa file.
+    auto archive_path = get_temp_path("roundtrip-ingredient.c2pa");
+    ASSERT_NO_THROW(builder1.to_archive(archive_path));
+    ASSERT_TRUE(fs::exists(archive_path));
+    ASSERT_GT(fs::file_size(archive_path), 0u);
+
+    // 3. Read archive back; manifest must parse and carry the ingredient.
+    std::ifstream archive_in(archive_path, std::ios::binary);
+    c2pa::Reader archive_reader(context, "application/c2pa", archive_in);
+    std::string archive_json;
+    ASSERT_NO_THROW(archive_json = archive_reader.json());
+
+    auto parsed = json::parse(archive_json);
+    ASSERT_TRUE(parsed.contains("active_manifest"));
+    std::string active = parsed["active_manifest"];
+    auto ingredients = parsed["manifests"][active]["ingredients"];
+    ASSERT_EQ(ingredients.size(), 1u);
+    EXPECT_EQ(ingredients[0]["title"], "A.jpg");
+    EXPECT_EQ(ingredients[0]["relationship"], "parentOf");
+
+    // 4. Builder2: fresh manifest (training.json) + add the archive as an ingredient.
+    auto builder2_manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto builder2 = c2pa::Builder(context, builder2_manifest);
+    json ingredient_override = {
+        {"title", "A.jpg"},
+        {"relationship", "componentOf"}
+    };
+    ASSERT_NO_THROW(builder2.add_ingredient(ingredient_override.dump(), archive_path));
+
+    // 5. Sign builder2 and validate signed output.
+    auto signer = c2pa_test::create_test_signer();
+    auto output_path = get_temp_path("archive_reused_output.jpg");
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder2.sign(source_path, output_path, signer));
+    ASSERT_FALSE(manifest_data.empty());
+
+    auto out_reader = c2pa::Reader(context, output_path);
+    std::string out_json;
+    ASSERT_NO_THROW(out_json = out_reader.json());
+    auto out_parsed = json::parse(out_json);
+    std::string out_active = out_parsed["active_manifest"];
+    auto out_ingredients = out_parsed["manifests"][out_active]["ingredients"];
+    ASSERT_EQ(out_ingredients.size(), 1u);
+    EXPECT_EQ(out_ingredients[0]["title"], "A.jpg");
+    EXPECT_EQ(out_ingredients[0]["relationship"], "componentOf");
+}
+
+TEST_F(BuilderTest, ArchiveIngredientWithProvenanceRoundTripAndReuse)
+{
+    auto context = c2pa::Context();
+    auto source_path = c2pa_test::get_fixture_path("A.jpg");
+    auto ingredient_path = c2pa_test::get_fixture_path("C.jpg");
+
+    // Shared instance_id links the parentOf ingredient to a c2pa.opened action.
+    std::string instance_id = "xmp:iid:archive-roundtrip-provenance-0001";
+
+    json manifest_json = {
+        {"claim_generator_info", json::array({{{"name", "c2pa-test"}, {"version", "1.0"}}})},
+        {"assertions", json::array({
+            {
+                {"label", "c2pa.actions"},
+                {"data", {
+                    {"actions", json::array({
+                        {
+                            {"action", "c2pa.opened"},
+                            {"parameters", {
+                                {"ingredientIds", json::array({instance_id})}
+                            }}
+                        }
+                    })}
+                }}
+            }
+        })}
+    };
+
+    // 1. Builder1: add parentOf ingredient (C.jpg is C2PA-signed, has provenance).
+    auto builder1 = c2pa::Builder(context, manifest_json.dump());
+    json ingredient = {
+        {"title", "C.jpg"},
+        {"relationship", "parentOf"},
+        {"instance_id", instance_id}
+    };
+    builder1.add_ingredient(ingredient.dump(), ingredient_path);
+
+    // 2. Archive to .c2pa file.
+    auto archive_path = get_temp_path("roundtrip-provenance-ingredient.c2pa");
+    ASSERT_NO_THROW(builder1.to_archive(archive_path));
+    ASSERT_TRUE(fs::exists(archive_path));
+    ASSERT_GT(fs::file_size(archive_path), 0u);
+
+    // 3. Read archive back; manifest must parse and carry the ingredient.
+    std::ifstream archive_in(archive_path, std::ios::binary);
+    c2pa::Reader archive_reader(context, "application/c2pa", archive_in);
+    std::string archive_json;
+    ASSERT_NO_THROW(archive_json = archive_reader.json());
+    std::cout << archive_json << std::endl;
+
+    auto parsed = json::parse(archive_json);
+    ASSERT_TRUE(parsed.contains("active_manifest"));
+    std::string active = parsed["active_manifest"];
+    auto ingredients = parsed["manifests"][active]["ingredients"];
+    ASSERT_EQ(ingredients.size(), 1u);
+    EXPECT_EQ(ingredients[0]["title"], "C.jpg");
+    EXPECT_EQ(ingredients[0]["relationship"], "parentOf");
+
+    // 4. Builder2: fresh manifest + add the archive as an ingredient.
+    auto builder2_manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto builder2 = c2pa::Builder(context, builder2_manifest);
+    json ingredient_override = {
+        {"title", "C.jpg"},
+        {"relationship", "componentOf"}
+    };
+    ASSERT_NO_THROW(builder2.add_ingredient(ingredient_override.dump(), archive_path));
+
+    // 5. Sign builder2 and validate signed output.
+    auto signer = c2pa_test::create_test_signer();
+    auto output_path = get_temp_path("archive_provenance_reused_output.jpg");
+    std::vector<unsigned char> manifest_data;
+    ASSERT_NO_THROW(manifest_data = builder2.sign(source_path, output_path, signer));
+    ASSERT_FALSE(manifest_data.empty());
+
+    auto out_reader = c2pa::Reader(context, output_path);
+    std::string out_json;
+    ASSERT_NO_THROW(out_json = out_reader.json());
+    auto out_parsed = json::parse(out_json);
+    std::string out_active = out_parsed["active_manifest"];
+    auto out_ingredients = out_parsed["manifests"][out_active]["ingredients"];
+    ASSERT_EQ(out_ingredients.size(), 1u);
+    EXPECT_EQ(out_ingredients[0]["title"], "C.jpg");
+    EXPECT_EQ(out_ingredients[0]["relationship"], "componentOf");
 }
