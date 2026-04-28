@@ -183,6 +183,7 @@ set(C2PA_CPP_PARTS
     c2pa_core.cpp
     c2pa_context.cpp
     c2pa_builder.cpp
+    c2pa_embeddable_pipeline.cpp
     c2pa_reader.cpp
     c2pa_settings.cpp
     c2pa_signer.cpp
