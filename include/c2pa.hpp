@@ -1276,6 +1276,18 @@ namespace c2pa
         /// @note Prefer using the streaming APIs if possible.
         void to_archive(const std::filesystem::path &dest_path);
 
+        /// @brief Write a single-ingredient archive for the named ingredient.
+        /// @param ingredient_id The instance_id of the ingredient within this builder.
+        /// @param dest The output stream to write the ingredient archive to.
+        /// @note Requires the `generate_c2pa_archive` context setting to be enabled.
+        /// @throws C2paException for errors encountered by the C2PA library.
+        void write_ingredient_archive(const std::string &ingredient_id, std::ostream &dest);
+
+        /// @brief Add an ingredient to this builder from a per-ingredient archive stream.
+        /// @param archive The input stream containing the archive produced by write_ingredient_archive.
+        /// @throws C2paException for errors encountered by the C2PA library.
+        void add_ingredient_from_archive(std::istream &archive);
+
         /// @brief Create a hashed placeholder from the builder.
         /// @param reserved_size The size required for a signature from the intended signer (in bytes).
         /// @param format The mime format or extension of the asset.

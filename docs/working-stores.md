@@ -609,6 +609,8 @@ const std::string ingredient_json = R"({
 builder.add_ingredient(ingredient_json, "base_layer.png");
 ```
 
+For the dedicated single-ingredient archive APIs, see [Single-ingredient archive APIs](#single-ingredient-archive-apis) below. For the multi-archive catalog use case, see [The ingredients catalog pattern](./selective-manifests.md#the-ingredients-catalog-pattern) in the selective manifests guide.
+
 ## Working with archives 
 
 An *archive* (C2PA archive) is a serialized working store (`Builder` object) saved to a file or stream.
@@ -729,6 +731,103 @@ void sign_asset() {
     std::cout << "Asset signed with manifest store" << std::endl;
 }
 ```
+
+### Single-ingredient archive APIs
+
+The `Builder` class exposes two dedicated APIs for moving a single ingredient between builders without manual JSON manipulation:
+
+- `Builder::write_ingredient_archive(id, stream)` writes one already-registered ingredient out as a single-ingredient JUMBF archive.
+- `Builder::add_ingredient_from_archive(stream)` loads one such archive into a builder.
+
+#### How `add_ingredient` and `write_ingredient_archive` interact
+
+`add_ingredient(json, source)` is the registration step. It hashes the source asset, builds the ingredient assertion, and stores the ingredient in the builder under an id read from the JSON. The id is the `label` field if present, otherwise `instance_id`.
+
+`write_ingredient_archive(id, stream)` is a lookup step rather than a factory. It finds an ingredient that was already registered under `id` and serializes that one ingredient as a JUMBF archive (tagged `ARCHIVE_TYPE_INGREDIENT`). Calling it without a prior `add_ingredient` for that id throws `c2pa::C2paException`.
+
+Two more contract points to keep in mind:
+
+- The producing builder must have the `builder.generate_c2pa_archive` setting enabled. Otherwise `write_ingredient_archive` throws.
+- The exported archive is not a lossless slice of the parent. It contains one cloned ingredient and a fresh claim instance id. Any other ingredients on the parent builder are omitted.
+
+`add_ingredient_from_archive(stream)` adds the ingredient back to a consuming builder, keyed by the same id the producer used.
+
+#### Example 1: Write a single-ingredient archive
+
+```cpp
+auto settings = c2pa::Settings();
+settings.set("builder.generate_c2pa_archive", "true");
+auto context = c2pa::Context::ContextBuilder()
+    .with_settings(std::move(settings))
+    .create_context();
+
+auto builder = c2pa::Builder(context, manifest_json);
+
+// Register three ingredients. The `label` becomes each ingredient's id.
+builder.add_ingredient(
+    R"({"title": "first.jpg", "relationship": "componentOf", "label": "first"})",
+    "first.jpg");
+builder.add_ingredient(
+    R"({"title": "second.jpg", "relationship": "componentOf", "label": "second"})",
+    "second.jpg");
+builder.add_ingredient(
+    R"({"title": "third.jpg", "relationship": "componentOf", "label": "third"})",
+    "third.jpg");
+
+// Look up "second" and write only that one to the archive stream.
+std::stringstream archive(std::ios::in | std::ios::out | std::ios::binary);
+builder.write_ingredient_archive("second", archive);
+```
+
+The archive contains exactly one ingredient. Reading it back through `c2pa::Reader` with format `application/c2pa` shows a single-ingredient manifest.
+
+#### Example 2: Load an ingredient archive into a fresh builder
+
+```cpp
+auto settings = c2pa::Settings();
+settings.set("builder.generate_c2pa_archive", "true");
+auto context = c2pa::Context::ContextBuilder()
+    .with_settings(std::move(settings))
+    .create_context();
+
+auto consumer = c2pa::Builder(context, manifest_json);
+
+// `archive` is a stream produced by write_ingredient_archive on another builder.
+archive.seekg(0);
+consumer.add_ingredient_from_archive(archive);
+
+// The ingredient is now registered on `consumer`. Sign as usual.
+consumer.sign("source.jpg", "output.jpg", signer);
+```
+
+#### Id resolution
+
+The id passed to `write_ingredient_archive` matches against fields on the registered ingredient JSON in the order:
+
+1. `label` if it is set and non-empty.
+2. `instance_id` if no `label` is set.
+
+When only `instance_id` is set (no `label`), the `instance_id` value is the lookup key. The same key is the one to use in `ingredientIds` when linking the loaded ingredient to an action.
+
+#### Errors
+
+`write_ingredient_archive` throws `c2pa::C2paException` when:
+
+- The producing `Builder` has no prior `add_ingredient` registration. The lookup table is empty, so no id can resolve.
+- The id does not match any registered ingredient's `label` or `instance_id`. Registering ingredient `real-id` and then asking for `wrong-id` throws.
+
+```cpp
+auto builder = c2pa::Builder(context, manifest_json);
+builder.add_ingredient(
+    R"({"title": "photo.jpg", "relationship": "componentOf", "label": "real-id"})",
+    "photo.jpg");
+
+std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+// Throws c2pa::C2paException: "wrong-id" was never registered.
+builder.write_ingredient_archive("wrong-id", stream);
+```
+
+For a multi-archive use case (one catalog, many ingredients picked at build time), see [The ingredients catalog pattern](./selective-manifests.md#the-ingredients-catalog-pattern) in the selective manifests guide. It compares the read-filter-rebuild approach with this dedicated single-ingredient API.
 
 ## Embedded vs external manifests
 
