@@ -242,7 +242,7 @@ inline bool paths_alias(const std::filesystem::path &a,
     return ca == cb;
 }
 
-/// @brief Test whether two C++ streams share the same underlying buffer.
+/// @brief Test whether two streams share the same underlying buffer.
 /// @details Compares std::streambuf pointers via rdbuf().
 ///          Returns false if either rdbuf is null, since a null source rdbuf is
 ///          independently broken and will fail at the first read attempt.
