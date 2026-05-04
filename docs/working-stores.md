@@ -444,22 +444,19 @@ Ingredients represent source materials used to create an asset, preserving the p
 
 ### Ingredient vs. ingredient archive
 
-A **plain ingredient** is a source asset (image, video, ...) that the builder reads at `add_ingredient` time. The builder sees the asset's bytes, and stores live required ingredient data (including any caller-set `instance_id`) inside the new manifest.
+A **(plain) ingredient** is a source asset that the builder reads at `add_ingredient` time. The builder sees the asset's bytes, and stores live required ingredient data (including any caller-set `instance_id`) inside the new manifest.
 
-An **ingredient archive** is a `.c2pa` file produced by `to_archive()` that already contains a fully-formed ingredient ("ready to use"). When passed to `add_ingredient`, the builder treats the archive's contents as opaque provenance: the archive's internal fields are not exposed as live JSON the signing builder can introspect (or use for linking to actions). Only the JSON the caller supplies in the _current_ `add_ingredient` call is visible to the builder in that round.
+An **ingredient archive** (in c2pa-archive-format) is a `.c2pa` file produced by `to_archive()` that already contains a fully-formed ingredient ("ready to use"). When passed to `add_ingredient`, the builder treats the archive's contents as opaque provenance: the archive's internal fields are not exposed as live JSON the signing builder can introspect (or use for linking to actions). Only the JSON the caller supplies in the _current_ `add_ingredient` call is visible to the builder in that round.
 
 This difference governs how each can be linked to an action via `ingredientIds`:
 
-| Aspect | Plain ingredient | Ingredient archive |
+| Aspect | Ingredient | Ingredient archive |
 | --- | --- | --- |
 | Source format passed to `add_ingredient` | Asset MIME type (`image/jpeg`, `video/mp4`, ...) or asset path | `application/c2pa` or path to a `.c2pa` file |
-| What `add_ingredient` sees | Live asset bytes | A serialized manifest store (opaque provenance) |
+| What `add_ingredient` sees | "Live" asset | A serialized manifest store (opaque provenance) |
 | Linking via `label` set on the signing builder's `add_ingredient` JSON | Primary linking key | Only linking key that works |
-| Linking via `instance_id` on the `add_ingredient` JSON | Fallback when `label` is absent | Does not link; sign-time error |
-| Linking via a `label` baked in at archive-creation time | N/A (no archive involved) | Does not carry through; must be re-asserted on the signing builder |
-| Caller-set metadata that survives signing | `instance_id`, `description`, `informational_URI`, `title` | Same |
-
-See [Linking an ingredient archive to an action](#linking-an-ingredient-archive-to-an-action) for the consequences when linking.
+| Linking via `instance_id` on the `add_ingredient` JSON | Fallback when `label` is absent | Does not link, sign-time error |
+| Linking via a `label` baked in at archive-creation time | N/A (not an archive) | Does not carry through, must be re-asserted on the signing builder |
 
 ### Adding ingredients to a working store
 

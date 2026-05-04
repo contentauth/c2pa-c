@@ -884,7 +884,7 @@ builder.add_ingredient(
     json({
         {"title", ingredient["title"]},
         {"relationship", "parentOf"},
-        {"label", "archived-ingredient"}  // The linking key — chosen here, not read from the archive.
+        {"label", "archived-ingredient"}  // The linking key: chosen here, not read from the archive.
     }).dump(),
     "application/c2pa",
     archive_file);
