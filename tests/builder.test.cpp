@@ -855,6 +855,100 @@ TEST_F(BuilderTest, SignImageFileOnly)
     ASSERT_TRUE(std::filesystem::exists(output_path));
 };
 
+TEST_F(BuilderTest, SignFile_SameSourceAndDest_ThrowsWithoutTouchingSource)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path src_asset = current_dir / "../tests/fixtures/A.jpg";
+
+    fs::path inplace_path = get_temp_path("inplace_same_path.jpg");
+    fs::copy_file(src_asset, inplace_path, fs::copy_options::overwrite_existing);
+    auto orig_size = fs::file_size(inplace_path);
+    ASSERT_GT(orig_size, 0u);
+
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    c2pa::Signer signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+    c2pa::Builder builder(manifest);
+
+    EXPECT_THROW(builder.sign(inplace_path, inplace_path, signer), c2pa::C2paException);
+    EXPECT_EQ(fs::file_size(inplace_path), orig_size)
+        << "Source file must be untouched when sign rejects aliased paths.";
+}
+
+TEST_F(BuilderTest, SignFile_SameSourceAndDest_NoSigner_ThrowsWithoutTouchingSource)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path src_asset = current_dir / "../tests/fixtures/A.jpg";
+
+    fs::path inplace_path = get_temp_path("inplace_same_path_nosigner.jpg");
+    fs::copy_file(src_asset, inplace_path, fs::copy_options::overwrite_existing);
+    auto orig_size = fs::file_size(inplace_path);
+    ASSERT_GT(orig_size, 0u);
+
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    c2pa::Builder builder(manifest);
+
+    EXPECT_THROW(builder.sign(inplace_path, inplace_path), c2pa::C2paException);
+    EXPECT_EQ(fs::file_size(inplace_path), orig_size);
+}
+
+TEST_F(BuilderTest, SignStream_SameIOStream_Throws)
+{
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path src_asset = current_dir / "../tests/fixtures/A.jpg";
+
+    std::ifstream in(src_asset, std::ios::binary);
+    ASSERT_TRUE(in.is_open());
+    std::stringstream both(std::ios::in | std::ios::out | std::ios::binary);
+    both << in.rdbuf();
+    auto orig_bytes = both.str();
+    ASSERT_FALSE(orig_bytes.empty());
+
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    c2pa::Signer signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+    c2pa::Builder builder(manifest);
+
+    std::iostream &both_io = both;
+    EXPECT_THROW(builder.sign("image/jpeg", both_io, both_io, signer), c2pa::C2paException);
+    EXPECT_EQ(both.str(), orig_bytes)
+        << "Stream buffer must be untouched when sign rejects aliased streams.";
+}
+
+TEST_F(BuilderTest, SignStream_DistinctStreamsSharingBuffer_Throws)
+{
+    // Two distinct stream wrappers around one streambuf should be rejected.
+    fs::path current_dir = fs::path(__FILE__).parent_path();
+    fs::path manifest_path = current_dir / "../tests/fixtures/training.json";
+    fs::path certs_path = current_dir / "../tests/fixtures/es256_certs.pem";
+    fs::path src_asset = current_dir / "../tests/fixtures/A.jpg";
+
+    std::ifstream in(src_asset, std::ios::binary);
+    ASSERT_TRUE(in.is_open());
+    std::stringstream backing(std::ios::in | std::ios::out | std::ios::binary);
+    backing << in.rdbuf();
+    auto orig_bytes = backing.str();
+
+    std::istream src_view(backing.rdbuf());
+    std::iostream dest_view(backing.rdbuf());
+
+    auto manifest = c2pa_test::read_text_file(manifest_path);
+    auto certs = c2pa_test::read_text_file(certs_path);
+    auto p_key = c2pa_test::read_text_file(current_dir / "../tests/fixtures/es256_private.key");
+    c2pa::Signer signer("Es256", certs, p_key, "http://timestamp.digicert.com");
+    c2pa::Builder builder(manifest);
+
+    EXPECT_THROW(builder.sign("image/jpeg", src_view, dest_view, signer), c2pa::C2paException);
+    EXPECT_EQ(backing.str(), orig_bytes);
+}
+
 TEST_F(BuilderTest, SignImageFileNoThumbnailAutoGenThreadLocalSettings)
 {
     // Run in separate thread for complete test isolation (thread-local settings won't leak)

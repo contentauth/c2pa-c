@@ -221,6 +221,11 @@ namespace c2pa
 
     std::vector<unsigned char> Builder::sign(const std::string &format, std::istream &source, std::ostream &dest, Signer &signer)
     {
+        if (detail::streams_alias(source, dest)) {
+            throw C2paException(
+                "Source and destination streams share the same underlying buffer; "
+                "in-place signing is not supported and would corrupt the source data.");
+        }
         // Caller's source/dest streams must outlive this call
         // Stream wrappers are stack locals that wrap the caller's streams
         CppIStream c_source(source);
@@ -234,6 +239,11 @@ namespace c2pa
 
     std::vector<unsigned char> Builder::sign(const std::string &format, std::istream &source, std::iostream &dest, Signer &signer)
     {
+        if (detail::streams_alias(source, dest)) {
+            throw C2paException(
+                "Source and destination streams share the same underlying buffer; "
+                "in-place signing is not supported and would corrupt the source data.");
+        }
         // Caller's source/dest streams must outlive this call
         // Stream wrappers are stack locals that wrap the caller's streams
         CppIStream c_source(source);
@@ -250,9 +260,17 @@ namespace c2pa
     /// @param dest_path The path to write the signed file to.
     /// @param signer A signer object to use when signing.
     /// @return A vector containing the signed manifest bytes.
+    /// @pre source_path and dest_path must refer to different files. In-place signing
+    ///      is not supported; passing the same path (or two paths that resolve to the
+    ///      same filesystem entity) throws C2paException without modifying the source.
     /// @throws C2pa::C2paException for errors encountered by the C2PA library.
     std::vector<unsigned char> Builder::sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path, Signer &signer)
     {
+        if (detail::paths_alias(source_path, dest_path)) {
+            throw C2paException(
+                "Source and destination must differ; "
+                "in-place signing is not supported and would corrupt the source file.");
+        }
         auto source = detail::open_file_binary<std::ifstream>(source_path);
         // Ensure the destination directory exists
         auto dest_dir = dest_path.parent_path();
@@ -276,6 +294,11 @@ namespace c2pa
 
     std::vector<unsigned char> Builder::sign(const std::string &format, std::istream &source, std::iostream &dest)
     {
+        if (detail::streams_alias(source, dest)) {
+            throw C2paException(
+                "Source and destination streams share the same underlying buffer; "
+                "in-place signing is not supported and would corrupt the source data.");
+        }
         CppIStream c_source(source);
         CppIOStream c_dest(dest);
         const unsigned char *c2pa_manifest_bytes = nullptr;
@@ -284,8 +307,16 @@ namespace c2pa
         return detail::to_byte_vector(c2pa_manifest_bytes, result);
     }
 
+    /// @pre source_path and dest_path must refer to different files. In-place signing
+    ///      is not supported; passing the same path (or two paths that resolve to the
+    ///      same filesystem entity) throws C2paException without modifying the source.
     std::vector<unsigned char> Builder::sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path)
     {
+        if (detail::paths_alias(source_path, dest_path)) {
+            throw C2paException(
+                "Source and destination must differ; "
+                "in-place signing is not supported and would corrupt the source file.");
+        }
         auto source = detail::open_file_binary<std::ifstream>(source_path);
         auto dest_dir = dest_path.parent_path();
         if (!std::filesystem::exists(dest_dir))

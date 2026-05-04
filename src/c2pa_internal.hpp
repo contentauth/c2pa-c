@@ -21,7 +21,11 @@
 #include <cstring>
 #include <fstream>
 #include <filesystem>
+#include <istream>
+#include <ostream>
+#include <streambuf>
 #include <string>
+#include <system_error>
 #include <vector>
 #include <memory>
 
@@ -215,6 +219,37 @@ inline std::unique_ptr<StreamType> open_file_binary(const std::filesystem::path 
 inline std::string extract_file_extension(const std::filesystem::path &path) noexcept {
     auto ext = path.extension().string();
     return ext.empty() ? "" : ext.substr(1);
+}
+
+/// @brief Test whether two paths refer to the same filesystem entity.
+///        Returns false on any filesystem error rather than throwing.
+inline bool paths_alias(const std::filesystem::path &a,
+                        const std::filesystem::path &b) noexcept {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const bool a_exists = fs::exists(a, ec);
+    if (ec) { return false; }
+    const bool b_exists = fs::exists(b, ec);
+    if (ec) { return false; }
+    if (a_exists && b_exists) {
+        const bool eq = fs::equivalent(a, b, ec);
+        return !ec && eq;
+    }
+    auto ca = fs::weakly_canonical(a, ec);
+    if (ec) { return false; }
+    auto cb = fs::weakly_canonical(b, ec);
+    if (ec) { return false; }
+    return ca == cb;
+}
+
+/// @brief Test whether two C++ streams share the same underlying buffer.
+/// @details Compares std::streambuf pointers via rdbuf().
+///          Returns false if either rdbuf is null, since a null source rdbuf is
+///          independently broken and will fail at the first read attempt.
+inline bool streams_alias(const std::ios &a, const std::ios &b) noexcept {
+    std::streambuf *ba = a.rdbuf();
+    std::streambuf *bb = b.rdbuf();
+    return ba != nullptr && ba == bb;
 }
 
 /// @brief Convert C string result to C++ string with cleanup

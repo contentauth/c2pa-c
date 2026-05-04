@@ -1199,6 +1199,9 @@ namespace c2pa
         /// @param dest The output stream to write the signed data to.
         /// @param signer The Signer object to use for signing.
         /// @return A vector containing the signed manifest bytes.
+        /// @pre source and dest must be distinct streams; they must not share an
+        ///      underlying std::streambuf. In-place signing is not supported and
+        ///      throws C2paException without modifying the source data.
         /// @throws C2paException for errors encountered by the C2PA library.
         /// @deprecated Use sign(const string&, std::istream&, std::iostream&, Signer&) instead.
         std::vector<unsigned char> sign(const std::string &format, std::istream &source, std::ostream &dest, Signer &signer);
@@ -1209,6 +1212,9 @@ namespace c2pa
         /// @param dest The I/O stream to write the signed data to.
         /// @param signer The Signer object to use for signing.
         /// @return A vector containing the signed manifest bytes.
+        /// @pre source and dest must be distinct streams; they must not share an
+        ///      underlying std::streambuf. In-place signing is not supported and
+        ///      throws C2paException without modifying the source data.
         /// @throws C2paException for errors encountered by the C2PA library.
         std::vector<unsigned char> sign(const std::string &format, std::istream &source, std::iostream &dest, Signer &signer);
 
@@ -1217,6 +1223,10 @@ namespace c2pa
         /// @param dest_path The path to write the signed file to.
         /// @param signer The signer object to use for signing.
         /// @return A vector containing the signed manifest bytes.
+        /// @pre source_path and dest_path must refer to different files. In-place
+        ///      signing is not supported; passing the same path (or two paths that
+        ///      resolve to the same filesystem entity) throws C2paException without
+        ///      modifying the source.
         /// @throws C2paException for errors encountered by the C2PA library.
         /// @note Prefer using the streaming APIs if possible.
         std::vector<unsigned char> sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path, Signer &signer);
@@ -1230,6 +1240,9 @@ namespace c2pa
         /// @param source The input stream to sign.
         /// @param dest The I/O stream to write the signed data to.
         /// @return A vector containing the signed manifest bytes.
+        /// @pre source and dest must be distinct streams; they must not share an
+        ///      underlying std::streambuf. In-place signing is not supported and
+        ///      throws C2paException without modifying the source data.
         /// @throws C2paException if the context has no signer or on other errors.
         std::vector<unsigned char> sign(const std::string &format, std::istream &source, std::iostream &dest);
 
@@ -1241,6 +1254,10 @@ namespace c2pa
         /// @param source_path The path to the file to sign.
         /// @param dest_path The path to write the signed file to.
         /// @return A vector containing the signed manifest bytes.
+        /// @pre source_path and dest_path must refer to different files. In-place
+        ///      signing is not supported; passing the same path (or two paths that
+        ///      resolve to the same filesystem entity) throws C2paException without
+        ///      modifying the source.
         /// @throws C2paException if the context has no signer or on other errors.
         std::vector<unsigned char> sign(const std::filesystem::path &source_path, const std::filesystem::path &dest_path);
 
