@@ -802,7 +802,7 @@ Reading the archive first is *not* required to link it. `Reader` is only useful 
 >
 > **Labels baked into the archive ingredient at archive-creation time do not carry through as linking keys either.** The label must be re-asserted on the signing builder's `add_ingredient` call so action and archived ingredient properly link.
 
-Labels are build-time linking keys only. The SDK may reassign the actual label in the signed manifest.
+Labels are build-time linking keys only. A label, as linking key, links ingredients and actions using it together: the label identifies the link. The SDK may reassign the actual label in the signed manifest.
 
 ##### Minimal archive to action linking example
 
