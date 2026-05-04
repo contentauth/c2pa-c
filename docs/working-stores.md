@@ -446,17 +446,17 @@ Ingredients represent source materials used to create an asset, preserving the p
 
 A **(plain) ingredient** is a source asset that the builder reads at `add_ingredient` time. The builder sees the asset's bytes, and stores live required ingredient data (including any caller-set `instance_id`) inside the new manifest.
 
-An **ingredient archive** (in c2pa-archive-format) is a `.c2pa` file produced by `to_archive()` that already contains a fully-formed ingredient ("ready to use"). When passed to `add_ingredient`, the builder treats the archive's contents as opaque provenance: the archive's internal fields are not exposed as live JSON the signing builder can introspect (or use for linking to actions). Only the JSON the caller supplies in the _current_ `add_ingredient` call is visible to the builder in that round.
+An **ingredient archive** (in c2pa-archive-format) is a `.c2pa` file produced by `to_archive()` that already contains a fully-formed ingredient ("a ready to use ingredient"). When passed to `add_ingredient`, the builder treats the archive's contents as opaque provenance: the archive's internal fields are not exposed as live JSON the signing builder can introspect (or use for linking to actions). Only the JSON the caller supplies in the current `add_ingredient` call is visible to the builder in that round.
 
 This difference governs how each can be linked to an action via `ingredientIds`:
 
 | Aspect | Ingredient | Ingredient archive |
 | --- | --- | --- |
-| Source format passed to `add_ingredient` | Asset MIME type (`image/jpeg`, `video/mp4`, ...) or asset path | `application/c2pa` or path to a `.c2pa` file |
-| What `add_ingredient` sees | "Live" asset | A serialized manifest store (opaque provenance) |
-| Linking via `label` set on the signing builder's `add_ingredient` JSON | Primary linking key | Only linking key that works |
-| Linking via `instance_id` on the `add_ingredient` JSON | Fallback when `label` is absent | Does not link, sign-time error |
-| Linking via a `label` baked in at archive-creation time | N/A (not an archive) | Does not carry through, must be re-asserted on the signing builder |
+| Source format passed to `add_ingredient` | Asset MIME type (`image/jpeg`, `video/mp4`, ...) or asset path | `application/c2pa` or path to a `.c2pa` ingredient archive file |
+| What it is | "Live" asset | A serialized manifest store (opaque provenance) |
+| Linking via `label` | Primary linking key, set on the signing builder's `add_ingredient` JSON parameter | Only linking key that works, set on the signing builder's `add_ingredient` JSON |
+| Linking via `instance_id` | Alternative to using `label` | Does not link, signing-time error |
+| Linking via a `label` baked in at archive-creation time | N/A (not an archive) | Does not carry through, must be re-asserted on the signing builder, set on the signing builder's `add_ingredient` JSON parameter |
 
 ### Adding ingredients to a working store
 
