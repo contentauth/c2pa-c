@@ -741,7 +741,7 @@ auto parsed = json::parse(reader.json());
 std::string active = parsed["active_manifest"];
 auto manifest = parsed["manifests"][active];
 
-// An ingredient archive must always have exactly one ingredient
+// An ingredient archive must always contain exactly one ingredient
 auto& ingredient = manifest["ingredients"][0];
 
 // Relationship
@@ -859,7 +859,7 @@ builder.sign(source_path, output_path, signer);
 
 ##### Previewing the archive before linking
 
-If you want to inspect the archive (e.g. to decide whether to use it, or to copy a `title` from it), open it with `Reader` first, then add it as an ingredient. The Reader step is independent of the linking: the link is still established by the `label` on the signing builder's `add_ingredient` call.
+If you want to inspect the ingredient archive (e.g. to decide whether to use it, or to copy a `title` from it), open it with `Reader` first, then add it as an ingredient. The Reader step is independent of the linking: the link is still established by the `label` on the signing builder's `add_ingredient` call.
 
 ```cpp
 std::ifstream archive_file("ingredient_archive.c2pa", std::ios::binary);
@@ -888,21 +888,21 @@ builder.sign(source_path, output_path, signer);
 
 #### Troubleshooting linking errors
 
-The most common sign-time error when linking ingredients is:
+A common signing-time error when linking ingredients is:
 
 ```text
 Builder.sign failure: Other: assertion-specific error:
-Action ingredientId not found: <id>
+Action ingredientId not found: <some id>
 ```
 
-`<id>` is the value the SDK could not resolve to an ingredient on the builder. Causes and fixes:
+Causes and potential fixes to investigate:
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| `Action ingredientId not found: xmp:iid:...` (or any `instance_id` value) | `instance_id` was used as the linking key for an ingredient archive. `instance_id` is for catalog identification, not action linking. | Assign a `label` on the signing builder's `add_ingredient` JSON, and use that label in `ingredientIds`. |
-| `Action ingredientId not found: <label>` where the label was set only when *building* the archive | Labels baked into an archive ingredient do not carry through as linking keys. | Re-assert the same `label` in the signing builder's `add_ingredient` JSON. |
-| `Action ingredientId not found: <label>` where the label is on `add_ingredient` but the action references a different string | Typo or mismatch between `ingredientIds[i]` and the `label` field on the ingredient. | Make the two strings byte-identical. |
-| Sign succeeds but the action's `parameters.ingredients` array is empty in the signed output | The action was kept during a filter/rebuild but the corresponding ingredient was not. | See [Filtering actions that reference ingredients](#filtering-actions-that-reference-ingredients) — keep the ingredient and its binary resources alongside the action. |
+| `Action ingredientId not found: xmp:iid:...` (or any `instance_id` value) | `instance_id` was used as the linking key for an ingredient archive. | Assign a `label` on the signing builder's `add_ingredient` JSON, and use that label in `ingredientIds`. |
+| `Action ingredientId not found: <label>` where the label was set only when building the archive | Labels baked into an archive ingredient do not carry through as linking keys. | Re-assert the same `label` in the signing builder's `add_ingredient` JSON when calling `add_ingredient`. |
+| `Action ingredientId not found: <label>` where the label is on `add_ingredient` but the action references a different string | Typo or mismatch between `ingredientIds[i]` and the `label` field on the ingredient. | Make the two strings identical, as the string is a linking key. |
+| Sign succeeds but the action's `parameters.ingredients` array is empty in the signed output | The action was kept during a filter/rebuild but the corresponding ingredient was not, or was not linked. | See [Filtering actions that reference ingredients](#filtering-actions-that-reference-ingredients) to keep the ingredient and its binary resources alongside the action. Verify that the linking of ingredients and actions uses the correct JSON attributes. |
 
 For the linking rules, see [Linking an archived ingredient to an action](#linking-an-archived-ingredient-to-an-action) above.
 
