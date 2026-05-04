@@ -4745,6 +4745,136 @@ TEST_F(BuilderTest, LinkArchiveLabelOnSigningBuilderOpened)
     EXPECT_TRUE(linked);
 }
 
+TEST_F(BuilderTest, LinkArchiveLabelOnSigningBuilderOpenedFromStream)
+{
+    // Same as LinkArchiveLabelOnSigningBuilderOpened but feeds the archive
+    // through the std::istream overload of add_ingredient.
+    auto archive_path = get_temp_path("label_on_signing_opened_stream.c2pa");
+    create_ingredient_archive(archive_path,
+        R"({"title": "photo.jpg", "relationship": "parentOf"})");
+
+    auto manifest_json = make_manifest_with_action("c2pa.opened", "my-ingredient",
+        "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation");
+    auto context = c2pa::Context();
+    auto builder = c2pa::Builder(context, manifest_json.dump());
+
+    std::ifstream archive_stream(archive_path, std::ios::binary);
+    builder.add_ingredient(
+        R"({"title": "photo.jpg", "relationship": "parentOf", "label": "my-ingredient"})",
+        "application/c2pa",
+        archive_stream);
+    archive_stream.close();
+
+    auto signer = c2pa_test::create_test_signer();
+    auto output_path = get_temp_path("link_label_on_signing_opened_stream.jpg");
+
+    bool linked = verify_ingredient_linked(builder, output_path, signer, "c2pa.opened");
+    EXPECT_TRUE(linked);
+}
+
+TEST_F(BuilderTest, LinkArchiveLabelOnSigningBuilderPlacedFromStream)
+{
+    auto archive_path = get_temp_path("label_on_signing_placed_stream.c2pa");
+    create_ingredient_archive(archive_path,
+        R"({"title": "photo.jpg", "relationship": "componentOf"})");
+
+    auto manifest_json = make_manifest_with_action("c2pa.placed", "my-ingredient");
+    auto context = c2pa::Context();
+    auto builder = c2pa::Builder(context, manifest_json.dump());
+
+    std::ifstream archive_stream(archive_path, std::ios::binary);
+    builder.add_ingredient(
+        R"({"title": "photo.jpg", "relationship": "componentOf", "label": "my-ingredient"})",
+        "application/c2pa",
+        archive_stream);
+    archive_stream.close();
+
+    auto signer = c2pa_test::create_test_signer();
+    auto output_path = get_temp_path("link_label_on_signing_placed_stream.jpg");
+
+    bool linked = verify_ingredient_linked(builder, output_path, signer, "c2pa.placed");
+    EXPECT_TRUE(linked);
+}
+
+TEST_F(BuilderTest, LinkArchiveInstanceIdOnSigningBuilderFromStreamFails)
+{
+    // Stream overload counterpart of LinkArchiveInstanceIdFromArchiveOnSigningBuilder.
+    // instance_id cannot be used as a linking key for ingredient archives,
+    // regardless of whether the archive is added via path or stream.
+    auto context = c2pa::Context();
+    auto signer = c2pa_test::create_test_signer();
+    auto source_path = c2pa_test::get_fixture_path("A.jpg");
+
+    auto archive_path = get_temp_path("iid_from_archive_linking_stream.c2pa");
+    create_ingredient_archive(archive_path,
+        R"({"title": "photo.jpg", "relationship": "parentOf", "instance_id": "xmp:iid:test-archive-link-stream"})");
+
+    auto reader = c2pa::Reader(context, archive_path);
+    auto archive_parsed = json::parse(reader.json());
+    std::string active = archive_parsed["active_manifest"];
+    auto& archive_ingredient = archive_parsed["manifests"][active]["ingredients"][0];
+    ASSERT_TRUE(archive_ingredient.contains("instance_id"));
+    std::string instance_id = archive_ingredient["instance_id"];
+
+    json manifest_json = {
+        {"claim_generator_info", json::array({{{"name", "c2pa-test"}, {"version", "1.0"}}})},
+        {"assertions", json::array({
+            {
+                {"label", "c2pa.actions.v2"},
+                {"data", {{"actions", json::array({
+                    {
+                        {"action", "c2pa.opened"},
+                        {"digitalSourceType", "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation"},
+                        {"parameters", {{"ingredientIds", json::array({instance_id})}}}
+                    }
+                })}}}
+            }
+        })}
+    };
+
+    auto builder = c2pa::Builder(context, manifest_json.dump());
+
+    std::ifstream archive_stream(archive_path, std::ios::binary);
+    builder.add_ingredient(
+        json({
+            {"title", archive_ingredient["title"]},
+            {"relationship", "parentOf"},
+            {"instance_id", instance_id}
+        }).dump(),
+        "application/c2pa",
+        archive_stream);
+    archive_stream.close();
+
+    auto output_path = get_temp_path("iid_from_archive_linking_stream_result.jpg");
+
+    EXPECT_THROW(builder.sign(source_path, output_path, signer), c2pa::C2paException);
+}
+
+TEST_F(BuilderTest, LinkArchiveBakedLabelAlsoSetOnSigningBuilder)
+{
+    // Probe: same baked label, AND the same label re-asserted on the signing
+    // builder's add_ingredient call. Should link successfully (signing-builder
+    // label is what counts).
+    auto archive_path = get_temp_path("baked_label_also_set.c2pa");
+    create_ingredient_archive(archive_path,
+        R"({"title": "photo.jpg", "relationship": "parentOf", "label": "baked-label"})");
+
+    auto manifest_json = make_manifest_with_action("c2pa.opened", "baked-label",
+        "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation");
+    auto context = c2pa::Context();
+    auto builder = c2pa::Builder(context, manifest_json.dump());
+
+    builder.add_ingredient(
+        R"({"title": "photo.jpg", "relationship": "parentOf", "label": "baked-label"})",
+        archive_path);
+
+    auto signer = c2pa_test::create_test_signer();
+    auto output_path = get_temp_path("baked_label_also_set_result.jpg");
+
+    bool linked = verify_ingredient_linked(builder, output_path, signer, "c2pa.opened");
+    EXPECT_TRUE(linked);
+}
+
 TEST_F(BuilderTest, LinkArchiveTwoIngredientsUsingLabels)
 {
     auto archive1 = get_temp_path("two_labels_archive1.c2pa");

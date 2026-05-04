@@ -722,6 +722,8 @@ new_builder.sign(source_path, output_path, signer);
 
 An ingredient archive is a serialized `Builder` containing exactly one and only one ingredient (see [Builder archives vs. ingredient archives](#builder-archives-vs-ingredient-archives)). Reading it with `Reader` allows the caller to inspect the ingredient before deciding whether to use it: its thumbnail, whether it carries provenance (e.g. an active manifest), validation status, relationship, etc.
 
+Reading is independent of linking — see [Linking an archived ingredient to an action](#linking-an-archived-ingredient-to-an-action) for how to attach the ingredient to an action without reading it first.
+
 ```mermaid
 flowchart LR
     IA["ingredient_archive.c2pa"] -->|"Reader(application/c2pa)"| JSON["JSON + resources"]
@@ -783,23 +785,24 @@ if (ingredient.contains("thumbnail")) {
 
 #### Linking an archived ingredient to an action
 
-After reading the ingredient details from an ingredient archive, the ingredient can be added to a new `Builder` and linked to an action. You must assign a `label` in the `add_ingredient` call on the signing builder and use that label as the linking key in `ingredientIds`. Labels baked into the archive ingredient are not carried through, and `instance_id` does not work as a linking key for ingredient archives.
+Linking an archived ingredient to an action is **label-driven**. Set a `label` on the ingredient JSON passed to `add_ingredient` on the signing builder, and use that same string in the action's `ingredientIds`. Reading the archive first is *not* required to link it — `Reader` is only useful when the caller wants to preview the ingredient (thumbnail, provenance, validation status) before deciding whether to use it (see [Reading ingredient details from an ingredient archive](#reading-ingredient-details-from-an-ingredient-archive)).
 
-Note that labels are only used as build-time linking keys. The SDK may reassign the actual label in the signed manifest.
+> [!IMPORTANT]
+> **`instance_id` does not work as a linking key for ingredient archives.** Use `label` instead.
+>
+> **Labels baked into the archive ingredient at archive-creation time do not carry through as linking keys.** The label must be re-asserted on the signing builder's `add_ingredient` call.
+>
+> Both rules apply whether the archive is added by file path or by stream. Attempting to link via `instance_id`, or relying on a baked-in label alone, produces a sign-time error: `Action ingredientId not found: <id>`. See [Troubleshooting linking errors](#troubleshooting-linking-errors).
 
-Assign a `label` in the `add_ingredient` call and reference that same label in `ingredientIds`. This works whether or not the ingredient has an `instance_id`.
+Labels are build-time linking keys only. The SDK may reassign the actual label in the signed manifest.
+
+##### Minimal example
+
+Build a manifest whose action references a chosen label, then `add_ingredient` with that label on the signing builder. No `Reader`, no parsing of the archive:
 
 ```cpp
 c2pa::Context context;
 
-// Read the ingredient archive
-std::ifstream archive_file("ingredient_archive.c2pa", std::ios::binary);
-c2pa::Reader reader(context, "application/c2pa", archive_file);
-auto parsed = json::parse(reader.json());
-std::string active = parsed["active_manifest"];
-auto& ingredient = parsed["manifests"][active]["ingredients"][0];
-
-// Use a caller-assigned label as the linking key
 json manifest_json = {
     {"claim_generator_info", json::array({{{"name", "an-application"}, {"version", "1.0"}}})},
     {"assertions", json::array({
@@ -821,19 +824,86 @@ json manifest_json = {
 
 c2pa::Builder builder(context, manifest_json.dump());
 
-// The label on the ingredient JSON matches the entry in ingredientIds
+// Same string as in ingredientIds above — that is what links the action.
+builder.add_ingredient(
+    R"({
+        "title": "photo.jpg",
+        "relationship": "parentOf",
+        "label": "archived-ingredient"
+    })",
+    archive_path);
+
+builder.sign(source_path, output_path, signer);
+```
+
+##### Using streams
+
+The `add_ingredient` overload that takes a `std::istream` (with `"application/c2pa"` as the format) follows the same rule — the `label` on the ingredient JSON is what links the action:
+
+```cpp
+std::ifstream archive_file("ingredient_archive.c2pa", std::ios::binary);
+c2pa::Builder builder(context, manifest_json.dump());
+
+builder.add_ingredient(
+    R"({
+        "title": "photo.jpg",
+        "relationship": "parentOf",
+        "label": "archived-ingredient"
+    })",
+    "application/c2pa",
+    archive_file);
+
+builder.sign(source_path, output_path, signer);
+```
+
+##### Previewing the archive before linking
+
+If you want to inspect the archive (e.g. to decide whether to use it, or to copy `title` from it), open it with `Reader` first, then add it as an ingredient. The Reader step is independent of the linking — the link is still established by the `label` on the signing builder's `add_ingredient` call.
+
+```cpp
+std::ifstream archive_file("ingredient_archive.c2pa", std::ios::binary);
+c2pa::Reader reader(context, "application/c2pa", archive_file);
+auto parsed = json::parse(reader.json());
+std::string active = parsed["active_manifest"];
+auto& ingredient = parsed["manifests"][active]["ingredients"][0];
+
+// Inspect ingredient (thumbnail, validation_status, active_manifest, etc.)
+// before deciding to use it. See "Reading ingredient details from an ingredient archive".
+
+c2pa::Builder builder(context, manifest_json.dump());
+
 archive_file.seekg(0);
 builder.add_ingredient(
     json({
         {"title", ingredient["title"]},
         {"relationship", "parentOf"},
-        {"label", "archived-ingredient"}
+        {"label", "archived-ingredient"}  // The linking key — chosen here, not read from the archive.
     }).dump(),
     "application/c2pa",
     archive_file);
 
 builder.sign(source_path, output_path, signer);
 ```
+
+#### Troubleshooting linking errors
+
+The most common sign-time error when linking ingredients is:
+
+```text
+Builder.sign failure: Other: assertion-specific error:
+Action ingredientId not found: <id>
+```
+
+`<id>` is the value the SDK could not resolve to an ingredient on the builder. Causes and fixes:
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| `Action ingredientId not found: xmp:iid:...` (or any `instance_id` value) | `instance_id` was used as the linking key for an ingredient archive. `instance_id` is for catalog identification, not action linking. | Assign a `label` on the signing builder's `add_ingredient` JSON, and use that label in `ingredientIds`. |
+| `Action ingredientId not found: <label>` where the label was set only when *building* the archive | Labels baked into an archive ingredient do not carry through as linking keys. | Re-assert the same `label` in the signing builder's `add_ingredient` JSON. |
+| `Action ingredientId not found: <label>` where the label is on `add_ingredient` but the action references a different string | Typo or mismatch between `ingredientIds[i]` and the `label` field on the ingredient. | Make the two strings byte-identical. |
+| Sign succeeds but the action's `parameters.ingredients` array is empty in the signed output | The action was kept during a filter/rebuild but the corresponding ingredient was not. | See [Filtering actions that reference ingredients](#filtering-actions-that-reference-ingredients) — keep the ingredient and its binary resources alongside the action. |
+
+For the linking rules, see [Linking an archived ingredient to an action](#linking-an-archived-ingredient-to-an-action) above.
 
 ### Merging multiple working stores
 
