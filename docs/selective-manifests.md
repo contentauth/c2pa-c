@@ -783,6 +783,12 @@ if (ingredient.contains("thumbnail")) {
 }
 ```
 
+#### Ingredient vs. ingredient archive
+
+A plain ingredient is a source asset (image, video, document) the builder reads at `add_ingredient` time, with `label` (primary) or `instance_id` (fallback) usable as linking keys. An ingredient archive is a `.c2pa` file containing one already-formed ingredient. When passed to `add_ingredient`, the builder treats its contents as opaque provenance. The only linking key the action can resolve is the `label` set on the *current* `add_ingredient` call.
+
+For a side-by-side comparison, see [Ingredient vs. ingredient archive](working-stores.md#ingredient-vs-ingredient-archive) in the working-stores doc.
+
 #### Linking an archived ingredient to an action
 
 Linking an **archived** ingredient to an action is **label-driven**: archived ingredients can only be linked to actions using labels.
