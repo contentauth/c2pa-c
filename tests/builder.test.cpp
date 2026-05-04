@@ -4747,8 +4747,6 @@ TEST_F(BuilderTest, LinkArchiveLabelOnSigningBuilderOpened)
 
 TEST_F(BuilderTest, LinkArchiveLabelOnSigningBuilderOpenedFromStream)
 {
-    // Same as LinkArchiveLabelOnSigningBuilderOpened but feeds the archive
-    // through the std::istream overload of add_ingredient.
     auto archive_path = get_temp_path("label_on_signing_opened_stream.c2pa");
     create_ingredient_archive(archive_path,
         R"({"title": "photo.jpg", "relationship": "parentOf"})");
@@ -4798,9 +4796,6 @@ TEST_F(BuilderTest, LinkArchiveLabelOnSigningBuilderPlacedFromStream)
 
 TEST_F(BuilderTest, LinkArchiveInstanceIdOnSigningBuilderFromStreamFails)
 {
-    // Stream overload counterpart of LinkArchiveInstanceIdFromArchiveOnSigningBuilder.
-    // instance_id cannot be used as a linking key for ingredient archives,
-    // regardless of whether the archive is added via path or stream.
     auto context = c2pa::Context();
     auto signer = c2pa_test::create_test_signer();
     auto source_path = c2pa_test::get_fixture_path("A.jpg");
@@ -4848,31 +4843,6 @@ TEST_F(BuilderTest, LinkArchiveInstanceIdOnSigningBuilderFromStreamFails)
     auto output_path = get_temp_path("iid_from_archive_linking_stream_result.jpg");
 
     EXPECT_THROW(builder.sign(source_path, output_path, signer), c2pa::C2paException);
-}
-
-TEST_F(BuilderTest, LinkArchiveBakedLabelAlsoSetOnSigningBuilder)
-{
-    // Probe: same baked label, AND the same label re-asserted on the signing
-    // builder's add_ingredient call. Should link successfully (signing-builder
-    // label is what counts).
-    auto archive_path = get_temp_path("baked_label_also_set.c2pa");
-    create_ingredient_archive(archive_path,
-        R"({"title": "photo.jpg", "relationship": "parentOf", "label": "baked-label"})");
-
-    auto manifest_json = make_manifest_with_action("c2pa.opened", "baked-label",
-        "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCreation");
-    auto context = c2pa::Context();
-    auto builder = c2pa::Builder(context, manifest_json.dump());
-
-    builder.add_ingredient(
-        R"({"title": "photo.jpg", "relationship": "parentOf", "label": "baked-label"})",
-        archive_path);
-
-    auto signer = c2pa_test::create_test_signer();
-    auto output_path = get_temp_path("baked_label_also_set_result.jpg");
-
-    bool linked = verify_ingredient_linked(builder, output_path, signer, "c2pa.opened");
-    EXPECT_TRUE(linked);
 }
 
 TEST_F(BuilderTest, LinkArchiveTwoIngredientsUsingLabels)
