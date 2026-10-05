@@ -147,6 +147,29 @@ namespace c2pa
         }
     }
 
+    std::optional<std::string> Builder::label() const
+    {
+        char *label = nullptr;
+        if (c2pa_builder_label(builder, &label) < 0)
+        {
+            throw C2paException();
+        }
+        if (label == nullptr)
+        {
+            return std::nullopt;
+        }
+        return detail::c_string_to_string(label);
+    }
+
+    void Builder::set_label(const std::string &label)
+    {
+        int result = c2pa_builder_set_label(builder, label.c_str());
+        if (result < 0)
+        {
+            throw C2paException();
+        }
+    }
+
     Builder& Builder::with_definition(const std::string &manifest_json)
     {
         // c2pa_builder_with_definition consumes the builder pointer,

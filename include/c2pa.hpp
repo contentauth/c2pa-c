@@ -1223,6 +1223,18 @@ namespace c2pa
         /// @throws C2paException for errors encountered by the C2PA library.
         void set_remote_url(const std::string &remote_url);
 
+        /// @brief Get the manifest label.
+        /// @details The label comes from the definition's "label".
+        ///          If no label is set, one is auto-generated at signing.
+        /// @return The label, or std::nullopt if none is set.
+        /// @throws C2paException for errors encountered by the C2PA library.
+        [[nodiscard]] std::optional<std::string> label() const;
+
+        /// @brief Set the manifest label to use for signing on this Builder.
+        /// @param label The manifest label.
+        /// @throws C2paException for errors encountered by the C2PA library.
+        void set_label(const std::string &label);
+
         /// @brief Set the base path for loading resources from files.
         /// @details When set, resources are loaded from files relative to this path.
         ///          If not set, resources are loaded from memory.

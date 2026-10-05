@@ -2848,6 +2848,26 @@ TEST_F(BuilderTest, ArchiveRoundTrip)
     EXPECT_GT(dest.tellg(), 0);
 }
 
+TEST_F(BuilderTest, BuilderUsesConfiguredLabel)
+{
+    const std::string label = "urn:c2pa:00000000-0000-4000-8000-00000000000a:test";
+    auto context = c2pa::Context();
+    auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
+    auto builder = c2pa::Builder(context, manifest);
+
+    builder.set_label(label);
+    EXPECT_EQ(builder.label(), label);
+
+    auto signer = c2pa_test::create_test_signer();
+    std::ifstream source(c2pa_test::get_fixture_path("A.jpg"), std::ios::binary);
+    std::stringstream dest(std::ios::in | std::ios::out | std::ios::binary);
+    builder.sign("image/jpeg", source, dest, signer);
+
+    dest.seekg(0);
+    auto reader = c2pa::Reader(context, "image/jpeg", dest);
+    EXPECT_EQ(json::parse(reader.json())["active_manifest"], label);
+}
+
 TEST_F(BuilderTest, ArchiveRoundTripSettingsBehavior)
 {
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
