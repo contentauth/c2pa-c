@@ -58,8 +58,10 @@ jobs:
         run: ninja --version
 
       - name: Setup MSVC toolchain on Windows
-        if: matrix.os == 'windows-latest'
+        if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}
 
       - name: Print make version and path
         run: |
