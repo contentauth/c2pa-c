@@ -682,7 +682,7 @@ protected:
         auto manifest =
             c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
         auto signer = c2pa_test::create_test_signer();
-        auto builder = c2pa::Builder(manifest);
+        auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
         fs::path out = make_temp_dir("seed-" + name) / "signed.jpg";
         auto bytes = builder.sign(asset, out, signer);
         return {std::move(bytes), out};
@@ -726,7 +726,7 @@ protected:
         auto signer = c2pa_test::create_test_signer();
         fs::path out = make_temp_dir(out_name) / "out.jpg";
         builder.sign(source, out, signer);
-        auto reader = c2pa::Reader(out);
+        auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), out);
         auto parsed = json::parse(reader.json());
         EXPECT_TRUE(is_valid_state(parsed))
             << out_name << " validation_state="
@@ -764,7 +764,7 @@ protected:
         auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
         std::stringstream archive(std::ios::in | std::ios::out | std::ios::binary);
         {
-            auto scoped = c2pa::Builder(manifest);
+            auto scoped = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
             scoped.set_base_path(folder.string());
             std::ifstream asset_stream(folder / "asset.jpg", std::ios::binary);
             ASSERT_NO_THROW(scoped.add_ingredient(ing_json, "image/jpeg", asset_stream));
@@ -784,7 +784,7 @@ protected:
         auto archive = std::make_shared<std::stringstream>(
             std::ios::in | std::ios::out | std::ios::binary);
         {
-            auto ab = c2pa::Builder(manifest);
+            auto ab = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
             json ing = {{"title", title}, {"relationship", "componentOf"}, {"label", label}};
             ab.add_ingredient(ing.dump(), asset);
             ab.write_ingredient_archive(label, *archive);
@@ -830,7 +830,7 @@ TEST_F(LegacyFolderIngredient, ManifestDataResolvedViaBasePath) {
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
 
     // POSITIVE: base_path set; manifest_data reference resolves from the folder.
-    auto builder = c2pa::Builder(manifest);
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
     builder.set_base_path(folder.string());
     std::ifstream asset_stream(folder / "asset.jpg", std::ios::binary);
     ASSERT_NO_THROW(builder.add_ingredient(ing_json, "image/jpeg", asset_stream));
@@ -848,7 +848,7 @@ TEST_F(LegacyFolderIngredient, ManifestDataResolvedViaBasePath) {
     // reference ("manifest_data.c2pa") that can only be resolved from disk via
     // base_path. Without it, resolution fails hard (ResourceNotFound) at sign
     // time, proving base_path is what makes the legacy manifest_data load.
-    auto builder2 = c2pa::Builder(manifest);
+    auto builder2 = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
     std::ifstream plain(c2pa_test::get_fixture_path("A.jpg"), std::ios::binary);
     ASSERT_NO_THROW(builder2.add_ingredient(ing_json, "image/jpeg", plain));
     auto signer = c2pa_test::create_test_signer();
@@ -875,7 +875,7 @@ TEST_F(LegacyFolderIngredient, BasePathResolvesRelativeThumbnail) {
 
     // POSITIVE: base_path set to the folder; the relative "thumb.jpg" resolves.
     {
-        auto builder = c2pa::Builder(manifest);
+        auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
         builder.set_base_path(folder.string());
         std::ifstream src(asset, std::ios::binary);
         ASSERT_NO_THROW(builder.add_ingredient(ing_json, "image/jpeg", src));
@@ -885,7 +885,7 @@ TEST_F(LegacyFolderIngredient, BasePathResolvesRelativeThumbnail) {
     // COUNTER: no base_path. The relative thumbnail cannot be found, so signing
     // (which serializes resources) must fail.
     {
-        auto builder = c2pa::Builder(manifest);
+        auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
         std::ifstream src(asset, std::ios::binary);
         ASSERT_NO_THROW(builder.add_ingredient(ing_json, "image/jpeg", src));
         auto signer = c2pa_test::create_test_signer();
@@ -906,7 +906,7 @@ TEST_F(LegacyFolderIngredient, MultipleCaseA_Loop) {
         {"m-comp", "second legacy", "componentOf"},
     };
 
-    auto builder = c2pa::Builder(manifest);
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
     for (const auto &s : specs) {
         auto seed = sign_seed(asset, s.name);
         json ing = {
@@ -964,7 +964,7 @@ TEST_F(LegacyFolderIngredient, MultipleBasePathCollisionFixedByAddResource) {
     // the other ingredient's identically-named thumbnail resolves to the WRONG
     // bytes or fails. base_path is global, so this cannot serve both folders.
     {
-        auto builder = c2pa::Builder(manifest);
+        auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
         builder.set_base_path(folder_a.string());  // only folder_a
         std::ifstream s1(asset, std::ios::binary);
         std::ifstream s2(asset, std::ios::binary);
@@ -986,7 +986,7 @@ TEST_F(LegacyFolderIngredient, MultipleBasePathCollisionFixedByAddResource) {
     // FIX: give each thumbnail a UNIQUE identifier and inline its bytes with
     // add_resource, so neither ingredient depends on a global base_path.
     {
-        auto builder = c2pa::Builder(manifest);
+        auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
 
         json ia = make_ing("ing A");
         ia["thumbnail"]["identifier"] = "thumb_a.jpg";
@@ -1017,13 +1017,13 @@ TEST_F(LegacyFolderIngredient, MixLegacyAndModernArchiveOnOneBuilder) {
     // One builder, both routes: neither route calls set_base_path on `builder`
     // itself, since add_ingredient_from_archive merges resources into whatever
     // base_path state the receiving builder already carries.
-    auto builder = c2pa::Builder(manifest);
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
     add_legacy_folder_ingredient(builder, "mix-legacy", "legacy ingredient", "legacy-mix");
 
     // Modern dedicated ingredient archive built from C.jpg.
     std::stringstream archive(std::ios::in | std::ios::out | std::ios::binary);
     {
-        auto ab = c2pa::Builder(manifest);
+        auto ab = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
         ab.add_ingredient(
             R"({"title": "modern ingredient", "relationship": "componentOf", "label": "ing-modern"})",
             c2pa_test::get_fixture_path("C.jpg"));
@@ -1044,7 +1044,7 @@ TEST_F(LegacyFolderIngredient, MixMultipleLegacyAndOneModern) {
     auto src = c2pa_test::get_fixture_path("A.jpg");
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
 
-    auto builder = c2pa::Builder(manifest);
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
     add_legacy_folder_ingredient(builder, "m1-legacy-a", "legacy A", "legacy-m1-a");
     add_legacy_folder_ingredient(builder, "m1-legacy-b", "legacy B", "legacy-m1-b");
     add_legacy_folder_ingredient(builder, "m1-legacy-c", "legacy C", "legacy-m1-c");
@@ -1061,7 +1061,7 @@ TEST_F(LegacyFolderIngredient, MixMultipleLegacyAndMultipleModern) {
     auto src = c2pa_test::get_fixture_path("A.jpg");
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
 
-    auto builder = c2pa::Builder(manifest);
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
     add_legacy_folder_ingredient(builder, "m2-legacy-a", "legacy A", "legacy-m2-a");
     add_legacy_folder_ingredient(builder, "m2-legacy-b", "legacy B", "legacy-m2-b");
     auto a1 = add_modern_archive(builder, manifest, "ing-modern-1", "modern X",
@@ -1081,7 +1081,7 @@ TEST_F(LegacyFolderIngredient, LegacyIngredientFolderLoading) {
     std::string ing_json = c2pa_test::read_text_file(folder / "ingredient.json");
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
 
-    auto builder = c2pa::Builder(manifest);
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
     builder.set_base_path(folder.string());
 
     std::ifstream asset_stream(c2pa_test::get_fixture_path("C.jpg"), std::ios::binary);
@@ -1115,7 +1115,7 @@ TEST_F(LegacyFolderIngredient, LegacyIngredientFolderLoadingNoAssetStream) {
     // otherwise, since the definition-injection route cannot derive it.
     if (!ingredient.contains("validation_results")) {
         std::ifstream store_in(folder / "manifest_data.c2pa", std::ios::binary);
-        c2pa::Reader store_reader("application/c2pa", store_in);
+        c2pa::Reader store_reader(std::make_shared<c2pa::Context>(), "application/c2pa", store_in);
         ingredient["validation_results"] =
             json::parse(store_reader.json())["validation_results"];
     }
@@ -1124,7 +1124,7 @@ TEST_F(LegacyFolderIngredient, LegacyIngredientFolderLoadingNoAssetStream) {
     // the matching identifier. No asset stream is added.
     json def = json::parse(manifest);
     def["ingredients"] = json::array({ingredient});
-    auto builder = c2pa::Builder(def.dump());
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), def.dump());
 
     std::ifstream store_res(folder / "manifest_data.c2pa", std::ios::binary);
     ASSERT_NO_THROW(builder.add_resource("manifest_data.c2pa", store_res));
@@ -1133,7 +1133,7 @@ TEST_F(LegacyFolderIngredient, LegacyIngredientFolderLoadingNoAssetStream) {
     fs::path out = make_temp_dir("real-legacy-noasset-out") / "out.jpg";
     ASSERT_NO_THROW(builder.sign(c2pa_test::get_fixture_path("A.jpg"), out, signer));
 
-    auto reader = c2pa::Reader(out);
+    auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), out);
     auto parsed = json::parse(reader.json());
     std::string active = parsed["active_manifest"];
     auto ingredients = parsed["manifests"][active]["ingredients"];
@@ -1158,7 +1158,7 @@ TEST_F(LegacyFolderIngredient, LegacyIngredientFolderLoadingReArchiveThenAdd) {
     //  then emit it in the modern archive format.
     std::stringstream archive(std::ios::in | std::ios::out | std::ios::binary);
     {
-        auto b = c2pa::Builder(manifest);
+        auto b = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
         b.set_base_path(folder.string());
         std::ifstream asset(c2pa_test::get_fixture_path("C.jpg"), std::ios::binary);
         ASSERT_NO_THROW(b.add_ingredient(ingredient.dump(), "image/jpeg", asset));
@@ -1168,7 +1168,7 @@ TEST_F(LegacyFolderIngredient, LegacyIngredientFolderLoadingReArchiveThenAdd) {
     // The archive bundles the manifest store, so a fresh Builder loads it with no
     // base_path and keeps the provenance.
     archive.seekg(0);
-    auto builder = c2pa::Builder(manifest);
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
     ASSERT_NO_THROW(builder.add_ingredient_from_archive(archive));
 
     auto ingredients =
@@ -1197,7 +1197,7 @@ TEST_F(LegacyFolderIngredient, ManifestDataDirectoryDeletableAfterAdd) {
     std::string ing_json = c2pa_test::read_text_file(folder / "ingredient.json");
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
 
-    auto builder = c2pa::Builder(manifest);
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
     builder.set_base_path(folder.string());
     std::ifstream asset_stream(folder / "asset.jpg", std::ios::binary);
     ASSERT_NO_THROW(builder.add_ingredient(ing_json, "image/jpeg", asset_stream));
@@ -1238,7 +1238,7 @@ TEST_F(LegacyFolderIngredient, ThumbnailDirectoryMustSurviveUntilSign) {
         fs::path folder =
             write_legacy_folder("lazy-del", make_ing(), nullptr, &thumb_src, "thumb.jpg");
         std::string ing_json = c2pa_test::read_text_file(folder / "ingredient.json");
-        auto builder = c2pa::Builder(manifest);
+        auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
         builder.set_base_path(folder.string());
         std::ifstream src(asset, std::ios::binary);
         ASSERT_NO_THROW(builder.add_ingredient(ing_json, "image/jpeg", src));
@@ -1258,7 +1258,7 @@ TEST_F(LegacyFolderIngredient, ThumbnailDirectoryMustSurviveUntilSign) {
         fs::path folder =
             write_legacy_folder("lazy-keep", make_ing(), nullptr, &thumb_src, "thumb.jpg");
         std::string ing_json = c2pa_test::read_text_file(folder / "ingredient.json");
-        auto builder = c2pa::Builder(manifest);
+        auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
         builder.set_base_path(folder.string());
         std::ifstream src(asset, std::ios::binary);
         ASSERT_NO_THROW(builder.add_ingredient(ing_json, "image/jpeg", src));
@@ -1286,7 +1286,7 @@ TEST_F(LegacyFolderIngredient, NoDeduplicationSameDirectoryAddedTwice) {
     std::string ing_json = c2pa_test::read_text_file(folder / "ingredient.json");
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
 
-    auto builder = c2pa::Builder(manifest);
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
     builder.set_base_path(folder.string());
     // Add the identical ingredient twice.
     std::ifstream a1(folder / "asset.jpg", std::ios::binary);
@@ -1316,7 +1316,7 @@ TEST_F(LegacyFolderIngredient, CorruptManifestDataFailsAtSign) {
     std::string ing_json = c2pa_test::read_text_file(folder / "ingredient.json");
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
 
-    auto builder = c2pa::Builder(manifest);
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
     builder.set_base_path(folder.string());
     std::ifstream asset(c2pa_test::get_fixture_path("A.jpg"), std::ios::binary);
     // The corruption is not detected at add time.
@@ -1357,7 +1357,7 @@ TEST_F(LegacyFolderIngredient, UnrelatedAssetStreamMasksUnresolvedRef) {
     std::string ing_json = c2pa_test::read_text_file(folder / "ingredient.json");
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
 
-    auto builder = c2pa::Builder(manifest);
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
     // NO set_base_path: the declared manifest_data cannot resolve from disk.
     // Pass an unrelated asset stream (C.jpg, not the store's bound asset).
     std::ifstream unrelated(c2pa_test::get_fixture_path("C.jpg"), std::ios::binary);
@@ -1378,7 +1378,7 @@ TEST_F(LegacyFolderIngredient, UnrelatedAssetStreamMasksUnresolvedRef) {
     std::cerr << "[unrelated-asset masking] threw=" << (threw ? "yes" : "no")
               << " msg=" << msg << std::endl;
     if (!threw) {
-        auto reader = c2pa::Reader(out);
+        auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), out);
         auto parsed = json::parse(reader.json());
         std::string active = parsed["active_manifest"];
         auto ingredients = parsed["manifests"][active]["ingredients"];
@@ -1415,7 +1415,7 @@ TEST_F(LegacyFolderIngredient, LinkParentOfToOpened) {
         })},
     };
 
-    auto builder = c2pa::Builder(manifest.dump());
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest.dump());
     builder.set_base_path(dir.string());
     std::ifstream asset_stream(dir / "asset.jpg", std::ios::binary);
     ASSERT_NO_THROW(builder.add_ingredient(ing_json, "image/jpeg", asset_stream));
@@ -1424,7 +1424,7 @@ TEST_F(LegacyFolderIngredient, LinkParentOfToOpened) {
     fs::path out = make_temp_dir("link-parent-out") / "out.jpg";
     ASSERT_NO_THROW(builder.sign(c2pa_test::get_fixture_path("A.jpg"), out, signer));
 
-    auto reader = c2pa::Reader(out);
+    auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), out);
     auto parsed = json::parse(reader.json());
     std::string active = parsed["active_manifest"];
     bool found = false;
@@ -1476,7 +1476,7 @@ TEST_F(LegacyFolderIngredient, LinkComponentOfToPlaced) {
         })},
     };
 
-    auto builder = c2pa::Builder(manifest.dump());
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest.dump());
     builder.set_base_path(dir.string());
     std::ifstream asset_stream(dir / "asset.jpg", std::ios::binary);
     ASSERT_NO_THROW(builder.add_ingredient(ing_json, "image/jpeg", asset_stream));
@@ -1485,7 +1485,7 @@ TEST_F(LegacyFolderIngredient, LinkComponentOfToPlaced) {
     fs::path out = make_temp_dir("link-comp-out") / "out.jpg";
     ASSERT_NO_THROW(builder.sign(c2pa_test::get_fixture_path("A.jpg"), out, signer));
 
-    auto reader = c2pa::Reader(out);
+    auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), out);
     auto parsed = json::parse(reader.json());
     std::string active = parsed["active_manifest"];
     bool found = false;
@@ -1537,7 +1537,7 @@ TEST_F(LegacyFolderIngredient, LinkInputToToEdited) {
         })},
     };
 
-    auto builder = c2pa::Builder(manifest.dump());
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest.dump());
     builder.set_base_path(dir.string());
     std::ifstream asset_stream(dir / "asset.jpg", std::ios::binary);
     ASSERT_NO_THROW(builder.add_ingredient(ing_json, "image/jpeg", asset_stream));
@@ -1546,7 +1546,7 @@ TEST_F(LegacyFolderIngredient, LinkInputToToEdited) {
     fs::path out = make_temp_dir("link-input-out") / "out.jpg";
     ASSERT_NO_THROW(builder.sign(c2pa_test::get_fixture_path("A.jpg"), out, signer));
 
-    auto reader = c2pa::Reader(out);
+    auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), out);
     auto parsed = json::parse(reader.json());
     std::string active = parsed["active_manifest"];
     bool found = false;
@@ -1604,7 +1604,7 @@ TEST_F(LegacyFolderIngredient, LabelNotPreservedButInstanceIdIs) {
         })},
     };
 
-    auto builder = c2pa::Builder(manifest.dump());
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest.dump());
     builder.set_base_path(dir.string());
     std::ifstream asset_stream(dir / "asset.jpg", std::ios::binary);
     ASSERT_NO_THROW(builder.add_ingredient(ing_json, "image/jpeg", asset_stream));
@@ -1613,7 +1613,7 @@ TEST_F(LegacyFolderIngredient, LabelNotPreservedButInstanceIdIs) {
     fs::path out = make_temp_dir("label-persist-out") / "out.jpg";
     ASSERT_NO_THROW(builder.sign(c2pa_test::get_fixture_path("A.jpg"), out, signer));
 
-    auto reader = c2pa::Reader(out);
+    auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), out);
     auto parsed = json::parse(reader.json());
     std::string active = parsed["active_manifest"];
     auto &ingredients = parsed["manifests"][active]["ingredients"];

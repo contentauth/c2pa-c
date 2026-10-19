@@ -91,7 +91,7 @@ public:
     std::ifstream file_stream(test_file, std::ios::binary);
     ASSERT_TRUE(file_stream.is_open()) << "Failed to open file: " << test_file;
 
-    auto reader = c2pa::Reader(mime_type, file_stream);
+    auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), mime_type, file_stream);
     auto manifest_store_json = reader.json();
     EXPECT_TRUE(manifest_store_json.find(expected_content) != std::string::npos);
   }
@@ -127,9 +127,9 @@ TEST_F(ReaderTest, MultipleReadersSameFile)
     ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
 
     // create multiple readers from the same file
-    auto reader1 = c2pa::Reader(test_file);
-    auto reader2 = c2pa::Reader(test_file);
-    auto reader3 = c2pa::Reader(test_file);
+    auto reader1 = c2pa::Reader(std::make_shared<c2pa::Context>(), test_file);
+    auto reader2 = c2pa::Reader(std::make_shared<c2pa::Context>(), test_file);
+    auto reader3 = c2pa::Reader(std::make_shared<c2pa::Context>(), test_file);
 
     // all readers should be able to read the manifest independently
     auto manifest1 = reader1.json();
@@ -162,7 +162,7 @@ TEST_F(ReaderTest, MultipleReadersSameFileUsingContext)
     ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
 
     // Create a Context
-    auto context = c2pa::Context();
+    auto context = std::make_shared<c2pa::Context>();
 
     // create multiple readers from the same file using the context
     auto reader1 = c2pa::Reader(context, test_file);
@@ -202,7 +202,7 @@ TEST_F(ReaderTest, VideoStreamWithManifestUsingExtension) {
   std::ifstream file_stream(test_file, std::ios::binary);
   ASSERT_TRUE(file_stream.is_open()) << "Failed to open video file: " << test_file;
 
-  auto reader = c2pa::Reader("mp4", file_stream);
+  auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), "mp4", file_stream);
   auto manifest_store_json = reader.json();
   EXPECT_TRUE(manifest_store_json.find("My Title") != std::string::npos);
 };
@@ -217,7 +217,7 @@ TEST_F(ReaderTest, VideoStreamWithManifestUsingExtensionUsingContext) {
   ASSERT_TRUE(file_stream.is_open()) << "Failed to open video file: " << test_file;
 
   // Create a Context and pass it to the Reader
-  auto context = c2pa::Context();
+  auto context = std::make_shared<c2pa::Context>();
   auto reader = c2pa::Reader(context, "mp4", file_stream);
   auto manifest_store_json = reader.json();
   EXPECT_TRUE(manifest_store_json.find("My Title") != std::string::npos);
@@ -231,7 +231,7 @@ public:
     fs::path test_file = current_dir / "../tests/fixtures" / filename;
 
     // Read the manifest from the file
-    auto reader = c2pa::Reader(test_file);
+    auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), test_file);
     auto manifest_store_json = reader.json();
 
     // Simple content checks
@@ -259,7 +259,7 @@ TEST_F(ReaderTest, ImageFileWithManifestMultipleCalls)
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
 
     // read the new manifest and display the JSON
-    auto reader = c2pa::Reader(test_file);
+    auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), test_file);
     auto manifest_store_json = reader.json();
     EXPECT_TRUE(manifest_store_json.find("C.jpg") != std::string::npos);
 
@@ -274,14 +274,14 @@ TEST_F(ReaderTest, FileNoManifest)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/A.jpg";
-    EXPECT_THROW({ auto reader = c2pa::Reader(test_file); }, c2pa::C2paException);
+    EXPECT_THROW({ auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), test_file); }, c2pa::C2paException);
 };
 
 TEST_F(ReaderTest, FromAssetNoManifestReturnsNullopt)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/A.jpg";
-    auto context = c2pa::Context();
+    auto context = std::make_shared<c2pa::Context>();
     auto reader = c2pa::Reader::from_asset(context, test_file);
     EXPECT_FALSE(reader.has_value());
 }
@@ -290,7 +290,7 @@ TEST_F(ReaderTest, FromAssetWithManifestReturnsReader)
 {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
-    auto context = c2pa::Context();
+    auto context = std::make_shared<c2pa::Context>();
     auto reader = c2pa::Reader::from_asset(context, test_file);
     ASSERT_TRUE(reader.has_value());
     EXPECT_TRUE(reader->json().find("C.jpg") != std::string::npos);
@@ -302,7 +302,7 @@ TEST_F(ReaderTest, FromAssetStreamNoManifestReturnsNullopt)
     fs::path test_file = current_dir / "../tests/fixtures/A.jpg";
     std::ifstream stream(test_file, std::ios::binary);
     ASSERT_TRUE(stream);
-    auto context = c2pa::Context();
+    auto context = std::make_shared<c2pa::Context>();
     auto reader = c2pa::Reader::from_asset(context, "image/jpeg", stream);
     EXPECT_FALSE(reader.has_value());
 }
@@ -313,7 +313,7 @@ TEST_F(ReaderTest, FromAssetStreamWithManifestReturnsReader)
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
     std::ifstream stream(test_file, std::ios::binary);
     ASSERT_TRUE(stream);
-    auto context = c2pa::Context();
+    auto context = std::make_shared<c2pa::Context>();
     auto reader = c2pa::Reader::from_asset(context, "image/jpeg", stream);
     ASSERT_TRUE(reader.has_value());
     EXPECT_TRUE(reader->json().find("C.jpg") != std::string::npos);
@@ -326,7 +326,7 @@ TEST_F(ReaderTest, FromAssetEmptyFileStillThrows)
         std::ofstream f(empty_file, std::ios::binary);
         ASSERT_TRUE(f);
     }
-    auto context = c2pa::Context();
+    auto context = std::make_shared<c2pa::Context>();
     EXPECT_THROW(
         {
             (void)c2pa::Reader::from_asset(context, empty_file);
@@ -341,7 +341,7 @@ public:
     auto current_dir = fs::path(__FILE__).parent_path();
     auto fixture = current_dir / "../tests/fixtures" / file_name;
     std::ifstream stream(fixture, std::ios::binary);
-    return { "image/jpeg", stream  };
+    return {std::make_shared<c2pa::Context>(),  "image/jpeg", stream  };
   }
 };
 
@@ -373,7 +373,7 @@ TEST_F(ReaderTest, HasManifestUtf8Path) {
     ASSERT_TRUE(std::filesystem::exists(test_file)) << "Test file does not exist: " << test_file;
 
     std::ifstream stream(test_file, std::ios::binary);
-    auto reader = c2pa::Reader("image/jpeg", stream);
+    auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), "image/jpeg", stream);
 
     EXPECT_FALSE(reader.remote_url());
     EXPECT_TRUE(reader.is_embedded());
@@ -391,7 +391,7 @@ TEST_F(ReaderTest, HasManifestUtf8PathUsingContext) {
     std::ifstream stream(test_file, std::ios::binary);
 
     // Create a Context and pass it to the Reader
-    auto context = c2pa::Context();
+    auto context = std::make_shared<c2pa::Context>();
     auto reader = c2pa::Reader(context, "image/jpeg", stream);
 
     EXPECT_FALSE(reader.remote_url());
@@ -402,7 +402,7 @@ TEST_F(ReaderTest, FileNotFound)
 {
     try
     {
-        auto reader = c2pa::Reader("foo/xxx.xyz");
+        auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), "foo/xxx.xyz");
         FAIL() << "Expected std::system_error";
     }
     catch (const std::system_error &e)
@@ -428,7 +428,7 @@ TEST_F(ReaderTest, StreamClosed)
 
     // attempt to create reader with closed stream should throw exception
     EXPECT_THROW({
-        auto reader = c2pa::Reader("image/jpeg", file_stream);
+        auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), "image/jpeg", file_stream);
     }, c2pa::C2paException);
 };
 
@@ -442,7 +442,7 @@ TEST_F(ReaderTest, ReadManifestWithTrustConfiguredJsonSettings)
     // already configured with that trust to use with our Builder and Reader.
     fs::path settings_path = current_dir / "../tests/fixtures/settings/test_settings_example.json";
     auto settings = c2pa_test::read_text_file(settings_path);
-    auto trusted_context = c2pa::Context(settings);
+    auto trusted_context = std::make_shared<c2pa::Context>(settings);
 
     // When reading, the Reader also needs to know about trust, to determine the manifest validation state
     // If there is a valid trust chain, the manifest will be in validation_state Trusted.
@@ -466,7 +466,7 @@ TEST_F(ReaderTest, ReaderFromIStreamWithContext)
         GTEST_SKIP() << "Fixture not found: " << signed_path;
     }
 
-    auto context = c2pa::Context();
+    auto context = std::make_shared<c2pa::Context>();
     std::ifstream stream(signed_path, std::ios::binary);
     ASSERT_TRUE(stream) << "Failed to open " << signed_path;
 
@@ -485,7 +485,7 @@ TEST_F(ReaderTest, EmptyFileReturnsError)
     }
     EXPECT_THROW(
         {
-            c2pa::Reader reader(empty_file);
+            c2pa::Reader reader(std::make_shared<c2pa::Context>(), empty_file);
         },
         c2pa::C2paException);
 }
@@ -500,7 +500,7 @@ TEST_F(ReaderTest, TruncatedFileReturnsError)
     }
     EXPECT_THROW(
         {
-            c2pa::Reader reader(truncated_file);
+            c2pa::Reader reader(std::make_shared<c2pa::Context>(), truncated_file);
         },
         c2pa::C2paException);
 }
@@ -512,11 +512,11 @@ TEST(ReaderErrorHandling, EmptyStreamBehavesTheSameWithAndWithoutContext)
 
     // Without context
     EXPECT_THROW({
-        c2pa::Reader reader(format, empty_stream1);
+        c2pa::Reader reader(std::make_shared<c2pa::Context>(), format, empty_stream1);
     }, c2pa::C2paException);
 
     // With context
-    auto ctx = c2pa::Context();
+    auto ctx = std::make_shared<c2pa::Context>();
     EXPECT_THROW({
         c2pa::Reader reader(ctx, format, empty_stream2);
     }, c2pa::C2paException);
@@ -528,11 +528,11 @@ TEST(ReaderErrorHandling, NonExistentFileBehavesTheSameWithAndWithoutContext)
 
     // Without context
     EXPECT_THROW({
-        c2pa::Reader reader(nonexistent);
+        c2pa::Reader reader(std::make_shared<c2pa::Context>(), nonexistent);
     }, std::system_error);
 
     // With context
-    auto ctx = c2pa::Context();
+    auto ctx = std::make_shared<c2pa::Context>();
     EXPECT_THROW({
         c2pa::Reader reader(ctx, nonexistent);
     }, std::system_error);
@@ -551,13 +551,13 @@ TEST(ReaderErrorHandling, InvalidStreamBehavesTheSameWithAndWithoutContext)
     bool with_context_throws = false;
 
     try {
-        c2pa::Reader reader(format, stream1);
+        c2pa::Reader reader(std::make_shared<c2pa::Context>(), format, stream1);
     } catch (...) {
         without_context_throws = true;
     }
 
     try {
-        auto ctx = c2pa::Context();
+        auto ctx = std::make_shared<c2pa::Context>();
         c2pa::Reader reader(ctx, format, stream2);
     } catch (...) {
         with_context_throws = true;
@@ -576,14 +576,14 @@ TEST(ReaderErrorHandling, FailedReaderConstructionWithAndWithoutContext)
 
         // Without context
         try {
-            c2pa::Reader reader(format, stream1);
+            c2pa::Reader reader(std::make_shared<c2pa::Context>(), format, stream1);
         } catch (...) {
             // Expected to fail on empty stream
         }
 
         // With context
         try {
-            auto ctx = c2pa::Context();
+            auto ctx = std::make_shared<c2pa::Context>();
             c2pa::Reader reader(ctx, format, stream2);
         } catch (...) {
             // Expected to fail on empty stream
@@ -598,7 +598,7 @@ TEST(ReaderErrorHandling, ErrorMessagesWithAndWithoutContext)
 
     // Without context
     try {
-        c2pa::Reader reader(format, empty_stream1);
+        c2pa::Reader reader(std::make_shared<c2pa::Context>(), format, empty_stream1);
         FAIL() << "Should have thrown";
     } catch (const c2pa::C2paException& e) {
         std::string msg = e.what();
@@ -607,7 +607,7 @@ TEST(ReaderErrorHandling, ErrorMessagesWithAndWithoutContext)
 
     // With context
     try {
-        auto ctx = c2pa::Context();
+        auto ctx = std::make_shared<c2pa::Context>();
         c2pa::Reader reader(ctx, format, empty_stream2);
         FAIL() << "Should have thrown";
     } catch (const c2pa::C2paException& e) {
@@ -620,7 +620,7 @@ TEST_F(ReaderTest, GetResourceToStream) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
 
-    c2pa::Reader reader(test_file);
+    c2pa::Reader reader(std::make_shared<c2pa::Context>(), test_file);
     auto manifest_json = reader.json();
     auto parsed = json::parse(manifest_json);
 
@@ -642,7 +642,7 @@ TEST_F(ReaderTest, GetResourceToFilePath) {
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
     fs::path output_file = get_temp_path("thumbnail_test_output.jpg");
 
-    c2pa::Reader reader(test_file);
+    c2pa::Reader reader(std::make_shared<c2pa::Context>(), test_file);
     auto manifest_json = reader.json();
     auto parsed = json::parse(manifest_json);
 
@@ -663,7 +663,7 @@ TEST_F(ReaderTest, GetResourceInvalidUriThrows) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
 
-    c2pa::Reader reader(test_file);
+    c2pa::Reader reader(std::make_shared<c2pa::Context>(), test_file);
 
     std::ostringstream output;
     EXPECT_THROW(reader.get_resource("nonexistent_uri", output), c2pa::C2paException);
@@ -673,7 +673,7 @@ TEST_F(ReaderTest, GetResourceWithInvalidUri) {
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/C.jpg";
 
-    c2pa::Reader reader(test_file);
+    c2pa::Reader reader(std::make_shared<c2pa::Context>(), test_file);
 
     std::ostringstream output;
     EXPECT_THROW(reader.get_resource("invalid://nonexistent", output), c2pa::C2paException);
@@ -683,7 +683,7 @@ TEST_F(ReaderTest, ReadArchive)
 {
     // Build a manifest with ingredients and archive it to re-read it back with a Reader
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
-    auto builder = c2pa::Builder(manifest);
+    auto builder = c2pa::Builder(std::make_shared<c2pa::Context>(), manifest);
 
     std::string ingredient1_json = R"({"title": "A.jpg", "relationship": "parentOf"})";
     builder.add_ingredient(ingredient1_json, c2pa_test::get_fixture_path("A.jpg"));
@@ -696,7 +696,7 @@ TEST_F(ReaderTest, ReadArchive)
 
     // Read back the archive with a Reader
     archive_stream.seekg(0);
-    auto context = c2pa::Context();
+    auto context = std::make_shared<c2pa::Context>();
     auto reader = c2pa::Reader(context, "application/c2pa", archive_stream);
     auto json_result = reader.json();
 
@@ -717,7 +717,7 @@ TEST_F(ReaderTest, ReadCrJson)
     fs::path current_dir = fs::path(__FILE__).parent_path();
     fs::path test_file = current_dir / "../tests/fixtures/cloud.jpg";
 
-    auto reader = c2pa::Reader(test_file);
+    auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), test_file);
     auto crjson = reader.crjson();
     EXPECT_FALSE(crjson.empty());
 }
@@ -731,7 +731,7 @@ TEST_F(ReaderTest, ReadCrJsonSpecialChars)
       auto test_file = current_dir.parent_path() / "tests" / "fixtures" / "CÖÄ_.jpg";
     #endif
 
-    auto reader = c2pa::Reader(test_file);
+    auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), test_file);
     auto crjson = reader.crjson();
     EXPECT_FALSE(crjson.empty());
 }
@@ -799,7 +799,7 @@ public:
     static TestSidecar make_test_sidecar_bytes(const fs::path& asset,
                                                  const std::string& format) {
         auto signer = c2pa_test::create_test_signer();
-        auto context = c2pa::Context();
+        auto context = std::make_shared<c2pa::Context>();
         auto manifest_json = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
         auto builder = c2pa::Builder(context, manifest_json);
         builder.set_no_embed();
@@ -913,20 +913,20 @@ TEST_F(ReaderTest, ExtensionlessFilePathReadsManifest) {
     ASSERT_TRUE(fs::exists(noext));
     ASSERT_TRUE(noext.extension().empty()) << "temp path must have no extension";
 
-    c2pa::Reader reader(noext);
+    c2pa::Reader reader(std::make_shared<c2pa::Context>(), noext);
     EXPECT_NE(reader.json().find("C.jpg"), std::string::npos);
 }
 
 TEST_F(ReaderTest, UnlistedExtensionDefersToContent) {
     // The extension describes the filename; the bytes decide the format.
     fs::path odd = copy_fixture_to("C.jpg", "detect-unlisted-ext.zzz");
-    c2pa::Reader reader(odd);
+    c2pa::Reader reader(std::make_shared<c2pa::Context>(), odd);
     EXPECT_NE(reader.json().find("C.jpg"), std::string::npos);
 }
 
 TEST_F(ReaderTest, WrongButSupportedExtensionDefersToContent) {
     fs::path mislabeled = copy_fixture_to("C.jpg", "detect-mislabeled.png");
-    c2pa::Reader reader(mislabeled);
+    c2pa::Reader reader(std::make_shared<c2pa::Context>(), mislabeled);
     EXPECT_NE(reader.json().find("C.jpg"), std::string::npos);
 }
 
@@ -934,10 +934,10 @@ TEST_F(ReaderTest, EmptyFormatMatchesExplicitFormatJson) {
     std::string bytes = fixture_bytes("C.jpg");
 
     std::istringstream detected_stream(bytes, std::ios::binary);
-    c2pa::Reader detected("", detected_stream);
+    c2pa::Reader detected(std::make_shared<c2pa::Context>(), "", detected_stream);
 
     std::istringstream explicit_stream(bytes, std::ios::binary);
-    c2pa::Reader explicitly("image/jpeg", explicit_stream);
+    c2pa::Reader explicitly(std::make_shared<c2pa::Context>(), "image/jpeg", explicit_stream);
 
     auto a = json::parse(detected.json());
     auto b = json::parse(explicitly.json());
@@ -948,7 +948,7 @@ TEST_F(ReaderTest, EmptyFormatMatchesExplicitFormatJson) {
 
 TEST_F(ReaderTest, DngExtensionWithJpegContentIsCorrected) {
     fs::path mislabeled = copy_fixture_to("C.jpg", "detect-mislabeled.dng");
-    c2pa::Reader reader(mislabeled);
+    c2pa::Reader reader(std::make_shared<c2pa::Context>(), mislabeled);
     EXPECT_NE(reader.json().find("C.jpg"), std::string::npos);
 }
 
@@ -1055,12 +1055,12 @@ TEST_F(ReaderTest, SubMagicLengthStreamWithEmptyFormatThrows) {
     // Detection needs two bytes, so one leaves nothing to identify.
     std::string tiny("\xff", 1);
     std::istringstream stream(tiny, std::ios::binary);
-    EXPECT_THROW({ c2pa::Reader reader("", stream); }, c2pa::C2paException);
+    EXPECT_THROW({ c2pa::Reader reader(std::make_shared<c2pa::Context>(), "", stream); }, c2pa::C2paException);
 }
 
 TEST_F(ReaderTest, EmptyStreamWithEmptyFormatThrows) {
     std::istringstream stream(std::string{}, std::ios::binary);
-    EXPECT_THROW({ c2pa::Reader reader("", stream); }, c2pa::C2paException);
+    EXPECT_THROW({ c2pa::Reader reader(std::make_shared<c2pa::Context>(), "", stream); }, c2pa::C2paException);
 }
 
 TEST_F(ReaderTest, CorruptedJpegBodyWithEmptyFormatThrows) {
@@ -1071,7 +1071,7 @@ TEST_F(ReaderTest, CorruptedJpegBodyWithEmptyFormatThrows) {
         bytes[i] = static_cast<char>(bytes[i] ^ 0x5a);
     }
     std::istringstream stream(bytes, std::ios::binary);
-    EXPECT_THROW({ c2pa::Reader reader("", stream); }, c2pa::C2paException);
+    EXPECT_THROW({ c2pa::Reader reader(std::make_shared<c2pa::Context>(), "", stream); }, c2pa::C2paException);
 }
 
 TEST_F(ReaderTest, ReaderSidecarBlankFormatReadsValidManifest) {
@@ -1082,7 +1082,7 @@ TEST_F(ReaderTest, ReaderSidecarBlankFormatReadsValidManifest) {
     auto ctx = std::make_shared<c2pa::Context>();
 
     // Produce a valid sidecar manifest over A.jpg (no_embed returns the JUMBF bytes).
-    c2pa::Builder builder(manifest);
+    c2pa::Builder builder(std::make_shared<c2pa::Context>(), manifest);
     builder.set_no_embed();
     std::ifstream src(c2pa_test::get_fixture_path("A.jpg"), std::ios::binary);
     ASSERT_TRUE(src.is_open());
@@ -1121,7 +1121,7 @@ TEST_F(ReaderTest, ReaderBmffSidecarBlankFormatMatchesNamed) {
     auto manifest = c2pa_test::read_text_file(c2pa_test::get_fixture_path("training.json"));
     auto ctx = std::make_shared<c2pa::Context>();
 
-    c2pa::Builder builder(manifest);
+    c2pa::Builder builder(std::make_shared<c2pa::Context>(), manifest);
     builder.set_no_embed();
     std::ifstream src(c2pa_test::get_fixture_path("video1.mp4"), std::ios::binary);
     ASSERT_TRUE(src.is_open());
@@ -1170,11 +1170,11 @@ TEST_F(ReaderTest, WithFragmentEmptyFormatThrows) {
 }
 
 TEST_F(ReaderTest, DngReadsWithExplicitAndDetectedFormat) {
-    auto by_path = c2pa::Reader(c2pa_test::get_fixture_path("C2.DNG"));
+    auto by_path = c2pa::Reader(std::make_shared<c2pa::Context>(), c2pa_test::get_fixture_path("C2.DNG"));
 
     std::string bytes = fixture_bytes("C2.DNG");
     std::istringstream stream(bytes, std::ios::binary);
-    auto detected = c2pa::Reader("", stream);
+    auto detected = c2pa::Reader(std::make_shared<c2pa::Context>(), "", stream);
 
     auto a = json::parse(by_path.json());
     auto b = json::parse(detected.json());

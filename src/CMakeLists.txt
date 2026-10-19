@@ -255,7 +255,6 @@ else()
         -Wstack-protector
         -fstack-protector-strong
         -fPIC
-        -Wno-deprecated-declarations
     )
 
     if(APPLE)

@@ -60,7 +60,7 @@ c2pa::Reader reader(context, "image.jpg");
 - **Improves code clarity**: `Builder(context, manifest)` shows configuration is being used
 
 > [!NOTE]
-> The deprecated `c2pa::load_settings(data, format)` still works but you should migrate to `Context`. **Never mix the two approaches**. 
+> `c2pa::load_settings(data, format)` and the constructors that relied on it are removed.
 > See [Migrating from deprecated APIs](#migrating-from-deprecated-apis).
 
 ### Context lifecycle
@@ -86,12 +86,12 @@ Settings use JSON or TOML format. The schema is shared across all SDK languages 
 
 ```cpp
 // JSON (preferred)
-c2pa::Context context(R"({"verify": {"verify_after_sign": true}})");
+auto context = std::make_shared<c2pa::Context>(R"({"verify": {"verify_after_sign": true}})");
 
 // TOML
 c2pa::Settings settings(R"([verify]
 verify_after_sign = true)", "toml");
-c2pa::Context context(settings);
+auto context = std::make_shared<c2pa::Context>(settings);
 ```
 
 ## Creating a Context
@@ -107,7 +107,7 @@ There are several ways to create a `Context`:
 For quick prototyping and simple use cases, you can use the SDK defaults like this:
 
 ```cpp
-c2pa::Context context;  // Uses SDK defaults
+auto context = std::make_shared<c2pa::Context>();  // Uses SDK defaults
 ```
 
 For information on the defaults, see [Configuring SDK settings - Default configuration](https://opensource.contentauthenticity.org/docs/rust-sdk/docs/context-settings#default-configuration).
@@ -117,7 +117,7 @@ For information on the defaults, see [Configuring SDK settings - Default configu
 To specify a simple configuration that doesn't need to be shared across the codebase, you can use inline JSON like this:
 
 ```cpp
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
   "version": 1,
   "verify": {"verify_after_sign": true},
   "builder": {"claim_generator_info": {"name": "My App"}}
@@ -134,7 +134,7 @@ settings.set("builder.thumbnail.enabled", "false");
 settings.set("verify.verify_after_sign", "true");
 settings.update(R"({"builder": {"claim_generator_info": {"name": "My App"}}})");
 
-c2pa::Context context(settings);
+auto context = std::make_shared<c2pa::Context>(settings);
 ```
 
 ### Create using ContextBuilder
@@ -145,11 +145,11 @@ To load a configuration from files or combine multiple configuration sources, us
 c2pa::Settings base_settings;
 base_settings.set("builder.thumbnail.enabled", "true");
 
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_settings(base_settings)
     .with_json(R"({"verify": {"verify_after_sign": true}})")
     .with_json_settings_file("config/overrides.json")
-    .create_context();
+    .create_context());
 ```
 
 > [!IMPORTANT]
@@ -309,7 +309,7 @@ Trust self-signed or custom CA certificates during development:
 ```cpp
 std::string test_ca = read_file("test-ca.pem");
 
-c2pa::Context dev_context(R"({
+auto dev_context = std::make_shared<c2pa::Context>(R"({
   "version": 1,
   "trust": {
     "user_anchors": ")" + test_ca + R"("
@@ -330,7 +330,7 @@ c2pa::Context dev_context(R"({
 Load base configuration and apply environment-specific overrides:
 
 ```cpp
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_json_settings_file("config/base.json")
     .with_json_settings_file("config/" + environment + ".json")
     .with_json(R"({
@@ -338,7 +338,7 @@ auto context = c2pa::Context::ContextBuilder()
         "claim_generator_info": {"version": ")" + app_version + R"("}
       }
     })")
-    .create_context();
+    .create_context());
 ```
 
 ### Configuration from environment variables
@@ -357,7 +357,7 @@ if (env == "production") {
     settings.set("verify.remote_manifest_fetch", "false");
 }
 
-c2pa::Context context(settings);
+auto context = std::make_shared<c2pa::Context>(settings);
 ```
 
 ### Multiple contexts
@@ -365,8 +365,8 @@ c2pa::Context context(settings);
 Use different `Context` objects for different purposes:
 
 ```cpp
-c2pa::Context dev_context(dev_settings);
-c2pa::Context prod_context(prod_settings);
+auto dev_context = std::make_shared<c2pa::Context>(dev_settings);
+auto prod_context = std::make_shared<c2pa::Context>(prod_settings);
 
 c2pa::Builder dev_builder(dev_context, manifest);
 c2pa::Builder prod_builder(prod_context, manifest);
@@ -653,7 +653,7 @@ c2pa::Settings dev_settings;
 dev_settings.set("verify.verify_after_reading", "false");
 dev_settings.set("verify.verify_after_sign", "false");
 
-c2pa::Context dev_context(dev_settings);
+auto dev_context = std::make_shared<c2pa::Context>(dev_settings);
 ```
 
 -->
@@ -700,7 +700,7 @@ Use the [`builder.intent` setting](https://opensource.contentauthenticity.org/do
 **Example: Original digital capture (photos from camera)**
 
 ```cpp
-c2pa::Context camera_context(R"({
+auto camera_context = std::make_shared<c2pa::Context>(R"({
   "version": 1,
   "builder": {
     "intent": {"Create": "digitalCapture"},
@@ -712,7 +712,7 @@ c2pa::Context camera_context(R"({
 **Example: Editing existing content**
 
 ```cpp
-c2pa::Context editor_context(R"({
+auto editor_context = std::make_shared<c2pa::Context>(R"({
   "version": 1,
   "builder": {
     "intent": {"Edit": null},
@@ -768,7 +768,7 @@ The [`builder.thumbnail`](https://opensource.contentauthenticity.org/docs/manife
 
 ```cpp
 // Disable thumbnails for batch processing
-c2pa::Context no_thumbnails(R"({
+auto no_thumbnails = std::make_shared<c2pa::Context>(R"({
   "builder": {
     "claim_generator_info": {"name": "Batch Processor"},
     "thumbnail": {"enabled": false}
@@ -776,7 +776,7 @@ c2pa::Context no_thumbnails(R"({
 })");
 
 // Customize for mobile (smaller size, lower quality)
-c2pa::Context mobile_thumbnails(R"({
+auto mobile_thumbnails = std::make_shared<c2pa::Context>(R"({
   "builder": {
     "thumbnail": {
       "long_edge": 512,
@@ -825,7 +825,7 @@ Use when the private key is on a secure signing service (HSM, cloud KMS). See [s
 The signing service receives a POST request with data to sign and must return the signature:
 
 ```cpp
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
   "version": 1,
   "signer": {
     "remote": {
@@ -862,7 +862,7 @@ The `cawg_x509_signer` property configures signing for identity assertions. It h
 **Example: Dual signer configuration**
 
 ```cpp
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
   "version": 1,
   "signer": {
     "local": {
@@ -883,58 +883,58 @@ c2pa::Context context(R"({
 
 ## Migrating from deprecated APIs
 
-The SDK introduced Context-based APIs to replace constructors and functions that relied on thread-local state. The older APIs still compile but produce deprecation warnings. This section covers each deprecation that involves passing a `Context`, and explains the `Builder::sign` overloads.
+The APIs in this section relied on thread-local settings or took a context by reference. They were deprecated and are now removed, so code that calls them no longer compiles. Each subsection shows the removed call and its replacement.
 
 ### Quick reference
 
-| Deprecated API | Replacement |
+| Removed API | Replacement |
 |---|---|
 | `load_settings(data, format)` | [`Context` constructors or `ContextBuilder`](#replacing-load_settings) |
 | `Reader(format, stream)` | [`Reader(shared_ptr<IContextProvider>, format, stream)`](#adding-a-context-parameter-to-reader-and-builder) |
 | `Reader(source_path)` | [`Reader(shared_ptr<IContextProvider>, source_path)`](#adding-a-context-parameter-to-reader-and-builder) |
 | `Builder(manifest_json)` | [`Builder(shared_ptr<IContextProvider>, manifest_json)`](#adding-a-context-parameter-to-reader-and-builder) |
-| `Reader(IContextProvider&, ...)` | [`Reader(shared_ptr<IContextProvider>, ...)`](#using-shared_ptr-instead-of-reference-for-reader-and-builder) |
+| `Reader(IContextProvider&, ...)`, `Reader::from_asset(IContextProvider&, ...)` | [`shared_ptr<IContextProvider>` overloads](#using-shared_ptr-instead-of-reference-for-reader-and-builder) |
 | `Builder(IContextProvider&, ...)` | [`Builder(shared_ptr<IContextProvider>, ...)`](#using-shared_ptr-instead-of-reference-for-reader-and-builder) |
+| `Builder::sign(format, source, std::ostream&, signer)` | [`Builder::sign` with a `std::iostream&` destination](#signing-to-an-ostream) |
+| `Builder::data_hashed_placeholder`, `Builder::sign_data_hashed_embeddable`, `Builder::format_embeddable` | [Embeddable signing API](embeddable-api.md#deprecated-methods) |
 
 ### Replacing load_settings
 
-`c2pa::load_settings(data, format)` sets thread-local settings that `Reader` and `Builder` pick up implicitly. Replace it with a `Context` that you pass explicitly.
+`c2pa::load_settings(data, format)` set thread-local settings that `Reader` and `Builder` picked up implicitly. A `Context` holds the same settings and is passed explicitly.
 
-| Aspect | load_settings (legacy) | Context |
-|--------|------------------------|---------|
+| Aspect | load_settings (removed) | Context |
+|--------|-------------------------|---------|
 | Scope | Global / thread-local | Per Reader/Builder, passed explicitly |
 | Multiple configs | Awkward (per-thread) | One context per configuration |
 | Testing | Shared global state | Isolated contexts per test |
 
-**Deprecated:** 
+**Removed:**
 
 ```cpp
 std::ifstream config_file("settings.json");
 std::string config((std::istreambuf_iterator<char>(config_file)), std::istreambuf_iterator<char>());
 c2pa::load_settings(config, "json");
-c2pa::Reader reader("image/jpeg", stream);  // uses thread-local settings
+c2pa::Reader reader("image/jpeg", stream);  // used thread-local settings
 ```
 
-**With context API:**
+**Replacement:**
 
 ```cpp
-c2pa::Context context(settings_json_string);  // or Context(Settings(...))
+auto context = std::make_shared<c2pa::Context>(config);  // or Context(Settings(...))
 c2pa::Reader reader(context, "image/jpeg", stream);
 ```
 
-If you still use `load_settings`, construct `Reader` or `Builder` **without** a context parameter to continue using the thread-local settings. Prefer passing a context for new code.
-
 ### Adding a context parameter to Reader and Builder
 
-The following constructors are deprecated because they rely on thread-local settings:
+These constructors relied on thread-local settings and are removed:
 
 - `Reader(const std::string& format, std::istream& stream)`
 - `Reader(const std::filesystem::path& source_path)`
 - `Builder(const std::string& manifest_json)`
 
-The migration path is to create a `shared_ptr<Context>` and pass it as the first argument.
+Create a `shared_ptr<Context>` and pass it as the first argument.
 
-**Deprecated:**
+**Removed:**
 
 ```cpp
 c2pa::Reader reader("image/jpeg", stream);
@@ -942,7 +942,7 @@ c2pa::Reader reader("image.jpg");
 c2pa::Builder builder(manifest_json);
 ```
 
-**With shared_ptr context API:**
+**Replacement:**
 
 ```cpp
 auto context = std::make_shared<c2pa::Context>();  // or Context(settings) or Context(json)
@@ -953,18 +953,18 @@ c2pa::Builder builder(context, manifest_json);
 
 ### Using shared_ptr instead of reference for Reader and Builder
 
-The `IContextProvider&` reference overloads are deprecated because they do not extend the lifetime of the context. If the context is destroyed while a `Reader` or `Builder` has a progress callback registered, the callback fires against freed memory, causing a crash.
+The `IContextProvider&` reference overloads are removed because they did not extend the lifetime of the context. If the context was destroyed while a `Reader` or `Builder` had a progress callback registered, the callback ran against freed memory.
 
-**Deprecated:**
+**Removed:**
 
 ```cpp
 c2pa::Context context;
-c2pa::Reader reader(context, "image.jpg");        // reference — context not kept alive
-c2pa::Builder builder(context, manifest_json);    // reference — context not kept alive
-c2pa::Reader::from_asset(context, "image.jpg");   // reference — context not kept alive
+c2pa::Reader reader(context, "image.jpg");        // reference: context not kept alive
+c2pa::Builder builder(context, manifest_json);    // reference: context not kept alive
+c2pa::Reader::from_asset(context, "image.jpg");   // reference: context not kept alive
 ```
 
-**With shared_ptr:**
+**Replacement:**
 
 ```cpp
 auto context = std::make_shared<c2pa::Context>();
@@ -977,7 +977,7 @@ The `shared_ptr` overloads accept any `shared_ptr<IContextProvider>`, so custom 
 
 #### About IContextProvider
 
-`IContextProvider` is the interface that `Reader` and `Builder` constructors accept. `Context` is the SDK's built-in implementation. The deprecation warnings reference it in the suggested replacement (e.g., `"Use Reader(std::shared_ptr<IContextProvider>, ...)`").
+`IContextProvider` is the interface that `Reader` and `Builder` constructors accept, as `std::shared_ptr<IContextProvider>`. `Context` is the SDK's built-in implementation.
 
 External libraries can implement `IContextProvider` to supply their own context objects. The interface requires a valid `C2paContext*` pointer and an `is_valid()` check. Wrap your implementation in a `shared_ptr` when passing to `Reader` or `Builder`.
 
@@ -1038,14 +1038,18 @@ builder.sign("source.jpg", "output.jpg");
 
 This is useful when you want to configure signing once and reuse the same context across multiple builders without passing the signer to each `sign` call.
 
-**Deprecated:**
+#### Signing to an ostream
+
+The `sign` overload that wrote to a `std::ostream&` has been deprecated (and removed). The destination must be readable as well as writable, so open it as a `std::fstream` or pass another `std::iostream`.
+
+**Removed:**
 
 ```cpp
 std::ofstream out("output.jpg", std::ios::binary);
 builder.sign("image/jpeg", source, out, signer);
 ```
 
-**With context API:**
+**Replacement:**
 
 ```cpp
 std::fstream dest("output.jpg", std::ios::in | std::ios::out | std::ios::binary);

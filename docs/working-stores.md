@@ -85,7 +85,7 @@ Use the `Reader` class to read manifest stores from signed assets.
 
 int main() {
     try {
-        c2pa::Context context;
+        auto context = std::make_shared<c2pa::Context>();
         // Create a Reader from a signed asset file
         auto reader = c2pa::Reader(context, "signed_image.jpg");
 
@@ -102,7 +102,7 @@ int main() {
 ```cpp
 #include <fstream>
 
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 std::ifstream file_stream("signed_image.jpg", std::ios::binary);
 if (file_stream.is_open()) {
     auto reader = c2pa::Reader(context, "image/jpeg", file_stream);
@@ -117,7 +117,7 @@ For more control over validation and trust settings, use a `Context`:
 
 ```cpp
 // Create context with custom validation settings
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
   "verify": {
     "verify_after_sign": true
   }
@@ -131,7 +131,8 @@ std::string manifest_json = reader.json();
 ### Checking if the manifest store is embedded
 
 ```cpp
-auto reader = c2pa::Reader("signed_image.jpg");
+auto context = std::make_shared<c2pa::Context>();
+auto reader = c2pa::Reader(context, "signed_image.jpg");
 
 if (reader.is_embedded()) {
     std::cout << "Manifest store is embedded in the asset" << std::endl;
@@ -154,7 +155,7 @@ A **working store** is represented by a `Builder` object. It contains "live" man
 
 ```cpp
 // Create an empty working store
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 auto builder = c2pa::Builder(context);
 
 // Create a working store with a manifest definition
@@ -210,7 +211,8 @@ auto manifest_bytes = builder.sign("source.jpg", "signed.jpg", signer);
 
 // Now "signed.jpg" contains a manifest store
 // You can read it back with Reader
-auto reader = c2pa::Reader("signed.jpg");
+auto context = std::make_shared<c2pa::Context>();
+auto reader = c2pa::Reader(context, "signed.jpg");
 std::string manifest_store_json = reader.json();  // This is the manifest store
 ```
 
@@ -222,11 +224,11 @@ A `Builder` object represents the working store.
 
 ```cpp
 // Create with default settings
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 auto builder = c2pa::Builder(context, manifest_json);
 
 // Or with custom settings
-c2pa::Context custom_context(R"({
+auto custom_context = std::make_shared<c2pa::Context>(R"({
   "builder": {
     "thumbnail": {
       "enabled": true
@@ -343,14 +345,14 @@ int main() {
                                    "http://timestamp.digicert.com");
 
         // 4. Create working store (Builder) and sign
-        c2pa::Context context;
+        auto context = std::make_shared<c2pa::Context>();
         auto builder = c2pa::Builder(context, manifest_json);
         builder.sign("source.jpg", "signed.jpg", signer);
 
         std::cout << "Asset signed - working store is now a manifest store" << std::endl;
 
         // 5. Read back the manifest store
-        auto reader = c2pa::Reader("signed.jpg");
+        auto reader = c2pa::Reader(context, "signed.jpg");
     } catch (const c2pa::C2paException& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;
@@ -388,7 +390,8 @@ To extract a resource, you need its JUMBF URI from the manifest store:
 ```cpp
 // Pre-requisite: Having a JSON-parsing library to parse the Reader's JSON easily
 
-auto reader = c2pa::Reader("signed_image.jpg");
+auto context = std::make_shared<c2pa::Context>();
+auto reader = c2pa::Reader(context, "signed_image.jpg");
 json manifest_store = json::parse(reader.json());
 
 // Get active manifest
@@ -424,7 +427,7 @@ When building a manifest, you add resources using identifiers. The SDK will refe
 **Pattern:**
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 auto builder = c2pa::Builder(context, manifest_json);
 
 // Add resource with a simple identifier
@@ -484,7 +487,7 @@ Use `label` when defining manifests in JSON. Use `instance_id` when a stable ide
 When creating a manifest, add ingredients to preserve the provenance chain:
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 auto builder = c2pa::Builder(context, manifest_json);
 
 // Define ingredient metadata
@@ -524,9 +527,9 @@ Producer: register the ingredient and write the archive, keyed by `instance_id`.
 
 ```cpp
 auto settings = c2pa::Settings();
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_settings(std::move(settings))
-    .create_context();
+    .create_context());
 
 auto producer = c2pa::Builder(context, manifest_str);
 producer.add_ingredient(
@@ -583,7 +586,7 @@ When linking multiple ingredient archives, write one archive per ingredient with
 To link an ingredient archive to an action via `ingredientIds`, set a `label` on the JSON passed to `add_ingredient` on the signing builder, and use the same string in the action's `ingredientIds` array. Labels are build-time linking keys only. The SDK may reassign the actual label in the signed manifest during signing.
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 
 // Step 1: Create the ingredient archive (legacy).
 auto manifest_str = read_file("training.json");
@@ -765,7 +768,8 @@ The subsections below cover the full-builder APIs. For single-ingredient archive
 ```cpp
 // Create and configure a working store
 const std::string manifest_json = R"({ ... })";
-auto builder = c2pa::Builder(manifest_json);
+auto context = std::make_shared<c2pa::Context>();
+auto builder = c2pa::Builder(context, manifest_json);
 builder.add_resource("thumbnail", "thumbnail.jpg");
 builder.add_ingredient(ingredient_json, "source.jpg");
 
@@ -808,7 +812,7 @@ Load an archive into an existing `Builder` while preserving its context:
 
 ```cpp
 // Create working store with custom context
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
   "builder": {
     "thumbnail": {
       "enabled": false
@@ -839,7 +843,7 @@ void prepare_manifest() {
       "assertions": [ ... ]
     })";
 
-    c2pa::Context context;
+    auto context = std::make_shared<c2pa::Context>();
     auto builder = c2pa::Builder(context, manifest_json);
     builder.add_resource("thumbnail", "thumb.jpg");
     builder.add_ingredient("{\"title\": \"Sketch\"}", "sketch.png");
@@ -892,9 +896,9 @@ The exported archive is not a lossless slice of the parent. It contains one clon
 
 ```cpp
 auto settings = c2pa::Settings();
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_settings(std::move(settings))
-    .create_context();
+    .create_context());
 
 auto builder = c2pa::Builder(context, manifest_json);
 
@@ -920,9 +924,9 @@ The archive contains exactly one ingredient. Reading it back through `c2pa::Read
 
 ```cpp
 auto settings = c2pa::Settings();
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_settings(std::move(settings))
-    .create_context();
+    .create_context());
 
 auto consumer = c2pa::Builder(context, manifest_json);
 
@@ -980,9 +984,9 @@ With the dedicated ingredient archive APIs, the producer writes a single-ingredi
 ```cpp
 // Current API: one archive per ingredient via write_ingredient_archive
 auto settings = c2pa::Settings();
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_settings(std::move(settings))
-    .create_context();
+    .create_context());
 
 auto builder = c2pa::Builder(context, manifest_json);
 builder.add_ingredient(
@@ -1187,13 +1191,14 @@ By default, manifest stores are **embedded** directly into the asset file. You c
 ### Default: embedded manifest stores
 
 ```cpp
-auto builder = c2pa::Builder(manifest_json);
+auto context = std::make_shared<c2pa::Context>();
+auto builder = c2pa::Builder(context, manifest_json);
 
 // Default behavior: manifest store is embedded in the output
 builder.sign("source.jpg", "signed.jpg", signer);
 
 // Read it back
-auto reader = c2pa::Reader("signed.jpg");
+auto reader = c2pa::Reader(context, "signed.jpg");
 assert(reader.is_embedded() == true);  // Manifest store is embedded
 ```
 
@@ -1202,7 +1207,7 @@ assert(reader.is_embedded() == true);  // Manifest store is embedded
 Prevent embedding the manifest store in the asset:
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 auto builder = c2pa::Builder(context, manifest_json);
 builder.set_no_embed();  // Don't embed the manifest store
 
@@ -1226,7 +1231,8 @@ std::cout << "Manifest store saved externally to output.c2pa" << std::endl;
 Reference a manifest store stored at a remote URL:
 
 ```cpp
-auto builder = c2pa::Builder(manifest_json);
+auto context = std::make_shared<c2pa::Context>();
+auto builder = c2pa::Builder(context, manifest_json);
 builder.set_remote_url("<<a storage URL>>");
 
 // The asset will contain a reference to the remote manifest store
@@ -1236,7 +1242,8 @@ builder.sign("source.jpg", "output.jpg", signer);
 ### Checking manifest store location
 
 ```cpp
-auto reader = c2pa::Reader("asset.jpg");
+auto context = std::make_shared<c2pa::Context>();
+auto reader = c2pa::Reader(context, "asset.jpg");
 
 if (reader.is_embedded()) {
     std::cout << "Manifest store is embedded in the asset" << std::endl;
@@ -1258,7 +1265,7 @@ if (reader.is_embedded()) {
 Always use `Context` objects for SDK configuration:
 
 ```cpp
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
   "verify": {
     "verify_after_sign": true
   },

@@ -76,11 +76,12 @@ int main()
         // create a signer
         c2pa::Signer signer = c2pa::Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
-        auto builder = c2pa::Builder(manifest_json);
+        auto context = std::make_shared<c2pa::Context>();
+        auto builder = c2pa::Builder(context, manifest_json);
         auto manifest_data = builder.sign(image_path, output_path, signer);
 
         // read the new manifest and display the JSON
-        auto reader = c2pa::Reader(output_path);
+        auto reader = c2pa::Reader(context, output_path);
         auto new_manifest_json = reader.json();
         cout << "The new manifest is " << new_manifest_json << endl;
 

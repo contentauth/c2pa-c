@@ -11,7 +11,7 @@ To use this library, include the header file in your code as follows:
 Use the `Reader` constructor to read C2PA data from a stream. This constructor examines the specified stream for C2PA data in the given format, and its return value is a `Reader` that you can use to extract more information. The constructor throws exceptions on errors.
 
 ```cpp
-  c2pa::Context context;  // or Context(settings) or Context(json_string)
+  auto context = std::make_shared<c2pa::Context>();  // or Context(settings) or Context(json_string)
   auto reader = c2pa::Reader(context, <"FORMAT">, <"STREAM">);
 ```
 
@@ -24,7 +24,7 @@ The parameters are:
 Passing an empty string (or use a format-less overload of a `Reader`) asks the native core library to guess the format (the read will still fail if the format can't be guessed or is unsupported):
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 std::ifstream ifs("asset.bin", std::ios::binary);
 auto reader = c2pa::Reader(std::make_shared<c2pa::Context>(), ifs);
 ```
@@ -44,7 +44,7 @@ If detection detects no container and no format was supplied, the read fails wit
 For example:
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 std::ifstream ifs("tests/fixtures/C.jpg", std::ios::binary);
 
 // the Reader supports streams or file paths
@@ -110,15 +110,15 @@ The `Context` class manages C2PA SDK configuration. There are two ways to create
 
 ```cpp
 // Default settings
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 
 // From a Settings object
 c2pa::Settings settings;
 settings.set("builder.thumbnail.enabled", "true");
-c2pa::Context context(settings);
+auto context = std::make_shared<c2pa::Context>(settings);
 
 // From a JSON configuration string
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
   "builder": {
     "thumbnail": {
       "enabled": true
@@ -132,7 +132,7 @@ c2pa::Context context(R"({
 You pass contexts by reference to `Builder` and `Reader` constructors. The constructor uses the context only at construction; the implementation copies context state into the `Reader`/`Builder`, so the context does not need to outlive them.
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 c2pa::Builder builder(context, manifest_json);
 c2pa::Reader reader(context, "image.jpg");
 ```
@@ -142,7 +142,7 @@ c2pa::Reader reader(context, "image.jpg");
 Use the `Builder` constructor to create a `Builder` instance. A `Context` is required as the first parameter.
 
 ```cpp
-  c2pa::Context context;
+  auto context = std::make_shared<c2pa::Context>();
   auto builder = c2pa::Builder(context, "<MANIFEST_JSON>");
 ```
 
@@ -154,7 +154,7 @@ The parameters are:
 For example:
 
 ```cpp
-  c2pa::Context context;
+  auto context = std::make_shared<c2pa::Context>();
   auto builder = c2pa::Builder(context, manifest_json);
 ```
 

@@ -304,21 +304,21 @@ namespace c2pa
     ///
     ///          Direct construction:
     ///          @code
-    ///          c2pa::Context ctx;              // default
-    ///          c2pa::Context ctx(settings);    // from Settings
-    ///          c2pa::Context ctx(json);        // from JSON string
+    ///          auto ctx = std::make_shared<c2pa::Context>();          // default
+    ///          auto ctx = std::make_shared<c2pa::Context>(settings);  // from Settings
+    ///          auto ctx = std::make_shared<c2pa::Context>(json);      // from JSON string
     ///          @endcode
     ///
     ///          ContextBuilder (for multi-step configuration):
     ///          @code
-    ///          auto ctx = c2pa::Context::ContextBuilder()
+    ///          auto ctx = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     ///              .with_settings(settings)
     ///              .with_json(json)
-    ///              .create_context();
+    ///              .create_context());
     ///          @endcode
     ///
-    ///          Builder and Reader take the context by reference (IContextProvider&).
-    ///          The context object must outlive the Builder or Reader instance.
+    ///          Builder and Reader take the context as std::shared_ptr<IContextProvider> and
+    ///          keep it alive for their own lifetime.
     class C2PA_CPP_API Context : public IContextProvider {
     public:
         /// @brief ContextBuilder for creating customized Context instances.
@@ -532,16 +532,6 @@ namespace c2pa
     /// @brief Get the version of the C2PA library.
     /// @return Version string.
     std::string C2PA_CPP_API version();
-
-    /// @brief Load C2PA settings from a string in a given format.
-    /// @param data The configuration data to load.
-    /// @param format The mimetype of the string.
-    /// @throws C2paException for errors encountered by the C2PA library.
-    /// @deprecated Use Context constructors or Context::ContextBuilder instead for better thread safety.
-    ///             Will be removed when c2pa-c moves to c2pa-rs 0.92.0.
-    [[deprecated("Use Context(json), Context(settings), or Context::ContextBuilder instead. "
-                 "Will be removed when c2pa-c moves to c2pa-rs 0.92.0.")]]
-    void C2PA_CPP_API load_settings(const std::string& data, const std::string& format);
 
     /// @defgroup StreamWrappers Stream wrappers for C2PA C API
     /// @brief C++ stream types that adapt stream types to C2paStream.
@@ -762,37 +752,7 @@ namespace c2pa
             }
         }
 
-        Reader() : c2pa_reader(nullptr) {}
-
     public:
-        /// @brief Create a Reader from a context and stream.
-        /// @param context Context provider; used at construction to configure settings.
-        /// @param format The mime format of the stream.
-        /// @param stream The input stream to read from.
-        /// @throws C2paException if context.is_valid() returns false,
-        ///         or for other errors encountered by the C2PA library.
-        /// @deprecated Use Reader(std::shared_ptr<IContextProvider>, format, stream) instead.
-        ///             The reference overload does not extend the lifetime of the context, which can
-        ///             be problematic when progress callbacks fire after the context is destroyed.
-        [[deprecated("Use Reader(std::shared_ptr<IContextProvider>, format, stream) instead. "
-                     "The reference overload does not extend the lifetime of the context, which can "
-                     "be problematic when progress callbacks fire after the context is destroyed.")]]
-        Reader(IContextProvider& context, const std::string &format, std::istream &stream);
-
-        /// @brief Create a Reader from a context and file path.
-        /// @param context Context provider; used at construction only to configure settings.
-        /// @param source_path The path to the file to read.
-        /// @throws C2paException if context.is_valid() returns false,
-        ///         or for other errors encountered by the C2PA library.
-        /// @note Prefer using the streaming APIs if possible.
-        /// @deprecated Use Reader(std::shared_ptr<IContextProvider>, source_path) instead.
-        ///             The reference overload does not extend the lifetime of the context, which can
-        ///             be problematic when progress callbacks fire after the context is destroyed.
-        [[deprecated("Use Reader(std::shared_ptr<IContextProvider>, source_path) instead. "
-                     "The reference overload does not extend the lifetime of the context, which can "
-                     "be problematic when progress callbacks fire after the context is destroyed.")]]
-        Reader(IContextProvider& context, const std::filesystem::path &source_path);
-
         /// @brief Create a Reader from a shared context and stream.
         /// @details The Reader retains a shared reference to the context, keeping it
         ///          alive for the lifetime of the Reader.
@@ -848,52 +808,6 @@ namespace c2pa
                const std::string& format,
                std::istream& image_stream,
                const std::vector<uint8_t>& manifest_jumbf);
-
-        /// @brief Create a Reader from a stream (will use global settings if any loaded).
-        /// @details The validation_status field in the JSON contains validation results.
-        /// @param format The mime format of the stream.
-        /// @param stream The input stream to read from.
-        /// @throws C2paException for errors encountered by the C2PA library.
-        /// @deprecated Use Reader(std::shared_ptr<IContextProvider>, format, stream) instead.
-        ///             Will be removed when c2pa-c moves to c2pa-rs 0.92.0.
-        [[deprecated("Use Reader(std::shared_ptr<IContextProvider>, format, stream) instead. "
-                     "Will be removed when c2pa-c moves to c2pa-rs 0.92.0.")]]
-        Reader(const std::string &format, std::istream &stream);
-
-        /// @brief Create a Reader from a file path (will use global settings if any loaded).
-        /// @param source_path The path to the file to read.
-        /// @throws C2paException for errors encountered by the C2PA library.
-        /// @deprecated Use Reader(std::shared_ptr<IContextProvider>, source_path) instead.
-        ///             Will be removed when c2pa-c moves to c2pa-rs 0.92.0.
-        /// @note Prefer using the streaming APIs if possible.
-        [[deprecated("Use Reader(std::shared_ptr<IContextProvider>, source_path) instead. "
-                     "Will be removed when c2pa-c moves to c2pa-rs 0.92.0.")]]
-        Reader(const std::filesystem::path &source_path);
-
-        /// @brief Try to open a Reader from a context and file path when the asset may lack C2PA data.
-        /// @return A Reader if JUMBF (c2pa/manifest) data is present; std::nullopt if none.
-        /// @throws C2paException for errors other than a missing manifest (e.g. invalid asset).
-        /// @throws std::system_error if the file cannot be opened.
-        /// @deprecated Use from_asset(std::shared_ptr<IContextProvider>, source_path) instead.
-        ///             The reference overload does not extend the lifetime of the context, which can
-        ///             cause a use-after-free crash when progress callbacks fire after the context is
-        ///             destroyed.
-        [[deprecated("Use from_asset(std::shared_ptr<IContextProvider>, source_path) instead. "
-                     "The reference overload does not extend the lifetime of the context, which can "
-                     "be problematic when progress callbacks fire after the context is destroyed.")]]
-        static std::optional<Reader> from_asset(IContextProvider& context, const std::filesystem::path &source_path);
-
-        /// @brief Try to create a Reader from a context and stream when the asset may lack C2PA data.
-        /// @return A Reader if JUMBF (c2pa/manifest) data is present; std::nullopt if none.
-        /// @throws C2paException for errors other than a missing manifest.
-        /// @deprecated Use from_asset(std::shared_ptr<IContextProvider>, format, stream) instead.
-        ///             The reference overload does not extend the lifetime of the context, which can
-        ///             cause a use-after-free crash when progress callbacks fire after the context is
-        ///             destroyed.
-        [[deprecated("Use from_asset(std::shared_ptr<IContextProvider>, format, stream) instead. "
-                     "The reference overload does not extend the lifetime of the context, which can "
-                     "be problematic when progress callbacks fire after the context is destroyed.")]]
-        static std::optional<Reader> from_asset(IContextProvider& context, const std::string &format, std::istream &stream);
 
         /// @brief Try to open a Reader from a shared context and file path when the asset may lack C2PA data.
         /// @details The Reader retains a shared reference to the context if C2PA data is found.
@@ -1137,31 +1051,6 @@ namespace c2pa
         void init_from_context(IContextProvider& context, const std::string &manifest_json);
 
     public:
-        /// @brief Create a Builder from a context with an empty manifest.
-        /// @param context Context provider; used at construction to configure settings.
-        /// @throws C2paException if context.is_valid() returns false,
-        ///         or for other errors encountered by the C2PA library.
-        /// @deprecated Use Builder(std::shared_ptr<IContextProvider>) instead.
-        ///             The reference overload does not extend the lifetime of the context, which can
-        ///             be problematic when progress callbacks fire after the context is destroyed.
-        [[deprecated("Use Builder(std::shared_ptr<IContextProvider>) instead. "
-                     "The reference overload does not extend the lifetime of the context, which can "
-                     "be problematic when progress callbacks fire after the context is destroyed.")]]
-        explicit Builder(IContextProvider& context);
-
-        /// @brief Create a Builder from a context and manifest JSON string.
-        /// @param context Context provider; used at construction to configure settings.
-        /// @param manifest_json The manifest JSON string.
-        /// @throws C2paException if context.is_valid() returns false,
-        ///         or for other errors encountered by the C2PA library.
-        /// @deprecated Use Builder(std::shared_ptr<IContextProvider>, manifest_json) instead.
-        ///             The reference overload does not extend the lifetime of the context, which can
-        ///             be problematic when progress callbacks fire after the context is destroyed.
-        [[deprecated("Use Builder(std::shared_ptr<IContextProvider>, manifest_json) instead. "
-                     "The reference overload does not extend the lifetime of the context, which can "
-                     "be problematic when progress callbacks fire after the context is destroyed.")]]
-        Builder(IContextProvider& context, const std::string &manifest_json);
-
         /// @brief Create a Builder from a shared context with an empty manifest.
         /// @details The Builder retains a shared reference to the context, keeping it
         ///          alive for the lifetime of the Builder. This is the preferred
@@ -1177,15 +1066,6 @@ namespace c2pa
         /// @param manifest_json The manifest JSON string.
         /// @throws C2paException if context is null or context->is_valid() returns false.
         Builder(std::shared_ptr<IContextProvider> context, const std::string &manifest_json);
-
-        /// @brief Create a Builder from a manifest JSON string (will use global settings if any loaded).
-        /// @param manifest_json The manifest JSON string.
-        /// @throws C2paException for errors encountered by the C2PA library.
-        /// @deprecated Use Builder(std::shared_ptr<IContextProvider>, manifest_json) instead.
-        ///             Will be removed when c2pa-c moves to c2pa-rs 0.92.0.
-        [[deprecated("Use Builder(std::shared_ptr<IContextProvider>, manifest_json) instead. "
-                     "Will be removed when c2pa-c moves to c2pa-rs 0.92.0.")]]
-        Builder(const std::string &manifest_json);
 
         /// @brief Create a Builder from a raw C FFI builder.
         /// @param builder Raw C2paBuilder pointer to wrap.
@@ -1279,16 +1159,6 @@ namespace c2pa
         /// @throws C2paException if the intent cannot be set.
         void set_intent(C2paBuilderIntent intent, C2paDigitalSourceType digital_source_type = Empty);
 
-        /// @brief Sign an input stream and write the signed data to an output stream.
-        /// @param format The mime format of the output stream.
-        /// @param source The input stream to sign.
-        /// @param dest The output stream to write the signed data to.
-        /// @param signer The Signer object to use for signing.
-        /// @return A vector containing the signed manifest bytes.
-        /// @throws C2paException for errors encountered by the C2PA library.
-        /// @deprecated Use sign(const string&, std::istream&, std::iostream&, Signer&) instead.
-        std::vector<unsigned char> sign(const std::string &format, std::istream &source, std::ostream &dest, Signer &signer);
-
         /// @brief Sign an input stream and write the signed data to an I/O stream.
         /// @param format The mime format of the output.
         /// @param source The input stream to sign.
@@ -1375,42 +1245,6 @@ namespace c2pa
         /// @param archive The input stream containing the archive produced by write_ingredient_archive.
         /// @throws C2paException for errors encountered by the C2PA library.
         void add_ingredient_from_archive(std::istream &archive);
-
-        /// @brief Create a hashed placeholder from the builder.
-        /// @param reserved_size The size required for a signature from the intended signer (in bytes).
-        /// @param format The mime format or extension of the asset.
-        /// @return A vector containing the hashed placeholder bytes.
-        /// @throws C2paException for errors encountered by the C2PA library.
-        /// @deprecated Use needs_placeholder() and placeholder(format), with the signer configured
-        ///             on the Builder's Context. Will be removed when c2pa-c moves to c2pa-rs 0.92.0.
-        [[deprecated("Use needs_placeholder() and placeholder(format), with the signer configured "
-                     "on the Builder's Context. Will be removed when c2pa-c moves to c2pa-rs 0.92.0.")]]
-        std::vector<unsigned char> data_hashed_placeholder(uintptr_t reserved_size, const std::string &format);
-
-        /// @brief Sign a Builder using the specified signer and data hash.
-        /// @param signer The signer to use for signing.
-        /// @param data_hash The data hash ranges to sign (must contain hashes unless an asset is provided).
-        /// @param format The mime format for embedding. Use "c2pa" for an unformatted result.
-        /// @param asset Optional asset to hash according to the data_hash information.
-        /// @return A vector containing the signed embeddable data.
-        /// @throws C2paException for errors encountered by the C2PA library.
-        /// @deprecated Use set_data_hash_exclusions(), update_hash_from_stream(), then
-        ///             sign_embeddable(format); the signer comes from the Builder's Context.
-        ///             Will be removed when c2pa-c moves to c2pa-rs 0.92.0.
-        [[deprecated("Use set_data_hash_exclusions(), update_hash_from_stream(), then sign_embeddable(format); "
-                     "the signer comes from the Builder's Context. "
-                     "Will be removed when c2pa-c moves to c2pa-rs 0.92.0.")]]
-        std::vector<unsigned char> sign_data_hashed_embeddable(Signer &signer, const std::string &data_hash, const std::string &format, std::istream *asset = nullptr);
-
-        /// @brief Convert unformatted manifest data to an embeddable format.
-        /// @param format The format for embedding.
-        /// @param data Unformatted manifest data from sign_data_hashed_embeddable using "c2pa" format.
-        /// @return A formatted copy of the data.
-        /// @deprecated Use sign_embeddable(format), which returns manifest bytes already formatted
-        ///             for embedding. Will be removed when c2pa-c moves to c2pa-rs 0.92.0.
-        [[deprecated("Use sign_embeddable(format), which returns manifest bytes already formatted "
-                     "for embedding. Will be removed when c2pa-c moves to c2pa-rs 0.92.0.")]]
-        static std::vector<unsigned char> format_embeddable(const std::string &format, std::vector<unsigned char> &data);
 
         /// @brief Check if the given format requires a placeholder embedding step.
         /// @details Returns false for BoxHash-capable formats when prefer_box_hash is enabled in

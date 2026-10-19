@@ -96,14 +96,14 @@ The `prefer_box_hash` setting can be provided in a JSON settings file:
 Or set programmatically when building the Context:
 
 ```cpp
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_signer(std::move(signer))
     .with_json(R"({
         "builder": {
             "prefer_box_hash": true
         }
     })")
-    .create_context();
+    .create_context());
 ```
 
 -->
@@ -130,9 +130,9 @@ There are two ways to attach a signer to the `Context`:
 c2pa::Signer signer("Es256", certs, private_key, "http://timestamp.digicert.com");
 
 // Attach it to the Context via ContextBuilder
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_signer(std::move(signer))  // Signer is moved into the Context
-    .create_context();
+    .create_context());
 
 // The Builder now has access to the signer through its Context
 auto builder = c2pa::Builder(context, manifest_json);
@@ -161,13 +161,13 @@ Then load the settings into a `Context`:
 
 ```cpp
 // From a JSON settings file
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_json_settings_file("config/signer_settings.json")
-    .create_context();
+    .create_context());
 
 // Or from a Settings object loaded programmatically
 auto settings = c2pa::Settings(settings_json_string, "json");
-c2pa::Context context(settings);
+auto context = std::make_shared<c2pa::Context>(settings);
 ```
 
 ## API summary
@@ -191,9 +191,9 @@ These methods perform the signing workflow: placeholder creation, hashing, and s
 
 ### Deprecated methods
 
-The c2pa-rs 0.92.0 removes C FFI functions behind some `Builder` methods. These methods will be removed when c2pa-c moves to c2pa-rs 0.92.0.
+The `Builder` methods below called C functions that c2pa-rs 0.92.0 removes, and they are now removed from c2pa-c.
 
-| Deprecated method | Replacement |
+| Removed method | Replacement |
 |-------------------|-------------|
 | `data_hashed_placeholder(reserved_size, format)` | `needs_placeholder(format)`, then `placeholder(format)`. The reserve size comes from the signer on the Context. |
 | `sign_data_hashed_embeddable(signer, data_hash, format, asset)` | `set_data_hash_exclusions(exclusions)`, `update_hash_from_stream(format, stream)`, then `sign_embeddable(format)`. The signer comes from the Context. |
@@ -220,14 +220,14 @@ For this workflow, `prefer_box_hash` must be `false` (the default). If it was pr
 Or programmatically when building the Context:
 
 ```cpp
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_signer(std::move(signer))
     .with_json(R"({
         "builder": {
             "prefer_box_hash": false
         }
     })")
-    .create_context();
+    .create_context());
 ```
 
  -->
@@ -280,9 +280,9 @@ stateDiagram-v2
 #include "c2pa.hpp"
 
 // Set up signing infrastructure. The signer must be on the Context.
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_signer(c2pa::Signer("Es256", certs, private_key, "http://timestamp.digicert.com"))
-    .create_context();
+    .create_context());
 
 auto builder = c2pa::Builder(context, manifest_json);
 
@@ -372,9 +372,9 @@ stateDiagram-v2
 
 ```cpp
 // Set up context with signer.
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_signer(c2pa::Signer("Es256", certs, private_key, "http://timestamp.digicert.com"))
-    .create_context();
+    .create_context());
 
 auto builder = c2pa::Builder(context, manifest_json);
 
@@ -418,14 +418,14 @@ For BoxHash, `prefer_box_hash` must be enabled in Builder settings. This can be 
 Or programmatically when building the Context:
 
 ```cpp
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_signer(std::move(signer))
     .with_json(R"({
         "builder": {
             "prefer_box_hash": true
         }
     })")
-    .create_context();
+    .create_context());
 ```
 
 h3. Standard usage
@@ -434,14 +434,14 @@ With `prefer_box_hash` enabled, `Builder::sign()` handles the entire BoxHash wor
 
 ```cpp
 // Enable BoxHash via context settings.
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_signer(c2pa::Signer("Es256", certs, private_key, "http://timestamp.digicert.com"))
     .with_json(R"({
         "builder": {
             "prefer_box_hash": true
         }
     })")
-    .create_context();
+    .create_context());
 
 auto builder = c2pa::Builder(context, manifest_json);
 
@@ -487,14 +487,14 @@ h4. BoxHash embeddable example
 
 ```cpp
 // Enable BoxHash via context settings.
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_signer(c2pa::Signer("Es256", certs, private_key, "http://timestamp.digicert.com"))
     .with_json(R"({
         "builder": {
             "prefer_box_hash": true
         }
     })")
-    .create_context();
+    .create_context());
 
 auto builder = c2pa::Builder(context, manifest_json);
 

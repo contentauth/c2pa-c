@@ -140,18 +140,6 @@ namespace c2pa
         cpp_stream.reset();
     }
 
-    Reader::Reader(IContextProvider& context, const std::string &format, std::istream &stream)
-        : c2pa_reader(nullptr)
-    {
-        init_from_context(context, format, stream);
-    }
-
-    Reader::Reader(IContextProvider& context, const std::filesystem::path &source_path)
-        : c2pa_reader(nullptr)
-    {
-        init_from_context(context, source_path);
-    }
-
     Reader::Reader(std::shared_ptr<IContextProvider> context, const std::string &format, std::istream &stream)
         : c2pa_reader(nullptr)
     {
@@ -219,37 +207,6 @@ namespace c2pa
         return *this;
     }
 
-    Reader::Reader(const std::string &format, std::istream &stream)
-    {
-        const std::string normalized_format = detail::normalize_format(format);
-
-        cpp_stream = std::make_unique<CppIStream>(stream);
-        c2pa_reader = c2pa_reader_from_stream(normalized_format.c_str(), cpp_stream->c_stream);
-        if (c2pa_reader == nullptr)
-        {
-            throw C2paException();
-        }
-    }
-
-    Reader::Reader(const std::filesystem::path &source_path)
-    {
-        // Create owned stream that will live as long as the Reader
-        owned_stream = std::make_unique<std::ifstream>(source_path, std::ios::binary);
-        if (!owned_stream->is_open()) {
-            throw std::system_error(errno, std::system_category(), "Failed to open file: " + source_path.string());
-        }
-
-        std::string extension = detail::normalize_format(detail::extract_file_extension(source_path));
-
-        // CppIStream stores reference to owned_stream, which lives as long as Reader
-        cpp_stream = std::make_unique<CppIStream>(*owned_stream);
-        c2pa_reader = c2pa_reader_from_stream(extension.c_str(), cpp_stream->c_stream);
-        if (c2pa_reader == nullptr)
-        {
-            throw C2paException();
-        }
-    }
-
     Reader::~Reader()
     {
         c2pa_free(c2pa_reader);
@@ -314,22 +271,6 @@ namespace c2pa
       uintptr_t count = 0;
       auto ptr = c2pa_reader_supported_mime_types(&count);
       return detail::c_mime_types_to_vector(ptr, count);
-    }
-
-    std::optional<Reader> Reader::from_asset(IContextProvider& context, const std::filesystem::path& source_path) {
-        return reader_from_asset_impl([&]() {
-            Reader r;
-            r.init_from_context(context, source_path);
-            return r;
-        });
-    }
-
-    std::optional<Reader> Reader::from_asset(IContextProvider& context, const std::string& format, std::istream& stream) {
-        return reader_from_asset_impl([&]() {
-            Reader r;
-            r.init_from_context(context, format, stream);
-            return r;
-        });
     }
 
     std::optional<Reader> Reader::from_asset(std::shared_ptr<IContextProvider> context, const std::filesystem::path& source_path) {

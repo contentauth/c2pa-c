@@ -18,7 +18,7 @@
 #include "c2pa.hpp"
 #include <nlohmann/json.hpp>
 
-// this example uses nlohmann json for parsing the manifest
+// This example uses nlohmann json for parsing the manifest
 using json = nlohmann::json;
 using namespace std;
 namespace fs = std::filesystem;
@@ -68,11 +68,12 @@ int main()
         // create a signer
         Signer signer = Signer("Es256", certs, p_key, "http://timestamp.digicert.com");
 
-        auto builder = Builder(manifest_json);
+        auto context = std::make_shared<Context>();
+        auto builder = Builder(context, manifest_json);
         auto manifest_data = builder.sign(image_path, output_path, signer);
 
         // read the new manifest and display the JSON
-        auto reader = Reader(output_path);
+        auto reader = Reader(context, output_path);
 
         auto manifest_store_json = reader.json();
         cout << "The new manifest is " << manifest_store_json << endl;

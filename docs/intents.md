@@ -13,7 +13,7 @@ For example, without intents you have to manually wire up actions and make sure 
 ```cpp
 #include "c2pa.hpp"
 
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 c2pa::Builder builder(context, R"({
     "assertions": [
         {
@@ -37,7 +37,7 @@ But with intents, `Builder` generates the actions automatically; for example:
 ```cpp
 #include "c2pa.hpp"
 
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 c2pa::Builder builder(context, R"({})");
 builder.set_intent(Create, TrainedAlgorithmicMedia);
 builder.sign(source_path, output_path, signer);
@@ -52,14 +52,14 @@ You can set the intent on a `Builder` instance by:
 - [Using Context](#using-context)
 - [Using `set_intent` on the `Builder`](#using-set_intent-on-builder)
 
-Don't set intent using the deprecated `load_settings()` function. For existing code, see [Context and Settings - Migrating from deprecated APIs](context-settings.md#migrating-from-deprecated-apis).
+The `load_settings()` function that used to set intent through thread-local settings is removed. For existing code, see [Context and Settings - Migrating from deprecated APIs](context-settings.md#migrating-from-deprecated-apis).
 
 ### Using Context
 
 Pass the intent through a `Context` object when creating a `Builder`. This keeps intent configuration alongside other builder settings such as `claim_generator_info` and `thumbnail`.
 
 ```cpp
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
     "version": 1,
     "builder": {
         "intent": {"Create": "digitalCapture"},
@@ -74,7 +74,7 @@ builder.sign(source_path, output_path, signer);
 You can reuse the same `Context` across multiple `Builder` instances, ensuring consistent configuration:
 
 ```cpp
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
     "version": 1,
     "builder": {
         "intent": "edit",
@@ -93,7 +93,7 @@ for (const auto& path : image_paths) {
 Call `set_intent` directly on a `Builder` instance for one-off operations or when you determine the intent at runtime. For example:
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 c2pa::Builder builder(context, R"({})");
 builder.set_intent(Create, TrainedAlgorithmicMedia);
 builder.sign(source_path, output_path, signer);
@@ -112,11 +112,7 @@ flowchart TD
     Check --> |No| CheckCtx{Was a Context with
     builder.intent provided?}
     CheckCtx --> |Yes| UseCtx["Use Context intent"]
-    CheckCtx --> |No| CheckGlobal{Was load_settings called
-    with builder.intent?}
-    CheckGlobal --> |Yes| UseGlobal["Use global intent
-    (deprecated)"]
-    CheckGlobal --> |No| NoIntent["No intent set.
+    CheckCtx --> |No| NoIntent["No intent set.
     Caller must define actions
     manually in manifest JSON."]
 ```
@@ -171,8 +167,7 @@ The `Builder` intent controls what `Builder` does with the source stream (source
 ```mermaid
 flowchart TD
     Intent["Intent
-    (via Context, set_intent,
-    or load_settings)"] --> Q{Intent type?}
+    (via Context or set_intent)"] --> Q{Intent type?}
     Q --> |CREATE| CreateFlow["No parent allowed
     Source stream is new content"]
     Q --> |EDIT or UPDATE| EditFlow{Was a parentOf ingredient
@@ -287,7 +282,7 @@ Use the `Create` intent when the asset has no prior history. Specify a `C2paDigi
 Using `Context`:
 
 ```cpp
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
     "version": 1,
     "builder": {"intent": {"Create": "digitalCreation"}}
 })");
@@ -299,7 +294,7 @@ builder.sign(source_path, output_path, signer);
 Using `set_intent`:
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 c2pa::Builder builder(context, R"({})");
 builder.set_intent(Create, DigitalCreation);
 builder.sign(source_path, output_path, signer);
@@ -308,7 +303,7 @@ builder.sign(source_path, output_path, signer);
 ### Example: Marking AI-generated content
 
 ```cpp
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
     "version": 1,
     "builder": {"intent": {"Create": "trainedAlgorithmicMedia"}}
 })");
@@ -322,7 +317,7 @@ builder.sign(source_path, output_path, signer);
 A `Context` and a manifest definition can be combined. The `Context` handles the intent; the manifest definition provides additional metadata and assertions:
 
 ```cpp
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
     "version": 1,
     "builder": {
         "intent": {"Create": "digitalCapture"},
@@ -363,7 +358,7 @@ No `digital_source_type` parameter is needed.
 Using `Context`:
 
 ```cpp
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
     "version": 1,
     "builder": {"intent": "edit"}
 })");
@@ -377,7 +372,7 @@ builder.sign("original.jpg", "edited.jpg", signer);
 Using `set_intent`:
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 c2pa::Builder builder(context, R"({})");
 builder.set_intent(Edit);
 builder.sign("original.jpg", "edited.jpg", signer);
@@ -390,7 +385,7 @@ The resulting manifest contains one ingredient with `relationship: "parentOf"` p
 To control the parent ingredient's metadata (for example, to set a title or use a different source), add it explicitly:
 
 ```cpp
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
     "version": 1,
     "builder": {"intent": "edit"}
 })");
@@ -412,7 +407,7 @@ builder.sign("canvas.jpg", "edited.jpg", signer);
 A parent ingredient can be combined with component or input ingredients. The intent creates the `c2pa.opened` action for the parent; additional actions can reference components (`componentOf`) or inputs (`inputTo`):
 
 ```cpp
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
     "version": 1,
     "builder": {"intent": "edit"}
 })");
@@ -468,7 +463,7 @@ As with the `Edit` intent, `Builder` automatically creates a parent ingredient f
 Using `Context`:
 
 ```cpp
-c2pa::Context context(R"({
+auto context = std::make_shared<c2pa::Context>(R"({
     "version": 1,
     "builder": {"intent": "update"}
 })");
@@ -480,7 +475,7 @@ builder.sign("signed_asset.jpg", "updated_asset.jpg", signer);
 Using `set_intent`:
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 c2pa::Builder builder(context, R"({})");
 builder.set_intent(Update);
 builder.sign("signed_asset.jpg", "updated_asset.jpg", signer);

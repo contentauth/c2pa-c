@@ -37,7 +37,7 @@ The fundamental workflow is:
 Use `Reader` to extract the manifest store JSON and any binary resources (thumbnails, manifest data). The source asset is never modified.
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 c2pa::Reader reader(context, "image/jpeg", source_stream);
 
 // Get the full manifest store as JSON
@@ -79,7 +79,7 @@ When transferring ingredients from a `Reader` to a new `Builder`, you must trans
 ### Keep only specific ingredients
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 c2pa::Reader reader(context, "image/jpeg", source_stream);
 auto parsed = json::parse(reader.json());
 std::string active = parsed["active_manifest"];
@@ -229,7 +229,7 @@ The SDK matches each value in `ingredientIds` against ingredients using this pri
 The `label` field on an ingredient is the **primary** linking key. Set a `label` on the ingredient and reference it in the action's `ingredientIds`. The label can be any string: it acts as a linking key between the ingredient and the action.
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 
 auto manifest_json = R"(
 {
@@ -334,7 +334,7 @@ builder.sign(source_path, output_path, signer);
 When no `label` is set on an ingredient, the SDK matches `ingredientIds` against `instance_id`.
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 
 // instance_id is used as the linking identifier and must be unique
 std::string instance_id = "xmp:iid:939a4c48-0dff-44ec-8f95-61f52b11618f";
@@ -488,9 +488,9 @@ Producer side, build the catalog:
 
 ```cpp
 auto settings = c2pa::Settings();
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_settings(std::move(settings))
-    .create_context();
+    .create_context());
 
 auto catalog_builder = c2pa::Builder(context, manifest_json);
 catalog_builder.add_ingredient(
@@ -564,7 +564,7 @@ Use this approach when the catalog already exists as a single `.c2pa` builder ar
 
 ```cpp
 // Read from a catalog of archived ingredients
-c2pa::Context archive_ctx;  // Add settings if needed, e.g. verify options
+auto archive_ctx = std::make_shared<c2pa::Context>();  // Add settings if needed, e.g. verify options
 
 // Open one archive from the catalog
 archive_stream.seekg(0);
@@ -617,9 +617,9 @@ Producer side:
 
 ```cpp
 auto settings = c2pa::Settings();
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_settings(std::move(settings))
-    .create_context();
+    .create_context());
 
 auto catalog_builder = c2pa::Builder(context, manifest_json);
 catalog_builder.add_ingredient(
@@ -666,9 +666,9 @@ With the dedicated single-ingredient API, `instance_id` also serves as the looku
 ```cpp
 // Producer: register ingredient with instance_id, write its archive.
 auto settings = c2pa::Settings();
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_settings(std::move(settings))
-    .create_context();
+    .create_context());
 
 auto builder = c2pa::Builder(context, manifest_str);
 builder.add_ingredient(
@@ -809,9 +809,9 @@ The producer registers each ingredient keyed by `instance_id`, writes one archiv
 
 ```cpp
 auto settings = c2pa::Settings();
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_settings(std::move(settings))
-    .create_context();
+    .create_context());
 
 // Producer: register two ingredients keyed by instance_id, archive each separately.
 auto producer = c2pa::Builder(context, manifest_json);
@@ -862,7 +862,7 @@ flowchart TD
 **Step 1:** Build a working store and archive it:
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 c2pa::Builder builder(context, manifest_json);
 
 // Add ingredients to the working store
@@ -1029,7 +1029,7 @@ Labels are build-time linking keys only. An action and an ingredient that share 
 Build a manifest whose action references a chosen label, then `add_ingredient` with that label on the signing builder. No `Reader`, no parsing of the archive:
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 
 json manifest_json = {
     {"claim_generator_info", json::array({{{"name", "an-application"}, {"version", "1.0"}}})},
@@ -1120,9 +1120,9 @@ Producer side:
 
 ```cpp
 auto settings = c2pa::Settings();
-auto context = c2pa::Context::ContextBuilder()
+auto context = std::make_shared<c2pa::Context>(c2pa::Context::ContextBuilder()
     .with_settings(std::move(settings))
-    .create_context();
+    .create_context());
 
 auto archive_builder = c2pa::Builder(context, manifest_json);
 archive_builder.add_ingredient(
@@ -1653,7 +1653,7 @@ The `c2pa.actions.v2` assertion stores actions. Use `Reader` to extract them fro
 ### Reading actions
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 c2pa::Reader reader(context, "image/jpeg", source_stream);
 auto parsed = json::parse(reader.json());
 std::string active = parsed["active_manifest"];
@@ -1770,7 +1770,7 @@ flowchart TD
 When filtering, remember that the first action must remain `c2pa.created` or `c2pa.opened` for the manifest to be valid. If the first action is removed, a new one must be added.
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 c2pa::Reader reader(context, "image/jpeg", source_stream);
 auto parsed = json::parse(reader.json());
 std::string active = parsed["active_manifest"];
@@ -1834,7 +1834,7 @@ The `c2pa.placed` action references a `componentOf` ingredient that was composit
 The code below provides an example of filtering with linked ingredients.
 
 ```cpp
-c2pa::Context context;
+auto context = std::make_shared<c2pa::Context>();
 c2pa::Reader reader(context, "image/jpeg", source_stream);
 auto parsed = json::parse(reader.json());
 std::string active = parsed["active_manifest"];

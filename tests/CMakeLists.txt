@@ -119,9 +119,6 @@ target_include_directories(c2pa_c_tests PRIVATE
     ${nlohmann_json_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
-if(NOT MSVC)
-    target_compile_options(c2pa_c_tests PRIVATE -Wno-deprecated-declarations)
-endif()
 if(MSVC)
     target_compile_options(c2pa_c_tests PRIVATE /wd4996)
 endif()
@@ -182,9 +179,6 @@ if(WIN32)
 else()
     # On Unix systems, link directly to the shared library
     target_link_libraries(ctest PRIVATE "${C2PA_C_LIB}")
-endif()
-if(NOT MSVC)
-    target_compile_options(ctest PRIVATE -Wno-deprecated-declarations)
 endif()
 target_include_directories(ctest PRIVATE
     "${C2PA_PREBUILT_INCLUDE_DIR}"

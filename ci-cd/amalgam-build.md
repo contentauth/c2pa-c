@@ -147,7 +147,7 @@ After `make release`, the build directory contains:
 | `c2pa_c_tests` | `build/release/tests/` | C++ GoogleTest executable |
 | `ctest` | `build/release/tests/` | Pure C test executable |
 | `training` | `build/release/examples/` | Training-mining signing example |
-| `demo` | `build/release/examples/` | Deprecated-API demo |
+| `demo` | `build/release/examples/` | Sign-and-read demo |
 
 The shared library `libc2pa_c` is copied into each executable's directory at build time.
 RPATH is set to `@executable_path` (macOS) or `$ORIGIN` (Linux) so executables find
