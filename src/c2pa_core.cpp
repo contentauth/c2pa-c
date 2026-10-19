@@ -53,7 +53,7 @@ namespace c2pa
     /// @param data the std::string to load.
     /// @param format the mime format of the string.
     /// @throws a C2pa::C2paException for errors encountered by the C2PA library.
-    [[deprecated("Use Settings on Builder and Reader instead")]]
+    [[deprecated("Use Context(json), Context(settings), or Context::ContextBuilder instead. Will be removed when c2pa-c moves to c2pa-rs 0.92.0.")]]
     void load_settings(const std::string &data, const std::string &format)
     {
         auto result = c2pa_load_settings(data.c_str(), format.c_str());
