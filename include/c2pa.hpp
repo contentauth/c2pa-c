@@ -538,7 +538,9 @@ namespace c2pa
     /// @param format The mimetype of the string.
     /// @throws C2paException for errors encountered by the C2PA library.
     /// @deprecated Use Context constructors or Context::ContextBuilder instead for better thread safety.
-    [[deprecated("Use Context::from_json() or Context::from_settings() instead")]]
+    ///             Will be removed when c2pa-c moves to c2pa-rs 0.92.0.
+    [[deprecated("Use Context(json), Context(settings), or Context::ContextBuilder instead. "
+                 "Will be removed when c2pa-c moves to c2pa-rs 0.92.0.")]]
     void C2PA_CPP_API load_settings(const std::string& data, const std::string& format);
 
     /// @defgroup StreamWrappers Stream wrappers for C2PA C API
@@ -852,16 +854,20 @@ namespace c2pa
         /// @param format The mime format of the stream.
         /// @param stream The input stream to read from.
         /// @throws C2paException for errors encountered by the C2PA library.
-        /// @deprecated Use Reader(IContextProvider& context, format, stream) instead.
-        [[deprecated("Use Reader(IContextProvider& context, format, stream) instead")]]
+        /// @deprecated Use Reader(std::shared_ptr<IContextProvider>, format, stream) instead.
+        ///             Will be removed when c2pa-c moves to c2pa-rs 0.92.0.
+        [[deprecated("Use Reader(std::shared_ptr<IContextProvider>, format, stream) instead. "
+                     "Will be removed when c2pa-c moves to c2pa-rs 0.92.0.")]]
         Reader(const std::string &format, std::istream &stream);
 
         /// @brief Create a Reader from a file path (will use global settings if any loaded).
         /// @param source_path The path to the file to read.
         /// @throws C2paException for errors encountered by the C2PA library.
-        /// @deprecated Use Reader(IContextProvider& context, source_path) instead.
+        /// @deprecated Use Reader(std::shared_ptr<IContextProvider>, source_path) instead.
+        ///             Will be removed when c2pa-c moves to c2pa-rs 0.92.0.
         /// @note Prefer using the streaming APIs if possible.
-        [[deprecated("Use Reader(IContextProvider& context, source_path) instead")]]
+        [[deprecated("Use Reader(std::shared_ptr<IContextProvider>, source_path) instead. "
+                     "Will be removed when c2pa-c moves to c2pa-rs 0.92.0.")]]
         Reader(const std::filesystem::path &source_path);
 
         /// @brief Try to open a Reader from a context and file path when the asset may lack C2PA data.
@@ -1175,8 +1181,10 @@ namespace c2pa
         /// @brief Create a Builder from a manifest JSON string (will use global settings if any loaded).
         /// @param manifest_json The manifest JSON string.
         /// @throws C2paException for errors encountered by the C2PA library.
-        /// @deprecated Use Builder(IContextProvider& context, manifest_json) instead.
-        [[deprecated("Use Builder(IContextProvider& context, manifest_json) instead")]]
+        /// @deprecated Use Builder(std::shared_ptr<IContextProvider>, manifest_json) instead.
+        ///             Will be removed when c2pa-c moves to c2pa-rs 0.92.0.
+        [[deprecated("Use Builder(std::shared_ptr<IContextProvider>, manifest_json) instead. "
+                     "Will be removed when c2pa-c moves to c2pa-rs 0.92.0.")]]
         Builder(const std::string &manifest_json);
 
         /// @brief Create a Builder from a raw C FFI builder.
@@ -1373,6 +1381,10 @@ namespace c2pa
         /// @param format The mime format or extension of the asset.
         /// @return A vector containing the hashed placeholder bytes.
         /// @throws C2paException for errors encountered by the C2PA library.
+        /// @deprecated Use needs_placeholder() and placeholder(format), with the signer configured
+        ///             on the Builder's Context. Will be removed when c2pa-c moves to c2pa-rs 0.92.0.
+        [[deprecated("Use needs_placeholder() and placeholder(format), with the signer configured "
+                     "on the Builder's Context. Will be removed when c2pa-c moves to c2pa-rs 0.92.0.")]]
         std::vector<unsigned char> data_hashed_placeholder(uintptr_t reserved_size, const std::string &format);
 
         /// @brief Sign a Builder using the specified signer and data hash.
@@ -1382,12 +1394,22 @@ namespace c2pa
         /// @param asset Optional asset to hash according to the data_hash information.
         /// @return A vector containing the signed embeddable data.
         /// @throws C2paException for errors encountered by the C2PA library.
+        /// @deprecated Use set_data_hash_exclusions(), update_hash_from_stream(), then
+        ///             sign_embeddable(format); the signer comes from the Builder's Context.
+        ///             Will be removed when c2pa-c moves to c2pa-rs 0.92.0.
+        [[deprecated("Use set_data_hash_exclusions(), update_hash_from_stream(), then sign_embeddable(format); "
+                     "the signer comes from the Builder's Context. "
+                     "Will be removed when c2pa-c moves to c2pa-rs 0.92.0.")]]
         std::vector<unsigned char> sign_data_hashed_embeddable(Signer &signer, const std::string &data_hash, const std::string &format, std::istream *asset = nullptr);
 
         /// @brief Convert unformatted manifest data to an embeddable format.
         /// @param format The format for embedding.
         /// @param data Unformatted manifest data from sign_data_hashed_embeddable using "c2pa" format.
         /// @return A formatted copy of the data.
+        /// @deprecated Use sign_embeddable(format), which returns manifest bytes already formatted
+        ///             for embedding. Will be removed when c2pa-c moves to c2pa-rs 0.92.0.
+        [[deprecated("Use sign_embeddable(format), which returns manifest bytes already formatted "
+                     "for embedding. Will be removed when c2pa-c moves to c2pa-rs 0.92.0.")]]
         static std::vector<unsigned char> format_embeddable(const std::string &format, std::vector<unsigned char> &data);
 
         /// @brief Check if the given format requires a placeholder embedding step.
